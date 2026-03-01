@@ -34,6 +34,67 @@ export async function sendChat(
   return res.json();
 }
 
+export async function sendChatStream(
+  userId: string,
+  messages: ChatMessage[],
+  onChunk: (accumulated: string) => void,
+): Promise<{ transits_used: string }> {
+  const res = await fetch(`${BASE}/chat/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId, messages }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Backend error ${res.status}: ${err}`);
+  }
+
+  if (!res.body) throw new Error("No response body");
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let accumulated = "";
+  let transitsUsed = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || !trimmed.startsWith("data: ")) continue;
+
+      try {
+        const data = JSON.parse(trimmed.slice(6)) as {
+          content?: string;
+          done?: boolean;
+          transits_used?: string;
+          error?: string;
+        };
+
+        if (data.error) throw new Error(data.error);
+
+        if (data.done) {
+          transitsUsed = data.transits_used ?? "";
+        } else if (data.content) {
+          accumulated += data.content;
+          onChunk(accumulated);
+        }
+      } catch (e) {
+        if (e instanceof Error && e.message !== "") throw e;
+      }
+    }
+  }
+
+  return { transits_used: transitsUsed };
+}
+
 export async function getChatHistory(
   userId: string,
 ): Promise<{ messages: Array<{ role: string; content: string; created_at: string }> }> {

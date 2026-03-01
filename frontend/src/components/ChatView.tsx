@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { ReportRenderer } from "./ReportRenderer";
-import { sendChat, getChatHistory } from "../api";
+import { sendChat, sendChatStream, getChatHistory } from "../api";
 import type { ChatMessage, LocalUser } from "../types";
 
 const QUICK_ACTIONS = [
@@ -40,9 +40,11 @@ export function ChatView({ user }: Props) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, loading]);
 
+  const [streaming, setStreaming] = useState(false);
+
   const sendMessage = async (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed || loading) return;
+    if (!trimmed || loading || streaming) return;
 
     setErrorMsg(null);
     setInput("");
@@ -52,13 +54,36 @@ export function ChatView({ user }: Props) {
     setLoading(true);
 
     try {
-      const data = await sendChat(user.id, updated);
-      setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setErrorMsg(msg);
-    } finally {
+      // Add empty assistant placeholder
+      const withPlaceholder: ChatMessage[] = [...updated, { role: "assistant", content: "" }];
+      setMessages(withPlaceholder);
+      setStreaming(true);
       setLoading(false);
+
+      await sendChatStream(user.id, updated, (accumulated) => {
+        setMessages((prev) => {
+          const copy = [...prev];
+          copy[copy.length - 1] = { role: "assistant", content: accumulated };
+          return copy;
+        });
+      });
+
+      setStreaming(false);
+    } catch (e) {
+      setStreaming(false);
+      const msg = e instanceof Error ? e.message : String(e);
+      // If streaming failed before any content, try non-streaming fallback
+      setMessages(updated); // Remove empty placeholder
+      setLoading(true);
+      try {
+        const data = await sendChat(user.id, updated);
+        setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
+      } catch (e2) {
+        const msg2 = e2 instanceof Error ? e2.message : String(e2);
+        setErrorMsg(msg || msg2);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -257,17 +282,17 @@ export function ChatView({ user }: Props) {
           />
           <button
             onClick={() => sendMessage(input)}
-            disabled={loading || !input.trim()}
+            disabled={loading || streaming || !input.trim()}
             aria-label="Enviar"
             style={{
               width: "40px",
               height: "40px",
               borderRadius: "50%",
               flexShrink: 0,
-              background: loading || !input.trim() ? "transparent" : "var(--color-primary-dim)",
+              background: loading || streaming || !input.trim() ? "transparent" : "var(--color-primary-dim)",
               border: "none",
-              cursor: loading || !input.trim() ? "default" : "pointer",
-              color: loading || !input.trim() ? "var(--text-faint)" : "var(--text-main)",
+              cursor: loading || streaming || !input.trim() ? "default" : "pointer",
+              color: loading || streaming || !input.trim() ? "var(--text-faint)" : "var(--text-main)",
               fontSize: "18px",
               transition: "all 0.3s ease",
               display: "flex",

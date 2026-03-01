@@ -196,3 +196,71 @@ export async function runAstralAgent(
   const systemPrompt = buildSystemPrompt(profile, transits);
   return callOpenAI(messages, systemPrompt, openaiKey);
 }
+
+// ─── Streaming agent function ────────────────────────────────────────────────
+
+export async function* runAstralAgentStream(
+  profile: UserProfile,
+  transits: WeeklyTransits,
+  messages: ChatMessage[],
+  openaiKey: string,
+): AsyncGenerator<string> {
+  const systemPrompt = buildSystemPrompt(profile, transits);
+
+  const response = await fetch(OPENAI_API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${openaiKey}`,
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: 4096,
+      stream: true,
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...messages.map(m => ({ role: m.role, content: m.content })),
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`OpenAI API error ${response.status}: ${body}`);
+  }
+
+  if (!response.body) {
+    throw new Error("OpenAI response has no body");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    // Keep the last incomplete line in the buffer
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || !trimmed.startsWith("data: ")) continue;
+      const payload = trimmed.slice(6);
+      if (payload === "[DONE]") return;
+
+      try {
+        const parsed = JSON.parse(payload) as {
+          choices: Array<{ delta: { content?: string } }>;
+        };
+        const content = parsed.choices[0]?.delta?.content;
+        if (content) yield content;
+      } catch {
+        // Skip malformed JSON lines
+      }
+    }
+  }
+}
