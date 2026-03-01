@@ -1,5 +1,26 @@
 node_modules/
 dist/
+build/
+
+# Databases
 *.db
+*.db-shm
+*.db-wal
+
+# Environment
 .env
+.env.local
+
+# Screenshots & test files
+*.png
+*.jpg
+*.jpeg
+dummy.txt
+
+# IDE & tools
+.playwright-mcp/
+.claude/
+AGENTS.md
+
+# OS
 .DS_Store
