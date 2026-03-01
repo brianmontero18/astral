@@ -1,0 +1,48 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npm install *)",
+      "Bash(npm uninstall *)",
+      "Bash(npm ls *)",
+      "Bash(npm ci *)",
+      "Bash(npx *)",
+      "Bash(node *)",
+      "Bash(nvm *)",
+      "Bash(git status*)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push*)",
+      "Bash(git pull*)",
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(git branch*)",
+      "Bash(git checkout*)",
+      "Bash(git switch*)",
+      "Bash(git remote*)",
+      "Bash(git stash*)",
+      "Bash(git rm *)",
+      "Bash(git config --global credential*)",
+      "Bash(curl *)",
+      "Bash(timeout *)",
+      "Bash(lsof *)",
+      "Bash(sleep *)",
+      "Bash(docker build*)",
+      "Bash(docker run*)",
+      "Bash(docker ps*)",
+      "Bash(docker logs*)",
+      "Bash(docker-compose *)",
+      "WebSearch",
+      "mcp__playwright__*"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean -f*)",
+      "Bash(rm -rf /*)",
+      "Bash(*sudo *)",
+      "Bash(*> /etc/*)",
+      "Bash(*passwd*)"
+    ]
+  }
+}

@@ -19,7 +19,7 @@ dummy.txt
 
 # IDE & tools
 .playwright-mcp/
-.claude/
+**/.claude/settings.local.json
 AGENTS.md
 
 # OS
