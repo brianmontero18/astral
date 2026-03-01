@@ -2,7 +2,7 @@
  * Utils
  *
  * - parseReport: parsea la respuesta del LLM en secciones por emoji.
- * - stripMarkdown: limpia asteriscos y formato residual del LLM.
+ *   Preserva párrafos (líneas vacías) y formato inline.
  */
 
 // ─── Section config ───────────────────────────────────────────────────────────
@@ -18,19 +18,6 @@ export const SECTION_META: Record<string, { label: string; color: string }> = {
 
 export const SECTION_EMOJIS = Object.keys(SECTION_META);
 
-// ─── Strip markdown ───────────────────────────────────────────────────────────
-
-export function stripMarkdown(text: string): string {
-  return text
-    .replace(/\*\*(.+?)\*\*/gs, "$1")
-    .replace(/\*(.+?)\*/gs, "$1")
-    .replace(/__(.+?)__/gs, "$1")
-    .replace(/_(.+?)_/gs, "$1")
-    .replace(/^#{1,6}\s+/gm, "")
-    .replace(/^[-–—]{3,}\s*$/gm, "")
-    .trim();
-}
-
 // ─── Report parser ────────────────────────────────────────────────────────────
 
 export interface ReportSection {
@@ -39,30 +26,37 @@ export interface ReportSection {
 }
 
 export function parseReport(rawText: string): ReportSection[] {
-  const text = stripMarkdown(rawText);
   const sections: ReportSection[] = [];
-  let current: ReportSection | null = null;
+  let currentIcon: string | null = null;
+  let bodyLines: string[] = [];
 
-  for (const raw of text.split("\n")) {
-    const line = raw.trim();
-    if (!line) continue;
+  function flush() {
+    const body = bodyLines.join("\n").trim();
+    if (body || currentIcon !== null) {
+      sections.push({ icon: currentIcon, body });
+    }
+    bodyLines = [];
+  }
 
-    const icon = SECTION_EMOJIS.find((e) => line.includes(e));
+  for (const raw of rawText.split("\n")) {
+    const trimmed = raw.trim();
+    const icon = SECTION_EMOJIS.find(e => trimmed.includes(e));
 
     if (icon) {
-      if (current) sections.push(current);
-      current = { icon, body: "" };
-    } else if (current) {
-      current.body += (current.body ? " " : "") + line;
+      flush();
+      currentIcon = icon;
+      // Extract any body text on the header line after emoji + label
+      let rest = trimmed.replace(icon, "").trim();
+      // Strip ALL-CAPS header label (e.g., "PANORAMA GENERAL")
+      rest = rest.replace(/^[A-ZÁÉÍÓÚÑÜ&\s]{3,}(?=\s|$|[:\-–—])/, "").trim();
+      rest = rest.replace(/^[:\-–—]\s*/, "").trim();
+      if (rest) bodyLines.push(rest);
     } else {
-      // texto antes de la primera sección
-      if (!sections.length || sections[0].icon !== null) {
-        sections.unshift({ icon: null, body: "" });
-      }
-      sections[0].body += (sections[0].body ? " " : "") + line;
+      // Keep empty lines — they become paragraph breaks
+      bodyLines.push(trimmed);
     }
   }
 
-  if (current) sections.push(current);
+  flush();
   return sections;
 }
