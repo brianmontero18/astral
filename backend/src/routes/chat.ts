@@ -24,7 +24,7 @@ export async function chatRoutes(app: FastifyInstance) {
     let profile: UserProfile;
 
     if (userId) {
-      const user = getUser(userId);
+      const user = await getUser(userId);
       if (!user) {
         return reply.status(404).send({ error: "User not found" });
       }
@@ -43,9 +43,9 @@ export async function chatRoutes(app: FastifyInstance) {
       if (userId) {
         const lastUserMsg = messages[messages.length - 1];
         if (lastUserMsg) {
-          saveChatMessage(userId, lastUserMsg.role, lastUserMsg.content);
+          await saveChatMessage(userId, lastUserMsg.role, lastUserMsg.content);
         }
-        saveChatMessage(userId, "assistant", replyText);
+        await saveChatMessage(userId, "assistant", replyText);
       }
 
       return reply.send({ reply: replyText, transits_used: transits.fetchedAt });
@@ -67,7 +67,7 @@ export async function chatRoutes(app: FastifyInstance) {
     let profile: UserProfile;
 
     if (userId) {
-      const user = getUser(userId);
+      const user = await getUser(userId);
       if (!user) {
         return reply.status(404).send({ error: "User not found" });
       }
@@ -100,9 +100,9 @@ export async function chatRoutes(app: FastifyInstance) {
       if (userId && fullText) {
         const lastUserMsg = messages[messages.length - 1];
         if (lastUserMsg) {
-          saveChatMessage(userId, lastUserMsg.role, lastUserMsg.content);
+          await saveChatMessage(userId, lastUserMsg.role, lastUserMsg.content);
         }
-        saveChatMessage(userId, "assistant", fullText);
+        await saveChatMessage(userId, "assistant", fullText);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -116,11 +116,11 @@ export async function chatRoutes(app: FastifyInstance) {
   // Get chat history for a user
   app.get<{ Params: { userId: string } }>("/users/:userId/messages", async (req, reply) => {
     const { userId } = req.params;
-    const user = getUser(userId);
+    const user = await getUser(userId);
     if (!user) {
       return reply.status(404).send({ error: "User not found" });
     }
-    const messages = getChatMessages(userId);
+    const messages = await getChatMessages(userId);
     return reply.send({ messages });
   });
 }

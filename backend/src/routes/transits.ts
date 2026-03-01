@@ -17,10 +17,10 @@ export async function transitRoutes(app: FastifyInstance) {
 
 export async function getTransitsCached(): Promise<WeeklyTransits> {
   const weekKey = getISOWeekKey();
-  const cached = getCachedTransits(weekKey);
+  const cached = await getCachedTransits(weekKey);
   if (cached) return cached as WeeklyTransits;
 
   const fresh = await fetchWeeklyTransits();
-  setCachedTransits(weekKey, fresh);
+  await setCachedTransits(weekKey, fresh);
   return fresh;
 }

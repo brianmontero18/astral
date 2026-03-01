@@ -7,12 +7,12 @@ export async function userRoutes(app: FastifyInstance) {
     if (!name || !profile) {
       return reply.status(400).send({ error: "Missing name or profile" });
     }
-    const id = createUser(name, profile);
+    const id = await createUser(name, profile);
     return reply.status(201).send({ id });
   });
 
   app.get<{ Params: { id: string } }>("/users/:id", async (req, reply) => {
-    const user = getUser(req.params.id);
+    const user = await getUser(req.params.id);
     if (!user) {
       return reply.status(404).send({ error: "User not found" });
     }
@@ -26,7 +26,7 @@ export async function userRoutes(app: FastifyInstance) {
       if (!name || !profile) {
         return reply.status(400).send({ error: "Missing name or profile" });
       }
-      const updated = updateUser(req.params.id, name, profile);
+      const updated = await updateUser(req.params.id, name, profile);
       if (!updated) {
         return reply.status(404).send({ error: "User not found" });
       }
@@ -35,7 +35,7 @@ export async function userRoutes(app: FastifyInstance) {
   );
 
   app.delete<{ Params: { id: string } }>("/users/:id", async (req, reply) => {
-    const deleted = deleteUser(req.params.id);
+    const deleted = await deleteUser(req.params.id);
     if (!deleted) {
       return reply.status(404).send({ error: "User not found" });
     }

@@ -81,7 +81,7 @@ if (IS_PROD) {
 
 try {
   assertEnv();
-  initDb();
+  await initDb();
   await app.listen({ port: PORT, host: "0.0.0.0" });
   app.log.info(`Astral backend running on port ${PORT}`);
 } catch (err) {

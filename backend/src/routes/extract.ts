@@ -12,16 +12,17 @@ export async function extractRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "Missing assetIds" });
     }
 
-    const assets = assetIds.map((id) => {
-      const asset = getAsset(id);
+    const assets = [];
+    for (const id of assetIds) {
+      const asset = await getAsset(id);
       if (!asset) throw new Error(`Asset not found: ${id}`);
-      return {
+      assets.push({
         mimeType: asset.mime_type,
         data: asset.data,
         filename: asset.filename,
         fileType: asset.file_type, // "natal" | "hd" — now passed to extraction
-      };
-    });
+      });
+    }
 
     try {
       const profile = await extractProfileFromAssets(assets, OPENAI_KEY);

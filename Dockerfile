@@ -1,9 +1,8 @@
 FROM node:20-alpine
-RUN apk add --no-cache python3 make g++
 
 WORKDIR /app
 
-# Backend deps (includes native better-sqlite3 build)
+# Backend deps
 COPY backend/package*.json backend/
 RUN cd backend && npm ci --omit=dev
 

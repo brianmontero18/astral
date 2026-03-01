@@ -17,7 +17,7 @@ export async function assetRoutes(app: FastifyInstance) {
     async (req, reply) => {
       const { userId } = req.params;
 
-      const user = getUser(userId);
+      const user = await getUser(userId);
       if (!user) {
         return reply.status(404).send({ error: "User not found" });
       }
@@ -41,7 +41,7 @@ export async function assetRoutes(app: FastifyInstance) {
 
       const fileType = (data.fields.fileType as { value?: string } | undefined)?.value ?? "natal";
 
-      const id = createAsset(userId, data.filename, data.mimetype, fileType, buffer);
+      const id = await createAsset(userId, data.filename, data.mimetype, fileType, buffer);
 
       return reply.status(201).send({
         id,
@@ -58,11 +58,11 @@ export async function assetRoutes(app: FastifyInstance) {
     "/users/:userId/assets",
     async (req, reply) => {
       const { userId } = req.params;
-      const user = getUser(userId);
+      const user = await getUser(userId);
       if (!user) {
         return reply.status(404).send({ error: "User not found" });
       }
-      const raw = getUserAssets(userId);
+      const raw = await getUserAssets(userId);
       const assets = raw.map((a) => ({
         id: a.id,
         filename: a.filename,
@@ -77,7 +77,7 @@ export async function assetRoutes(app: FastifyInstance) {
 
   // Download asset
   app.get<{ Params: { id: string } }>("/assets/:id", async (req, reply) => {
-    const asset = getAsset(req.params.id);
+    const asset = await getAsset(req.params.id);
     if (!asset) {
       return reply.status(404).send({ error: "Asset not found" });
     }
@@ -89,7 +89,7 @@ export async function assetRoutes(app: FastifyInstance) {
 
   // Delete asset
   app.delete<{ Params: { id: string } }>("/assets/:id", async (req, reply) => {
-    const deleted = deleteAsset(req.params.id);
+    const deleted = await deleteAsset(req.params.id);
     if (!deleted) {
       return reply.status(404).send({ error: "Asset not found" });
     }
