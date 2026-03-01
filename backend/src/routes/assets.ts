@@ -62,7 +62,15 @@ export async function assetRoutes(app: FastifyInstance) {
       if (!user) {
         return reply.status(404).send({ error: "User not found" });
       }
-      const assets = getUserAssets(userId);
+      const raw = getUserAssets(userId);
+      const assets = raw.map((a) => ({
+        id: a.id,
+        filename: a.filename,
+        mimeType: a.mime_type,
+        fileType: a.file_type,
+        sizeBytes: a.size_bytes,
+        createdAt: a.created_at,
+      }));
       return reply.send({ assets });
     },
   );

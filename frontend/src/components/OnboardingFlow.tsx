@@ -122,30 +122,53 @@ export function OnboardingFlow({ onComplete }: Props) {
       >
         {/* Step: Welcome */}
         {step === "welcome" && (
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>✦</div>
-            <h1 style={{ color: "#e8e0ff", fontSize: 28, marginBottom: 8, fontFamily: "Georgia, serif" }}>
+          <div style={{ textAlign: "center" }} className="animate-fade-in">
+            <div style={{ 
+              width: 80, height: 80, margin: "0 auto 32px",
+              background: "radial-gradient(circle at 30% 30%, #D4AF37, #C5A059, transparent)",
+              borderRadius: "50%",
+              boxShadow: "0 0 30px rgba(212,175,55,0.2)",
+              animation: "spin 20s linear infinite",
+            }} />
+            <h1 style={{ 
+              color: "var(--text-main)", 
+              fontSize: "42px", 
+              marginBottom: "16px", 
+              fontFamily: "var(--font-serif)",
+              fontWeight: 400,
+              letterSpacing: "0.05em"
+            }}>
               Astral Guide
             </h1>
-            <p style={{ color: "#7c6fcd", fontSize: 14, lineHeight: 1.7, marginBottom: 32 }}>
-              Tu guía personal de astrología y Diseño Humano.
+            <p style={{ 
+              color: "var(--text-muted)", 
+              fontSize: "15px", 
+              lineHeight: 1.8, 
+              marginBottom: "48px",
+              fontWeight: 300
+            }}>
+              Tu brújula astrológica y de Diseño Humano.
               <br />
-              Reportes semanales basados en tránsitos reales
-              <br />
-              cruzados con tu carta natal y diseño.
+              Sincroniza tus tránsitos reales con tu esencia.
             </p>
-            <button onClick={() => setStep("name")} style={btnPrimary}>
-              Comenzar
+            <button onClick={() => setStep("name")} className="btn-primary" style={{width: "100%"}}>
+              DESCUBRIR MI CARTA
             </button>
           </div>
         )}
 
         {/* Step: Name */}
         {step === "name" && (
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>👋</div>
-            <h2 style={{ color: "#e8e0ff", fontSize: 22, marginBottom: 24, fontFamily: "Georgia, serif" }}>
-              ¿Cómo te llamás?
+          <div style={{ textAlign: "center" }} className="animate-fade-in">
+            <div style={{ color: "var(--color-primary)", fontSize: "24px", marginBottom: "24px" }}>✦</div>
+            <h2 style={{ 
+              color: "var(--text-main)", 
+              fontSize: "28px", 
+              marginBottom: "40px", 
+              fontFamily: "var(--font-serif)",
+              fontWeight: 400
+            }}>
+              ¿Cómo debemos llamarte?
             </h2>
             <input
               value={name}
@@ -156,63 +179,69 @@ export function OnboardingFlow({ onComplete }: Props) {
               style={{
                 width: "100%",
                 boxSizing: "border-box",
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(124,111,205,0.4)",
-                borderRadius: 12,
-                padding: "14px 18px",
-                color: "#e8e0ff",
-                fontSize: 16,
-                fontFamily: "Georgia, serif",
+                background: "transparent",
+                border: "none",
+                borderBottom: "1px solid var(--glass-border)",
+                padding: "16px 0",
+                color: "var(--color-primary)",
+                fontSize: "24px",
+                fontFamily: "var(--font-serif)",
+                textAlign: "center",
                 outline: "none",
-                marginBottom: 20,
+                marginBottom: "48px",
+                transition: "border-color 0.3s ease"
               }}
+              onFocus={(e) => e.target.style.borderBottom = "1px solid var(--color-primary-dim)"}
+              onBlur={(e) => e.target.style.borderBottom = "1px solid var(--glass-border)"}
             />
             <button
               onClick={() => setStep("upload")}
               disabled={!name.trim()}
-              style={{ ...btnPrimary, opacity: name.trim() ? 1 : 0.4 }}
+              className="btn-primary"
+              style={{ width: "100%" }}
             >
-              Continuar
+              CONTINUAR
             </button>
           </div>
         )}
 
         {/* Step: Upload */}
         {step === "upload" && (
-          <div>
-            <h2 style={{ color: "#e8e0ff", fontSize: 20, marginBottom: 8, textAlign: "center", fontFamily: "Georgia, serif" }}>
-              Subí tus cartas
+          <div className="animate-fade-in">
+            <h2 style={{ color: "var(--text-main)", fontSize: "26px", marginBottom: "12px", textAlign: "center", fontFamily: "var(--font-serif)", fontWeight: 400 }}>
+              Sincroniza tu energía
             </h2>
-            <p style={{ color: "#7c6fcd", fontSize: 12, textAlign: "center", marginBottom: 24 }}>
-              Al menos una es requerida. Aceptamos PDF, PNG, JPG o TXT.
+            <p style={{ color: "var(--text-muted)", fontSize: "14px", textAlign: "center", marginBottom: "32px", fontWeight: 300 }}>
+              Sube tus gráficos para sintonizar el reporte a tu esencia actual.<br/>
+              Aceptamos PDF, PNG o JPG resueltos. Al menos uno es requerido.
             </p>
 
             {error && (
-              <div style={{
-                background: "rgba(201,107,122,0.12)",
-                border: "1px solid rgba(201,107,122,0.35)",
-                borderRadius: 10, padding: "10px 14px",
-                color: "#f0a0b0", fontSize: 13, marginBottom: 16,
+              <div className="glass-panel" style={{
+                borderColor: "rgba(201,107,122,0.3)", padding: "14px 18px",
+                color: "#f0a0b0", fontSize: "13px", marginBottom: "24px", textAlign: "center"
               }}>
                 {error}
               </div>
             )}
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 24 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px", marginBottom: "40px" }}>
               {slots.map((slot, idx) => (
                 <div
                   key={slot.type}
                   onClick={() => (idx === 0 ? natalRef : hdRef).current?.click()}
+                  className={slot.file ? "glass-panel-gold" : "glass-panel"}
                   style={{
-                    border: slot.file
-                      ? "2px solid rgba(107,186,138,0.5)"
-                      : "2px dashed rgba(124,111,205,0.4)",
-                    borderRadius: 14,
-                    padding: "24px 18px",
+                    padding: "32px 24px",
                     textAlign: "center",
                     cursor: "pointer",
-                    background: slot.file ? "rgba(107,186,138,0.08)" : "rgba(124,111,205,0.06)",
-                    transition: "all 0.2s",
+                    transition: "all 0.3s ease",
+                  }}
+                  onMouseOver={(e) => { 
+                    if (!slot.file) e.currentTarget.style.borderColor = "var(--color-primary-dim)"; 
+                  }}
+                  onMouseOut={(e) => { 
+                    if (!slot.file) e.currentTarget.style.borderColor = "var(--glass-border)"; 
                   }}
                 >
                   <input
@@ -222,14 +251,25 @@ export function OnboardingFlow({ onComplete }: Props) {
                     style={{ display: "none" }}
                     onChange={(e) => handleFileChange(idx as 0 | 1, e.target.files?.[0] ?? null)}
                   />
-                  <div style={{ fontSize: 22, marginBottom: 6 }}>
-                    {slot.file ? "✓" : idx === 0 ? "🔭" : "⚡"}
+                  <div style={{ 
+                    fontSize: "24px", 
+                    marginBottom: "16px",
+                    color: slot.file ? "var(--color-primary)" : "var(--text-muted)",
+                    opacity: slot.file ? 1 : 0.5
+                  }}>
+                    {slot.file ? "✦" : idx === 0 ? "✧" : "⚝"}
                   </div>
-                  <div style={{ color: "#e8e0ff", fontSize: 14, fontWeight: 600 }}>
+                  <div style={{ 
+                    color: slot.file ? "var(--text-gold)" : "var(--text-main)", 
+                    fontSize: "14px", 
+                    fontWeight: 500,
+                    letterSpacing: "0.05em",
+                    textTransform: "uppercase" 
+                  }}>
                     {slot.label}
                   </div>
-                  <div style={{ color: "#7c6fcd", fontSize: 11, marginTop: 4 }}>
-                    {slot.file ? slot.file.name : "Click para seleccionar archivo"}
+                  <div style={{ color: "var(--text-faint)", fontSize: "12px", marginTop: "8px" }}>
+                    {slot.file ? slot.file.name : "Tap para transferir archivo"}
                   </div>
                 </div>
               ))}
@@ -238,57 +278,57 @@ export function OnboardingFlow({ onComplete }: Props) {
             <button
               onClick={handleExtract}
               disabled={!hasAtLeastOneFile}
-              style={{ ...btnPrimary, opacity: hasAtLeastOneFile ? 1 : 0.4 }}
+              className="btn-primary"
+              style={{ width: "100%" }}
             >
-              Analizar cartas
+              CANALIZAR ENERGÍA
             </button>
           </div>
         )}
 
         {/* Step: Extracting */}
         {step === "extracting" && (
-          <div style={{ textAlign: "center" }}>
+          <div style={{ textAlign: "center" }} className="animate-fade-in-slow">
             <div
               style={{
-                width: 50,
-                height: 50,
+                width: 60,
+                height: 60,
                 borderRadius: "50%",
-                border: "3px solid rgba(124,111,205,0.3)",
-                borderTopColor: "#7c6fcd",
-                animation: "spin 1s linear infinite",
-                margin: "0 auto 24px",
+                border: "2px solid var(--color-primary-faint)",
+                borderTopColor: "var(--color-primary)",
+                borderRightColor: "var(--color-primary-dim)",
+                animation: "spin 1.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite",
+                margin: "0 auto 32px",
               }}
             />
-            <h2 style={{ color: "#e8e0ff", fontSize: 20, marginBottom: 8, fontFamily: "Georgia, serif" }}>
-              Analizando tu carta...
+            <h2 style={{ color: "var(--text-main)", fontSize: "24px", marginBottom: "12px", fontFamily: "var(--font-serif)" }}>
+              Descifrando tu código estelar...
             </h2>
-            <p style={{ color: "#7c6fcd", fontSize: 13 }}>
-              Esto puede tardar unos segundos
+            <p style={{ color: "var(--text-muted)", fontSize: "14px", fontWeight: 300 }}>
+              Nuestra IA está leyendo tus mapas en profundidad.
             </p>
           </div>
         )}
 
         {/* Step: Review */}
         {step === "review" && extractedProfile && (
-          <div>
-            <h2 style={{ color: "#e8e0ff", fontSize: 20, marginBottom: 16, textAlign: "center", fontFamily: "Georgia, serif" }}>
-              Tu perfil extraído
+          <div className="animate-fade-in">
+            <h2 style={{ color: "var(--text-main)", fontSize: "26px", marginBottom: "32px", textAlign: "center", fontFamily: "var(--font-serif)", fontWeight: 400 }}>
+              Tu Identidad Cósmica
             </h2>
 
             <div
+              className="glass-panel"
               style={{
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(124,111,205,0.3)",
-                borderRadius: 14,
-                padding: 18,
-                marginBottom: 20,
-                maxHeight: 360,
+                padding: "24px",
+                marginBottom: "32px",
+                maxHeight: "45vh",
                 overflowY: "auto",
               }}
             >
               <ProfileField label="Nombre" value={extractedProfile.name} />
               {extractedProfile.birthData?.date && (
-                <ProfileField label="Nacimiento" value={`${extractedProfile.birthData.date}, ${extractedProfile.birthData.time || ""} — ${extractedProfile.birthData.location || ""}`} />
+                <ProfileField label="Encarnación" value={`${extractedProfile.birthData.date}, ${extractedProfile.birthData.time || ""} — ${extractedProfile.birthData.location || ""}`} />
               )}
               <ProfileField label="Tipo HD" value={extractedProfile.humanDesign.type} />
               <ProfileField label="Estrategia" value={extractedProfile.humanDesign.strategy} />
@@ -296,19 +336,15 @@ export function OnboardingFlow({ onComplete }: Props) {
               <ProfileField label="Perfil" value={extractedProfile.humanDesign.profile} />
               <ProfileField label="Definición" value={extractedProfile.humanDesign.definition} />
               <ProfileField label="Cruz" value={extractedProfile.humanDesign.incarnationCross} />
-              <ProfileField label="No-Self" value={extractedProfile.humanDesign.notSelfTheme} />
               {extractedProfile.humanDesign.digestion && (
                 <ProfileField label="Digestión" value={extractedProfile.humanDesign.digestion} />
-              )}
-              {extractedProfile.humanDesign.environment && (
-                <ProfileField label="Ambiente" value={extractedProfile.humanDesign.environment} />
               )}
               <ProfileField label="Ascendente" value={extractedProfile.natal.ascendant} />
               <ProfileField
                 label="Sol"
                 value={
                   extractedProfile.natal.planets[0]
-                    ? `${extractedProfile.natal.planets[0].sign}, Casa ${extractedProfile.natal.planets[0].house}`
+                    ? `${extractedProfile.natal.planets[0].sign} (C${extractedProfile.natal.planets[0].house})`
                     : "—"
                 }
               />
@@ -316,7 +352,7 @@ export function OnboardingFlow({ onComplete }: Props) {
                 label="Luna"
                 value={
                   extractedProfile.natal.planets[1]
-                    ? `${extractedProfile.natal.planets[1].sign}, Casa ${extractedProfile.natal.planets[1].house}`
+                    ? `${extractedProfile.natal.planets[1].sign} (C${extractedProfile.natal.planets[1].house})`
                     : "—"
                 }
               />
@@ -324,18 +360,14 @@ export function OnboardingFlow({ onComplete }: Props) {
                 label="Canales"
                 value={extractedProfile.humanDesign.channels.map((c) => c.name).join(", ") || "—"}
               />
-              <ProfileField
-                label="Centros definidos"
-                value={extractedProfile.humanDesign.definedCenters.join(", ") || "—"}
-              />
             </div>
 
-            <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={handleRetry} style={btnSecondary}>
-                Reintentar
+            <div style={{ display: "flex", gap: "16px" }}>
+              <button onClick={handleRetry} className="btn-secondary" style={{ flex: 1 }}>
+                REVERTIR
               </button>
-              <button onClick={handleConfirm} style={{ ...btnPrimary, flex: 1 }}>
-                Confirmar y continuar
+              <button onClick={handleConfirm} className="btn-primary" style={{ flex: 2 }}>
+                EMBARCAR
               </button>
             </div>
           </div>
@@ -347,33 +379,14 @@ export function OnboardingFlow({ onComplete }: Props) {
 
 function ProfileField({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ marginBottom: 8, display: "flex", gap: 8 }}>
-      <span style={{ color: "#7c6fcd", fontSize: 11, flexShrink: 0, width: 110 }}>{label}:</span>
-      <span style={{ color: "#d4cef0", fontSize: 11 }}>{value || "—"}</span>
+    <div style={{ 
+      display: "flex", 
+      justifyContent: "space-between",
+      padding: "10px 0",
+      borderBottom: "1px solid rgba(255,255,255,0.03)"
+    }}>
+      <span style={{ color: "var(--text-faint)", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.1em" }}>{label}</span>
+      <span style={{ color: "var(--text-main)", fontSize: "14px", fontFamily: "var(--font-serif)" }}>{value || "—"}</span>
     </div>
   );
 }
-
-const btnPrimary: React.CSSProperties = {
-  width: "100%",
-  background: "linear-gradient(135deg, #7c6fcd, #5a4fa0)",
-  border: "none",
-  color: "#fff",
-  padding: "14px 24px",
-  borderRadius: 12,
-  cursor: "pointer",
-  fontSize: 15,
-  fontFamily: "Georgia, serif",
-  fontWeight: 600,
-};
-
-const btnSecondary: React.CSSProperties = {
-  background: "transparent",
-  border: "1px solid rgba(124,111,205,0.4)",
-  color: "#b0a4e8",
-  padding: "14px 20px",
-  borderRadius: 12,
-  cursor: "pointer",
-  fontSize: 14,
-  fontFamily: "Georgia, serif",
-};

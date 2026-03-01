@@ -36,7 +36,8 @@ export function ChatView({ user }: Props) {
   }, [user.id]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = bottomRef.current?.parentElement;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [messages, loading]);
 
   const sendMessage = async (text: string) => {
@@ -71,7 +72,7 @@ export function ChatView({ user }: Props) {
   if (!historyLoaded) return null;
 
   return (
-    <>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
       {/* Chat messages */}
       <main
         style={{
@@ -88,28 +89,32 @@ export function ChatView({ user }: Props) {
         }}
       >
         {messages.length === 0 && (
-          <div style={{ textAlign: "center", marginTop: 48, animation: "fadeIn 0.6s ease" }}>
-            <div style={{ fontSize: 38, marginBottom: 12 }}>✦</div>
-            <div style={{ color: "#e8e0ff", fontSize: 20, marginBottom: 6, fontStyle: "italic" }}>
+          <div style={{ textAlign: "center", marginTop: 48 }} className="animate-fade-in-slow">
+            <div style={{ color: "var(--color-primary)", fontSize: "38px", marginBottom: "16px" }}>✦</div>
+            <div style={{ color: "var(--text-main)", fontSize: "20px", marginBottom: "8px", fontFamily: "var(--font-serif)", fontWeight: 400 }}>
               Hola, {user.name}
             </div>
-            <div style={{ color: "#7c6fcd", fontSize: 13, marginBottom: 28 }}>
-              Tu carta natal y diseño humano están cargados
+            <div style={{ color: "var(--text-muted)", fontSize: "13px", marginBottom: "32px", fontWeight: 300 }}>
+              Tu carta cósmica está entrelazada en la matriz.
             </div>
-            <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
               {QUICK_ACTIONS.map((q) => (
                 <button
                   key={q}
                   onClick={() => sendMessage(q)}
                   style={{
-                    background: "rgba(124,111,205,0.12)",
-                    border: "1px solid rgba(124,111,205,0.35)",
-                    color: "#c0b4f0",
-                    padding: "9px 14px",
-                    borderRadius: 20,
+                    background: "var(--glass-bg)",
+                    border: "1px solid var(--glass-border)",
+                    color: "var(--text-muted)",
+                    padding: "10px 18px",
+                    borderRadius: "20px",
                     cursor: "pointer",
-                    fontSize: 13,
+                    fontSize: "12px",
+                    transition: "all 0.3s ease",
+                    fontFamily: "var(--font-sans)"
                   }}
+                  onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--color-primary-dim)"; e.currentTarget.style.color = "var(--text-main)" }}
+                  onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--glass-border)"; e.currentTarget.style.color = "var(--text-muted)" }}
                 >
                   {q}
                 </button>
@@ -124,28 +129,39 @@ export function ChatView({ user }: Props) {
             style={{
               display: "flex",
               justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
-              animation: "fadeIn 0.3s ease",
             }}
+            className="animate-fade-in"
           >
             {msg.role === "user" ? (
               <div
                 style={{
-                  background: "rgba(124,111,205,0.25)",
-                  border: "1px solid rgba(124,111,205,0.4)",
-                  borderRadius: "16px 16px 4px 16px",
-                  padding: "10px 14px",
-                  color: "#e8e0ff",
-                  fontSize: 14,
+                  background: "var(--glass-bg)",
+                  border: "1px solid var(--glass-border)",
+                  borderRadius: "20px 20px 4px 20px",
+                  padding: "12px 18px",
+                  color: "var(--text-main)",
+                  fontSize: "15px",
+                  fontWeight: 300,
                   maxWidth: "80%",
                   lineHeight: 1.6,
+                  fontFamily: "var(--font-sans)",
                 }}
               >
                 {msg.content}
               </div>
             ) : (
               <div style={{ maxWidth: "95%", width: "100%" }}>
-                <div style={{ color: "#7c6fcd", fontSize: 10, marginBottom: 8, letterSpacing: "0.1em" }}>
-                  ✦ ASTRAL GUIDE
+                <div style={{ 
+                  color: "var(--color-primary)", 
+                  fontSize: "10px", 
+                  marginBottom: "8px", 
+                  letterSpacing: "0.15em",
+                  fontWeight: 600,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px"
+                }}>
+                  <span>✦</span> ASTRAL GUIDE
                 </div>
                 <ReportRenderer text={msg.content} />
               </div>
@@ -154,20 +170,20 @@ export function ChatView({ user }: Props) {
         ))}
 
         {loading && (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, animation: "fadeIn 0.2s ease" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }} className="animate-fade-in">
             {[0, 1, 2].map((i) => (
               <div
                 key={i}
                 style={{
-                  width: 6,
-                  height: 6,
+                  width: "6px",
+                  height: "6px",
                   borderRadius: "50%",
-                  background: "#7c6fcd",
+                  background: "var(--color-primary-dim)",
                   animation: `pulse 1.2s ease infinite ${i * 0.2}s`,
                 }}
               />
             ))}
-            <span style={{ color: "#7c6fcd", fontSize: 12 }}>Consultando los astros...</span>
+            <span style={{ color: "var(--text-faint)", fontSize: "12px", letterSpacing: "0.05em" }}>Canalizando estrellas...</span>
           </div>
         )}
 
@@ -193,10 +209,11 @@ export function ChatView({ user }: Props) {
       {/* Input */}
       <footer
         style={{
-          padding: "12px 16px",
-          borderTop: "1px solid rgba(124,111,205,0.2)",
-          backdropFilter: "blur(10px)",
-          background: "rgba(13,8,32,0.75)",
+          padding: "16px 24px",
+          borderTop: "1px solid var(--glass-border)",
+          background: "rgba(10, 9, 16, 0.6)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
           zIndex: 10,
           flexShrink: 0,
         }}
@@ -204,32 +221,37 @@ export function ChatView({ user }: Props) {
         <div
           style={{
             display: "flex",
-            gap: 10,
+            gap: "12px",
             maxWidth: 760,
             margin: "0 auto",
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(124,111,205,0.35)",
-            borderRadius: 14,
-            padding: "10px 14px",
-            alignItems: "flex-end",
+            background: "var(--glass-bg)",
+            border: "1px solid var(--glass-border)",
+            borderRadius: "24px",
+            padding: "8px 16px",
+            alignItems: "center",
+            transition: "border-color 0.3s ease",
           }}
+          onFocus={(e) => e.currentTarget.style.border = "1px solid var(--color-primary-dim)"}
+          onBlur={(e) => e.currentTarget.style.border = "1px solid var(--glass-border)"}
         >
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKey}
-            placeholder="Preguntá sobre tu semana, tus tránsitos, tu energía..."
+            placeholder="Preguntá al oráculo sobre tu semana..."
             rows={1}
             style={{
               flex: 1,
               background: "transparent",
               border: "none",
-              color: "#e8e0ff",
-              fontSize: 14,
-              fontFamily: "Georgia, serif",
+              color: "var(--text-main)",
+              fontSize: "15px",
+              fontWeight: 300,
+              fontFamily: "var(--font-sans)",
               resize: "none",
               lineHeight: 1.5,
-              paddingTop: 2,
+              paddingTop: "6px",
+              paddingBottom: "6px",
               outline: "none",
             }}
           />
@@ -238,16 +260,16 @@ export function ChatView({ user }: Props) {
             disabled={loading || !input.trim()}
             aria-label="Enviar"
             style={{
-              width: 34,
-              height: 34,
+              width: "40px",
+              height: "40px",
               borderRadius: "50%",
               flexShrink: 0,
-              background: loading || !input.trim() ? "rgba(124,111,205,0.2)" : "#7c6fcd",
+              background: loading || !input.trim() ? "transparent" : "var(--color-primary-dim)",
               border: "none",
               cursor: loading || !input.trim() ? "default" : "pointer",
-              color: "#fff",
-              fontSize: 15,
-              transition: "background 0.2s",
+              color: loading || !input.trim() ? "var(--text-faint)" : "var(--text-main)",
+              fontSize: "18px",
+              transition: "all 0.3s ease",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -257,6 +279,6 @@ export function ChatView({ user }: Props) {
           </button>
         </div>
       </footer>
-    </>
+    </div>
   );
 }

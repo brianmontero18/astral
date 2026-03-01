@@ -7,15 +7,15 @@ import { AssetViewer } from "./components/AssetViewer";
 import { getUser } from "./api";
 import type { LocalUser, UserProfile } from "./types";
 
-// ─── Stars — generadas una sola vez ──────────────────────────────────────────
+// ─── Dust Particles — (replacing old stars) ──────────────────────────────────
 
-const STARS = Array.from({ length: 55 }, () => ({
+const PARTICLES = Array.from({ length: 45 }, () => ({
   x: Math.random() * 100,
   y: Math.random() * 100,
-  sz: Math.random() * 1.8 + 0.4,
-  op: Math.random() * 0.5 + 0.15,
-  del: Math.random() * 4,
-  dur: 2.5 + Math.random() * 3,
+  sz: Math.random() * 1.5 + 0.5,
+  op: Math.random() * 0.3 + 0.05,
+  del: Math.random() * 5,
+  dur: 4 + Math.random() * 6,
 }));
 
 type View = "onboarding" | "chat" | "transits" | "assets";
@@ -60,45 +60,41 @@ export default function App() {
     setCurrentView("chat");
   };
 
+  const handleReset = () => {
+    localStorage.removeItem("astral_user");
+    setUser(null);
+    setProfile(null);
+    setCurrentView("onboarding");
+  };
+
   if (!ready) return null;
 
   return (
     <div
       style={{
-        minHeight: "100vh",
-        background: "radial-gradient(ellipse at 20% 10%, #1a1035 0%, #0d0820 50%, #060412 100%)",
-        fontFamily: "Georgia, serif",
+        height: "100vh",
+        background: "var(--bg-gradient)",
         display: "flex",
         flexDirection: "column",
         position: "relative",
         overflow: "hidden",
       }}
+      className="animate-fade-in-slow"
     >
-      <style>{`
-        @keyframes twinkle {
-          0%, 100% { opacity: var(--op); }
-          50%       { opacity: calc(var(--op) * 0.2); }
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(6px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50%       { opacity: 0.3; }
-        }
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to   { transform: rotate(360deg); }
-        }
-        textarea { outline: none !important; }
-        ::-webkit-scrollbar { width: 3px; }
-        ::-webkit-scrollbar-thumb { background: #4a3a7a; border-radius: 4px; }
-        button:hover { opacity: 0.85; }
-      `}</style>
+      {/* Mystical Background Orbs */}
+      <div style={{
+        position: "absolute", top: "-10%", left: "-10%", width: "40vw", height: "40vw",
+        background: "radial-gradient(circle, rgba(157,139,223,0.03) 0%, transparent 70%)",
+        pointerEvents: "none", zIndex: 0
+      }} />
+      <div style={{
+        position: "absolute", bottom: "-20%", right: "-10%", width: "50vw", height: "50vw",
+        background: "radial-gradient(circle, rgba(212,175,55,0.03) 0%, transparent 70%)",
+        pointerEvents: "none", zIndex: 0
+      }} />
 
-      {/* Stars */}
-      {STARS.map((s, i) => (
+      {/* Floating Dust Particles */}
+      {PARTICLES.map((s, i) => (
         <div
           key={i}
           style={{
@@ -108,11 +104,11 @@ export default function App() {
             width: s.sz,
             height: s.sz,
             borderRadius: "50%",
-            background: "#fff",
-            ["--op" as string]: s.op,
+            background: "#C5A059",
             opacity: s.op,
             pointerEvents: "none",
-            animation: `twinkle ${s.dur}s ease-in-out infinite ${s.del}s`,
+            animation: `pulse ${s.dur}s ease-in-out infinite ${s.del}s`,
+            boxShadow: `0 0 ${s.sz * 2}px rgba(212,175,55,0.4)`,
           }}
         />
       ))}
@@ -124,18 +120,20 @@ export default function App() {
 
       {/* Main app (after onboarding) */}
       {currentView !== "onboarding" && user && profile && (
-        <>
+        <div style={{ position: "relative", zIndex: 10, flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
           <NavBar
-            currentView={currentView as "chat" | "transits" | "assets"}
+            currentView={currentView}
             onNavigate={setCurrentView}
             userName={user.name}
             profile={profile}
+            onReset={handleReset}
           />
-
-          {currentView === "chat" && <ChatView user={user} />}
-          {currentView === "transits" && <TransitViewer />}
-          {currentView === "assets" && <AssetViewer userId={user.id} />}
-        </>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
+            {currentView === "chat" && <ChatView user={user} />}
+            {currentView === "transits" && <TransitViewer profile={profile} />}
+            {currentView === "assets" && <AssetViewer userId={user.id} />}
+          </div>
+        </div>
       )}
     </div>
   );

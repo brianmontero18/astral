@@ -74,11 +74,20 @@ const HD_CHANNELS: Record<string, string> = {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
+let cachedTransits: WeeklyTransits | null = null;
+let currentWeekRange: string | null = null;
+
 export async function fetchWeeklyTransits(): Promise<WeeklyTransits> {
+  const now = new Date();
+  const weekRange = getWeekRange(now);
+
+  if (cachedTransits && currentWeekRange === weekRange) {
+    return cachedTransits;
+  }
+
   const swe = new SwissEph();
   await swe.initSwissEph();
 
-  const now = new Date();
   const jd = swe.julday(
     now.getUTCFullYear(),
     now.getUTCMonth() + 1,
@@ -150,12 +159,18 @@ export async function fetchWeeklyTransits(): Promise<WeeklyTransits> {
     }
   }
 
-  return {
+  const transits = {
     fetchedAt: now.toISOString(),
-    weekRange: getWeekRange(now),
+    weekRange,
     planets,
     activatedChannels,
   };
+
+  // Update in-memory cache
+  cachedTransits = transits;
+  currentWeekRange = weekRange;
+
+  return transits;
 }
 
 function getWeekRange(now: Date): string {

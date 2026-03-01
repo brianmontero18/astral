@@ -9,6 +9,7 @@ interface Props {
   onNavigate: (view: View) => void;
   userName: string;
   profile: UserProfile;
+  onReset: () => void;
 }
 
 const TABS: { key: View; label: string }[] = [
@@ -17,68 +18,110 @@ const TABS: { key: View; label: string }[] = [
   { key: "assets", label: "Mis Cartas" },
 ];
 
-export function NavBar({ currentView, onNavigate, userName, profile }: Props) {
+export function NavBar({ currentView, onNavigate, userName, profile, onReset }: Props) {
   const [showProfile, setShowProfile] = useState(false);
 
   return (
     <header
       style={{
-        padding: "14px 18px 0",
+        padding: "20px 24px 0",
         display: "flex",
         flexDirection: "column",
-        borderBottom: "1px solid rgba(124,111,205,0.2)",
-        backdropFilter: "blur(10px)",
-        background: "rgba(13,8,32,0.65)",
-        zIndex: 10,
+        borderBottom: "1px solid var(--glass-border)",
+        background: "rgba(10, 9, 16, 0.4)",
+        backdropFilter: "blur(24px)",
+        WebkitBackdropFilter: "blur(24px)",
         flexShrink: 0,
-        position: "relative",
       }}
     >
       {/* Top row */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <div
             style={{
-              width: 30,
-              height: 30,
+              width: 34,
+              height: 34,
               borderRadius: "50%",
               flexShrink: 0,
-              background: "conic-gradient(#7c6fcd, #c96b7a, #e8b84b, #6bba8a, #7c6fcd)",
-              animation: "spin 10s linear infinite",
+              background: "radial-gradient(circle at 30% 30%, #D4AF37, #C5A059, #1c153a)",
+              boxShadow: "0 0 15px rgba(212,175,55,0.2)",
+              animation: "spin 20s linear infinite",
             }}
           />
           <div>
-            <div style={{ color: "#e8e0ff", fontSize: 15, fontWeight: 700, letterSpacing: "0.02em" }}>
+            <div style={{ 
+              color: "var(--text-main)", 
+              fontSize: "18px", 
+              fontFamily: "var(--font-serif)",
+              fontWeight: 500, 
+              letterSpacing: "0.06em" 
+            }}>
               Astral Guide
             </div>
-            <div style={{ color: "#7c6fcd", fontSize: 9, letterSpacing: "0.1em" }}>
-              CARTA NATAL · DISEÑO HUMANO · TRÁNSITOS
+            <div style={{ 
+              color: "var(--color-primary)", 
+              fontSize: "9px", 
+              letterSpacing: "0.25em",
+              fontFamily: "var(--font-sans)",
+              fontWeight: 600,
+              opacity: 0.8
+            }}>
+              CARTA NATAL · DISEÑO HUMANO
             </div>
           </div>
         </div>
 
         <div style={{ position: "relative" }}>
-          <button
-            onClick={() => setShowProfile((v) => !v)}
-            style={{
-              background: "rgba(124,111,205,0.15)",
-              border: "1px solid rgba(124,111,205,0.4)",
-              color: "#b0a4e8",
-              padding: "5px 12px",
-              borderRadius: 20,
-              cursor: "pointer",
-              fontSize: 11,
-              letterSpacing: "0.04em",
-            }}
-          >
-            {userName} · {profile.humanDesign.type}
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <button
+              onClick={() => setShowProfile((v) => !v)}
+              style={{
+                background: "var(--color-primary-faint)",
+                border: "1px solid var(--glass-gold-border)",
+                color: "var(--text-gold)",
+                padding: "6px 14px",
+                borderRadius: 30,
+                cursor: "pointer",
+                fontSize: "11px",
+                fontFamily: "var(--font-sans)",
+                fontWeight: 500,
+                letterSpacing: "0.05em",
+                transition: "all 0.3s ease",
+              }}
+              onMouseOver={(e) => { e.currentTarget.style.background = "var(--color-primary-dim)" }}
+              onMouseOut={(e) => { e.currentTarget.style.background = "var(--color-primary-faint)" }}
+            >
+              {userName} <span style={{opacity: 0.5, margin: "0 6px"}}>|</span> {profile.humanDesign.type}
+            </button>
+            <button
+              onClick={onReset}
+              title="Desconectar y Empezar de Nuevo"
+              style={{
+                background: "transparent",
+                border: "1px solid rgba(201,107,122,0.3)",
+                color: "#f0a0b0",
+                padding: "6px 14px",
+                borderRadius: 30,
+                cursor: "pointer",
+                fontSize: "10px",
+                fontFamily: "var(--font-sans)",
+                fontWeight: 600,
+                letterSpacing: "0.05em",
+                textTransform: "uppercase",
+                transition: "all 0.3s ease",
+              }}
+              onMouseOver={(e) => { e.currentTarget.style.background = "rgba(201,107,122,0.1)" }}
+              onMouseOut={(e) => { e.currentTarget.style.background = "transparent" }}
+            >
+              Desconectar
+            </button>
+          </div>
           {showProfile && <ProfilePanel profile={profile} />}
         </div>
       </div>
 
       {/* Tab bar */}
-      <div style={{ display: "flex", gap: 0 }}>
+      <div style={{ display: "flex", gap: "24px", paddingLeft: "4px" }}>
         {TABS.map((tab) => (
           <button
             key={tab.key}
@@ -86,14 +129,16 @@ export function NavBar({ currentView, onNavigate, userName, profile }: Props) {
             style={{
               background: "transparent",
               border: "none",
-              borderBottom: currentView === tab.key ? "2px solid #7c6fcd" : "2px solid transparent",
-              color: currentView === tab.key ? "#e8e0ff" : "#7c6fcd",
-              padding: "8px 16px",
+              borderBottom: currentView === tab.key ? "1px solid var(--color-primary)" : "1px solid transparent",
+              color: currentView === tab.key ? "var(--text-main)" : "var(--text-muted)",
+              padding: "10px 4px",
               cursor: "pointer",
-              fontSize: 12,
-              letterSpacing: "0.05em",
-              fontFamily: "Georgia, serif",
-              transition: "all 0.2s",
+              fontSize: "12px",
+              fontWeight: currentView === tab.key ? 600 : 400,
+              letterSpacing: "0.15em",
+              fontFamily: "var(--font-sans)",
+              textTransform: "uppercase",
+              transition: "all 0.3s ease",
             }}
           >
             {tab.label}

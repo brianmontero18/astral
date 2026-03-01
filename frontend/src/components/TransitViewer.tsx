@@ -1,11 +1,30 @@
 import { useState, useEffect } from "react";
 import { fetchTransits } from "../api";
-import type { TransitsResponse, PlanetTransit } from "../types";
+import type { TransitsResponse, PlanetTransit, UserProfile } from "../types";
 
-export function TransitViewer() {
+// ─── Planetary glyphs ────────────────────────────────────────────────────────
+
+const PLANET_GLYPHS: Record<string, string> = {
+  Sol: "☉", Luna: "☽", Mercurio: "☿", Venus: "♀", Marte: "♂",
+  "Júpiter": "♃", Saturno: "♄", Urano: "♅", Neptuno: "♆",
+  "Plutón": "♇", "Quirón": "⚷", "Nodo Norte": "☊", "Nodo Sur": "☋",
+};
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
+interface Props {
+  profile: UserProfile;
+}
+
+export function TransitViewer({ profile }: Props) {
   const [data, setData] = useState<TransitsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Set of user's activated gate numbers for quick lookup
+  const userGates = new Set(
+    profile.humanDesign.activatedGates?.map((g) => g.number) ?? []
+  );
 
   useEffect(() => {
     fetchTransits()
@@ -16,14 +35,12 @@ export function TransitViewer() {
 
   if (loading) {
     return (
-      <div style={{ textAlign: "center", marginTop: 60, color: "#7c6fcd", fontSize: 13 }}>
+      <div style={{ textAlign: "center", marginTop: 60, color: "var(--color-primary)", fontSize: 13 }}>
         <div
           style={{
-            width: 36,
-            height: 36,
-            borderRadius: "50%",
-            border: "3px solid rgba(124,111,205,0.3)",
-            borderTopColor: "#7c6fcd",
+            width: 36, height: 36, borderRadius: "50%",
+            border: "3px solid var(--color-primary-faint)",
+            borderTopColor: "var(--color-primary)",
             animation: "spin 1s linear infinite",
             margin: "0 auto 16px",
           }}
@@ -35,13 +52,10 @@ export function TransitViewer() {
 
   if (error) {
     return (
-      <div style={{
-        margin: "40px auto", maxWidth: 600, padding: 20,
-        background: "rgba(201,107,122,0.12)",
-        border: "1px solid rgba(201,107,122,0.35)",
-        borderRadius: 12, color: "#f0a0b0", fontSize: 14, textAlign: "center",
-      }}>
-        Error cargando tránsitos: {error}
+      <div style={{ margin: "40px auto", maxWidth: 600, padding: "24px", textAlign: "center" }} className="glass-panel">
+        <div style={{ color: "#f0a0b0", fontSize: "14px", fontFamily: "var(--font-sans)" }}>
+          Error cargando tránsitos: {error}
+        </div>
       </div>
     );
   }
@@ -49,38 +63,55 @@ export function TransitViewer() {
   if (!data) return null;
 
   return (
-    <div style={{ maxWidth: 700, margin: "0 auto", padding: "24px 16px", overflowY: "auto", flex: 1 }}>
-      <h2 style={{ color: "#e8e0ff", fontSize: 20, marginBottom: 4, textAlign: "center", fontFamily: "Georgia, serif" }}>
+    <div style={{ maxWidth: 760, margin: "0 auto", padding: "28px 16px 20px", overflowY: "auto", flex: 1, width: "100%", boxSizing: "border-box" as const }} className="animate-fade-in-slow">
+      {/* Header */}
+      <h2 style={{
+        color: "var(--text-main)", fontSize: "22px", marginBottom: "6px",
+        textAlign: "center", fontFamily: "var(--font-serif)", fontWeight: 400,
+      }}>
         Tránsitos de la Semana
       </h2>
-      <p style={{ color: "#7c6fcd", fontSize: 12, textAlign: "center", marginBottom: 24 }}>
+      <p style={{
+        color: "var(--color-primary)", fontSize: "11px", textAlign: "center",
+        marginBottom: "24px", letterSpacing: "0.12em", fontFamily: "var(--font-sans)", opacity: 0.8,
+      }}>
         {data.weekRange}
       </p>
 
-      {/* Planet grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10, marginBottom: 24 }}>
+      {/* Planet grid — 2 columns */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(2, 1fr)",
+        gap: "12px",
+        marginBottom: "24px",
+      }}>
         {data.planets.map((p) => (
-          <PlanetCard key={p.name} planet={p} />
+          <PlanetCard key={p.name} planet={p} touchesUser={userGates.has(p.hdGate)} />
         ))}
       </div>
 
       {/* Activated channels */}
       {data.activatedChannels.length > 0 && (
-        <div style={{
-          background: "rgba(107,186,138,0.08)",
-          border: "1px solid rgba(107,186,138,0.3)",
-          borderRadius: 14, padding: 18, marginBottom: 20,
-        }}>
-          <div style={{ color: "#6bba8a", fontSize: 11, letterSpacing: "0.1em", marginBottom: 10, fontWeight: 700 }}>
+        <div className="glass-panel-gold" style={{ padding: "20px", marginBottom: "16px" }}>
+          <div style={{
+            color: "var(--color-primary)", fontSize: "10px", letterSpacing: "0.15em",
+            marginBottom: "6px", fontWeight: 600, textAlign: "center",
+          }}>
             CANALES ACTIVADOS POR TRÁNSITOS
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          <div style={{
+            color: "var(--text-muted)", fontSize: "11px", textAlign: "center",
+            marginBottom: "14px", fontFamily: "var(--font-sans)", fontWeight: 300,
+          }}>
+            Canales completados por las posiciones planetarias actuales
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", justifyContent: "center" }}>
             {data.activatedChannels.map((ch) => (
               <span key={ch} style={{
-                background: "rgba(107,186,138,0.15)",
-                border: "1px solid rgba(107,186,138,0.3)",
-                borderRadius: 20, padding: "5px 12px",
-                color: "#a8dfc0", fontSize: 12,
+                background: "var(--color-primary-faint)",
+                border: "1px solid var(--glass-gold-border)",
+                borderRadius: "20px", padding: "5px 14px",
+                color: "var(--text-gold)", fontSize: "12px",
               }}>
                 {ch}
               </span>
@@ -90,47 +121,98 @@ export function TransitViewer() {
       )}
 
       {data.activatedChannels.length === 0 && (
-        <p style={{ color: "#7c6fcd", fontSize: 12, textAlign: "center", fontStyle: "italic" }}>
+        <p style={{
+          color: "var(--text-muted)", fontSize: "13px", textAlign: "center",
+          fontStyle: "italic", fontFamily: "var(--font-serif)",
+        }}>
           No hay canales completos activados por tránsitos esta semana.
         </p>
       )}
 
-      <p style={{ color: "rgba(124,111,205,0.5)", fontSize: 10, textAlign: "center", marginTop: 20 }}>
-        Calculado el {new Date(data.fetchedAt).toLocaleString("es-AR")}
+      <p style={{ color: "var(--text-faint)", fontSize: "10px", textAlign: "center", marginTop: "20px" }}>
+        Última actualización: {new Date(data.fetchedAt).toLocaleString("es-AR")}
       </p>
     </div>
   );
 }
 
-function PlanetCard({ planet }: { planet: PlanetTransit }) {
+// ─── Planet Card ──────────────────────────────────────────────────────────────
+
+function PlanetCard({ planet, touchesUser }: { planet: PlanetTransit; touchesUser: boolean }) {
+  const glyph = PLANET_GLYPHS[planet.name] ?? "•";
+
   return (
     <div
+      className={touchesUser ? "glass-panel-gold" : "glass-panel"}
       style={{
-        background: "rgba(255,255,255,0.04)",
-        border: "1px solid rgba(124,111,205,0.25)",
-        borderRadius: 12,
-        padding: "12px 14px",
-        animation: "fadeIn 0.3s ease",
+        padding: "14px 16px",
+        transition: "all 0.3s ease",
+        display: "flex",
+        gap: "12px",
+        alignItems: "flex-start",
+        borderColor: touchesUser ? "rgba(212,175,55,0.3)" : undefined,
+      }}
+      onMouseOver={(e) => {
+        e.currentTarget.style.borderColor = touchesUser
+          ? "rgba(212,175,55,0.5)"
+          : "var(--color-primary-dim)";
+      }}
+      onMouseOut={(e) => {
+        e.currentTarget.style.borderColor = touchesUser
+          ? "rgba(212,175,55,0.3)"
+          : "var(--glass-border)";
       }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-        <span style={{ color: "#e8e0ff", fontSize: 13, fontWeight: 700 }}>{planet.name}</span>
-        {planet.isRetrograde && (
-          <span style={{
-            background: "rgba(232,184,75,0.15)",
-            border: "1px solid rgba(232,184,75,0.3)",
-            borderRadius: 10, padding: "2px 8px",
-            color: "#e8b84b", fontSize: 9, letterSpacing: "0.05em",
-          }}>
-            R
+      {/* Glyph */}
+      <div style={{
+        fontSize: "24px",
+        lineHeight: 1,
+        color: touchesUser ? "var(--color-primary)" : "var(--color-accent)",
+        flexShrink: 0,
+        width: "28px",
+        textAlign: "center",
+        paddingTop: "2px",
+      }}>
+        {glyph}
+      </div>
+
+      {/* Info */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+          <span style={{ color: "var(--text-main)", fontSize: "13px", fontWeight: 500 }}>
+            {planet.name}
           </span>
+          {planet.isRetrograde && (
+            <span style={{
+              background: "rgba(232,184,75,0.15)",
+              border: "1px solid rgba(232,184,75,0.3)",
+              borderRadius: "8px", padding: "1px 7px",
+              color: "#e8b84b", fontSize: "9px", fontWeight: 700, letterSpacing: "0.04em",
+            }}>
+              Rx
+            </span>
+          )}
+        </div>
+        <div style={{
+          color: "var(--text-muted)", fontSize: "12px", marginBottom: "3px",
+          fontFamily: "var(--font-serif)",
+        }}>
+          {planet.sign} {planet.degree}°
+        </div>
+        <div style={{
+          color: touchesUser ? "var(--color-primary)" : "var(--color-accent)",
+          fontSize: "10px", letterSpacing: "0.05em",
+        }}>
+          Puerta {planet.hdGate} · Línea {planet.hdLine}
+        </div>
+        {touchesUser && (
+          <div style={{
+            marginTop: "6px", fontSize: "9px", color: "var(--text-gold)",
+            letterSpacing: "0.08em", fontWeight: 600,
+          }}>
+            ✦ ACTIVA TU PUERTA {planet.hdGate}
+          </div>
         )}
-      </div>
-      <div style={{ color: "#c0b4f0", fontSize: 12, marginBottom: 4 }}>
-        {planet.sign} {planet.degree}°
-      </div>
-      <div style={{ color: "#7c6fcd", fontSize: 11 }}>
-        Puerta {planet.hdGate}.{planet.hdLine}
       </div>
     </div>
   );

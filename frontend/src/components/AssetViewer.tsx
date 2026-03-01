@@ -62,37 +62,37 @@ export function AssetViewer({ userId }: Props) {
 
   if (loading) {
     return (
-      <div style={{ textAlign: "center", marginTop: 60, color: "#7c6fcd", fontSize: 13 }}>
+      <div style={{ textAlign: "center", marginTop: 60 }} className="animate-fade-in-slow">
         <div style={{
           width: 36, height: 36, borderRadius: "50%",
-          border: "3px solid rgba(124,111,205,0.3)", borderTopColor: "#7c6fcd",
+          border: "3px solid var(--color-primary-faint)", borderTopColor: "var(--color-primary)",
           animation: "spin 1s linear infinite", margin: "0 auto 16px",
         }} />
-        Cargando cartas...
+        <span style={{ color: "var(--text-faint)", fontSize: "13px", letterSpacing: "0.05em" }}>Cargando códices...</span>
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: 600, margin: "0 auto", padding: "24px 16px", flex: 1, overflowY: "auto" }}>
-      <h2 style={{ color: "#e8e0ff", fontSize: 20, marginBottom: 8, textAlign: "center", fontFamily: "Georgia, serif" }}>
+    <div style={{ maxWidth: 760, margin: "0 auto", padding: "32px 16px", flex: 1, overflowY: "auto", width: "100%", boxSizing: "border-box" as const }} className="animate-fade-in-slow">
+      <h2 style={{ color: "var(--text-main)", fontSize: "24px", marginBottom: "8px", textAlign: "center", fontFamily: "var(--font-serif)", fontWeight: 400 }}>
         Mis Cartas
       </h2>
-      <p style={{ color: "#7c6fcd", fontSize: 12, textAlign: "center", marginBottom: 24 }}>
-        Archivos originales subidos para generar tu perfil
+      <p style={{ color: "var(--text-muted)", fontSize: "14px", textAlign: "center", marginBottom: "32px", fontWeight: 300 }}>
+        Archivos originales sincronizados con tu perfil astral.
       </p>
 
       {error && (
-        <div style={{
-          background: "rgba(201,107,122,0.12)", border: "1px solid rgba(201,107,122,0.35)",
-          borderRadius: 10, padding: "10px 14px", color: "#f0a0b0", fontSize: 13, marginBottom: 16,
+        <div className="glass-panel" style={{
+          borderColor: "rgba(201,107,122,0.3)", padding: "12px 16px",
+          color: "#f0a0b0", fontSize: "13px", marginBottom: "24px", textAlign: "center"
         }}>
           {error}
         </div>
       )}
 
       {/* Upload button */}
-      <div style={{ textAlign: "center", marginBottom: 20 }}>
+      <div style={{ textAlign: "center", marginBottom: "32px" }}>
         <input
           ref={fileRef}
           type="file"
@@ -107,54 +107,51 @@ export function AssetViewer({ userId }: Props) {
         <button
           onClick={() => fileRef.current?.click()}
           disabled={uploading}
-          style={{
-            background: "rgba(124,111,205,0.15)",
-            border: "1px solid rgba(124,111,205,0.4)",
-            color: "#b0a4e8", padding: "10px 20px",
-            borderRadius: 12, cursor: "pointer", fontSize: 13,
-            fontFamily: "Georgia, serif",
-          }}
+          className="btn-secondary"
         >
-          {uploading ? "Subiendo..." : "Subir nueva carta"}
+          {uploading ? "SINCRONIZANDO..." : "AGREGAR NUEVA CARTA"}
         </button>
       </div>
 
       {/* Asset list */}
       {assets.length === 0 && (
-        <p style={{ color: "#7c6fcd", fontSize: 13, textAlign: "center", fontStyle: "italic" }}>
-          No hay archivos subidos.
+        <p style={{ color: "var(--text-faint)", fontSize: "14px", textAlign: "center", fontStyle: "italic", fontFamily: "var(--font-serif)" }}>
+          El vacío cósmico. No hay archivos subidos.
         </p>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
         {assets.map((asset) => (
           <div
             key={asset.id}
+            className="glass-panel"
             style={{
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(124,111,205,0.25)",
-              borderRadius: 12, padding: "14px 16px",
+              padding: "20px 24px",
               display: "flex", justifyContent: "space-between", alignItems: "center",
-              animation: "fadeIn 0.3s ease",
+              animation: "fadeIn 0.4s ease",
             }}
           >
             <div>
-              <div style={{ color: "#e8e0ff", fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
+              <div style={{ color: "var(--text-main)", fontSize: "15px", fontWeight: 500, marginBottom: "4px" }}>
                 {asset.filename}
               </div>
-              <div style={{ color: "#7c6fcd", fontSize: 11 }}>
+              <div style={{ color: "var(--text-muted)", fontSize: "12px", fontFamily: "var(--font-serif)" }}>
                 {fileTypeLabel(asset.fileType)} · {formatSize(asset.sizeBytes)} · {new Date(asset.createdAt).toLocaleDateString("es-AR")}
               </div>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: "8px" }}>
               <button
                 onClick={() => setPreviewAsset(asset)}
                 style={{
-                  background: "rgba(124,111,205,0.15)",
-                  border: "1px solid rgba(124,111,205,0.3)",
-                  color: "#b0a4e8", padding: "5px 12px",
-                  borderRadius: 8, cursor: "pointer", fontSize: 11,
+                  background: "transparent",
+                  border: "1px solid var(--glass-border)",
+                  color: "var(--text-main)", padding: "6px 14px",
+                  borderRadius: "20px", cursor: "pointer", fontSize: "11px",
+                  letterSpacing: "0.05em", textTransform: "uppercase",
+                  transition: "all 0.2s ease"
                 }}
+                onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--color-primary-dim)" }}
+                onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--glass-border)" }}
               >
                 Ver
               </button>
@@ -163,9 +160,13 @@ export function AssetViewer({ userId }: Props) {
                 style={{
                   background: "rgba(201,107,122,0.1)",
                   border: "1px solid rgba(201,107,122,0.3)",
-                  color: "#f0a0b0", padding: "5px 12px",
-                  borderRadius: 8, cursor: "pointer", fontSize: 11,
+                  color: "#f0a0b0", padding: "6px 14px",
+                  borderRadius: "20px", cursor: "pointer", fontSize: "11px",
+                  letterSpacing: "0.05em", textTransform: "uppercase",
+                  transition: "all 0.2s ease"
                 }}
+                onMouseOver={(e) => { e.currentTarget.style.background = "rgba(201,107,122,0.2)" }}
+                onMouseOut={(e) => { e.currentTarget.style.background = "rgba(201,107,122,0.1)" }}
               >
                 Eliminar
               </button>
@@ -180,31 +181,37 @@ export function AssetViewer({ userId }: Props) {
           onClick={() => setPreviewAsset(null)}
           style={{
             position: "fixed", inset: 0, zIndex: 1000,
-            background: "rgba(0,0,0,0.8)",
+            background: "rgba(10, 9, 16, 0.85)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            padding: 20,
+            padding: "20px",
+            animation: "fadeIn 0.3s ease",
           }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
+            className="glass-panel"
             style={{
-              background: "#110a2e",
-              border: "1px solid rgba(124,111,205,0.4)",
-              borderRadius: 16, padding: 20,
-              maxWidth: 700, width: "100%", maxHeight: "85vh",
+              padding: "24px",
+              maxWidth: 800, width: "100%", maxHeight: "85vh",
               overflow: "auto",
+              position: "relative",
             }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-              <span style={{ color: "#e8e0ff", fontSize: 14, fontWeight: 600 }}>{previewAsset.filename}</span>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+              <span style={{ color: "var(--text-main)", fontSize: "16px", fontWeight: 500, fontFamily: "var(--font-serif)" }}>{previewAsset.filename}</span>
               <button
                 onClick={() => setPreviewAsset(null)}
                 style={{
                   background: "transparent", border: "none",
-                  color: "#7c6fcd", fontSize: 18, cursor: "pointer",
+                  color: "var(--text-muted)", fontSize: "24px", cursor: "pointer",
+                  lineHeight: 1, padding: "0 8px", transition: "color 0.2s ease"
                 }}
+                onMouseOver={(e) => { e.currentTarget.style.color = "var(--text-main)" }}
+                onMouseOut={(e) => { e.currentTarget.style.color = "var(--text-muted)" }}
               >
-                ✕
+                ×
               </button>
             </div>
             <PreviewContent asset={previewAsset} />
@@ -217,16 +224,17 @@ export function AssetViewer({ userId }: Props) {
 
 function PreviewContent({ asset }: { asset: AssetMeta }) {
   const url = `/api/assets/${asset.id}`;
+  const mime = asset.mimeType ?? "";
 
-  if (asset.mimeType.startsWith("image/")) {
+  if (mime.startsWith("image/")) {
     return <img src={url} alt={asset.filename} style={{ width: "100%", borderRadius: 8 }} />;
   }
 
-  if (asset.mimeType === "application/pdf") {
+  if (mime === "application/pdf") {
     return <iframe src={url} title={asset.filename} style={{ width: "100%", height: "70vh", border: "none", borderRadius: 8 }} />;
   }
 
-  if (asset.mimeType === "text/plain") {
+  if (mime === "text/plain") {
     return <TextPreview url={url} />;
   }
 
@@ -242,9 +250,11 @@ function TextPreview({ url }: { url: string }) {
 
   return (
     <pre style={{
-      color: "#d4cef0", fontSize: 12, lineHeight: 1.6,
-      background: "rgba(0,0,0,0.3)", borderRadius: 8, padding: 16,
+      color: "var(--text-main)", fontSize: "13px", lineHeight: 1.8,
+      background: "var(--bg-dark)", border: "1px solid var(--glass-border)", 
+      borderRadius: "12px", padding: "20px",
       overflow: "auto", maxHeight: "60vh", whiteSpace: "pre-wrap",
+      fontFamily: "var(--font-sans)", fontWeight: 300
     }}>
       {text}
     </pre>

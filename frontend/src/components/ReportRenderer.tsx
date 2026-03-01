@@ -9,7 +9,7 @@ export function ReportRenderer({ text }: Props) {
 
   if (!sections.length) {
     return (
-      <p style={{ color: "#c8c0e8", lineHeight: 1.8, margin: 0, fontSize: 14 }}>
+      <p style={{ color: "var(--text-main)", lineHeight: 1.8, margin: 0, fontSize: "15px", fontFamily: "var(--font-serif)", fontWeight: 300 }}>
         {stripMarkdown(text)}
       </p>
     );
@@ -20,39 +20,39 @@ export function ReportRenderer({ text }: Props) {
       {sections.map((s, i) => {
         if (!s.icon) {
           return (
-            <p key={i} style={{ color: "#c8c0e8", lineHeight: 1.8, margin: 0, fontSize: 14 }}>
+            <p key={i} style={{ color: "var(--text-main)", lineHeight: 1.8, margin: 0, fontSize: "15px", fontFamily: "var(--font-serif)", fontWeight: 300 }}>
               {s.body}
             </p>
           );
         }
 
-        const meta = SECTION_META[s.icon] ?? { label: s.icon, color: "#7c6fcd" };
+        const meta = SECTION_META[s.icon] ?? { label: s.icon, color: "var(--color-primary)" };
 
         return (
           <div
             key={i}
+            className="glass-panel"
             style={{
-              background: "rgba(255,255,255,0.04)",
-              border: `1px solid ${meta.color}33`,
-              borderLeft: `3px solid ${meta.color}`,
-              borderRadius: 10,
-              padding: "13px 16px",
-              animation: `fadeIn 0.4s ease ${i * 0.07}s both`,
+              borderLeft: `2px solid ${meta.color}`,
+              padding: "16px 20px",
+              animation: `fadeInSlow 0.6s ease ${i * 0.1}s both`,
+              borderRadius: "4px 16px 16px 4px",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 7 }}>
-              <span style={{ fontSize: 15 }}>{s.icon}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+              <span style={{ fontSize: "16px" }}>{s.icon}</span>
               <span style={{
                 color: meta.color,
-                fontWeight: 700,
-                fontSize: 10,
-                letterSpacing: "0.1em",
+                fontWeight: 500,
+                fontSize: "11px",
+                letterSpacing: "0.15em",
                 textTransform: "uppercase",
+                fontFamily: "var(--font-sans)",
               }}>
                 {meta.label}
               </span>
             </div>
-            <p style={{ color: "#d4cef0", lineHeight: 1.8, margin: 0, fontSize: 13 }}>
+            <p style={{ color: "var(--text-main)", lineHeight: 1.8, margin: 0, fontSize: "15px", fontFamily: "var(--font-serif)", fontWeight: 300 }}>
               {s.body}
             </p>
           </div>
