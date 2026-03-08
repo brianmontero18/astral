@@ -10,13 +10,22 @@ const PLANET_GLYPHS: Record<string, string> = {
   "Plutón": "♇", "Quirón": "⚷", "Nodo Norte": "☊", "Nodo Sur": "☋",
 };
 
+// ─── Center display names (canonical English → Spanish UI) ──────────────────
+
+const CENTER_DISPLAY: Record<string, string> = {
+  Head: "Cabeza", Ajna: "Ajna", Throat: "Garganta",
+  G: "Centro G", Heart: "Corazón", Spleen: "Bazo",
+  Sacral: "Sacral", SolarPlexus: "Plexo Solar", Root: "Raíz",
+};
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 interface Props {
   profile: UserProfile;
+  userId: string;
 }
 
-export function TransitViewer({ profile }: Props) {
+export function TransitViewer({ profile, userId }: Props) {
   const [data, setData] = useState<TransitsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,11 +36,11 @@ export function TransitViewer({ profile }: Props) {
   );
 
   useEffect(() => {
-    fetchTransits()
+    fetchTransits(userId)
       .then(setData)
       .catch((e) => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => setLoading(false));
-  }, []);
+  }, [userId]);
 
   if (loading) {
     return (
@@ -127,6 +136,115 @@ export function TransitViewer({ profile }: Props) {
         }}>
           No hay canales completos activados por tránsitos esta semana.
         </p>
+      )}
+
+      {/* ─── Impact sections (only when userId provided) ─────────────────── */}
+
+      {data.impact && data.impact.personalChannels.length > 0 && (
+        <div className="glass-panel-gold" style={{
+          padding: "20px", marginBottom: "16px",
+          borderColor: "rgba(212,175,55,0.35)",
+        }}>
+          <div style={{
+            color: "var(--color-primary)", fontSize: "10px", letterSpacing: "0.15em",
+            marginBottom: "6px", fontWeight: 600, textAlign: "center",
+          }}>
+            CANALES PERSONALES ACTIVADOS
+          </div>
+          <div style={{
+            color: "var(--text-muted)", fontSize: "11px", textAlign: "center",
+            marginBottom: "14px", fontFamily: "var(--font-sans)", fontWeight: 300,
+          }}>
+            Un tránsito completa un canal de tu diseño
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {data.impact.personalChannels.map((ch) => (
+              <div key={`${ch.channelId}-${ch.transitPlanet}`} style={{
+                background: "rgba(212,175,55,0.06)",
+                border: "1px solid rgba(212,175,55,0.15)",
+                borderRadius: "10px", padding: "10px 14px",
+              }}>
+                <div style={{
+                  color: "var(--text-gold)", fontSize: "12px", fontWeight: 500, marginBottom: "4px",
+                }}>
+                  {ch.channelName} ({ch.channelId})
+                </div>
+                <div style={{ color: "var(--text-muted)", fontSize: "11px" }}>
+                  Tu Puerta {ch.userGate} + {ch.transitPlanet} en Puerta {ch.transitGate}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {data.impact && data.impact.conditionedCenters.length > 0 && (
+        <div className="glass-panel" style={{
+          padding: "20px", marginBottom: "16px",
+          borderColor: "rgba(157,139,223,0.35)",
+        }}>
+          <div style={{
+            color: "#9d8bdf", fontSize: "10px", letterSpacing: "0.15em",
+            marginBottom: "6px", fontWeight: 600, textAlign: "center",
+          }}>
+            CENTROS CONDICIONADOS
+          </div>
+          <div style={{
+            color: "var(--text-muted)", fontSize: "11px", textAlign: "center",
+            marginBottom: "14px", fontFamily: "var(--font-sans)", fontWeight: 300,
+          }}>
+            Tránsitos activando tus centros indefinidos
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {data.impact.conditionedCenters.map((cc) => (
+              <div key={cc.center} style={{
+                background: "rgba(157,139,223,0.06)",
+                border: "1px solid rgba(157,139,223,0.15)",
+                borderRadius: "10px", padding: "10px 14px",
+              }}>
+                <div style={{
+                  color: "#b8aee8", fontSize: "12px", fontWeight: 500, marginBottom: "4px",
+                }}>
+                  {CENTER_DISPLAY[cc.center] ?? cc.center}
+                </div>
+                <div style={{ color: "var(--text-muted)", fontSize: "11px" }}>
+                  {cc.gates.map((g) => `${g.planet} en Puerta ${g.gate}`).join(", ")}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {data.impact && data.impact.reinforcedGates.length > 0 && (
+        <div className="glass-panel" style={{
+          padding: "20px", marginBottom: "16px",
+        }}>
+          <div style={{
+            color: "var(--text-muted)", fontSize: "10px", letterSpacing: "0.15em",
+            marginBottom: "6px", fontWeight: 600, textAlign: "center",
+          }}>
+            PUERTAS REFORZADAS
+          </div>
+          <div style={{
+            color: "var(--text-muted)", fontSize: "11px", textAlign: "center",
+            marginBottom: "14px", fontFamily: "var(--font-sans)", fontWeight: 300,
+          }}>
+            Tránsitos que tocan puertas que ya tenés
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", justifyContent: "center" }}>
+            {data.impact.reinforcedGates.map((rg) => (
+              <span key={`${rg.gate}-${rg.planet}`} style={{
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: "20px", padding: "5px 14px",
+                color: "var(--text-muted)", fontSize: "11px",
+              }}>
+                Puerta {rg.gate} — {rg.planet}
+              </span>
+            ))}
+          </div>
+        </div>
       )}
 
       <p style={{ color: "var(--text-faint)", fontSize: "10px", textAlign: "center", marginTop: "20px" }}>

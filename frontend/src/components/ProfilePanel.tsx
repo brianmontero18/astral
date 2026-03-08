@@ -5,11 +5,7 @@ interface Props {
 }
 
 export function ProfilePanel({ profile }: Props) {
-  const { natal, humanDesign: hd } = profile;
-
-  const sunInfo = natal.planets[0]
-    ? `${natal.planets[0].sign}, Casa ${natal.planets[0].house}`
-    : "—";
+  const { humanDesign: hd } = profile;
 
   const rows: [string, string][] = [
     ["Tipo",        hd.type || "—"],
@@ -19,8 +15,6 @@ export function ProfilePanel({ profile }: Props) {
     ["Definición",  hd.definition || "—"],
     ["Cruz",        hd.incarnationCross || "—"],
     ["No-Self",     hd.notSelfTheme || "—"],
-    ["Ascendente",  natal.ascendant || "—"],
-    ["Sol",         sunInfo],
     ["Canales",     hd.channels.map((c) => c.name).join(", ") || "—"],
     ["Definidos",   hd.definedCenters.join(", ") || "—"],
     ["Indefinidos", hd.undefinedCenters.join(", ") || "—"],

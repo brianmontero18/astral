@@ -17,24 +17,16 @@ interface FileSlot {
 export function OnboardingFlow({ onComplete }: Props) {
   const [step, setStep] = useState<Step>("welcome");
   const [name, setName] = useState("");
-  const [slots, setSlots] = useState<[FileSlot, FileSlot]>([
-    { file: null, label: "Carta Natal", type: "natal" },
-    { file: null, label: "Diseño Humano", type: "hd" },
-  ]);
+  const [slot, setSlot] = useState<FileSlot>({ file: null, label: "Carta de Diseño Humano", type: "hd" });
   const [extractedProfile, setExtractedProfile] = useState<UserProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const natalRef = useRef<HTMLInputElement>(null);
-  const hdRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  const hasAtLeastOneFile = slots[0].file || slots[1].file;
+  const hasFile = !!slot.file;
 
-  const handleFileChange = (index: 0 | 1, file: File | null) => {
-    setSlots((prev) => {
-      const next = [...prev] as [FileSlot, FileSlot];
-      next[index] = { ...next[index], file };
-      return next;
-    });
+  const handleFileChange = (file: File | null) => {
+    setSlot((prev) => ({ ...prev, file }));
   };
 
   const handleExtract = async () => {
@@ -46,7 +38,6 @@ export function OnboardingFlow({ onComplete }: Props) {
       // Create a temporary user to upload assets
       const tempProfile: UserProfile = {
         name,
-        natal: { planets: [], ascendant: "", midheaven: "", nodes: { north: "", south: "" } },
         humanDesign: {
           type: "", strategy: "", authority: "", profile: "", definition: "",
           incarnationCross: "", notSelfTheme: "", variable: "",
@@ -58,11 +49,9 @@ export function OnboardingFlow({ onComplete }: Props) {
       const { id: userId } = await createUser(name, tempProfile);
       const assetIds: string[] = [];
 
-      for (const slot of slots) {
-        if (slot.file) {
-          const result = await uploadAsset(userId, slot.file, slot.type);
-          assetIds.push(result.id);
-        }
+      if (slot.file) {
+        const result = await uploadAsset(userId, slot.file, slot.type);
+        assetIds.push(result.id);
       }
 
       const { profile } = await extractProfile(assetIds);
@@ -147,7 +136,7 @@ export function OnboardingFlow({ onComplete }: Props) {
               marginBottom: "48px",
               fontWeight: 300
             }}>
-              Tu brújula astrológica y de Diseño Humano.
+              Tu brújula de Diseño Humano.
               <br />
               Sincroniza tus tránsitos reales con tu esencia.
             </p>
@@ -212,8 +201,8 @@ export function OnboardingFlow({ onComplete }: Props) {
               Sincroniza tu energía
             </h2>
             <p style={{ color: "var(--text-muted)", fontSize: "14px", textAlign: "center", marginBottom: "32px", fontWeight: 300 }}>
-              Sube tus gráficos para sintonizar el reporte a tu esencia actual.<br/>
-              Aceptamos PDF, PNG o JPG resueltos. Al menos uno es requerido.
+              Sube tu gráfico de Diseño Humano para sintonizar el reporte a tu esencia.<br/>
+              Aceptamos PDF, PNG o JPG.
             </p>
 
             {error && (
@@ -226,58 +215,55 @@ export function OnboardingFlow({ onComplete }: Props) {
             )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: "20px", marginBottom: "40px" }}>
-              {slots.map((slot, idx) => (
-                <div
-                  key={slot.type}
-                  onClick={() => (idx === 0 ? natalRef : hdRef).current?.click()}
-                  className={slot.file ? "glass-panel-gold" : "glass-panel"}
-                  style={{
-                    padding: "32px 24px",
-                    textAlign: "center",
-                    cursor: "pointer",
-                    transition: "all 0.3s ease",
-                  }}
-                  onMouseOver={(e) => { 
-                    if (!slot.file) e.currentTarget.style.borderColor = "var(--color-primary-dim)"; 
-                  }}
-                  onMouseOut={(e) => { 
-                    if (!slot.file) e.currentTarget.style.borderColor = "var(--glass-border)"; 
-                  }}
-                >
-                  <input
-                    ref={idx === 0 ? natalRef : hdRef}
-                    type="file"
-                    accept=".pdf,.png,.jpg,.jpeg,.txt"
-                    style={{ display: "none" }}
-                    onChange={(e) => handleFileChange(idx as 0 | 1, e.target.files?.[0] ?? null)}
-                  />
-                  <div style={{ 
-                    fontSize: "24px", 
-                    marginBottom: "16px",
-                    color: slot.file ? "var(--color-primary)" : "var(--text-muted)",
-                    opacity: slot.file ? 1 : 0.5
-                  }}>
-                    {slot.file ? "✦" : idx === 0 ? "✧" : "⚝"}
-                  </div>
-                  <div style={{ 
-                    color: slot.file ? "var(--text-gold)" : "var(--text-main)", 
-                    fontSize: "14px", 
-                    fontWeight: 500,
-                    letterSpacing: "0.05em",
-                    textTransform: "uppercase" 
-                  }}>
-                    {slot.label}
-                  </div>
-                  <div style={{ color: "var(--text-faint)", fontSize: "12px", marginTop: "8px" }}>
-                    {slot.file ? slot.file.name : "Tap para transferir archivo"}
-                  </div>
+              <div
+                onClick={() => fileRef.current?.click()}
+                className={slot.file ? "glass-panel-gold" : "glass-panel"}
+                style={{
+                  padding: "32px 24px",
+                  textAlign: "center",
+                  cursor: "pointer",
+                  transition: "all 0.3s ease",
+                }}
+                onMouseOver={(e) => {
+                  if (!slot.file) e.currentTarget.style.borderColor = "var(--color-primary-dim)";
+                }}
+                onMouseOut={(e) => {
+                  if (!slot.file) e.currentTarget.style.borderColor = "var(--glass-border)";
+                }}
+              >
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.txt"
+                  style={{ display: "none" }}
+                  onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
+                />
+                <div style={{
+                  fontSize: "24px",
+                  marginBottom: "16px",
+                  color: slot.file ? "var(--color-primary)" : "var(--text-muted)",
+                  opacity: slot.file ? 1 : 0.5
+                }}>
+                  {slot.file ? "✦" : "⚝"}
                 </div>
-              ))}
+                <div style={{
+                  color: slot.file ? "var(--text-gold)" : "var(--text-main)",
+                  fontSize: "14px",
+                  fontWeight: 500,
+                  letterSpacing: "0.05em",
+                  textTransform: "uppercase"
+                }}>
+                  {slot.label}
+                </div>
+                <div style={{ color: "var(--text-faint)", fontSize: "12px", marginTop: "8px" }}>
+                  {slot.file ? slot.file.name : "Tap para transferir archivo"}
+                </div>
+              </div>
             </div>
 
             <button
               onClick={handleExtract}
-              disabled={!hasAtLeastOneFile}
+              disabled={!hasFile}
               className="btn-primary"
               style={{ width: "100%" }}
             >
@@ -339,23 +325,6 @@ export function OnboardingFlow({ onComplete }: Props) {
               {extractedProfile.humanDesign.digestion && (
                 <ProfileField label="Digestión" value={extractedProfile.humanDesign.digestion} />
               )}
-              <ProfileField label="Ascendente" value={extractedProfile.natal.ascendant} />
-              <ProfileField
-                label="Sol"
-                value={
-                  extractedProfile.natal.planets[0]
-                    ? `${extractedProfile.natal.planets[0].sign} (C${extractedProfile.natal.planets[0].house})`
-                    : "—"
-                }
-              />
-              <ProfileField
-                label="Luna"
-                value={
-                  extractedProfile.natal.planets[1]
-                    ? `${extractedProfile.natal.planets[1].sign} (C${extractedProfile.natal.planets[1].house})`
-                    : "—"
-                }
-              />
               <ProfileField
                 label="Canales"
                 value={extractedProfile.humanDesign.channels.map((c) => c.name).join(", ") || "—"}

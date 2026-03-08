@@ -1,12 +1,12 @@
 /**
  * Extraction Service — GPT-4o Vision
  *
- * Reads natal chart and Human Design images/PDFs/text files
+ * Reads Human Design bodygraph images/PDFs/text files
  * and extracts a structured UserProfile JSON.
  *
- * Each file is labeled with its type (natal / hd) so the model
- * knows exactly what it's looking at. Extraction is strict:
- * if a datum isn't visible, it goes as null — never invented.
+ * All files are processed with the HD extraction prompt.
+ * Extraction is strict: if a datum isn't visible, it goes
+ * as null — never invented.
  */
 
 import type { UserProfile } from "./agent-service.js";
@@ -15,30 +15,6 @@ const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 const MODEL = "gpt-4o";
 
 // ─── Prompts by file type ────────────────────────────────────────────────────
-
-const NATAL_PROMPT = `Estás viendo una CARTA NATAL (carta astral). Extraé ÚNICAMENTE los datos que puedas leer con certeza del documento.
-
-Devolvé ÚNICAMENTE un JSON con esta estructura, sin texto adicional, sin markdown, sin backticks:
-
-{
-  "name": "nombre si aparece, o null",
-  "natal": {
-    "planets": [
-      { "name": "Sol", "sign": "signo", "house": número_o_null, "degree": número_o_null }
-    ],
-    "ascendant": "signo o null",
-    "midheaven": "signo o null",
-    "nodes": { "north": "signo o null", "south": "signo o null" }
-  }
-}
-
-REGLAS ESTRICTAS:
-- Extraé SOLO lo que esté visible. Si un dato NO aparece, poné null. NUNCA inventes ni asumas.
-- Planetas a buscar: Sol, Luna, Mercurio, Venus, Marte, Júpiter, Saturno, Urano, Neptuno, Plutón, Quirón. Solo incluí los que encuentres.
-- Los grados deben ser números enteros (redondeá si ves decimales).
-- Las casas son números del 1 al 12.
-- Signos en español: Aries, Tauro, Géminis, Cáncer, Leo, Virgo, Libra, Escorpio, Sagitario, Capricornio, Acuario, Piscis.
-- Si ves una tabla de posiciones planetarias, usá esa. Si ves un gráfico circular, leé los símbolos.`;
 
 const HD_PROMPT = `Estás viendo un BODYGRAPH o reporte de DISEÑO HUMANO. Extraé ÚNICAMENTE los datos que puedas leer con certeza del documento.
 
@@ -91,7 +67,7 @@ REGLAS ESTRICTAS:
 - Si ves "Incarnation Cross", "Not Self Theme", "Strategy", "Digestion", "Environment", "Strongest Sense" en las propiedades, extraelos.
 - Para la cruz de encarnación: incluí el nombre completo y los números de puertas si aparecen (ej: "Left Angle Cross of Industry (30/29 | 34/20)").`;
 
-const MERGE_PROMPT = `Sos un experto en astrología y Diseño Humano. Te doy extracciones parciales de distintos archivos del mismo usuario.
+const MERGE_PROMPT = `Sos un experto en Diseño Humano. Te doy extracciones parciales de distintos archivos del mismo usuario.
 Combiná todo en un único JSON con esta estructura exacta. NO inventes datos que no estén en las extracciones.
 
 Devolvé ÚNICAMENTE el JSON, sin texto adicional, sin markdown, sin backticks:
@@ -102,14 +78,6 @@ Devolvé ÚNICAMENTE el JSON, sin texto adicional, sin markdown, sin backticks:
     "date": "fecha",
     "time": "hora",
     "location": "lugar"
-  },
-  "natal": {
-    "planets": [
-      { "name": "Sol", "sign": "signo", "house": número, "degree": número }
-    ],
-    "ascendant": "signo",
-    "midheaven": "signo",
-    "nodes": { "north": "signo", "south": "signo" }
   },
   "humanDesign": {
     "type": "tipo",
@@ -231,43 +199,24 @@ export async function extractProfileFromAssets(
   assets: AssetData[],
   openaiKey: string,
 ): Promise<UserProfile> {
-  // Group assets by type
-  const natalAssets = assets.filter((a) => a.fileType === "natal");
-  const hdAssets = assets.filter((a) => a.fileType === "hd");
+  if (assets.length === 0) {
+    throw new Error("No assets provided");
+  }
 
   const extractions: string[] = [];
 
-  // Extract natal data (one call per file type group)
-  if (natalAssets.length > 0) {
-    const parts: any[] = [];
-    for (const asset of natalAssets) {
-      parts.push(...buildFileParts(asset));
-    }
-    parts.push({ type: "text", text: "Extraé los datos de carta natal de este documento." });
-
-    const raw = await callOpenAI(NATAL_PROMPT, parts, openaiKey);
-    const parsed = parseJSON(raw);
-    extractions.push(JSON.stringify(parsed, null, 2));
+  // All files are processed with HD_PROMPT regardless of fileType
+  const parts: any[] = [];
+  for (const asset of assets) {
+    parts.push(...buildFileParts(asset));
   }
+  parts.push({ type: "text", text: "Extraé los datos de Diseño Humano de este documento." });
 
-  // Extract HD data (separate call with HD-specific prompt)
-  if (hdAssets.length > 0) {
-    const parts: any[] = [];
-    for (const asset of hdAssets) {
-      parts.push(...buildFileParts(asset));
-    }
-    parts.push({ type: "text", text: "Extraé los datos de Diseño Humano de este documento." });
+  const raw = await callOpenAI(HD_PROMPT, parts, openaiKey);
+  const parsed = parseJSON(raw);
+  extractions.push(JSON.stringify(parsed, null, 2));
 
-    const raw = await callOpenAI(HD_PROMPT, parts, openaiKey);
-    const parsed = parseJSON(raw);
-    extractions.push(JSON.stringify(parsed, null, 2));
-  }
-
-  if (extractions.length === 0) {
-    throw new Error("No natal or HD assets provided");
-  }
-
-  // If only one type was provided, we still merge to normalize nulls → defaults
+  // Merge to normalize nulls → defaults
   const mergeInput = extractions
     .map((e, i) => `--- Extracción ${i + 1} ---\n${e}`)
     .join("\n\n");

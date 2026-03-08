@@ -5,16 +5,9 @@
  * via Claude API. No hallucinated transits — only real ephemeris data.
  */
 
-import type { WeeklyTransits, PlanetTransit } from "./transit-service.js";
+import type { WeeklyTransits, PlanetTransit, TransitImpact } from "./transit-service.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface NatalPlanet {
-  name: string;
-  sign: string;
-  house: number;
-  degree: number;
-}
 
 export interface UserProfile {
   name: string;
@@ -22,12 +15,6 @@ export interface UserProfile {
     date: string;      // ej: "18 February 1989"
     time: string;      // ej: "08:00"
     location: string;  // ej: "Punta Cardón, Falcón, Venezuela"
-  };
-  natal: {
-    planets: NatalPlanet[];
-    ascendant: string;
-    midheaven: string;
-    nodes: { north: string; south: string };
   };
   humanDesign: {
     type: string;
@@ -69,8 +56,8 @@ function formatTransitsForPrompt(transits: WeeklyTransits): string {
   return `TRÁNSITOS REALES — Semana del ${transits.weekRange}\n(Fuente: Swiss Ephemeris vía AstrologyAPI, datos calculados el ${transits.fetchedAt})\n\n${lines.join("\n")}${channelsBlock}`;
 }
 
-function buildSystemPrompt(profile: UserProfile, transits: WeeklyTransits): string {
-  const { natal, humanDesign: hd } = profile;
+function buildSystemPrompt(profile: UserProfile, transits: WeeklyTransits, impact?: TransitImpact): string {
+  const { humanDesign: hd } = profile;
   const transitsBlock = formatTransitsForPrompt(transits);
 
   // Build optional sections only if data exists
@@ -97,15 +84,28 @@ function buildSystemPrompt(profile: UserProfile, transits: WeeklyTransits): stri
     ? `\n- Puertas Personalidad (consciente): ${gatesPersonality.map(g => `${g.number}.${g.line} via ${g.planet}`).join(", ") || "—"}\n- Puertas Diseño (inconsciente): ${gatesDesign.map(g => `${g.number}.${g.line} via ${g.planet}`).join(", ") || "—"}`
     : "";
 
-  return `Eres un astrólogo y especialista en Diseño Humano de alto nivel. Generás reportes semanales profundos y accionables cruzando tránsitos reales con la carta personal. También podés responder preguntas puntuales sobre la carta natal o el diseño humano del usuario usando los datos provistos.
+  const impactBlock = impact ? `
+
+IMPACTO EN TU DISEÑO ESTA SEMANA:
+
+CANALES PERSONALES ACTIVADOS (tránsito completa tu canal):
+${impact.personalChannels.map(c =>
+    `- ${c.channelName} (${c.channelId}): tu Puerta ${c.userGate} + ${c.transitPlanet} en Puerta ${c.transitGate}`
+  ).join("\n") || "- Ninguno esta semana"}
+
+CENTROS CONDICIONADOS (tránsito activa tu centro indefinido):
+${impact.conditionedCenters.map(c =>
+    `- ${c.center}: ${c.gates.map(g => `${g.planet} en Puerta ${g.gate}`).join(", ")}`
+  ).join("\n") || "- Ninguno esta semana"}
+
+PUERTAS REFORZADAS (tránsito toca puerta que ya tenés):
+${impact.reinforcedGates.map(r =>
+    `- Tu Puerta ${r.gate} reforzada por ${r.planet}`
+  ).join("\n") || "- Ninguna esta semana"}` : "";
+
+  return `Eres un especialista en Diseño Humano de alto nivel. Generás reportes semanales profundos y accionables cruzando tránsitos reales con la carta personal. También podés responder preguntas puntuales sobre el diseño humano del usuario usando los datos provistos.
 
 PERFIL — ${profile.name}${birthBlock}
-
-CARTA NATAL:
-${natal.planets.map(p => `- ${p.name}: ${p.sign}, Casa ${p.house}, ${p.degree}°`).join("\n")}
-- Ascendente: ${natal.ascendant}
-- Medio Cielo: ${natal.midheaven}
-- Nodo Norte: ${natal.nodes.north} | Nodo Sur: ${natal.nodes.south}
 
 DISEÑO HUMANO:
 - Tipo: ${hd.type}${strategyBlock}
@@ -116,12 +116,12 @@ DISEÑO HUMANO:
 - Centros definidos: ${hd.definedCenters.join(", ") || "—"}
 - Centros indefinidos: ${hd.undefinedCenters.join(", ") || "—"}
 
-${transitsBlock}
+${transitsBlock}${impactBlock}
 
 INSTRUCCIONES CRÍTICAS:
 1. Usá ÚNICAMENTE los tránsitos reales provistos arriba. No inventes ni asumas posiciones planetarias.
-2. Cruzá cada tránsito con la carta natal y HD del usuario. Sé específico: mencioná grados, puertas y aspectos concretos.
-3. Cuando un tránsito active una puerta del usuario (natal o de canal), destacalo.
+2. Usá los datos de IMPACTO EN TU DISEÑO provistos arriba. Son calculados, no los recalcules ni contradigas.
+3. Cuando un tránsito active una puerta del usuario o de canal, destacalo.
 4. Cuando un tránsito toque un centro indefinido del usuario, mencioná el condicionamiento potencial.
 5. Integrá la Cruz de Encarnación, la estrategia y el tema del No-Self cuando sean relevantes.
 6. NO uses asteriscos, markdown ni símbolos de formato. Solo texto plano.
@@ -192,8 +192,9 @@ export async function runAstralAgent(
   transits: WeeklyTransits,
   messages: ChatMessage[],
   openaiKey: string,
+  impact?: TransitImpact,
 ): Promise<string> {
-  const systemPrompt = buildSystemPrompt(profile, transits);
+  const systemPrompt = buildSystemPrompt(profile, transits, impact);
   return callOpenAI(messages, systemPrompt, openaiKey);
 }
 
@@ -204,8 +205,9 @@ export async function* runAstralAgentStream(
   transits: WeeklyTransits,
   messages: ChatMessage[],
   openaiKey: string,
+  impact?: TransitImpact,
 ): AsyncGenerator<string> {
-  const systemPrompt = buildSystemPrompt(profile, transits);
+  const systemPrompt = buildSystemPrompt(profile, transits, impact);
 
   const response = await fetch(OPENAI_API_URL, {
     method: "POST",

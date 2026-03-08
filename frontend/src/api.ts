@@ -105,8 +105,9 @@ export async function getChatHistory(
 
 // ─── Transits ────────────────────────────────────────────────────────────────
 
-export async function fetchTransits(): Promise<TransitsResponse> {
-  const res = await fetch(`${BASE}/transits`);
+export async function fetchTransits(userId?: string): Promise<TransitsResponse> {
+  const params = userId ? `?userId=${userId}` : "";
+  const res = await fetch(`${BASE}/transits${params}`);
   if (!res.ok) throw new Error(`Transits error ${res.status}`);
   return res.json();
 }

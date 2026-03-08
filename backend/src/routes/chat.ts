@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { runAstralAgent, runAstralAgentStream, type UserProfile, type ChatMessage } from "../agent-service.js";
 import { getUser, saveChatMessage, getChatMessages } from "../db.js";
 import { getTransitsCached } from "./transits.js";
+import { analyzeTransitImpact } from "../transit-service.js";
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
 
@@ -37,7 +38,11 @@ export async function chatRoutes(app: FastifyInstance) {
 
     try {
       const transits = await getTransitsCached();
-      const replyText = await runAstralAgent(profile, transits, messages, OPENAI_KEY);
+      const impact = analyzeTransitImpact(transits, {
+        activatedGates: profile.humanDesign?.activatedGates ?? [],
+        definedCenters: profile.humanDesign?.definedCenters ?? [],
+      });
+      const replyText = await runAstralAgent(profile, transits, messages, OPENAI_KEY, impact);
 
       // Persist messages if we have a userId
       if (userId) {
@@ -86,9 +91,13 @@ export async function chatRoutes(app: FastifyInstance) {
 
     try {
       const transits = await getTransitsCached();
+      const impact = analyzeTransitImpact(transits, {
+        activatedGates: profile.humanDesign?.activatedGates ?? [],
+        definedCenters: profile.humanDesign?.definedCenters ?? [],
+      });
       let fullText = "";
 
-      for await (const chunk of runAstralAgentStream(profile, transits, messages, OPENAI_KEY)) {
+      for await (const chunk of runAstralAgentStream(profile, transits, messages, OPENAI_KEY, impact)) {
         fullText += chunk;
         reply.raw.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
       }

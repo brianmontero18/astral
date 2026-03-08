@@ -1,12 +1,26 @@
 import type { FastifyInstance } from "fastify";
-import { fetchWeeklyTransits, type WeeklyTransits } from "../transit-service.js";
-import { getCachedTransits, setCachedTransits, getISOWeekKey } from "../db.js";
+import { fetchWeeklyTransits, type WeeklyTransits, analyzeTransitImpact, type TransitImpact } from "../transit-service.js";
+import { getCachedTransits, setCachedTransits, getISOWeekKey, getUser } from "../db.js";
 
 export async function transitRoutes(app: FastifyInstance) {
-  app.get("/transits", async (_req, reply) => {
+  app.get<{ Querystring: { userId?: string } }>("/transits", async (req, reply) => {
     try {
       const transits = await getTransitsCached();
-      return reply.send(transits);
+
+      // Si viene userId, calcular impacto personalizado
+      let impact: TransitImpact | undefined;
+      if (req.query.userId) {
+        const user = await getUser(req.query.userId);
+        if (user) {
+          const profile = user.profile as { humanDesign?: { activatedGates?: Array<{ number: number }>; definedCenters?: string[] } };
+          impact = analyzeTransitImpact(transits, {
+            activatedGates: profile.humanDesign?.activatedGates ?? [],
+            definedCenters: profile.humanDesign?.definedCenters ?? [],
+          });
+        }
+      }
+
+      return reply.send({ ...transits, ...(impact && { impact }) });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       app.log.error(message);

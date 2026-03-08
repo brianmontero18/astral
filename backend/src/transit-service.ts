@@ -7,7 +7,7 @@
  */
 
 import SwissEph from "swisseph-wasm";
-import { degreeToGate } from "./hd-gates.js";
+import { degreeToGate, GATE_TO_CENTER, normalizeCenter } from "./hd-gates.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -70,6 +70,7 @@ const HD_CHANNELS: Record<string, string> = {
   "32-54": "Canal de la Transformación", "35-36": "Canal de lo Transitorio",
   "37-40": "Canal de la Comunidad", "39-55": "Canal de la Emoción",
   "42-53": "Canal de la Madurez", "47-64": "Canal de la Abstracción",
+  "10-34": "Canal de la Exploración", "34-57": "Canal del Poder",
 };
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
@@ -172,6 +173,129 @@ export async function fetchWeeklyTransits(): Promise<WeeklyTransits> {
 
   return transits;
 }
+
+// ─── Transit Impact Types ─────────────────────────────────────────────────────
+
+export interface PersonalChannel {
+  channelId: string;
+  channelName: string;
+  userGate: number;
+  transitGate: number;
+  transitPlanet: string;
+}
+
+export interface EducationalChannel {
+  channelId: string;
+  channelName: string;
+  planet1: string;
+  planet2: string;
+}
+
+export interface ReinforcedGate {
+  gate: number;
+  planet: string;
+}
+
+export interface ConditionedCenter {
+  center: string;
+  gates: Array<{ gate: number; planet: string }>;
+}
+
+export interface TransitImpact {
+  personalChannels: PersonalChannel[];
+  educationalChannels: EducationalChannel[];
+  reinforcedGates: ReinforcedGate[];
+  conditionedCenters: ConditionedCenter[];
+}
+
+export interface UserHDProfile {
+  activatedGates: Array<{ number: number }>;
+  definedCenters: string[];
+}
+
+// ─── Impact Analysis ──────────────────────────────────────────────────────────
+
+export function analyzeTransitImpact(
+  transits: WeeklyTransits,
+  hdProfile: UserHDProfile,
+): TransitImpact {
+  const userGateSet = new Set(
+    (hdProfile.activatedGates ?? []).map(g => g.number)
+  );
+  const definedCenterSet = new Set(
+    (hdProfile.definedCenters ?? []).map(c => normalizeCenter(c))
+  );
+
+  // Map: gate number → transiting planet name(s)
+  const transitGateMap = new Map<number, string[]>();
+  for (const p of transits.planets) {
+    const existing = transitGateMap.get(p.hdGate) ?? [];
+    existing.push(p.name);
+    transitGateMap.set(p.hdGate, existing);
+  }
+
+  const personalChannels: PersonalChannel[] = [];
+  const educationalChannels: EducationalChannel[] = [];
+  const reinforcedGates: ReinforcedGate[] = [];
+  const conditionedCenterMap = new Map<string, Array<{ gate: number; planet: string }>>();
+
+  // 1. Reinforced gates: transit hits a gate user already has
+  for (const [gate, planets] of transitGateMap) {
+    if (userGateSet.has(gate)) {
+      for (const planet of planets) {
+        reinforcedGates.push({ gate, planet });
+      }
+    }
+  }
+
+  // 2. Channel analysis
+  for (const [pair, channelName] of Object.entries(HD_CHANNELS)) {
+    const [g1, g2] = pair.split("-").map(Number);
+    const g1InUser = userGateSet.has(g1);
+    const g2InUser = userGateSet.has(g2);
+    const g1InTransit = transitGateMap.has(g1);
+    const g2InTransit = transitGateMap.has(g2);
+
+    // Personal channel: user has one gate, transit has the other
+    if (g1InUser && !g2InUser && g2InTransit) {
+      for (const planet of transitGateMap.get(g2)!) {
+        personalChannels.push({ channelId: pair, channelName, userGate: g1, transitGate: g2, transitPlanet: planet });
+      }
+    } else if (g2InUser && !g1InUser && g1InTransit) {
+      for (const planet of transitGateMap.get(g1)!) {
+        personalChannels.push({ channelId: pair, channelName, userGate: g2, transitGate: g1, transitPlanet: planet });
+      }
+    }
+
+    // Educational channel: neither gate in user, both in transit
+    if (!g1InUser && !g2InUser && g1InTransit && g2InTransit) {
+      educationalChannels.push({ channelId: pair, channelName, planet1: transitGateMap.get(g1)![0], planet2: transitGateMap.get(g2)![0] });
+    }
+  }
+
+  // 3. Conditioned centers: transit activates gate in user's undefined center
+  for (const [gate, planets] of transitGateMap) {
+    if (userGateSet.has(gate)) continue;
+    const center = GATE_TO_CENTER[gate];
+    if (!center || definedCenterSet.has(center)) continue;
+
+    if (!conditionedCenterMap.has(center)) {
+      conditionedCenterMap.set(center, []);
+    }
+    for (const planet of planets) {
+      conditionedCenterMap.get(center)!.push({ gate, planet });
+    }
+  }
+
+  const conditionedCenters: ConditionedCenter[] = [];
+  for (const [center, gates] of conditionedCenterMap) {
+    conditionedCenters.push({ center, gates });
+  }
+
+  return { personalChannels, educationalChannels, reinforcedGates, conditionedCenters };
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getWeekRange(now: Date): string {
   const monday = new Date(now);

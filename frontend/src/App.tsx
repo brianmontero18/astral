@@ -130,7 +130,7 @@ export default function App() {
           />
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
             {currentView === "chat" && <ChatView user={user} />}
-            {currentView === "transits" && <TransitViewer profile={profile} />}
+            {currentView === "transits" && <TransitViewer profile={profile} userId={user.id} />}
             {currentView === "assets" && <AssetViewer userId={user.id} />}
           </div>
         </div>

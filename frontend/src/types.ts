@@ -7,13 +7,6 @@
 
 // ─── Perfil del usuario ───────────────────────────────────────────────────────
 
-export interface NatalPlanet {
-  name: string;
-  sign: string;
-  house: number;
-  degree: number;
-}
-
 export interface HumanDesignChannel {
   id: string;       // ej: "20-34"
   name: string;     // ej: "Canal de Carisma"
@@ -33,12 +26,6 @@ export interface UserProfile {
     date: string;
     time: string;
     location: string;
-  };
-  natal: {
-    planets: NatalPlanet[];
-    ascendant: string;
-    midheaven: string;
-    nodes: { north: string; south: string };
   };
   humanDesign: {
     type: string;
@@ -83,11 +70,27 @@ export interface PlanetTransit {
   hdLine: number;
 }
 
+export interface PersonalChannel {
+  channelId: string;
+  channelName: string;
+  userGate: number;
+  transitGate: number;
+  transitPlanet: string;
+}
+
+export interface TransitImpact {
+  personalChannels: PersonalChannel[];
+  educationalChannels: Array<{ channelId: string; channelName: string; planet1: string; planet2: string }>;
+  reinforcedGates: Array<{ gate: number; planet: string }>;
+  conditionedCenters: Array<{ center: string; gates: Array<{ gate: number; planet: string }> }>;
+}
+
 export interface TransitsResponse {
   fetchedAt: string;
   weekRange: string;
   planets: PlanetTransit[];
   activatedChannels: string[];
+  impact?: TransitImpact;
 }
 
 // ─── Local storage types ─────────────────────────────────────────────────────
