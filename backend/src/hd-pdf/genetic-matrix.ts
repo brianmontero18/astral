@@ -1,5 +1,6 @@
 import type { UserProfile } from "../agent-service.js";
 import { extractPdfText } from "./pdf-text.js";
+import { validateActivatedGates } from "./validate.js";
 
 const GATE_LINE_REGEX = /\b\d{1,2}\.\d\b/g;
 const ANCHOR = "www.geneticmatrix.com";
@@ -39,12 +40,14 @@ function mapGateLinesToPlanets(gateLines: GateLine[]): ActivatedGate[] {
     throw new Error(`Genetic Matrix PDF: expected 26 gate.line values, got ${gateLines.length}`);
   }
 
-  return gateLines.map((gateLine, index) => ({
+  const mapped = gateLines.map((gateLine, index) => ({
     number: gateLine.gate,
     line: gateLine.line,
     planet: GENETIC_MATRIX_PLANETS[index % 13],
     isPersonality: index >= 13,
   }));
+  validateActivatedGates(mapped, GENETIC_MATRIX_PLANETS, "Genetic Matrix");
+  return mapped;
 }
 
 export async function parseGeneticMatrixPdf(
