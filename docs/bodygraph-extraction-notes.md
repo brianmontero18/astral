@@ -22,6 +22,13 @@ Conclusión:
 - **Sistema tropical** como estándar.
 - Si el archivo no cumple el formato esperado → pedir que lo regenere desde la fuente oficial y re‑suba.
 
+## Implementación (upload + extracción)
+- Backend **bloquea** HD no‑PDF en upload y valida fuente en extracción.
+- Errores UX claros:
+  - No es PDF → pedir PDF exportado desde MyHumanDesign o Genetic Matrix.
+  - Fuente no soportada → reexportar desde fuente oficial.
+  - No extraíble / formato inválido → reexportar y re‑subir.
+
 ## Assets de referencia
 Se guardaron PDFs de ejemplo para ingeniería y validación:
 - `test-assets/bodygraph-sources/myhumandesign-chart.pdf`

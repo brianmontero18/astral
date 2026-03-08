@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { getAsset } from "../db.js";
-import { extractProfileFromAssets } from "../extraction-service.js";
+import { extractProfileFromAssets, UserFacingError } from "../extraction-service.js";
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
 
@@ -29,6 +29,10 @@ export async function extractRoutes(app: FastifyInstance) {
       return reply.send({ profile });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
+      if (err instanceof UserFacingError) {
+        app.log.warn(message);
+        return reply.status(err.status).send({ error: message });
+      }
       app.log.error(message);
       return reply.status(502).send({ error: message });
     }

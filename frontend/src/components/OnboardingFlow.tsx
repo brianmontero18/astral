@@ -202,7 +202,7 @@ export function OnboardingFlow({ onComplete }: Props) {
             </h2>
             <p style={{ color: "var(--text-muted)", fontSize: "14px", textAlign: "center", marginBottom: "32px", fontWeight: 300 }}>
               Sube tu gráfico de Diseño Humano para sintonizar el reporte a tu esencia.<br/>
-              Aceptamos PDF, PNG o JPG.
+              Solo PDF exportado desde MyHumanDesign o Genetic Matrix.
             </p>
 
             {error && (
@@ -234,7 +234,7 @@ export function OnboardingFlow({ onComplete }: Props) {
                 <input
                   ref={fileRef}
                   type="file"
-                  accept=".pdf,.png,.jpg,.jpeg,.txt"
+                  accept=".pdf"
                   style={{ display: "none" }}
                   onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
                 />

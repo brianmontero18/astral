@@ -16,6 +16,22 @@ import type {
 
 const BASE = "/api";
 
+async function readErrorMessage(res: Response): Promise<string> {
+  const contentType = res.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json")) {
+    try {
+      const data = await res.json() as { error?: string };
+      if (typeof data?.error === "string") return data.error;
+      return JSON.stringify(data);
+    } catch {
+      return `Request failed (${res.status})`;
+    }
+  }
+
+  const text = await res.text();
+  return text || `Request failed (${res.status})`;
+}
+
 // ─── Chat ────────────────────────────────────────────────────────────────────
 
 export async function sendChat(
@@ -181,8 +197,8 @@ export async function uploadAsset(
     body: formData,
   });
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Upload error ${res.status}: ${err}`);
+    const err = await readErrorMessage(res);
+    throw new Error(err);
   }
   return res.json();
 }
@@ -211,8 +227,8 @@ export async function extractProfile(
     body: JSON.stringify({ assetIds }),
   });
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Extraction error ${res.status}: ${err}`);
+    const err = await readErrorMessage(res);
+    throw new Error(err);
   }
   return res.json();
 }

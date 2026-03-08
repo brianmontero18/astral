@@ -47,10 +47,14 @@ function mapGateLinesToPlanets(gateLines: GateLine[]): ActivatedGate[] {
   return mapped;
 }
 
+export function parseMyHumanDesignText(text: string): ActivatedGate[] {
+  const gateLines = parseGateLines(text);
+  return mapGateLinesToPlanets(gateLines);
+}
+
 export async function parseMyHumanDesignPdf(
   buffer: Buffer,
 ): Promise<ActivatedGate[]> {
   const text = await extractPdfText(buffer);
-  const gateLines = parseGateLines(text);
-  return mapGateLinesToPlanets(gateLines);
+  return parseMyHumanDesignText(text);
 }

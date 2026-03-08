@@ -50,10 +50,7 @@ function mapGateLinesToPlanets(gateLines: GateLine[]): ActivatedGate[] {
   return mapped;
 }
 
-export async function parseGeneticMatrixPdf(
-  buffer: Buffer,
-): Promise<ActivatedGate[]> {
-  const text = await extractPdfText(buffer);
+export function parseGeneticMatrixText(text: string): ActivatedGate[] {
   const anchorIndex = text.indexOf(ANCHOR);
   if (anchorIndex === -1) {
     throw new Error("Genetic Matrix PDF: anchor not found");
@@ -62,4 +59,11 @@ export async function parseGeneticMatrixPdf(
   const scopedText = text.slice(anchorIndex + ANCHOR.length);
   const gateLines = parseGateLines(scopedText);
   return mapGateLinesToPlanets(gateLines);
+}
+
+export async function parseGeneticMatrixPdf(
+  buffer: Buffer,
+): Promise<ActivatedGate[]> {
+  const text = await extractPdfText(buffer);
+  return parseGeneticMatrixText(text);
 }

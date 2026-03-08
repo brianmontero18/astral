@@ -10,9 +10,29 @@
  */
 
 import type { UserProfile } from "./agent-service.js";
+import { HD_CHANNELS } from "./hd-channels.js";
+import { parseGeneticMatrixText } from "./hd-pdf/genetic-matrix.js";
+import { parseMyHumanDesignText } from "./hd-pdf/myhumandesign.js";
+import { extractPdfText } from "./hd-pdf/pdf-text.js";
+import { deriveChannelsAndCenters } from "./hd-pdf/validate.js";
 
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 const MODEL = "gpt-4o";
+
+const PDF_ONLY_MESSAGE =
+  "Subi un PDF exportado desde MyHumanDesign o Genetic Matrix. No aceptamos imagenes ni capturas.";
+const UNSUPPORTED_SOURCE_MESSAGE =
+  "Solo aceptamos PDFs oficiales de MyHumanDesign o Genetic Matrix. Reexporta el bodygraph desde la fuente oficial.";
+const UNREADABLE_PDF_MESSAGE =
+  "No pudimos leer tu PDF. Reexporta el bodygraph desde la fuente oficial y vuelve a subirlo.";
+
+export class UserFacingError extends Error {
+  status: number;
+  constructor(message: string, status = 400) {
+    super(message);
+    this.status = status;
+  }
+}
 
 // ─── Prompts by file type ────────────────────────────────────────────────────
 
@@ -151,6 +171,52 @@ function buildFileParts(asset: AssetData): any[] {
   return parts;
 }
 
+type PdfProvider = "myhumandesign" | "genetic-matrix";
+
+function detectPdfProvider(text: string): PdfProvider | null {
+  if (/geneticmatrix\.com/i.test(text)) return "genetic-matrix";
+  if (/my\s*human\s*design/i.test(text)) return "myhumandesign";
+  if (/myhumandesign/i.test(text)) return "myhumandesign";
+  return null;
+}
+
+function buildProfileFromGates(
+  gates: UserProfile["humanDesign"]["activatedGates"],
+  provider: string,
+): UserProfile {
+  const { channelIds, definedCenters, undefinedCenters } = deriveChannelsAndCenters(
+    gates,
+    provider,
+  );
+
+  const channels = channelIds.map((id) => ({
+    id,
+    name: HD_CHANNELS[id] ?? "",
+    circuit: "",
+  }));
+
+  return {
+    name: "",
+    humanDesign: {
+      type: "",
+      strategy: "",
+      authority: "",
+      profile: "",
+      definition: "",
+      incarnationCross: "",
+      notSelfTheme: "",
+      variable: "",
+      digestion: "",
+      environment: "",
+      strongestSense: "",
+      channels,
+      activatedGates: gates,
+      definedCenters,
+      undefinedCenters,
+    },
+  };
+}
+
 async function callOpenAI(
   systemPrompt: string,
   contentParts: any[],
@@ -201,6 +267,40 @@ export async function extractProfileFromAssets(
 ): Promise<UserProfile> {
   if (assets.length === 0) {
     throw new Error("No assets provided");
+  }
+
+  const hdAssets = assets.filter((asset) => asset.fileType === "hd");
+  if (hdAssets.length > 0) {
+    if (hdAssets.length > 1) {
+      throw new UserFacingError(PDF_ONLY_MESSAGE);
+    }
+
+    const asset = hdAssets[0];
+    if (asset.mimeType !== "application/pdf") {
+      throw new UserFacingError(PDF_ONLY_MESSAGE);
+    }
+
+    const text = await extractPdfText(asset.data);
+    if (!text || text.trim().length < 20) {
+      throw new UserFacingError(UNREADABLE_PDF_MESSAGE);
+    }
+
+    const provider = detectPdfProvider(text);
+    if (!provider) {
+      throw new UserFacingError(UNSUPPORTED_SOURCE_MESSAGE);
+    }
+
+    try {
+      const gates = provider === "genetic-matrix"
+        ? parseGeneticMatrixText(text)
+        : parseMyHumanDesignText(text);
+      return buildProfileFromGates(
+        gates,
+        provider === "genetic-matrix" ? "Genetic Matrix" : "MyHumanDesign",
+      );
+    } catch (err) {
+      throw new UserFacingError(UNREADABLE_PDF_MESSAGE);
+    }
   }
 
   const extractions: string[] = [];

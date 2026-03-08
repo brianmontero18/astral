@@ -41,6 +41,12 @@ export async function assetRoutes(app: FastifyInstance) {
 
       const fileType = (data.fields.fileType as { value?: string } | undefined)?.value ?? "natal";
 
+      if (fileType === "hd" && data.mimetype !== "application/pdf") {
+        return reply.status(400).send({
+          error: "Subi un PDF exportado desde MyHumanDesign o Genetic Matrix. No aceptamos imagenes ni capturas.",
+        });
+      }
+
       const id = await createAsset(userId, data.filename, data.mimetype, fileType, buffer);
 
       return reply.status(201).send({
