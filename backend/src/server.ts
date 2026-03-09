@@ -8,17 +8,9 @@
 
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import Fastify from "fastify";
-import cors from "@fastify/cors";
-import multipart from "@fastify/multipart";
 import fastifyStatic from "@fastify/static";
 import { initDb } from "./db.js";
-import { healthRoutes } from "./routes/health.js";
-import { transitRoutes } from "./routes/transits.js";
-import { chatRoutes } from "./routes/chat.js";
-import { userRoutes } from "./routes/users.js";
-import { assetRoutes } from "./routes/assets.js";
-import { extractRoutes } from "./routes/extract.js";
+import { buildApp } from "./app.js";
 
 // ─── Env ──────────────────────────────────────────────────────────────────────
 
@@ -35,30 +27,7 @@ function assertEnv() {
 
 // ─── Server ───────────────────────────────────────────────────────────────────
 
-const app = Fastify({ logger: true });
-
-// Plugins
-await app.register(cors, {
-  origin: IS_PROD ? true : true, // tighten in production with real domain
-});
-
-await app.register(multipart, {
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-});
-
-// ─── API Routes (under /api prefix) ──────────────────────────────────────────
-
-await app.register(
-  async (api) => {
-    await api.register(healthRoutes);
-    await api.register(transitRoutes);
-    await api.register(chatRoutes);
-    await api.register(userRoutes);
-    await api.register(assetRoutes);
-    await api.register(extractRoutes);
-  },
-  { prefix: "/api" },
-);
+const app = await buildApp({ logger: true });
 
 // ─── Static files (production) ───────────────────────────────────────────────
 
