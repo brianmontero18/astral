@@ -55,12 +55,24 @@ function longitudeToSign(lon: number): { sign: string; degree: number } {
 
 let cachedTransits: WeeklyTransits | null = null;
 let currentWeekRange: string | null = null;
+let currentTimeZone: string | null = null;
 
-export async function fetchWeeklyTransits(): Promise<WeeklyTransits> {
-  const now = new Date();
-  const weekRange = getWeekRange(now);
+const MONTHS_ES = [
+  "enero", "febrero", "marzo", "abril", "mayo", "junio",
+  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+];
 
-  if (cachedTransits && currentWeekRange === weekRange) {
+export async function fetchWeeklyTransits(
+  now: Date = new Date(),
+  timeZone?: string,
+): Promise<WeeklyTransits> {
+  const weekRange = getWeekRange(now, timeZone);
+
+  if (
+    cachedTransits &&
+    currentWeekRange === weekRange &&
+    currentTimeZone === (timeZone ?? null)
+  ) {
     return cachedTransits;
   }
 
@@ -148,6 +160,7 @@ export async function fetchWeeklyTransits(): Promise<WeeklyTransits> {
   // Update in-memory cache
   cachedTransits = transits;
   currentWeekRange = weekRange;
+  currentTimeZone = timeZone ?? null;
 
   return transits;
 }
@@ -275,12 +288,37 @@ export function analyzeTransitImpact(
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getWeekRange(now: Date): string {
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+function getLocalDateParts(now: Date, timeZone?: string): { year: number; month: number; day: number } {
+  if (!timeZone) {
+    return { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() };
+  }
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const lookup = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+  return {
+    year: Number(lookup.year),
+    month: Number(lookup.month),
+    day: Number(lookup.day),
+  };
+}
+
+function formatDateEs(dateUtc: Date): string {
+  const day = dateUtc.getUTCDate();
+  const month = MONTHS_ES[dateUtc.getUTCMonth()];
+  const year = dateUtc.getUTCFullYear();
+  return `${day} de ${month} de ${year}`;
+}
+
+function getWeekRange(now: Date, timeZone?: string): string {
+  const { year, month, day } = getLocalDateParts(now, timeZone);
+  const localDateUtc = new Date(Date.UTC(year, month - 1, day));
+  const monday = new Date(localDateUtc);
+  monday.setUTCDate(localDateUtc.getUTCDate() - ((localDateUtc.getUTCDay() + 6) % 7));
   const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  const fmt = (d: Date) =>
-    d.toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
-  return `${fmt(monday)} al ${fmt(sunday)}`;
+  sunday.setUTCDate(monday.getUTCDate() + 6);
+  return `${formatDateEs(monday)} al ${formatDateEs(sunday)}`;
 }

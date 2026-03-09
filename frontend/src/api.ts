@@ -122,7 +122,13 @@ export async function getChatHistory(
 // ─── Transits ────────────────────────────────────────────────────────────────
 
 export async function fetchTransits(userId?: string): Promise<TransitsResponse> {
-  const params = userId ? `?userId=${userId}` : "";
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const clientNow = Date.now();
+  const search = new URLSearchParams();
+  if (userId) search.set("userId", userId);
+  if (timeZone) search.set("timeZone", timeZone);
+  search.set("clientNow", String(clientNow));
+  const params = search.toString() ? `?${search.toString()}` : "";
   const res = await fetch(`${BASE}/transits${params}`);
   if (!res.ok) throw new Error(`Transits error ${res.status}`);
   return res.json();

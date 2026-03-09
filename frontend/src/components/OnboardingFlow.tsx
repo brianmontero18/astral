@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import type { UserProfile, LocalUser } from "../types";
 import { uploadAsset, extractProfile, createUser } from "../api";
+import { ChannelChips } from "./ChannelChips";
 
 interface Props {
   onComplete: (user: LocalUser, profile: UserProfile) => void;
@@ -325,10 +326,27 @@ export function OnboardingFlow({ onComplete }: Props) {
               {extractedProfile.humanDesign.digestion && (
                 <ProfileField label="Digestión" value={extractedProfile.humanDesign.digestion} />
               )}
-              <ProfileField
-                label="Canales"
-                value={extractedProfile.humanDesign.channels.map((c) => c.name).join(", ") || "—"}
-              />
+              <div style={{
+                display: "flex",
+                justifyContent: "space-between",
+                padding: "10px 0",
+                borderBottom: "1px solid rgba(255,255,255,0.03)"
+              }}>
+                <span style={{ color: "var(--text-faint)", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                  Canales
+                </span>
+                {extractedProfile.humanDesign.channels.length > 0 ? (
+                  <div style={{ maxWidth: "65%" }}>
+                    <ChannelChips
+                      channels={extractedProfile.humanDesign.channels.map((c) => c.name)}
+                      size="sm"
+                      align="end"
+                    />
+                  </div>
+                ) : (
+                  <span style={{ color: "var(--text-main)", fontSize: "14px", fontFamily: "var(--font-serif)" }}>—</span>
+                )}
+              </div>
             </div>
 
             <div style={{ display: "flex", gap: "16px" }}>

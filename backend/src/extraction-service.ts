@@ -217,6 +217,267 @@ function buildProfileFromGates(
   };
 }
 
+type HdSummary = {
+  name?: string;
+  humanDesign: Partial<UserProfile["humanDesign"]>;
+};
+
+const HD_TYPE_MAP: Record<string, string> = {
+  "Manifesting Generator": "Generador Manifestante",
+  "Generator": "Generador",
+  "Projector": "Proyector",
+  "Manifestor": "Manifestador",
+  "Reflector": "Reflector",
+};
+
+const HD_STRATEGY_MAP: Record<string, string> = {
+  "Responding": "Responder",
+  "To Respond": "Responder",
+  "Waiting to Respond": "Esperar para responder",
+  "Informing": "Informar",
+  "Waiting for Invitation": "Esperar la invitación",
+  "Waiting for the Invitation": "Esperar la invitación",
+  "Waiting a Lunar Cycle": "Esperar un ciclo lunar",
+  "Waiting for the Lunar Cycle": "Esperar un ciclo lunar",
+};
+
+const HD_AUTHORITY_MAP: Array<{ test: (value: string) => boolean; value: string }> = [
+  { test: (v) => /emotional|solar plexus/i.test(v), value: "Emocional (Plexo Solar)" },
+  { test: (v) => /\bsacral\b/i.test(v), value: "Sacral" },
+  { test: (v) => /\bsplenic\b/i.test(v), value: "Esplénica" },
+  { test: (v) => /\bego\b|\bheart\b/i.test(v), value: "Ego/Corazón" },
+  { test: (v) => /self[-\s]?projected/i.test(v), value: "Auto-proyectada" },
+  { test: (v) => /mental|environment/i.test(v), value: "Mental/Ambiente" },
+  { test: (v) => /\blunar\b/i.test(v), value: "Lunar" },
+];
+
+const HD_DEFINITION_MAP: Record<string, string> = {
+  "Single Definition": "Definición simple",
+  "Split Definition": "Definición dividida",
+  "Triple Split Definition": "Definición triple dividida",
+  "Quadruple Split Definition": "Definición cuádruple dividida",
+  "No Definition": "Sin definición",
+};
+
+const HD_NOT_SELF_MAP: Record<string, string> = {
+  "Frustration": "Frustración",
+  "Anger": "Ira",
+  "Bitterness": "Amargura",
+  "Disappointment": "Decepción",
+};
+
+const HD_DIGESTION_MAP: Record<string, string> = {
+  "Peace & Quiet": "Paz y Quietud",
+  "Hot Thirst": "Sed caliente",
+  "Cold Thirst": "Sed fría",
+  "Open Taste": "Gusto abierto",
+  "Closed Taste": "Gusto cerrado",
+  "High Sound": "Sonido alto",
+  "Low Sound": "Sonido bajo",
+  "Direct Light": "Luz directa",
+  "Indirect Light": "Luz indirecta",
+};
+
+const HD_ENVIRONMENT_MAP: Record<string, string> = {
+  "Shores": "Costas",
+  "Caves": "Cuevas",
+  "Markets": "Mercados",
+  "Kitchens": "Cocinas",
+  "Mountains": "Montañas",
+  "Valleys": "Valles",
+};
+
+const HD_STRONGEST_SENSE_MAP: Record<string, string> = {
+  "Feeling": "Sentir",
+  "Touch": "Tacto",
+  "Taste": "Gusto",
+  "Smell": "Olfato",
+  "Outer Vision": "Visión externa",
+  "Inner Vision": "Visión interna",
+  "Sound": "Sonido",
+};
+
+const HD_CROSS_PREFIX_MAP: Record<string, string> = {
+  "Left Angle Cross of": "Cruz de Ángulo Izquierdo de",
+  "Right Angle Cross of": "Cruz de Ángulo Derecho de",
+  "Juxtaposition Cross of": "Cruz de Yuxtaposición de",
+};
+
+const HD_CROSS_TITLE_MAP: Record<string, string> = {
+  "Industry": "Industria",
+};
+
+function normalizeField(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function replacePhrases(value: string, map: Record<string, string>): string {
+  let out = value;
+  for (const [from, to] of Object.entries(map)) {
+    const re = new RegExp(escapeRegExp(from), "gi");
+    out = out.replace(re, to);
+  }
+  return out;
+}
+
+function translateCrossTitle(value: string): string {
+  const match = value.match(/^(.* de )([^()]+)(\s*\(.*\))$/);
+  if (!match) return value;
+  const [, prefix, title, suffix] = match;
+  const translated = HD_CROSS_TITLE_MAP[title.trim()] ?? title.trim();
+  return `${prefix}${translated}${suffix}`;
+}
+
+function extractSection(
+  text: string,
+  label: string,
+  allLabelsUpper: string[],
+): string | null {
+  const upper = text.toUpperCase();
+  const labelUpper = label.toUpperCase();
+  const start = upper.indexOf(labelUpper);
+  if (start === -1) return null;
+  const from = start + labelUpper.length;
+  let end = text.length;
+  for (const other of allLabelsUpper) {
+    if (other === labelUpper) continue;
+    const idx = upper.indexOf(other, from);
+    if (idx !== -1 && idx < end) end = idx;
+  }
+  return normalizeField(text.slice(from, end));
+}
+
+function parseHdSummaryFromText(text: string): HdSummary {
+  const cleaned = normalizeField(text);
+  const labels = [
+    "TYPE ",
+    "PROFILE ",
+    "NOT SELF THEME ",
+    "DEFINITION ",
+    "DIGESTION ",
+    "ENVIRONMENT ",
+    "AUTHORITY (THE WAY YOU MAKE DECISIONS) ",
+    "STRATEGY ",
+    "LIFE THEME (INCARNATION CROSS) ",
+    "YOUR STRONGEST SENSE ",
+    "YOUR MOST IMPORTANT GIFT ",
+    "YOUR OTHER GIFTS ",
+    "SIGN ",
+  ];
+  const allLabelsUpper = labels.map((l) => l.toUpperCase());
+
+  const summary: HdSummary = { humanDesign: {} };
+
+  const nameMatch = cleaned.match(/\bName\s+([^\s].*?)\s+Design\b/i);
+  if (nameMatch && !/not available/i.test(nameMatch[1])) {
+    summary.name = normalizeField(nameMatch[1]);
+  }
+
+  const typeRaw = extractSection(cleaned, "TYPE ", allLabelsUpper);
+  if (typeRaw) {
+    summary.humanDesign.type = normalizeField(typeRaw.split(" - ")[0] ?? typeRaw);
+  }
+
+  const profileRaw = extractSection(cleaned, "PROFILE ", allLabelsUpper);
+  if (profileRaw) {
+    const profileMatch = profileRaw.match(/\b\d{1,2}\/\d{1,2}\b/);
+    summary.humanDesign.profile = profileMatch ? profileMatch[0] : profileRaw.split(":")[0] ?? profileRaw;
+  }
+
+  const notSelf = extractSection(cleaned, "NOT SELF THEME ", allLabelsUpper);
+  if (notSelf) summary.humanDesign.notSelfTheme = notSelf;
+
+  const definition = extractSection(cleaned, "DEFINITION ", allLabelsUpper);
+  if (definition) summary.humanDesign.definition = definition;
+
+  const digestion = extractSection(cleaned, "DIGESTION ", allLabelsUpper);
+  if (digestion) summary.humanDesign.digestion = digestion;
+
+  const environment = extractSection(cleaned, "ENVIRONMENT ", allLabelsUpper);
+  if (environment) summary.humanDesign.environment = environment;
+
+  const authority = extractSection(cleaned, "AUTHORITY (THE WAY YOU MAKE DECISIONS) ", allLabelsUpper);
+  if (authority) summary.humanDesign.authority = authority;
+
+  const strategy = extractSection(cleaned, "STRATEGY ", allLabelsUpper);
+  if (strategy) summary.humanDesign.strategy = strategy;
+
+  const lifeTheme = extractSection(cleaned, "LIFE THEME (INCARNATION CROSS) ", allLabelsUpper);
+  if (lifeTheme) summary.humanDesign.incarnationCross = lifeTheme;
+
+  const strongestSense = extractSection(cleaned, "YOUR STRONGEST SENSE ", allLabelsUpper);
+  if (strongestSense) summary.humanDesign.strongestSense = strongestSense;
+
+  return summary;
+}
+
+function mapHdValue(
+  key: keyof UserProfile["humanDesign"],
+  value: string,
+): string {
+  if (!value) return value;
+  if (key === "type") {
+    return HD_TYPE_MAP[value] ?? value;
+  }
+  if (key === "strategy") {
+    return HD_STRATEGY_MAP[value] ?? value;
+  }
+  if (key === "authority") {
+    for (const rule of HD_AUTHORITY_MAP) {
+      if (rule.test(value)) return rule.value;
+    }
+    return value;
+  }
+  if (key === "definition") {
+    return HD_DEFINITION_MAP[value] ?? value;
+  }
+  if (key === "notSelfTheme") {
+    return HD_NOT_SELF_MAP[value] ?? value;
+  }
+  if (key === "digestion") {
+    return replacePhrases(value, HD_DIGESTION_MAP);
+  }
+  if (key === "environment") {
+    return replacePhrases(value, HD_ENVIRONMENT_MAP);
+  }
+  if (key === "strongestSense") {
+    return replacePhrases(value, HD_STRONGEST_SENSE_MAP);
+  }
+  if (key === "incarnationCross") {
+    const prefixed = replacePhrases(value, HD_CROSS_PREFIX_MAP);
+    return translateCrossTitle(prefixed);
+  }
+  return value;
+}
+
+function applyHdSummary(profile: UserProfile, summary: HdSummary): UserProfile {
+  if (summary.name && !profile.name) profile.name = summary.name;
+  const target = profile.humanDesign;
+  const src = summary.humanDesign;
+  const assignIf = (key: keyof UserProfile["humanDesign"]) => {
+    const value = src[key];
+    if (typeof value === "string" && value.trim() !== "") {
+      (target as any)[key] = mapHdValue(key, value);
+    }
+  };
+  assignIf("type");
+  assignIf("strategy");
+  assignIf("authority");
+  assignIf("profile");
+  assignIf("definition");
+  assignIf("incarnationCross");
+  assignIf("notSelfTheme");
+  assignIf("variable");
+  assignIf("digestion");
+  assignIf("environment");
+  assignIf("strongestSense");
+  return profile;
+}
+
 async function callOpenAI(
   systemPrompt: string,
   contentParts: any[],
@@ -294,10 +555,12 @@ export async function extractProfileFromAssets(
       const gates = provider === "genetic-matrix"
         ? parseGeneticMatrixText(text)
         : parseMyHumanDesignText(text);
-      return buildProfileFromGates(
+      const profile = buildProfileFromGates(
         gates,
         provider === "genetic-matrix" ? "Genetic Matrix" : "MyHumanDesign",
       );
+      const summary = parseHdSummaryFromText(text);
+      return applyHdSummary(profile, summary);
     } catch (err) {
       throw new UserFacingError(UNREADABLE_PDF_MESSAGE);
     }
