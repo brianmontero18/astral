@@ -24,50 +24,104 @@ function renderInline(text: string): React.ReactNode {
 
 // ─── Block rendering ─────────────────────────────────────────────────────────
 
-/** Render a body string as paragraphs, lists, etc. */
-function renderBody(body: string) {
-  // Split into blocks by blank lines
-  const blocks = body.split(/\n{2,}/);
+/** Render a single line, detecting headers, list items, or plain text */
+function renderLine(line: string, key: number): React.ReactNode {
+  const trimmed = line.trim();
+  if (!trimmed) return null;
 
-  return blocks.map((block, i) => {
-    const trimmed = block.trim();
-    if (!trimmed) return null;
-
-    const lines = trimmed.split("\n").filter(l => l.trim());
-
-    // Unordered list: all lines start with - or •
-    if (lines.length > 0 && lines.every(l => /^[-•]\s/.test(l.trim()))) {
-      return (
-        <ul key={i} style={{ margin: "4px 0", paddingLeft: 20 }}>
-          {lines.map((l, j) => (
-            <li key={j} style={TEXT_STYLE}>
-              {renderInline(l.trim().replace(/^[-•]\s*/, ""))}
-            </li>
-          ))}
-        </ul>
-      );
-    }
-
-    // Ordered list: all lines start with 1. / 2) etc.
-    if (lines.length > 0 && lines.every(l => /^\d+[.)]\s/.test(l.trim()))) {
-      return (
-        <ol key={i} style={{ margin: "4px 0", paddingLeft: 20 }}>
-          {lines.map((l, j) => (
-            <li key={j} style={TEXT_STYLE}>
-              {renderInline(l.trim().replace(/^\d+[.)]\s*/, ""))}
-            </li>
-          ))}
-        </ol>
-      );
-    }
-
-    // Regular paragraph
+  // Markdown header: ### Heading
+  const headerMatch = trimmed.match(/^(#{1,4})\s+(.+)/);
+  if (headerMatch) {
+    const level = headerMatch[1].length;
+    const sizes = ["16px", "14px", "13px", "12px"];
     return (
-      <p key={i} style={{ ...TEXT_STYLE, margin: "4px 0" }}>
-        {renderInline(lines.join(" "))}
-      </p>
+      <div key={key} style={{
+        ...TEXT_STYLE,
+        fontSize: sizes[level - 1] ?? "13px",
+        fontWeight: 500,
+        color: "var(--color-accent)",
+        margin: "10px 0 4px",
+      }}>
+        {renderInline(headerMatch[2])}
+      </div>
     );
-  });
+  }
+
+  // Unordered list item: - text or • text
+  if (/^[-•]\s/.test(trimmed)) {
+    return (
+      <li key={key} style={TEXT_STYLE}>
+        {renderInline(trimmed.replace(/^[-•]\s*/, ""))}
+      </li>
+    );
+  }
+
+  // Ordered list item: 1. text or 2) text
+  if (/^\d+[.)]\s/.test(trimmed)) {
+    return (
+      <li key={key} style={TEXT_STYLE}>
+        {renderInline(trimmed.replace(/^\d+[.)]\s*/, ""))}
+      </li>
+    );
+  }
+
+  // Regular paragraph
+  return (
+    <p key={key} style={{ ...TEXT_STYLE, margin: "4px 0" }}>
+      {renderInline(trimmed)}
+    </p>
+  );
+}
+
+/** Render a body string as paragraphs, lists, headers, etc. */
+function renderBody(body: string) {
+  const lines = body.split("\n");
+  const elements: React.ReactNode[] = [];
+  let listBuffer: React.ReactNode[] = [];
+  let listType: "ul" | "ol" | null = null;
+  let key = 0;
+
+  function flushList() {
+    if (listBuffer.length > 0 && listType) {
+      const Tag = listType;
+      elements.push(
+        <Tag key={`list-${key++}`} style={{ margin: "4px 0", paddingLeft: 20 }}>
+          {listBuffer}
+        </Tag>
+      );
+      listBuffer = [];
+      listType = null;
+    }
+  }
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    // Empty line = paragraph break, flush any pending list
+    if (!trimmed) {
+      flushList();
+      continue;
+    }
+
+    const isUl = /^[-•]\s/.test(trimmed);
+    const isOl = /^\d+[.)]\s/.test(trimmed);
+
+    if (isUl) {
+      if (listType !== "ul") flushList();
+      listType = "ul";
+      listBuffer.push(renderLine(trimmed, key++));
+    } else if (isOl) {
+      if (listType !== "ol") flushList();
+      listType = "ol";
+      listBuffer.push(renderLine(trimmed, key++));
+    } else {
+      flushList();
+      elements.push(renderLine(trimmed, key++));
+    }
+  }
+
+  flushList();
+  return elements;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────

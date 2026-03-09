@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { fetchTransits } from "../api";
 import { CENTER_DISPLAY } from "../utils";
-import type { TransitsResponse, PlanetTransit, UserProfile } from "../types";
+import { getGateTheme, getChannelInfo, getChannelInfoByName } from "../hd-data";
+import type { TransitsResponse, PlanetTransit, PersonalChannel, UserProfile } from "../types";
 
 // ─── Planetary glyphs ────────────────────────────────────────────────────────
 
@@ -22,11 +23,15 @@ export function TransitViewer({ profile, userId }: Props) {
   const [data, setData] = useState<TransitsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [expandedCard, setExpandedCard] = useState<string | null>(null);
 
   // Set of user's activated gate numbers for quick lookup
   const userGates = new Set(
     profile.humanDesign.activatedGates?.map((g) => g.number) ?? []
   );
+
+  const toggleExpand = (id: string) =>
+    setExpandedCard((prev) => (prev === id ? null : id));
 
   useEffect(() => {
     fetchTransits(userId)
@@ -88,7 +93,13 @@ export function TransitViewer({ profile, userId }: Props) {
         marginBottom: "24px",
       }}>
         {data.planets.map((p) => (
-          <PlanetCard key={p.name} planet={p} touchesUser={userGates.has(p.hdGate)} />
+          <PlanetCard
+            key={p.name}
+            planet={p}
+            touchesUser={userGates.has(p.hdGate)}
+            expanded={expandedCard === `planet-${p.name}`}
+            onToggle={() => toggleExpand(`planet-${p.name}`)}
+          />
         ))}
       </div>
 
@@ -107,17 +118,43 @@ export function TransitViewer({ profile, userId }: Props) {
           }}>
             Canales completados por las posiciones planetarias actuales
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", justifyContent: "center" }}>
-            {data.activatedChannels.map((ch) => (
-              <span key={ch} style={{
-                background: "var(--color-primary-faint)",
-                border: "1px solid var(--glass-gold-border)",
-                borderRadius: "20px", padding: "5px 14px",
-                color: "var(--text-gold)", fontSize: "12px",
-              }}>
-                {ch}
-              </span>
-            ))}
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {data.activatedChannels.map((ch) => {
+              const info = getChannelInfoByName(ch);
+              const isExpanded = expandedCard === `channel-${ch}`;
+              return (
+                <div
+                  key={ch}
+                  onClick={() => toggleExpand(`channel-${ch}`)}
+                  style={{
+                    background: "rgba(212,175,55,0.06)",
+                    border: "1px solid rgba(212,175,55,0.15)",
+                    borderRadius: "10px", padding: "10px 14px",
+                    cursor: "pointer",
+                    transition: "all 0.3s ease",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ color: "var(--text-gold)", fontSize: "12px" }}>{ch}</span>
+                    <span style={{ color: "var(--text-muted)", fontSize: "10px", opacity: 0.5, transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "none" }}>▾</span>
+                  </div>
+                  {isExpanded && info && (
+                    <div style={{
+                      marginTop: "8px", paddingTop: "8px",
+                      borderTop: "1px solid rgba(212,175,55,0.1)",
+                      color: "var(--text-muted)", fontSize: "12px",
+                      lineHeight: 1.6, fontFamily: "var(--font-serif)",
+                      animation: "fadeIn 0.3s ease",
+                    }}>
+                      <span style={{ color: "var(--color-primary)", fontSize: "9px", letterSpacing: "0.1em", fontFamily: "var(--font-sans)" }}>
+                        {info.circuit.toUpperCase()}
+                      </span>
+                      <div style={{ marginTop: "4px" }}>{info.description}</div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -152,20 +189,12 @@ export function TransitViewer({ profile, userId }: Props) {
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {data.impact.personalChannels.map((ch) => (
-              <div key={`${ch.channelId}-${ch.transitPlanet}`} style={{
-                background: "rgba(212,175,55,0.06)",
-                border: "1px solid rgba(212,175,55,0.15)",
-                borderRadius: "10px", padding: "10px 14px",
-              }}>
-                <div style={{
-                  color: "var(--text-gold)", fontSize: "12px", fontWeight: 500, marginBottom: "4px",
-                }}>
-                  {ch.channelName} ({ch.channelId})
-                </div>
-                <div style={{ color: "var(--text-muted)", fontSize: "11px" }}>
-                  Tu Puerta {ch.userGate} + {ch.transitPlanet} en Puerta {ch.transitGate}
-                </div>
-              </div>
+              <PersonalChannelCard
+                key={`${ch.channelId}-${ch.transitPlanet}`}
+                channel={ch}
+                expanded={expandedCard === `personal-${ch.channelId}`}
+                onToggle={() => toggleExpand(`personal-${ch.channelId}`)}
+              />
             ))}
           </div>
         </div>
@@ -249,12 +278,19 @@ export function TransitViewer({ profile, userId }: Props) {
 
 // ─── Planet Card ──────────────────────────────────────────────────────────────
 
-function PlanetCard({ planet, touchesUser }: { planet: PlanetTransit; touchesUser: boolean }) {
+function PlanetCard({ planet, touchesUser, expanded, onToggle }: {
+  planet: PlanetTransit;
+  touchesUser: boolean;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
   const glyph = PLANET_GLYPHS[planet.name] ?? "•";
+  const gateTheme = getGateTheme(planet.hdGate);
 
   return (
     <div
       className={touchesUser ? "glass-panel-gold" : "glass-panel"}
+      onClick={onToggle}
       style={{
         padding: "14px 16px",
         transition: "all 0.3s ease",
@@ -262,6 +298,7 @@ function PlanetCard({ planet, touchesUser }: { planet: PlanetTransit; touchesUse
         gap: "12px",
         alignItems: "flex-start",
         borderColor: touchesUser ? "rgba(212,175,55,0.3)" : undefined,
+        cursor: "pointer",
       }}
       onMouseOver={(e) => {
         e.currentTarget.style.borderColor = touchesUser
@@ -293,16 +330,19 @@ function PlanetCard({ planet, touchesUser }: { planet: PlanetTransit; touchesUse
           <span style={{ color: "var(--text-main)", fontSize: "13px", fontWeight: 500 }}>
             {planet.name}
           </span>
-          {planet.isRetrograde && (
-            <span style={{
-              background: "rgba(232,184,75,0.15)",
-              border: "1px solid rgba(232,184,75,0.3)",
-              borderRadius: "8px", padding: "1px 7px",
-              color: "#e8b84b", fontSize: "9px", fontWeight: 700, letterSpacing: "0.04em",
-            }}>
-              Rx
-            </span>
-          )}
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            {planet.isRetrograde && (
+              <span style={{
+                background: "rgba(232,184,75,0.15)",
+                border: "1px solid rgba(232,184,75,0.3)",
+                borderRadius: "8px", padding: "1px 7px",
+                color: "#e8b84b", fontSize: "9px", fontWeight: 700, letterSpacing: "0.04em",
+              }}>
+                Rx
+              </span>
+            )}
+            <span style={{ color: "var(--text-muted)", fontSize: "10px", opacity: 0.4, transition: "transform 0.2s", transform: expanded ? "rotate(180deg)" : "none" }}>▾</span>
+          </div>
         </div>
         <div style={{
           color: "var(--text-muted)", fontSize: "12px", marginBottom: "3px",
@@ -324,7 +364,82 @@ function PlanetCard({ planet, touchesUser }: { planet: PlanetTransit; touchesUse
             ✦ ACTIVA TU PUERTA {planet.hdGate}
           </div>
         )}
+        {expanded && gateTheme && (
+          <div style={{
+            marginTop: "8px", paddingTop: "8px",
+            borderTop: `1px solid ${touchesUser ? "rgba(212,175,55,0.15)" : "rgba(255,255,255,0.06)"}`,
+            animation: "fadeIn 0.3s ease",
+          }}>
+            <div style={{
+              color: touchesUser ? "var(--color-primary)" : "var(--color-accent)",
+              fontSize: "11px", fontWeight: 500, marginBottom: "4px",
+              fontFamily: "var(--font-serif)",
+            }}>
+              {gateTheme.name}
+            </div>
+            <div style={{
+              color: "var(--text-muted)", fontSize: "11px",
+              lineHeight: 1.5, fontFamily: "var(--font-serif)",
+            }}>
+              {gateTheme.theme}
+            </div>
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+// ─── Personal Channel Card ───────────────────────────────────────────────────
+
+function PersonalChannelCard({ channel, expanded, onToggle }: {
+  channel: PersonalChannel;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const info = getChannelInfo(channel.channelId);
+
+  return (
+    <div
+      onClick={onToggle}
+      style={{
+        background: "rgba(212,175,55,0.06)",
+        border: "1px solid rgba(212,175,55,0.15)",
+        borderRadius: "10px", padding: "10px 14px",
+        cursor: "pointer",
+        transition: "all 0.3s ease",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <div style={{
+            color: "var(--text-gold)", fontSize: "12px", fontWeight: 500, marginBottom: "4px",
+          }}>
+            {channel.channelName} ({channel.channelId})
+          </div>
+          <div style={{ color: "var(--text-muted)", fontSize: "11px" }}>
+            Tu Puerta {channel.userGate} + {channel.transitPlanet} en Puerta {channel.transitGate}
+          </div>
+        </div>
+        <span style={{ color: "var(--text-muted)", fontSize: "10px", opacity: 0.5, transition: "transform 0.2s", transform: expanded ? "rotate(180deg)" : "none" }}>▾</span>
+      </div>
+      {expanded && info && (
+        <div style={{
+          marginTop: "8px", paddingTop: "8px",
+          borderTop: "1px solid rgba(212,175,55,0.1)",
+          animation: "fadeIn 0.3s ease",
+        }}>
+          <span style={{ color: "var(--color-primary)", fontSize: "9px", letterSpacing: "0.1em", fontFamily: "var(--font-sans)" }}>
+            {info.circuit.toUpperCase()}
+          </span>
+          <div style={{
+            marginTop: "4px", color: "var(--text-muted)", fontSize: "12px",
+            lineHeight: 1.6, fontFamily: "var(--font-serif)",
+          }}>
+            {info.description}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
