@@ -224,9 +224,23 @@ type HdSummary = {
 
 const HD_TYPE_MAP: Record<string, string> = {
   "Manifesting Generator": "Generador Manifestante",
+  "Emotional Manifesting Generator": "Generador Manifestante",
+  "Sacral Manifesting Generator": "Generador Manifestante",
+  "Splenic Manifesting Generator": "Generador Manifestante",
   "Generator": "Generador",
+  "Emotional Generator": "Generador",
+  "Sacral Generator": "Generador",
+  "Splenic Generator": "Generador",
   "Projector": "Proyector",
+  "Emotional Projector": "Proyector",
+  "Splenic Projector": "Proyector",
+  "Ego Projector": "Proyector",
+  "Self-Projected Projector": "Proyector",
+  "Mental Projector": "Proyector",
   "Manifestor": "Manifestador",
+  "Emotional Manifestor": "Manifestador",
+  "Splenic Manifestor": "Manifestador",
+  "Ego Manifestor": "Manifestador",
   "Reflector": "Reflector",
 };
 
@@ -257,6 +271,11 @@ const HD_DEFINITION_MAP: Record<string, string> = {
   "Triple Split Definition": "Definición triple dividida",
   "Quadruple Split Definition": "Definición cuádruple dividida",
   "No Definition": "Sin definición",
+  // Genetic Matrix format: "Single", "Split - Small (6)", "Triple Split", etc.
+  "Single": "Definición simple",
+  "Split": "Definición dividida",
+  "Triple Split": "Definición triple dividida",
+  "Quadruple Split": "Definición cuádruple dividida",
 };
 
 const HD_NOT_SELF_MAP: Record<string, string> = {
@@ -301,6 +320,10 @@ const HD_CROSS_PREFIX_MAP: Record<string, string> = {
   "Left Angle Cross of": "Cruz de Ángulo Izquierdo de",
   "Right Angle Cross of": "Cruz de Ángulo Derecho de",
   "Juxtaposition Cross of": "Cruz de Yuxtaposición de",
+  // Genetic Matrix abbreviated format
+  "LAX": "Cruz de Ángulo Izquierdo de",
+  "RAX": "Cruz de Ángulo Derecho de",
+  "JXP": "Cruz de Yuxtaposición de",
 };
 
 const HD_CROSS_TITLE_MAP: Record<string, string> = {
@@ -325,11 +348,21 @@ function replacePhrases(value: string, map: Record<string, string>): string {
 }
 
 function translateCrossTitle(value: string): string {
-  const match = value.match(/^(.* de )([^()]+)(\s*\(.*\))$/);
-  if (!match) return value;
-  const [, prefix, title, suffix] = match;
-  const translated = HD_CROSS_TITLE_MAP[title.trim()] ?? title.trim();
-  return `${prefix}${translated}${suffix}`;
+  // Format with parentheses: "Cruz de Ángulo Izquierdo de Industry (1)"
+  const matchParen = value.match(/^(.* de )([^()]+)(\s*\(.*\))$/);
+  if (matchParen) {
+    const [, prefix, title, suffix] = matchParen;
+    const translated = HD_CROSS_TITLE_MAP[title.trim()] ?? title.trim();
+    return `${prefix}${translated}${suffix}`;
+  }
+  // Format without parentheses: "Cruz de Ángulo Izquierdo de Industry 1"
+  const matchPlain = value.match(/^(.* de )(.+?)(\s+\d+)?$/);
+  if (matchPlain) {
+    const [, prefix, title, numSuffix] = matchPlain;
+    const translated = HD_CROSS_TITLE_MAP[title.trim()] ?? title.trim();
+    return `${prefix}${translated}${numSuffix ?? ""}`;
+  }
+  return value;
 }
 
 function extractSection(
@@ -353,36 +386,53 @@ function extractSection(
 
 function parseHdSummaryFromText(text: string): HdSummary {
   const cleaned = normalizeField(text);
+
+  // Labels from both providers (MyHumanDesign uses spaced labels, Genetic Matrix uses "Key: value")
   const labels = [
     "TYPE ",
+    "TYPE: ",
     "PROFILE ",
+    "PROFILE: ",
     "NOT SELF THEME ",
     "DEFINITION ",
+    "DEFINITION: ",
     "DIGESTION ",
     "ENVIRONMENT ",
     "AUTHORITY (THE WAY YOU MAKE DECISIONS) ",
+    "INNER AUTHORITY: ",
     "STRATEGY ",
+    "STRATEGY: ",
     "LIFE THEME (INCARNATION CROSS) ",
+    "INCARNATION CROSS: ",
     "YOUR STRONGEST SENSE ",
     "YOUR MOST IMPORTANT GIFT ",
     "YOUR OTHER GIFTS ",
     "SIGN ",
+    "CHANNELS: ",
   ];
   const allLabelsUpper = labels.map((l) => l.toUpperCase());
 
   const summary: HdSummary = { humanDesign: {} };
 
+  // Name extraction (MyHumanDesign format)
   const nameMatch = cleaned.match(/\bName\s+([^\s].*?)\s+Design\b/i);
   if (nameMatch && !/not available/i.test(nameMatch[1])) {
     summary.name = normalizeField(nameMatch[1]);
   }
+  // Name extraction (Genetic Matrix format: "Name: Foo Bar Birth Date")
+  if (!summary.name) {
+    const gmNameMatch = cleaned.match(/\bName:\s+(.+?)\s+Birth Date\b/i);
+    if (gmNameMatch) summary.name = normalizeField(gmNameMatch[1]);
+  }
 
-  const typeRaw = extractSection(cleaned, "TYPE ", allLabelsUpper);
+  const typeRaw = extractSection(cleaned, "TYPE ", allLabelsUpper)
+    ?? extractSection(cleaned, "TYPE: ", allLabelsUpper);
   if (typeRaw) {
     summary.humanDesign.type = normalizeField(typeRaw.split(" - ")[0] ?? typeRaw);
   }
 
-  const profileRaw = extractSection(cleaned, "PROFILE ", allLabelsUpper);
+  const profileRaw = extractSection(cleaned, "PROFILE ", allLabelsUpper)
+    ?? extractSection(cleaned, "PROFILE: ", allLabelsUpper);
   if (profileRaw) {
     const profileMatch = profileRaw.match(/\b\d{1,2}\/\d{1,2}\b/);
     summary.humanDesign.profile = profileMatch ? profileMatch[0] : profileRaw.split(":")[0] ?? profileRaw;
@@ -391,7 +441,8 @@ function parseHdSummaryFromText(text: string): HdSummary {
   const notSelf = extractSection(cleaned, "NOT SELF THEME ", allLabelsUpper);
   if (notSelf) summary.humanDesign.notSelfTheme = notSelf;
 
-  const definition = extractSection(cleaned, "DEFINITION ", allLabelsUpper);
+  const definition = extractSection(cleaned, "DEFINITION ", allLabelsUpper)
+    ?? extractSection(cleaned, "DEFINITION: ", allLabelsUpper);
   if (definition) summary.humanDesign.definition = definition;
 
   const digestion = extractSection(cleaned, "DIGESTION ", allLabelsUpper);
@@ -400,13 +451,16 @@ function parseHdSummaryFromText(text: string): HdSummary {
   const environment = extractSection(cleaned, "ENVIRONMENT ", allLabelsUpper);
   if (environment) summary.humanDesign.environment = environment;
 
-  const authority = extractSection(cleaned, "AUTHORITY (THE WAY YOU MAKE DECISIONS) ", allLabelsUpper);
+  const authority = extractSection(cleaned, "AUTHORITY (THE WAY YOU MAKE DECISIONS) ", allLabelsUpper)
+    ?? extractSection(cleaned, "INNER AUTHORITY: ", allLabelsUpper);
   if (authority) summary.humanDesign.authority = authority;
 
-  const strategy = extractSection(cleaned, "STRATEGY ", allLabelsUpper);
+  const strategy = extractSection(cleaned, "STRATEGY ", allLabelsUpper)
+    ?? extractSection(cleaned, "STRATEGY: ", allLabelsUpper);
   if (strategy) summary.humanDesign.strategy = strategy;
 
-  const lifeTheme = extractSection(cleaned, "LIFE THEME (INCARNATION CROSS) ", allLabelsUpper);
+  const lifeTheme = extractSection(cleaned, "LIFE THEME (INCARNATION CROSS) ", allLabelsUpper)
+    ?? extractSection(cleaned, "INCARNATION CROSS: ", allLabelsUpper);
   if (lifeTheme) summary.humanDesign.incarnationCross = lifeTheme;
 
   const strongestSense = extractSection(cleaned, "YOUR STRONGEST SENSE ", allLabelsUpper);
@@ -433,7 +487,9 @@ function mapHdValue(
     return value;
   }
   if (key === "definition") {
-    return HD_DEFINITION_MAP[value] ?? value;
+    // Try exact match first, then base (before " - ") for Genetic Matrix "Split - Small (6)" format
+    const base = value.split(" - ")[0]?.trim() ?? value;
+    return HD_DEFINITION_MAP[value] ?? HD_DEFINITION_MAP[base] ?? value;
   }
   if (key === "notSelfTheme") {
     return HD_NOT_SELF_MAP[value] ?? value;

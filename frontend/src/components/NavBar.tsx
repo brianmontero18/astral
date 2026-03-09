@@ -35,8 +35,8 @@ export function NavBar({ currentView, onNavigate, userName, profile, onReset }: 
       }}
     >
       {/* Top row */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0, flexShrink: 1 }}>
           <div
             style={{
               width: 34,
@@ -48,30 +48,32 @@ export function NavBar({ currentView, onNavigate, userName, profile, onReset }: 
               animation: "spin 20s linear infinite",
             }}
           />
-          <div>
-            <div style={{ 
-              color: "var(--text-main)", 
-              fontSize: "18px", 
+          <div style={{ minWidth: 0 }}>
+            <div style={{
+              color: "var(--text-main)",
+              fontSize: "18px",
               fontFamily: "var(--font-serif)",
-              fontWeight: 500, 
-              letterSpacing: "0.06em" 
+              fontWeight: 500,
+              letterSpacing: "0.06em",
+              whiteSpace: "nowrap",
             }}>
               Astral Guide
             </div>
-            <div style={{ 
-              color: "var(--color-primary)", 
-              fontSize: "9px", 
-              letterSpacing: "0.25em",
+            <div style={{
+              color: "var(--color-primary)",
+              fontSize: "9px",
+              letterSpacing: "0.2em",
               fontFamily: "var(--font-sans)",
               fontWeight: 600,
-              opacity: 0.8
+              opacity: 0.8,
+              whiteSpace: "nowrap",
             }}>
-              CARTA NATAL · DISEÑO HUMANO
+              DISEÑO HUMANO
             </div>
           </div>
         </div>
 
-        <div style={{ position: "relative" }}>
+        <div style={{ position: "relative", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <button
               onClick={() => setShowProfile((v) => !v)}
@@ -87,11 +89,15 @@ export function NavBar({ currentView, onNavigate, userName, profile, onReset }: 
                 fontWeight: 500,
                 letterSpacing: "0.05em",
                 transition: "all 0.3s ease",
+                maxWidth: 160,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
               }}
               onMouseOver={(e) => { e.currentTarget.style.background = "var(--color-primary-dim)" }}
               onMouseOut={(e) => { e.currentTarget.style.background = "var(--color-primary-faint)" }}
             >
-              {userName} <span style={{opacity: 0.5, margin: "0 6px"}}>|</span> {profile.humanDesign.type}
+              {userName}
             </button>
             <button
               onClick={onReset}
@@ -109,11 +115,12 @@ export function NavBar({ currentView, onNavigate, userName, profile, onReset }: 
                 letterSpacing: "0.05em",
                 textTransform: "uppercase",
                 transition: "all 0.3s ease",
+                whiteSpace: "nowrap",
               }}
               onMouseOver={(e) => { e.currentTarget.style.background = "rgba(201,107,122,0.1)" }}
               onMouseOut={(e) => { e.currentTarget.style.background = "transparent" }}
             >
-              Desconectar
+              Salir
             </button>
           </div>
           {showProfile && <ProfilePanel profile={profile} />}

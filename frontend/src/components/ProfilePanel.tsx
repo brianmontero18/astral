@@ -1,4 +1,5 @@
 import type { UserProfile } from "../types";
+import { translateCenters } from "../utils";
 import { ChannelChips } from "./ChannelChips";
 
 interface Props {
@@ -16,8 +17,8 @@ export function ProfilePanel({ profile }: Props) {
     ["Definición",  hd.definition || "—"],
     ["Cruz",        hd.incarnationCross || "—"],
     ["No-Self",     hd.notSelfTheme || "—"],
-    ["Definidos",   hd.definedCenters.join(", ") || "—"],
-    ["Indefinidos", hd.undefinedCenters.join(", ") || "—"],
+    ["Definidos",   translateCenters(hd.definedCenters) || "—"],
+    ["Indefinidos", translateCenters(hd.undefinedCenters) || "—"],
   ];
 
   return (
@@ -26,6 +27,7 @@ export function ProfilePanel({ profile }: Props) {
       top: "calc(100% + 8px)",
       right: 0,
       width: 272,
+      maxWidth: "calc(100vw - 32px)",
       zIndex: 200,
       background: "#110a2e",
       border: "1px solid rgba(124,111,205,0.4)",
@@ -33,6 +35,8 @@ export function ProfilePanel({ profile }: Props) {
       padding: 16,
       animation: "fadeIn 0.2s ease",
       boxShadow: "0 8px 40px rgba(0,0,0,0.7)",
+      maxHeight: "60vh",
+      overflowY: "auto",
     }}>
       <div style={{ color: "#7c6fcd", fontSize: 10, letterSpacing: "0.12em", marginBottom: 10 }}>
         ✦ PERFIL ACTIVO

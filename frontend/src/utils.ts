@@ -18,6 +18,22 @@ export const SECTION_META: Record<string, { label: string; color: string }> = {
 
 export const SECTION_EMOJIS = Object.keys(SECTION_META);
 
+// ─── Center display names (canonical English → Spanish) ──────────────────────
+
+export const CENTER_DISPLAY: Record<string, string> = {
+  Head: "Cabeza", Ajna: "Ajna", Throat: "Garganta",
+  G: "Centro G", Heart: "Corazón", Spleen: "Bazo",
+  Sacral: "Sacral", SolarPlexus: "Plexo Solar", Root: "Raíz",
+};
+
+export function translateCenter(id: string): string {
+  return CENTER_DISPLAY[id] ?? id;
+}
+
+export function translateCenters(ids: string[]): string {
+  return ids.map(translateCenter).join(", ");
+}
+
 // ─── Report parser ────────────────────────────────────────────────────────────
 
 export interface ReportSection {

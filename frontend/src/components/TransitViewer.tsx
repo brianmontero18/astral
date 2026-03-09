@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { fetchTransits } from "../api";
+import { CENTER_DISPLAY } from "../utils";
 import type { TransitsResponse, PlanetTransit, UserProfile } from "../types";
 
 // ─── Planetary glyphs ────────────────────────────────────────────────────────
@@ -8,14 +9,6 @@ const PLANET_GLYPHS: Record<string, string> = {
   Sol: "☉", Luna: "☽", Mercurio: "☿", Venus: "♀", Marte: "♂",
   "Júpiter": "♃", Saturno: "♄", Urano: "♅", Neptuno: "♆",
   "Plutón": "♇", "Quirón": "⚷", "Nodo Norte": "☊", "Nodo Sur": "☋",
-};
-
-// ─── Center display names (canonical English → Spanish UI) ──────────────────
-
-const CENTER_DISPLAY: Record<string, string> = {
-  Head: "Cabeza", Ajna: "Ajna", Throat: "Garganta",
-  G: "Centro G", Heart: "Corazón", Spleen: "Bazo",
-  Sacral: "Sacral", SolarPlexus: "Plexo Solar", Root: "Raíz",
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────
