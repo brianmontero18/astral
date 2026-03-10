@@ -8,7 +8,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import type { FastifyInstance } from "fastify";
-import { createTestApp, createTestUser } from "./helpers.js";
+import { createTestApp, createTestUser, seedUserMessages } from "./helpers.js";
 
 let app: FastifyInstance;
 
@@ -116,5 +116,116 @@ describe("GET /api/users/:userId/messages — chat history", () => {
     });
 
     expect(res.statusCode).toBe(404);
+  });
+
+  it("returns used and limit in response", async () => {
+    const userId = await createTestUser(app);
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/users/${userId}/messages`,
+    });
+
+    const body = JSON.parse(res.body);
+    expect(body.used).toBe(0);
+    expect(body.limit).toBe(15);
+  });
+
+  it("returns correct used count after seeding messages", async () => {
+    const userId = await createTestUser(app);
+    await seedUserMessages(app, userId, 5);
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/users/${userId}/messages`,
+    });
+
+    const body = JSON.parse(res.body);
+    expect(body.used).toBe(5);
+    expect(body.limit).toBe(15);
+    expect(body.messages).toHaveLength(10); // 5 user + 5 assistant
+  });
+});
+
+describe("Freemium message limit", () => {
+  it("returns 403 on POST /api/chat when limit reached", async () => {
+    const userId = await createTestUser(app);
+    await seedUserMessages(app, userId, 15);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/chat",
+      payload: {
+        userId,
+        messages: [{ role: "user", content: "one more please" }],
+      },
+    });
+
+    expect(res.statusCode).toBe(403);
+    const body = JSON.parse(res.body);
+    expect(body.error).toBe("message_limit_reached");
+    expect(body.used).toBe(15);
+    expect(body.limit).toBe(15);
+  });
+
+  it("returns 403 on POST /api/chat/stream when limit reached", async () => {
+    const userId = await createTestUser(app);
+    await seedUserMessages(app, userId, 15);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/chat/stream",
+      payload: {
+        userId,
+        messages: [{ role: "user", content: "one more please" }],
+      },
+    });
+
+    expect(res.statusCode).toBe(403);
+    const body = JSON.parse(res.body);
+    expect(body.error).toBe("message_limit_reached");
+  });
+
+  it("allows chat when under the limit", async () => {
+    const userId = await createTestUser(app);
+    await seedUserMessages(app, userId, 14);
+
+    // Should NOT return 403 — the request may fail for other reasons
+    // (no OpenAI key in tests) but the limit check should pass
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/chat",
+      payload: {
+        userId,
+        messages: [{ role: "user", content: "still free" }],
+      },
+    });
+
+    expect(res.statusCode).not.toBe(403);
+  });
+
+  it("does not enforce limit when userId is not provided (legacy mode)", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/chat",
+      payload: {
+        profile: {
+          humanDesign: {
+            type: "Generator",
+            strategy: "Respond",
+            authority: "Sacral",
+            profile: "1/3",
+            definition: "Single",
+            incarnationCross: "Test",
+            channels: [],
+            activatedGates: [],
+            definedCenters: [],
+            undefinedCenters: [],
+          },
+        },
+        messages: [{ role: "user", content: "hello" }],
+      },
+    });
+
+    // Should not be 403 — no userId means no limit check
+    expect(res.statusCode).not.toBe(403);
   });
 });

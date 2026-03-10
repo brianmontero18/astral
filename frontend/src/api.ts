@@ -44,6 +44,15 @@ export async function sendChat(
     body: JSON.stringify({ userId, messages }),
   });
   if (!res.ok) {
+    if (res.status === 403) {
+      const data = await res.json() as { error?: string; used?: number; limit?: number };
+      if (data.error === "message_limit_reached") {
+        const err = new Error("message_limit_reached") as Error & { used: number; limit: number };
+        err.used = data.used ?? 0;
+        err.limit = data.limit ?? 15;
+        throw err;
+      }
+    }
     const err = await res.text();
     throw new Error(`Backend error ${res.status}: ${err}`);
   }
@@ -62,6 +71,15 @@ export async function sendChatStream(
   });
 
   if (!res.ok) {
+    if (res.status === 403) {
+      const data = await res.json() as { error?: string; used?: number; limit?: number };
+      if (data.error === "message_limit_reached") {
+        const err = new Error("message_limit_reached") as Error & { used: number; limit: number };
+        err.used = data.used ?? 0;
+        err.limit = data.limit ?? 15;
+        throw err;
+      }
+    }
     const err = await res.text();
     throw new Error(`Backend error ${res.status}: ${err}`);
   }
@@ -113,7 +131,7 @@ export async function sendChatStream(
 
 export async function getChatHistory(
   userId: string,
-): Promise<{ messages: Array<{ role: string; content: string; created_at: string }> }> {
+): Promise<{ messages: Array<{ role: string; content: string; created_at: string }>; used: number; limit: number }> {
   const res = await fetch(`${BASE}/users/${userId}/messages`);
   if (!res.ok) throw new Error(`Chat history error ${res.status}`);
   return res.json();

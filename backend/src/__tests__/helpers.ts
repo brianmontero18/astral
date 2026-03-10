@@ -21,6 +21,19 @@ export async function createTestApp(): Promise<FastifyInstance> {
   return app;
 }
 
+/** Seed N user messages directly in the DB for a given userId */
+export async function seedUserMessages(
+  app: FastifyInstance,
+  userId: string,
+  count: number,
+): Promise<void> {
+  const { saveChatMessage } = await import("../db.js");
+  for (let i = 0; i < count; i++) {
+    await saveChatMessage(userId, "user", `test message ${i + 1}`);
+    await saveChatMessage(userId, "assistant", `test reply ${i + 1}`);
+  }
+}
+
 /** Create a user and return its ID */
 export async function createTestUser(
   app: FastifyInstance,

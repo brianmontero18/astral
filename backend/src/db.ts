@@ -203,6 +203,14 @@ export async function getChatMessages(
   }));
 }
 
+export async function getUserMessageCount(userId: string): Promise<number> {
+  const result = await client.execute({
+    sql: "SELECT COUNT(*) as count FROM chat_messages WHERE user_id = ? AND role = 'user'",
+    args: [userId],
+  });
+  return (result.rows[0]?.count as number) ?? 0;
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 export function getISOWeekKey(date: Date = new Date()): string {

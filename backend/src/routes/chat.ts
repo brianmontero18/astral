@@ -1,10 +1,11 @@
 import type { FastifyInstance } from "fastify";
 import { runAstralAgent, runAstralAgentStream, type UserProfile, type ChatMessage } from "../agent-service.js";
-import { getUser, saveChatMessage, getChatMessages } from "../db.js";
+import { getUser, saveChatMessage, getChatMessages, getUserMessageCount } from "../db.js";
 import { getTransitsCached } from "./transits.js";
 import { analyzeTransitImpact } from "../transit-service.js";
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
+const FREE_MESSAGE_LIMIT = 15;
 
 export async function chatRoutes(app: FastifyInstance) {
   // Legacy: accepts { profile, messages } directly
@@ -34,6 +35,14 @@ export async function chatRoutes(app: FastifyInstance) {
       profile = directProfile;
     } else {
       return reply.status(400).send({ error: "Missing userId or profile" });
+    }
+
+    // Freemium limit check
+    if (userId) {
+      const used = await getUserMessageCount(userId);
+      if (used >= FREE_MESSAGE_LIMIT) {
+        return reply.status(403).send({ error: "message_limit_reached", used, limit: FREE_MESSAGE_LIMIT });
+      }
     }
 
     try {
@@ -83,6 +92,14 @@ export async function chatRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "Missing userId or profile" });
     }
 
+    // Freemium limit check (before SSE headers so we can return JSON 403)
+    if (userId) {
+      const used = await getUserMessageCount(userId);
+      if (used >= FREE_MESSAGE_LIMIT) {
+        return reply.status(403).send({ error: "message_limit_reached", used, limit: FREE_MESSAGE_LIMIT });
+      }
+    }
+
     reply.raw.writeHead(200, {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
@@ -130,6 +147,7 @@ export async function chatRoutes(app: FastifyInstance) {
       return reply.status(404).send({ error: "User not found" });
     }
     const messages = await getChatMessages(userId);
-    return reply.send({ messages });
+    const used = await getUserMessageCount(userId);
+    return reply.send({ messages, used, limit: FREE_MESSAGE_LIMIT });
   });
 }
