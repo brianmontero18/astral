@@ -1,7 +1,49 @@
 import { useState, useEffect, useRef } from "react";
 import { ReportRenderer } from "./ReportRenderer";
 import { sendChat, sendChatStream, getChatHistory } from "../api";
+import { VoiceRecorder } from "./VoiceRecorder";
 import type { ChatMessage, LocalUser } from "../types";
+
+const hasMicSupport = typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
+
+const CopyIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+  </svg>
+);
+
+function CopyButton({ copied, onCopy }: { copied: boolean; onCopy: () => void }) {
+  return (
+    <button
+      onClick={onCopy}
+      aria-label="Copiar mensaje"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        background: "transparent",
+        border: "none",
+        color: copied ? "var(--color-primary)" : "var(--text-faint)",
+        fontSize: 12,
+        cursor: "pointer",
+        padding: "4px 8px",
+        borderRadius: 6,
+        transition: "all 0.2s ease",
+        fontFamily: "var(--font-sans)",
+        fontWeight: 400,
+      }}
+      onMouseOver={(e) => { if (!copied) e.currentTarget.style.color = "var(--text-muted)"; }}
+      onMouseOut={(e) => { if (!copied) e.currentTarget.style.color = "var(--text-faint)"; }}
+    >
+      {copied ? (
+        <><span style={{ fontSize: 13 }}>✓</span><span>Copiado</span></>
+      ) : (
+        <><CopyIcon /><span>Copiar</span></>
+      )}
+    </button>
+  );
+}
 
 const QUICK_ACTIONS = [
   "Reporte semanal completo",
@@ -21,9 +63,13 @@ export function ChatView({ user }: Props) {
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [messageUsage, setMessageUsage] = useState<{ used: number; limit: number } | null>(null);
   const [limitReached, setLimitReached] = useState(false);
+  const [streaming, setStreaming] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [editIndex, setEditIndex] = useState<number | null>(null);
+  const [editText, setEditText] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Load chat history on mount
   useEffect(() => {
     getChatHistory(user.id)
       .then(({ messages: history, used, limit }) => {
@@ -33,9 +79,7 @@ export function ChatView({ user }: Props) {
         setMessageUsage({ used, limit });
         if (used >= limit) setLimitReached(true);
       })
-      .catch(() => {
-        // Silently ignore — user just won't see history
-      })
+      .catch(() => {})
       .finally(() => setHistoryLoaded(true));
   }, [user.id]);
 
@@ -44,24 +88,21 @@ export function ChatView({ user }: Props) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, loading]);
 
-  const [streaming, setStreaming] = useState(false);
-
-  const sendMessage = async (text: string) => {
+  const sendMessage = async (text: string, baseMessages?: ChatMessage[]) => {
     const trimmed = text.trim();
     if (!trimmed || loading || streaming || limitReached) return;
 
     setErrorMsg(null);
     setInput("");
+    setEditIndex(null);
 
-    const updated: ChatMessage[] = [...messages, { role: "user", content: trimmed }];
+    const base = baseMessages ?? messages;
+    const updated: ChatMessage[] = [...base, { role: "user", content: trimmed }];
     setMessages(updated);
     setLoading(true);
-
-    // Optimistically increment usage
-    setMessageUsage((prev) => prev ? { ...prev, used: prev.used + 1 } : prev);
+    setMessageUsage((prev) => (prev ? { ...prev, used: prev.used + 1 } : prev));
 
     try {
-      // Add empty assistant placeholder
       const withPlaceholder: ChatMessage[] = [...updated, { role: "assistant", content: "" }];
       setMessages(withPlaceholder);
       setStreaming(true);
@@ -77,7 +118,6 @@ export function ChatView({ user }: Props) {
 
       setStreaming(false);
 
-      // Check if this was the last free message
       if (messageUsage && messageUsage.used + 1 >= messageUsage.limit) {
         setLimitReached(true);
       }
@@ -88,13 +128,11 @@ export function ChatView({ user }: Props) {
         const limitErr = e as Error & { used: number; limit: number };
         setMessageUsage({ used: limitErr.used, limit: limitErr.limit });
         setLimitReached(true);
-        setMessages(messages); // Revert — message wasn't sent
+        setMessages(base);
         setLoading(false);
         return;
       }
-      const msg = e instanceof Error ? e.message : String(e);
-      // If streaming failed before any content, try non-streaming fallback
-      setMessages(updated); // Remove empty placeholder
+      setMessages(updated);
       setLoading(true);
       try {
         const data = await sendChat(user.id, updated);
@@ -108,14 +146,13 @@ export function ChatView({ user }: Props) {
           const limitErr = e2 as Error & { used: number; limit: number };
           setMessageUsage({ used: limitErr.used, limit: limitErr.limit });
           setLimitReached(true);
-          setMessages(messages);
+          setMessages(base);
           setLoading(false);
           return;
         }
         const msg2 = e2 instanceof Error ? e2.message : String(e2);
-        setErrorMsg(msg || msg2);
-        // Revert optimistic increment on error
-        setMessageUsage((prev) => prev ? { ...prev, used: prev.used - 1 } : prev);
+        setErrorMsg(msg2);
+        setMessageUsage((prev) => (prev ? { ...prev, used: prev.used - 1 } : prev));
       } finally {
         setLoading(false);
       }
@@ -129,11 +166,59 @@ export function ChatView({ user }: Props) {
     }
   };
 
+  // ─── Copy ──────────────────────────────────────────────────────────────────
+
+  const copyMessage = (content: string, index: number) => {
+    navigator.clipboard.writeText(content).then(() => {
+      setCopiedIndex(index);
+      setTimeout(() => setCopiedIndex(null), 2000);
+    }).catch(() => {
+      // Fallback for non-HTTPS or restricted contexts
+      const textarea = document.createElement("textarea");
+      textarea.value = content;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+      setCopiedIndex(index);
+      setTimeout(() => setCopiedIndex(null), 2000);
+    });
+  };
+
+  // ─── Edit ──────────────────────────────────────────────────────────────────
+
+  const startEdit = (index: number) => {
+    setEditIndex(index);
+    setEditText(messages[index].content);
+  };
+
+  const cancelEdit = () => {
+    setEditIndex(null);
+    setEditText("");
+  };
+
+  const saveEdit = (index: number) => {
+    const trimmed = editText.trim();
+    if (!trimmed) return;
+    const base = messages.slice(0, index);
+    sendMessage(trimmed, base);
+  };
+
+  // ─── Voice ─────────────────────────────────────────────────────────────────
+
+  const handleVoiceTranscription = (text: string) => {
+    setIsRecording(false);
+    sendMessage(text);
+  };
+
   if (!historyLoaded) return null;
+
+  const isBusy = loading || streaming;
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-      {/* Chat messages */}
       <main
         style={{
           flex: 1,
@@ -148,10 +233,19 @@ export function ChatView({ user }: Props) {
           boxSizing: "border-box",
         }}
       >
+        {/* Empty state */}
         {messages.length === 0 && (
           <div style={{ textAlign: "center", marginTop: 48 }} className="animate-fade-in-slow">
             <div style={{ color: "var(--color-primary)", fontSize: "38px", marginBottom: "16px" }}>✦</div>
-            <div style={{ color: "var(--text-main)", fontSize: "20px", marginBottom: "8px", fontFamily: "var(--font-serif)", fontWeight: 400 }}>
+            <div
+              style={{
+                color: "var(--text-main)",
+                fontSize: "20px",
+                marginBottom: "8px",
+                fontFamily: "var(--font-serif)",
+                fontWeight: 400,
+              }}
+            >
               Hola, {user.name}
             </div>
             <div style={{ color: "var(--text-muted)", fontSize: "13px", marginBottom: "32px", fontWeight: 300 }}>
@@ -171,10 +265,16 @@ export function ChatView({ user }: Props) {
                     cursor: "pointer",
                     fontSize: "12px",
                     transition: "all 0.3s ease",
-                    fontFamily: "var(--font-sans)"
+                    fontFamily: "var(--font-sans)",
                   }}
-                  onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--color-primary-dim)"; e.currentTarget.style.color = "var(--text-main)" }}
-                  onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--glass-border)"; e.currentTarget.style.color = "var(--text-muted)" }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.borderColor = "var(--color-primary-dim)";
+                    e.currentTarget.style.color = "var(--text-main)";
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.borderColor = "var(--glass-border)";
+                    e.currentTarget.style.color = "var(--text-muted)";
+                  }}
                 >
                   {q}
                 </button>
@@ -183,52 +283,163 @@ export function ChatView({ user }: Props) {
           </div>
         )}
 
+        {/* Messages */}
         {messages.map((msg, i) => (
           <div
             key={i}
-            style={{
-              display: "flex",
-              justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
-            }}
+            style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }}
             className="animate-fade-in"
           >
             {msg.role === "user" ? (
-              <div
-                style={{
-                  background: "var(--glass-bg)",
-                  border: "1px solid var(--glass-border)",
-                  borderRadius: "20px 20px 4px 20px",
-                  padding: "12px 18px",
-                  color: "var(--text-main)",
-                  fontSize: "15px",
-                  fontWeight: 300,
-                  maxWidth: "80%",
-                  lineHeight: 1.6,
-                  fontFamily: "var(--font-sans)",
-                }}
-              >
-                {msg.content}
+              <div style={{ maxWidth: "80%", display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                {editIndex === i ? (
+                  /* Edit mode */
+                  <div
+                    style={{
+                      background: "var(--glass-bg)",
+                      border: "1px solid var(--color-primary-dim)",
+                      borderRadius: 16,
+                      padding: "12px 16px",
+                      width: "100%",
+                      minWidth: 260,
+                    }}
+                  >
+                    <textarea
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      rows={3}
+                      style={{
+                        width: "100%",
+                        background: "transparent",
+                        border: "none",
+                        color: "var(--text-main)",
+                        fontSize: 14,
+                        fontFamily: "var(--font-sans)",
+                        fontWeight: 300,
+                        resize: "vertical",
+                        outline: "none",
+                        lineHeight: 1.6,
+                      }}
+                    />
+                    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 8 }}>
+                      <button
+                        onClick={cancelEdit}
+                        style={{
+                          background: "transparent",
+                          border: "1px solid var(--glass-border)",
+                          color: "var(--text-muted)",
+                          borderRadius: 8,
+                          padding: "6px 14px",
+                          fontSize: 12,
+                          cursor: "pointer",
+                          fontFamily: "var(--font-sans)",
+                        }}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={() => saveEdit(i)}
+                        disabled={!editText.trim() || isBusy}
+                        style={{
+                          background: "var(--color-primary-dim)",
+                          border: "none",
+                          color: "var(--text-main)",
+                          borderRadius: 8,
+                          padding: "6px 14px",
+                          fontSize: 12,
+                          cursor: !editText.trim() || isBusy ? "default" : "pointer",
+                          fontFamily: "var(--font-sans)",
+                          opacity: !editText.trim() || isBusy ? 0.4 : 1,
+                        }}
+                      >
+                        Guardar y enviar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* Display mode */
+                  <>
+                    <div
+                      style={{
+                        background: "var(--glass-bg)",
+                        border: "1px solid var(--glass-border)",
+                        borderRadius: "20px 20px 4px 20px",
+                        padding: "12px 18px",
+                        color: "var(--text-main)",
+                        fontSize: "15px",
+                        fontWeight: 300,
+                        lineHeight: 1.6,
+                        fontFamily: "var(--font-sans)",
+                      }}
+                    >
+                      {msg.content}
+                    </div>
+                    {/* Action buttons below user bubble */}
+                    {msg.content && <div style={{ display: "flex", alignItems: "center", gap: 2, marginTop: 4 }}>
+                      <CopyButton copied={copiedIndex === i} onCopy={() => copyMessage(msg.content, i)} />
+                      {!isBusy && !limitReached && (
+                        <button
+                          onClick={() => startEdit(i)}
+                          aria-label="Editar mensaje"
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 5,
+                            background: "transparent",
+                            border: "none",
+                            color: "var(--text-faint)",
+                            fontSize: 12,
+                            cursor: "pointer",
+                            padding: "4px 8px",
+                            borderRadius: 6,
+                            transition: "all 0.2s ease",
+                            fontFamily: "var(--font-sans)",
+                            fontWeight: 400,
+                          }}
+                          onMouseOver={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+                          onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-faint)")}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                          <span>Editar</span>
+                        </button>
+                      )}
+                    </div>}
+                  </>
+                )}
               </div>
             ) : (
+              /* Assistant message */
               <div style={{ maxWidth: "95%", width: "100%" }}>
-                <div style={{ 
-                  color: "var(--color-primary)", 
-                  fontSize: "10px", 
-                  marginBottom: "8px", 
-                  letterSpacing: "0.15em",
-                  fontWeight: 600,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px"
-                }}>
+                <div
+                  style={{
+                    color: "var(--color-primary)",
+                    fontSize: "10px",
+                    marginBottom: "8px",
+                    letterSpacing: "0.15em",
+                    fontWeight: 600,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
                   <span>✦</span> ASTRAL GUIDE
                 </div>
                 <ReportRenderer text={msg.content} />
+                {/* Copy button */}
+                {msg.content && (
+                  <div style={{ marginTop: 8, display: "flex", alignItems: "center" }}>
+                    <CopyButton copied={copiedIndex === i} onCopy={() => copyMessage(msg.content, i)} />
+                  </div>
+                )}
               </div>
             )}
           </div>
         ))}
 
+        {/* Loading indicator */}
         {loading && (
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }} className="animate-fade-in">
             {[0, 1, 2].map((i) => (
@@ -243,7 +454,9 @@ export function ChatView({ user }: Props) {
                 }}
               />
             ))}
-            <span style={{ color: "var(--text-faint)", fontSize: "12px", letterSpacing: "0.05em" }}>Canalizando estrellas...</span>
+            <span style={{ color: "var(--text-faint)", fontSize: "12px", letterSpacing: "0.05em" }}>
+              Canalizando estrellas...
+            </span>
           </div>
         )}
 
@@ -266,7 +479,7 @@ export function ChatView({ user }: Props) {
         <div ref={bottomRef} />
       </main>
 
-      {/* Footer: Paywall or Input */}
+      {/* Footer */}
       {limitReached ? (
         <footer
           style={{
@@ -283,25 +496,29 @@ export function ChatView({ user }: Props) {
         >
           <div style={{ maxWidth: 760, margin: "0 auto" }}>
             <div style={{ fontSize: 32, marginBottom: 12 }}>✦</div>
-            <h3 style={{
-              fontFamily: "var(--font-serif)",
-              color: "var(--color-primary)",
-              fontSize: 22,
-              fontWeight: 400,
-              marginBottom: 8,
-              margin: "0 0 8px 0",
-            }}>
+            <h3
+              style={{
+                fontFamily: "var(--font-serif)",
+                color: "var(--color-primary)",
+                fontSize: 22,
+                fontWeight: 400,
+                marginBottom: 8,
+                margin: "0 0 8px 0",
+              }}
+            >
               Tu ventana al cosmos se ha completado
             </h3>
-            <p style={{
-              color: "var(--text-muted)",
-              fontSize: 14,
-              fontWeight: 300,
-              marginBottom: 24,
-              lineHeight: 1.6,
-            }}>
-              Has usado tus {messageUsage?.limit ?? 15} mensajes de exploración. Para seguir recibiendo
-              guía estelar personalizada, accedé al plan completo.
+            <p
+              style={{
+                color: "var(--text-muted)",
+                fontSize: 14,
+                fontWeight: 300,
+                marginBottom: 24,
+                lineHeight: 1.6,
+              }}
+            >
+              Has usado tus {messageUsage?.limit ?? 15} mensajes de exploración. Para seguir recibiendo guía estelar
+              personalizada, accedé al plan completo.
             </p>
             <a
               href="https://wa.me/5491153446030"
@@ -343,58 +560,112 @@ export function ChatView({ user }: Props) {
               maxWidth: 760,
               margin: "0 auto",
               background: "var(--glass-bg)",
-              border: "1px solid var(--glass-border)",
+              border: `1px solid ${isRecording ? "var(--color-primary-dim)" : "var(--glass-border)"}`,
               borderRadius: "24px",
               padding: "8px 16px",
               alignItems: "center",
               transition: "border-color 0.3s ease",
             }}
-            onFocus={(e) => e.currentTarget.style.border = "1px solid var(--color-primary-dim)"}
-            onBlur={(e) => e.currentTarget.style.border = "1px solid var(--glass-border)"}
+            onFocus={(e) => {
+              if (!isRecording) e.currentTarget.style.border = "1px solid var(--color-primary-dim)";
+            }}
+            onBlur={(e) => {
+              if (!isRecording) e.currentTarget.style.border = "1px solid var(--glass-border)";
+            }}
           >
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKey}
-              placeholder="Preguntá al oráculo sobre tu semana..."
-              rows={1}
-              style={{
-                flex: 1,
-                background: "transparent",
-                border: "none",
-                color: "var(--text-main)",
-                fontSize: "15px",
-                fontWeight: 300,
-                fontFamily: "var(--font-sans)",
-                resize: "none",
-                lineHeight: 1.5,
-                paddingTop: "6px",
-                paddingBottom: "6px",
-                outline: "none",
-              }}
-            />
-            <button
-              onClick={() => sendMessage(input)}
-              disabled={loading || streaming || !input.trim()}
-              aria-label="Enviar"
-              style={{
-                width: "40px",
-                height: "40px",
-                borderRadius: "50%",
-                flexShrink: 0,
-                background: loading || streaming || !input.trim() ? "transparent" : "var(--color-primary-dim)",
-                border: "none",
-                cursor: loading || streaming || !input.trim() ? "default" : "pointer",
-                color: loading || streaming || !input.trim() ? "var(--text-faint)" : "var(--text-main)",
-                fontSize: "18px",
-                transition: "all 0.3s ease",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              ✦
-            </button>
+            {isRecording ? (
+              <VoiceRecorder
+                onTranscription={handleVoiceTranscription}
+                onCancel={() => setIsRecording(false)}
+              />
+            ) : (
+              <>
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKey}
+                  placeholder="Preguntá al oráculo sobre tu semana..."
+                  rows={1}
+                  style={{
+                    flex: 1,
+                    background: "transparent",
+                    border: "none",
+                    color: "var(--text-main)",
+                    fontSize: "15px",
+                    fontWeight: 300,
+                    fontFamily: "var(--font-sans)",
+                    resize: "none",
+                    lineHeight: 1.5,
+                    paddingTop: "6px",
+                    paddingBottom: "6px",
+                    outline: "none",
+                  }}
+                />
+                {/* Mic button — shown when input is empty and browser supports it */}
+                {hasMicSupport && !input.trim() && !isBusy && (
+                  <button
+                    onClick={() => setIsRecording(true)}
+                    aria-label="Grabar nota de voz"
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: "50%",
+                      flexShrink: 0,
+                      background: "transparent",
+                      border: "none",
+                      cursor: "pointer",
+                      color: "var(--text-faint)",
+                      fontSize: 18,
+                      transition: "all 0.3s ease",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                    onMouseOver={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+                    onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-faint)")}
+                  >
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" />
+                      <path d="M19 10v2a7 7 0 01-14 0v-2" />
+                      <line x1="12" y1="19" x2="12" y2="23" />
+                      <line x1="8" y1="23" x2="16" y2="23" />
+                    </svg>
+                  </button>
+                )}
+                {/* Send button */}
+                <button
+                  onClick={() => sendMessage(input)}
+                  disabled={isBusy || !input.trim()}
+                  aria-label="Enviar"
+                  style={{
+                    width: "40px",
+                    height: "40px",
+                    borderRadius: "50%",
+                    flexShrink: 0,
+                    background: isBusy || !input.trim() ? "transparent" : "var(--color-primary-dim)",
+                    border: "none",
+                    cursor: isBusy || !input.trim() ? "default" : "pointer",
+                    color: isBusy || !input.trim() ? "var(--text-faint)" : "var(--text-main)",
+                    fontSize: "18px",
+                    transition: "all 0.3s ease",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  ✦
+                </button>
+              </>
+            )}
           </div>
         </footer>
       )}

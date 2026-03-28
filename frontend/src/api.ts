@@ -240,6 +240,26 @@ export async function deleteAsset(id: string): Promise<void> {
   if (!res.ok) throw new Error(`Delete asset error ${res.status}`);
 }
 
+// ─── Transcription ───────────────────────────────────────────────────────────
+
+export async function transcribeAudio(
+  blob: Blob,
+  filename = "voice.webm",
+): Promise<{ text: string }> {
+  const formData = new FormData();
+  formData.append("file", blob, filename);
+
+  const res = await fetch(`${BASE}/transcribe`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await readErrorMessage(res);
+    throw new Error(err);
+  }
+  return res.json();
+}
+
 // ─── Extraction ──────────────────────────────────────────────────────────────
 
 export async function extractProfile(
