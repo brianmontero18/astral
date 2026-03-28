@@ -1,10 +1,12 @@
 import { useState } from "react";
 import type { DesignReport, ReportSection } from "../types";
+import { getReportPdfUrl } from "../api";
 
 interface Props {
   report: DesignReport | null;
   loading: boolean;
   onBack: () => void;
+  userId?: string;
 }
 
 const WHATSAPP_URL = "https://wa.me/584121234567?text=Quiero%20desbloquear%20mi%20informe%20premium";
@@ -82,7 +84,7 @@ function SectionCard({ section, locked }: { section: ReportSection; locked: bool
   );
 }
 
-export function ReportView({ report, loading, onBack }: Props) {
+export function ReportView({ report, loading, onBack, userId }: Props) {
   if (loading) {
     return (
       <div style={{
@@ -195,6 +197,25 @@ export function ReportView({ report, loading, onBack }: Props) {
               <SectionCard key={section.id} section={section} locked={true} />
             ))}
           </>
+        )}
+
+        {userId && report && (
+          <div style={{ marginTop: 24, textAlign: "center" }}>
+            <a
+              href={getReportPdfUrl(userId, report.tier)}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "inline-block", padding: "12px 32px", borderRadius: 30,
+                background: "var(--color-primary-dim)", color: "var(--text-main)",
+                fontSize: 13, fontWeight: 600, textDecoration: "none",
+                fontFamily: "var(--font-sans)", letterSpacing: "0.03em",
+                transition: "all 0.3s ease",
+              }}
+            >
+              📄 Descargar PDF
+            </a>
+          </div>
         )}
       </div>
     </div>

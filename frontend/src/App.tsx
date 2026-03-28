@@ -179,6 +179,7 @@ export default function App() {
                 report={report}
                 loading={reportLoading}
                 onBack={() => handleNavigate(previousView as View)}
+                userId={user.id}
               />
             )}
           </div>

@@ -2,8 +2,9 @@ import type { FastifyInstance } from "fastify";
 import { randomUUID } from "node:crypto";
 import { getUser, getReport, saveReport } from "../db.js";
 import { generateReport, computeProfileHash } from "../report/generate-report.js";
+import { renderReportPDF } from "../report/pdf-renderer.js";
 import type { UserProfile } from "../agent-service.js";
-import type { Intake, ReportTier } from "../report/types.js";
+import type { Intake, ReportTier, DesignReport } from "../report/types.js";
 
 export async function reportRoutes(app: FastifyInstance) {
   // Generate or return cached report
@@ -68,6 +69,31 @@ export async function reportRoutes(app: FastifyInstance) {
         return reply.status(404).send({ error: "No report found. Generate one first." });
       }
       return reply.send(JSON.parse(cached.content));
+    },
+  );
+
+  // Download PDF
+  app.get<{ Params: { id: string }; Querystring: { tier?: string } }>(
+    "/users/:id/report/pdf",
+    async (req, reply) => {
+      const user = await getUser(req.params.id);
+      if (!user) {
+        return reply.status(404).send({ error: "User not found" });
+      }
+
+      const tier: ReportTier = req.query.tier === "premium" ? "premium" : "free";
+      const cached = await getReport(req.params.id, tier);
+      if (!cached) {
+        return reply.status(404).send({ error: "No report found. Generate one first." });
+      }
+
+      const reportData = JSON.parse(cached.content) as DesignReport;
+      const pdfBuffer = await renderReportPDF(reportData, user.name);
+
+      return reply
+        .header("Content-Type", "application/pdf")
+        .header("Content-Disposition", `attachment; filename="informe-hd-${tier}.pdf"`)
+        .send(pdfBuffer);
     },
   );
 }

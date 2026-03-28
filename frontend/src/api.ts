@@ -310,6 +310,10 @@ export async function getReport(
   return res.json();
 }
 
+export function getReportPdfUrl(userId: string, tier: "free" | "premium" = "free"): string {
+  return `${BASE}/users/${userId}/report/pdf?tier=${tier}`;
+}
+
 // ─── Extraction ──────────────────────────────────────────────────────────────
 
 export async function extractProfile(
