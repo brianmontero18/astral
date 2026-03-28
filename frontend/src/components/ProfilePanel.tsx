@@ -4,9 +4,10 @@ import { ChannelChips } from "./ChannelChips";
 
 interface Props {
   profile: UserProfile;
+  onGenerateReport?: () => void;
 }
 
-export function ProfilePanel({ profile }: Props) {
+export function ProfilePanel({ profile, onGenerateReport }: Props) {
   const { humanDesign: hd } = profile;
 
   const rows: [string, string][] = [
@@ -57,6 +58,29 @@ export function ProfilePanel({ profile }: Props) {
           <span style={{ color: "#d4cef0", fontSize: 10 }}>—</span>
         )}
       </div>
+
+      {onGenerateReport && (
+        <button
+          onClick={onGenerateReport}
+          style={{
+            marginTop: 14,
+            width: "100%",
+            padding: "10px 14px",
+            borderRadius: 8,
+            background: "var(--color-primary-dim)",
+            border: "none",
+            color: "var(--text-main)",
+            fontSize: 11,
+            fontWeight: 600,
+            cursor: "pointer",
+            fontFamily: "var(--font-sans)",
+            letterSpacing: "0.05em",
+            transition: "all 0.3s ease",
+          }}
+        >
+          ✦ Generar mi informe
+        </button>
+      )}
     </div>
   );
 }

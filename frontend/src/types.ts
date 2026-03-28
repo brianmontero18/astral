@@ -46,6 +46,37 @@ export interface UserProfile {
   };
 }
 
+// ─── Intake ───────────────────────────────────────────────────────────────────
+
+export interface Intake {
+  actividad?: string;
+  objetivos?: string;
+  desafios?: string;
+}
+
+// ─── Report ───────────────────────────────────────────────────────────────────
+
+export interface ReportSection {
+  id: string;
+  title: string;
+  icon: string;
+  tier: "free" | "premium";
+  staticContent: string;
+  llmContent?: string;
+  teaser?: boolean;
+}
+
+export interface DesignReport {
+  id: string;
+  userId: string;
+  tier: "free" | "premium";
+  profileHash: string;
+  sections: ReportSection[];
+  tokensUsed: number;
+  costUsd: number;
+  createdAt: string;
+}
+
 // ─── Chat ─────────────────────────────────────────────────────────────────────
 
 export interface ChatMessage {

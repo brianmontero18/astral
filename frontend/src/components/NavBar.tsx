@@ -2,7 +2,7 @@ import type { UserProfile } from "../types";
 import { ProfilePanel } from "./ProfilePanel";
 import { useState } from "react";
 
-type View = "chat" | "transits" | "assets";
+type View = "chat" | "transits" | "assets" | "intake" | "report";
 
 interface Props {
   currentView: View;
@@ -10,6 +10,8 @@ interface Props {
   userName: string;
   profile: UserProfile;
   onReset: () => void;
+  onGenerateReport?: () => void;
+  previousView?: string;
 }
 
 const TABS: { key: View; label: string }[] = [
@@ -18,7 +20,7 @@ const TABS: { key: View; label: string }[] = [
   { key: "assets", label: "Mis Cartas" },
 ];
 
-export function NavBar({ currentView, onNavigate, userName, profile, onReset }: Props) {
+export function NavBar({ currentView, onNavigate, userName, profile, onReset, onGenerateReport, previousView }: Props) {
   const [showProfile, setShowProfile] = useState(false);
 
   return (
@@ -123,34 +125,50 @@ export function NavBar({ currentView, onNavigate, userName, profile, onReset }: 
               Salir
             </button>
           </div>
-          {showProfile && <ProfilePanel profile={profile} />}
+          {showProfile && <ProfilePanel profile={profile} onGenerateReport={onGenerateReport ? () => { setShowProfile(false); onGenerateReport(); } : undefined} />}
         </div>
       </div>
 
       {/* Tab bar */}
       <div style={{ display: "flex", gap: "24px", paddingLeft: "4px" }}>
-        {TABS.map((tab) => (
+        {(currentView === "intake" || currentView === "report") ? (
           <button
-            key={tab.key}
-            onClick={() => onNavigate(tab.key)}
+            onClick={() => onNavigate((previousView ?? "chat") as View)}
             style={{
-              background: "transparent",
-              border: "none",
-              borderBottom: currentView === tab.key ? "1px solid var(--color-primary)" : "1px solid transparent",
-              color: currentView === tab.key ? "var(--text-main)" : "var(--text-muted)",
-              padding: "10px 4px",
-              cursor: "pointer",
-              fontSize: "12px",
-              fontWeight: currentView === tab.key ? 600 : 400,
-              letterSpacing: "0.15em",
-              fontFamily: "var(--font-sans)",
-              textTransform: "uppercase",
-              transition: "all 0.3s ease",
+              background: "transparent", border: "none",
+              borderBottom: "1px solid transparent",
+              color: "var(--text-muted)", padding: "10px 4px",
+              cursor: "pointer", fontSize: "12px", fontWeight: 400,
+              letterSpacing: "0.15em", fontFamily: "var(--font-sans)",
+              textTransform: "uppercase", transition: "all 0.3s ease",
             }}
           >
-            {tab.label}
+            ← Volver
           </button>
-        ))}
+        ) : (
+          TABS.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => onNavigate(tab.key)}
+              style={{
+                background: "transparent",
+                border: "none",
+                borderBottom: currentView === tab.key ? "1px solid var(--color-primary)" : "1px solid transparent",
+                color: currentView === tab.key ? "var(--text-main)" : "var(--text-muted)",
+                padding: "10px 4px",
+                cursor: "pointer",
+                fontSize: "12px",
+                fontWeight: currentView === tab.key ? 600 : 400,
+                letterSpacing: "0.15em",
+                fontFamily: "var(--font-sans)",
+                textTransform: "uppercase",
+                transition: "all 0.3s ease",
+              }}
+            >
+              {tab.label}
+            </button>
+          ))
+        )}
       </div>
     </header>
   );

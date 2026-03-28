@@ -12,6 +12,8 @@ import type {
   TransitsResponse,
   UserProfile,
   AssetMeta,
+  Intake,
+  DesignReport,
 } from "./types";
 
 const BASE = "/api";
@@ -210,11 +212,12 @@ export async function updateUser(
   id: string,
   name: string,
   profile: UserProfile,
+  intake?: Intake,
 ): Promise<void> {
   const res = await fetch(`${BASE}/users/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, profile }),
+    body: JSON.stringify({ name, profile, ...(intake !== undefined && { intake }) }),
   });
   if (!res.ok) {
     const err = await res.text();
@@ -270,6 +273,36 @@ export async function transcribeAudio(
     method: "POST",
     body: formData,
   });
+  if (!res.ok) {
+    const err = await readErrorMessage(res);
+    throw new Error(err);
+  }
+  return res.json();
+}
+
+// ─── Reports ─────────────────────────────────────────────────────────────────
+
+export async function generateReport(
+  userId: string,
+  tier: "free" | "premium" = "free",
+): Promise<DesignReport> {
+  const res = await fetch(`${BASE}/users/${userId}/report`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tier }),
+  });
+  if (!res.ok) {
+    const err = await readErrorMessage(res);
+    throw new Error(err);
+  }
+  return res.json();
+}
+
+export async function getReport(
+  userId: string,
+  tier: "free" | "premium" = "free",
+): Promise<DesignReport> {
+  const res = await fetch(`${BASE}/users/${userId}/report?tier=${tier}`);
   if (!res.ok) {
     const err = await readErrorMessage(res);
     throw new Error(err);

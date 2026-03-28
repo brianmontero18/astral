@@ -4,8 +4,10 @@ import { NavBar } from "./components/NavBar";
 import { ChatView } from "./components/ChatView";
 import { TransitViewer } from "./components/TransitViewer";
 import { AssetViewer } from "./components/AssetViewer";
-import { getUser } from "./api";
-import type { LocalUser, UserProfile } from "./types";
+import { IntakeView } from "./components/IntakeView";
+import { ReportView } from "./components/ReportView";
+import { getUser, updateUser, generateReport } from "./api";
+import type { LocalUser, UserProfile, Intake, DesignReport } from "./types";
 
 // ─── Dust Particles — (replacing old stars) ──────────────────────────────────
 
@@ -18,7 +20,7 @@ const PARTICLES = Array.from({ length: 45 }, () => ({
   dur: 4 + Math.random() * 6,
 }));
 
-type View = "onboarding" | "chat" | "transits" | "assets";
+type View = "onboarding" | "chat" | "transits" | "assets" | "intake" | "report";
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
@@ -27,6 +29,10 @@ export default function App() {
   const [user, setUser] = useState<LocalUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [ready, setReady] = useState(false);
+  const [intake, setIntake] = useState<Intake | undefined>(undefined);
+  const [report, setReport] = useState<DesignReport | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [previousView, setPreviousView] = useState<View>("chat");
 
   // Check localStorage on mount
   useEffect(() => {
@@ -58,6 +64,33 @@ export default function App() {
     setUser(u);
     setProfile(p);
     setCurrentView("chat");
+  };
+
+  const handleNavigate = (view: View) => {
+    if (view === "intake" || view === "report") {
+      setPreviousView(currentView === "intake" || currentView === "report" ? previousView : currentView);
+    }
+    setCurrentView(view);
+  };
+
+  const handleGenerateReport = async (intakeData?: Intake) => {
+    if (!user || !profile) return;
+    if (intakeData) {
+      setIntake(intakeData);
+      try {
+        await updateUser(user.id, user.name, profile, intakeData);
+      } catch { /* continue — intake save is best-effort */ }
+    }
+    setReportLoading(true);
+    setCurrentView("report");
+    try {
+      const result = await generateReport(user.id, "free");
+      setReport(result);
+    } catch {
+      setReport(null);
+    } finally {
+      setReportLoading(false);
+    }
   };
 
   const handleReset = () => {
@@ -123,15 +156,31 @@ export default function App() {
         <div style={{ position: "relative", zIndex: 10, flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
           <NavBar
             currentView={currentView}
-            onNavigate={setCurrentView}
+            onNavigate={handleNavigate}
             userName={user.name}
             profile={profile}
             onReset={handleReset}
+            onGenerateReport={() => handleNavigate("intake")}
+            previousView={previousView}
           />
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
             {currentView === "chat" && <ChatView user={user} />}
             {currentView === "transits" && <TransitViewer profile={profile} userId={user.id} />}
             {currentView === "assets" && <AssetViewer userId={user.id} />}
+            {currentView === "intake" && (
+              <IntakeView
+                initialIntake={intake}
+                onSubmit={(data) => handleGenerateReport(data)}
+                onSkip={() => handleGenerateReport()}
+              />
+            )}
+            {currentView === "report" && (
+              <ReportView
+                report={report}
+                loading={reportLoading}
+                onBack={() => handleNavigate(previousView as View)}
+              />
+            )}
           </div>
         </div>
       )}
