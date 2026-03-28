@@ -1,8 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { ReportRenderer } from "./ReportRenderer";
-import { sendChat, sendChatStream, getChatHistory } from "../api";
+import { sendChat, sendChatStream, getChatHistory, truncateChatHistory } from "../api";
 import { VoiceRecorder } from "./VoiceRecorder";
 import type { ChatMessage, LocalUser } from "../types";
+
+interface ChatMsg extends ChatMessage {
+  dbId?: number;
+}
 
 const hasMicSupport = typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
 
@@ -56,7 +60,7 @@ interface Props {
 }
 
 export function ChatView({ user }: Props) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -74,7 +78,11 @@ export function ChatView({ user }: Props) {
     getChatHistory(user.id)
       .then(({ messages: history, used, limit }) => {
         if (history.length) {
-          setMessages(history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })));
+          setMessages(history.map((m) => ({
+            role: m.role as "user" | "assistant",
+            content: m.content,
+            dbId: (m as Record<string, unknown>).id as number | undefined,
+          })));
         }
         setMessageUsage({ used, limit });
         if (used >= limit) setLimitReached(true);
@@ -88,7 +96,7 @@ export function ChatView({ user }: Props) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, loading]);
 
-  const sendMessage = async (text: string, baseMessages?: ChatMessage[]) => {
+  const sendMessage = async (text: string, baseMessages?: ChatMsg[]) => {
     const trimmed = text.trim();
     if (!trimmed || loading || streaming || limitReached) return;
 
@@ -199,10 +207,23 @@ export function ChatView({ user }: Props) {
     setEditText("");
   };
 
-  const saveEdit = (index: number) => {
+  const saveEdit = async (index: number) => {
     const trimmed = editText.trim();
     if (!trimmed) return;
+
+    const editedMsg = messages[index];
     const base = messages.slice(0, index);
+
+    // Truncate persisted messages from the edit point onward
+    if (editedMsg.dbId) {
+      try {
+        const result = await truncateChatHistory(user.id, editedMsg.dbId);
+        setMessageUsage((prev) => prev ? { ...prev, used: result.used } : prev);
+      } catch {
+        // If truncate fails, still proceed with local edit
+      }
+    }
+
     sendMessage(trimmed, base);
   };
 

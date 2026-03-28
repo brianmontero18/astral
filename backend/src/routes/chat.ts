@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { runAstralAgent, runAstralAgentStream, type UserProfile, type ChatMessage } from "../agent-service.js";
-import { getUser, saveChatMessage, getChatMessages, getUserMessageCount } from "../db.js";
+import { getUser, saveChatMessage, getChatMessages, getUserMessageCount, deleteChatMessagesFrom } from "../db.js";
 import { getTransitsCached } from "./transits.js";
 import { analyzeTransitImpact } from "../transit-service.js";
 
@@ -149,5 +149,21 @@ export async function chatRoutes(app: FastifyInstance) {
     const messages = await getChatMessages(userId);
     const used = await getUserMessageCount(userId);
     return reply.send({ messages, used, limit: FREE_MESSAGE_LIMIT });
+  });
+
+  // Truncate chat history from a given message ID (for edit feature)
+  app.delete<{ Params: { userId: string }; Querystring: { fromId: string } }>("/users/:userId/messages", async (req, reply) => {
+    const { userId } = req.params;
+    const fromId = parseInt(req.query.fromId, 10);
+    if (!fromId || isNaN(fromId)) {
+      return reply.status(400).send({ error: "Missing or invalid fromId query parameter" });
+    }
+    const user = await getUser(userId);
+    if (!user) {
+      return reply.status(404).send({ error: "User not found" });
+    }
+    const deleted = await deleteChatMessagesFrom(userId, fromId);
+    const used = await getUserMessageCount(userId);
+    return reply.send({ deleted, used, limit: FREE_MESSAGE_LIMIT });
   });
 }

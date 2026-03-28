@@ -137,6 +137,17 @@ export async function getChatHistory(
   return res.json();
 }
 
+export async function truncateChatHistory(
+  userId: string,
+  fromId: number,
+): Promise<{ deleted: number; used: number; limit: number }> {
+  const res = await fetch(`${BASE}/users/${userId}/messages?fromId=${fromId}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error(`Truncate error ${res.status}`);
+  return res.json();
+}
+
 // ─── Transits ────────────────────────────────────────────────────────────────
 
 export async function fetchTransits(userId?: string): Promise<TransitsResponse> {

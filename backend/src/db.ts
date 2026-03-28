@@ -191,16 +191,25 @@ export async function saveChatMessage(userId: string, role: string, content: str
 
 export async function getChatMessages(
   userId: string,
-): Promise<Array<{ role: string; content: string; created_at: string }>> {
+): Promise<Array<{ id: number; role: string; content: string; created_at: string }>> {
   const result = await client.execute({
-    sql: "SELECT role, content, created_at FROM chat_messages WHERE user_id = ? ORDER BY id ASC",
+    sql: "SELECT id, role, content, created_at FROM chat_messages WHERE user_id = ? ORDER BY id ASC",
     args: [userId],
   });
   return result.rows.map((row) => ({
+    id: row.id as number,
     role: row.role as string,
     content: row.content as string,
     created_at: row.created_at as string,
   }));
+}
+
+export async function deleteChatMessagesFrom(userId: string, fromId: number): Promise<number> {
+  const result = await client.execute({
+    sql: "DELETE FROM chat_messages WHERE user_id = ? AND id >= ?",
+    args: [userId, fromId],
+  });
+  return result.rowsAffected;
 }
 
 export async function getUserMessageCount(userId: string): Promise<number> {
