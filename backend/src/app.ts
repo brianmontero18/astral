@@ -15,6 +15,7 @@ import { userRoutes } from "./routes/users.js";
 import { assetRoutes } from "./routes/assets.js";
 import { extractRoutes } from "./routes/extract.js";
 import { transcribeRoutes } from "./routes/transcribe.js";
+import { reportRoutes } from "./routes/report.js";
 
 export async function buildApp(opts?: { logger?: boolean }) {
   const app = Fastify({ logger: opts?.logger ?? false });
@@ -31,6 +32,7 @@ export async function buildApp(opts?: { logger?: boolean }) {
       await api.register(assetRoutes);
       await api.register(extractRoutes);
       await api.register(transcribeRoutes);
+      await api.register(reportRoutes);
     },
     { prefix: "/api" },
   );

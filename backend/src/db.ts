@@ -23,6 +23,7 @@ export async function initDb(): Promise<void> {
         id         TEXT PRIMARY KEY,
         name       TEXT NOT NULL,
         profile    TEXT NOT NULL,
+        intake     TEXT DEFAULT NULL,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       )`,
@@ -48,9 +49,27 @@ export async function initDb(): Promise<void> {
         content    TEXT NOT NULL,
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       )`,
+      `CREATE TABLE IF NOT EXISTS hd_reports (
+        id           TEXT PRIMARY KEY,
+        user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        tier         TEXT NOT NULL CHECK(tier IN ('free', 'premium')),
+        profile_hash TEXT NOT NULL,
+        content      TEXT NOT NULL,
+        tokens_used  INTEGER NOT NULL DEFAULT 0,
+        cost_usd     REAL NOT NULL DEFAULT 0,
+        created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(user_id, tier)
+      )`,
     ],
     "write",
   );
+
+  // Add intake column to existing DBs (idempotent)
+  try {
+    await client.execute("ALTER TABLE users ADD COLUMN intake TEXT DEFAULT NULL");
+  } catch {
+    // Column already exists
+  }
 }
 
 // ─── Users ───────────────────────────────────────────────────────────────────
@@ -66,7 +85,7 @@ export async function createUser(name: string, profile: object): Promise<string>
 
 export async function getUser(
   id: string,
-): Promise<{ id: string; name: string; profile: object; created_at: string; updated_at: string } | undefined> {
+): Promise<{ id: string; name: string; profile: object; intake: object | null; created_at: string; updated_at: string } | undefined> {
   const result = await client.execute({
     sql: "SELECT * FROM users WHERE id = ?",
     args: [id],
@@ -77,15 +96,16 @@ export async function getUser(
     id: row.id as string,
     name: row.name as string,
     profile: JSON.parse(row.profile as string),
+    intake: row.intake ? JSON.parse(row.intake as string) : null,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
   };
 }
 
-export async function updateUser(id: string, name: string, profile: object): Promise<boolean> {
+export async function updateUser(id: string, name: string, profile: object, intake?: object | null): Promise<boolean> {
   const result = await client.execute({
-    sql: "UPDATE users SET name = ?, profile = ?, updated_at = datetime('now') WHERE id = ?",
-    args: [name, JSON.stringify(profile), id],
+    sql: "UPDATE users SET name = ?, profile = ?, intake = ?, updated_at = datetime('now') WHERE id = ?",
+    args: [name, JSON.stringify(profile), intake ? JSON.stringify(intake) : null, id],
   });
   return result.rowsAffected > 0;
 }
@@ -219,6 +239,46 @@ export async function getUserMessageCount(userId: string): Promise<number> {
     args: [userId],
   });
   return (result.rows[0]?.count as number) ?? 0;
+}
+
+// ─── HD Reports ──────────────────────────────────────────────────────────────
+
+export async function getReport(
+  userId: string,
+  tier: string,
+): Promise<{ id: string; user_id: string; tier: string; profile_hash: string; content: string; tokens_used: number; cost_usd: number; created_at: string } | undefined> {
+  const result = await client.execute({
+    sql: "SELECT * FROM hd_reports WHERE user_id = ? AND tier = ?",
+    args: [userId, tier],
+  });
+  const row = result.rows[0];
+  if (!row) return undefined;
+  return {
+    id: row.id as string,
+    user_id: row.user_id as string,
+    tier: row.tier as string,
+    profile_hash: row.profile_hash as string,
+    content: row.content as string,
+    tokens_used: row.tokens_used as number,
+    cost_usd: row.cost_usd as number,
+    created_at: row.created_at as string,
+  };
+}
+
+export async function saveReport(report: {
+  id: string;
+  userId: string;
+  tier: string;
+  profileHash: string;
+  content: string;
+  tokensUsed: number;
+  costUsd: number;
+}): Promise<void> {
+  await client.execute({
+    sql: `INSERT OR REPLACE INTO hd_reports (id, user_id, tier, profile_hash, content, tokens_used, cost_usd, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+    args: [report.id, report.userId, report.tier, report.profileHash, report.content, report.tokensUsed, report.costUsd],
+  });
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

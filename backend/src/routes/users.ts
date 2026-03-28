@@ -19,14 +19,14 @@ export async function userRoutes(app: FastifyInstance) {
     return reply.send(user);
   });
 
-  app.put<{ Params: { id: string }; Body: { name: string; profile: object } }>(
+  app.put<{ Params: { id: string }; Body: { name: string; profile: object; intake?: object } }>(
     "/users/:id",
     async (req, reply) => {
-      const { name, profile } = req.body;
+      const { name, profile, intake } = req.body;
       if (!name || !profile) {
         return reply.status(400).send({ error: "Missing name or profile" });
       }
-      const updated = await updateUser(req.params.id, name, profile);
+      const updated = await updateUser(req.params.id, name, profile, intake);
       if (!updated) {
         return reply.status(404).send({ error: "User not found" });
       }
