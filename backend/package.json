@@ -18,6 +18,8 @@
     "fastify": "^5.3.2",
     "pdfjs-dist": "^4.0.379",
     "swisseph-wasm": "^0.0.4",
+    "@types/node": "^22.15.3",
+    "@types/react": "^19.2.14",
     "tsx": "^4.19.3",
     "typescript": "^5.8.3"
   },
@@ -26,8 +28,6 @@
     "@libsql/darwin-arm64": "^0.5.22"
   },
   "devDependencies": {
-    "@types/node": "^22.15.3",
-    "@types/react": "^19.2.14",
     "vitest": "^4.1.2"
   }
 }
