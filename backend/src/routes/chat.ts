@@ -54,15 +54,17 @@ export async function chatRoutes(app: FastifyInstance) {
       const replyText = await runAstralAgent(profile, transits, messages, OPENAI_KEY, impact);
 
       // Persist messages if we have a userId
+      let userMsgId: number | undefined;
+      let assistantMsgId: number | undefined;
       if (userId) {
         const lastUserMsg = messages[messages.length - 1];
         if (lastUserMsg) {
-          await saveChatMessage(userId, lastUserMsg.role, lastUserMsg.content);
+          userMsgId = await saveChatMessage(userId, lastUserMsg.role, lastUserMsg.content);
         }
-        await saveChatMessage(userId, "assistant", replyText);
+        assistantMsgId = await saveChatMessage(userId, "assistant", replyText);
       }
 
-      return reply.send({ reply: replyText, transits_used: transits.fetchedAt });
+      return reply.send({ reply: replyText, transits_used: transits.fetchedAt, userMsgId, assistantMsgId });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       app.log.error(message);
@@ -119,17 +121,19 @@ export async function chatRoutes(app: FastifyInstance) {
         reply.raw.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
       }
 
-      // Send done event with transits info
-      reply.raw.write(`data: ${JSON.stringify({ done: true, transits_used: transits.fetchedAt })}\n\n`);
-
       // Persist messages
+      let userMsgId: number | undefined;
+      let assistantMsgId: number | undefined;
       if (userId && fullText) {
         const lastUserMsg = messages[messages.length - 1];
         if (lastUserMsg) {
-          await saveChatMessage(userId, lastUserMsg.role, lastUserMsg.content);
+          userMsgId = await saveChatMessage(userId, lastUserMsg.role, lastUserMsg.content);
         }
-        await saveChatMessage(userId, "assistant", fullText);
+        assistantMsgId = await saveChatMessage(userId, "assistant", fullText);
       }
+
+      // Send done event with transits info and persisted message ids
+      reply.raw.write(`data: ${JSON.stringify({ done: true, transits_used: transits.fetchedAt, userMsgId, assistantMsgId })}\n\n`);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       app.log.error(message);
@@ -155,7 +159,7 @@ export async function chatRoutes(app: FastifyInstance) {
   app.delete<{ Params: { userId: string }; Querystring: { fromId: string } }>("/users/:userId/messages", async (req, reply) => {
     const { userId } = req.params;
     const fromId = parseInt(req.query.fromId, 10);
-    if (!fromId || isNaN(fromId)) {
+    if (isNaN(fromId) || fromId < 1) {
       return reply.status(400).send({ error: "Missing or invalid fromId query parameter" });
     }
     const user = await getUser(userId);

@@ -182,11 +182,12 @@ export async function setCachedTransits(weekKey: string, data: object): Promise<
 
 // ─── Chat Messages ───────────────────────────────────────────────────────────
 
-export async function saveChatMessage(userId: string, role: string, content: string): Promise<void> {
-  await client.execute({
-    sql: "INSERT INTO chat_messages (user_id, role, content) VALUES (?, ?, ?)",
+export async function saveChatMessage(userId: string, role: string, content: string): Promise<number> {
+  const result = await client.execute({
+    sql: "INSERT INTO chat_messages (user_id, role, content) VALUES (?, ?, ?) RETURNING id",
     args: [userId, role, content],
   });
+  return result.rows[0].id as number;
 }
 
 export async function getChatMessages(

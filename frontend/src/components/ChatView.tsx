@@ -81,7 +81,7 @@ export function ChatView({ user }: Props) {
           setMessages(history.map((m) => ({
             role: m.role as "user" | "assistant",
             content: m.content,
-            dbId: (m as Record<string, unknown>).id as number | undefined,
+            dbId: m.id,
           })));
         }
         setMessageUsage({ used, limit });
@@ -105,23 +105,35 @@ export function ChatView({ user }: Props) {
     setEditIndex(null);
 
     const base = baseMessages ?? messages;
-    const updated: ChatMessage[] = [...base, { role: "user", content: trimmed }];
+    const updated: ChatMsg[] = [...base, { role: "user", content: trimmed }];
     setMessages(updated);
     setLoading(true);
     setMessageUsage((prev) => (prev ? { ...prev, used: prev.used + 1 } : prev));
 
     try {
-      const withPlaceholder: ChatMessage[] = [...updated, { role: "assistant", content: "" }];
+      const withPlaceholder: ChatMsg[] = [...updated, { role: "assistant", content: "" }];
       setMessages(withPlaceholder);
       setStreaming(true);
       setLoading(false);
 
-      await sendChatStream(user.id, updated, (accumulated) => {
+      const result = await sendChatStream(user.id, updated, (accumulated) => {
         setMessages((prev) => {
           const copy = [...prev];
           copy[copy.length - 1] = { role: "assistant", content: accumulated };
           return copy;
         });
+      });
+
+      // Update dbIds on the persisted messages so edit truncation works in-session
+      setMessages((prev) => {
+        const copy = [...prev];
+        if (result.userMsgId && copy.length >= 2) {
+          copy[copy.length - 2] = { ...copy[copy.length - 2], dbId: result.userMsgId };
+        }
+        if (result.assistantMsgId && copy.length >= 1) {
+          copy[copy.length - 1] = { ...copy[copy.length - 1], dbId: result.assistantMsgId };
+        }
+        return copy;
       });
 
       setStreaming(false);

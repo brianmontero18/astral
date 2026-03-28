@@ -63,7 +63,7 @@ export async function sendChatStream(
   userId: string,
   messages: ChatMessage[],
   onChunk: (accumulated: string) => void,
-): Promise<{ transits_used: string }> {
+): Promise<{ transits_used: string; userMsgId?: number; assistantMsgId?: number }> {
   const res = await fetch(`${BASE}/chat/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -91,6 +91,8 @@ export async function sendChatStream(
   let buffer = "";
   let accumulated = "";
   let transitsUsed = "";
+  let userMsgId: number | undefined;
+  let assistantMsgId: number | undefined;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -109,6 +111,8 @@ export async function sendChatStream(
           content?: string;
           done?: boolean;
           transits_used?: string;
+          userMsgId?: number;
+          assistantMsgId?: number;
           error?: string;
         };
 
@@ -116,6 +120,8 @@ export async function sendChatStream(
 
         if (data.done) {
           transitsUsed = data.transits_used ?? "";
+          userMsgId = data.userMsgId;
+          assistantMsgId = data.assistantMsgId;
         } else if (data.content) {
           accumulated += data.content;
           onChunk(accumulated);
@@ -126,12 +132,12 @@ export async function sendChatStream(
     }
   }
 
-  return { transits_used: transitsUsed };
+  return { transits_used: transitsUsed, userMsgId, assistantMsgId };
 }
 
 export async function getChatHistory(
   userId: string,
-): Promise<{ messages: Array<{ role: string; content: string; created_at: string }>; used: number; limit: number }> {
+): Promise<{ messages: Array<{ id: number; role: string; content: string; created_at: string }>; used: number; limit: number }> {
   const res = await fetch(`${BASE}/users/${userId}/messages`);
   if (!res.ok) throw new Error(`Chat history error ${res.status}`);
   return res.json();
