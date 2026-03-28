@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { DesignReport, ReportSection } from "../types";
 import { getReportPdfUrl, shareReport } from "../api";
 
@@ -6,20 +6,29 @@ interface Props {
   report: DesignReport | null;
   loading: boolean;
   onBack: () => void;
+  onEditIntake?: () => void;
   userId?: string;
+  intakeWarning?: boolean;
 }
 
 const WHATSAPP_URL = "https://wa.me/5491153446030?text=Quiero%20desbloquear%20mi%20informe%20premium";
 
-function SectionCard({ section, locked }: { section: ReportSection; locked: boolean }) {
+function SectionCard({ section, locked, onUnlockClick }: { section: ReportSection; locked: boolean; onUnlockClick?: () => void }) {
   const [expanded, setExpanded] = useState(!locked);
 
   if (locked) {
     return (
-      <div style={{
-        background: "rgba(124,111,205,0.04)", border: "1px solid rgba(124,111,205,0.15)",
-        borderRadius: 14, padding: "18px 20px", marginBottom: 14,
-      }}>
+      <div
+        onClick={onUnlockClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === "Enter") onUnlockClick?.(); }}
+        style={{
+          background: "rgba(124,111,205,0.04)", border: "1px solid rgba(124,111,205,0.15)",
+          borderRadius: 14, padding: "18px 20px", marginBottom: 14,
+          cursor: "pointer", transition: "border-color 0.2s ease",
+        }}
+      >
         <div style={{ display: "flex", alignItems: "center", gap: 10, opacity: 0.5 }}>
           <span style={{ fontSize: 18 }}>{section.icon}</span>
           <span style={{
@@ -41,6 +50,7 @@ function SectionCard({ section, locked }: { section: ReportSection; locked: bool
     }}>
       <button
         onClick={() => setExpanded(!expanded)}
+        aria-expanded={expanded}
         style={{
           background: "none", border: "none", cursor: "pointer", width: "100%",
           display: "flex", alignItems: "center", gap: 10, padding: 0, textAlign: "left",
@@ -84,12 +94,19 @@ function SectionCard({ section, locked }: { section: ReportSection; locked: bool
   );
 }
 
-function ReportActions({ userId, tier }: { userId: string; tier: "free" | "premium" }) {
+function ReportActions({ userId, tier, reportId }: { userId: string; tier: "free" | "premium"; reportId: string }) {
   const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [shareError, setShareError] = useState(false);
   const [sharing, setSharing] = useState(false);
+
+  useEffect(() => {
+    setShareUrl(null);
+    setShareError(false);
+  }, [reportId]);
 
   const handleShare = async () => {
     setSharing(true);
+    setShareError(false);
     try {
       const { url } = await shareReport(userId);
       setShareUrl(url);
@@ -98,7 +115,9 @@ function ReportActions({ userId, tier }: { userId: string; tier: "free" | "premi
       } catch {
         window.prompt("Copiá este enlace:", url);
       }
-    } catch { /* share creation failed */ }
+    } catch {
+      setShareError(true);
+    }
     setSharing(false);
   };
 
@@ -128,13 +147,13 @@ function ReportActions({ userId, tier }: { userId: string; tier: "free" | "premi
           letterSpacing: "0.03em", opacity: sharing ? 0.6 : 1,
         }}
       >
-        {sharing ? "..." : shareUrl ? "✓ Link copiado" : "🔗 Compartir"}
+        {sharing ? "..." : shareError ? "Error al compartir" : shareUrl ? "✓ Link copiado" : "🔗 Compartir"}
       </button>
     </div>
   );
 }
 
-export function ReportView({ report, loading, onBack, userId }: Props) {
+export function ReportView({ report, loading, onBack, onEditIntake, userId, intakeWarning }: Props) {
   if (loading) {
     return (
       <div style={{
@@ -189,6 +208,14 @@ export function ReportView({ report, loading, onBack, userId }: Props) {
   const freeSections = report.sections.filter((s) => s.tier === "free");
   const premiumSections = report.sections.filter((s) => s.tier === "premium");
 
+  const scrollToUnlock = () => {
+    const cta = document.getElementById("premium-cta");
+    const container = cta?.closest("[style*='overflow-y']") as HTMLElement | null;
+    if (cta && container) {
+      container.scrollTop = cta.offsetTop - container.offsetTop - 20;
+    }
+  };
+
   return (
     <div style={{
       flex: 1, overflowY: "auto", padding: "24px 16px",
@@ -202,10 +229,48 @@ export function ReportView({ report, loading, onBack, userId }: Props) {
         </div>
         <h1 style={{
           fontFamily: "var(--font-serif)", color: "var(--text-main)",
-          fontSize: 28, fontWeight: 400, margin: "0 0 24px",
+          fontSize: 28, fontWeight: 400, margin: "0 0 8px",
         }}>
           Informe Personal
         </h1>
+
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          marginBottom: 24, flexWrap: "wrap", gap: 8,
+        }}>
+          {report.createdAt && (
+            <span style={{
+              color: "var(--text-muted)", fontSize: 11, fontWeight: 300,
+              fontFamily: "var(--font-sans)",
+            }}>
+              Generado el {new Date(report.createdAt).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}
+            </span>
+          )}
+          {onEditIntake && (
+            <button
+              onClick={onEditIntake}
+              style={{
+                background: "transparent", border: "1px solid rgba(124,111,205,0.3)",
+                color: "var(--text-muted)", padding: "6px 16px", borderRadius: 20,
+                cursor: "pointer", fontSize: 11, fontWeight: 500,
+                fontFamily: "var(--font-sans)", letterSpacing: "0.03em",
+                transition: "all 0.2s ease",
+              }}
+            >
+              ✎ Editar mis respuestas
+            </button>
+          )}
+        </div>
+
+        {intakeWarning && (
+          <div style={{
+            padding: "10px 16px", borderRadius: 10, marginBottom: 16,
+            background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.25)",
+            color: "var(--text-gold)", fontSize: 12, lineHeight: 1.5,
+          }}>
+            Tu contexto personal no se pudo guardar. El informe se generó sin tus respuestas de intake.
+          </div>
+        )}
 
         {freeSections.map((section) => (
           <SectionCard key={section.id} section={section} locked={false} />
@@ -213,7 +278,7 @@ export function ReportView({ report, loading, onBack, userId }: Props) {
 
         {premiumSections.length > 0 && (
           <>
-            <div style={{
+            <div id="premium-cta" style={{
               margin: "24px 0 16px", padding: "16px 20px", borderRadius: 14,
               background: "rgba(212,175,55,0.06)", border: "1px solid rgba(212,175,55,0.2)",
               textAlign: "center",
@@ -244,13 +309,13 @@ export function ReportView({ report, loading, onBack, userId }: Props) {
             </div>
 
             {premiumSections.map((section) => (
-              <SectionCard key={section.id} section={section} locked={true} />
+              <SectionCard key={section.id} section={section} locked={true} onUnlockClick={scrollToUnlock} />
             ))}
           </>
         )}
 
-        {userId && report && (
-          <ReportActions userId={userId} tier={report.tier} />
+        {userId && (
+          <ReportActions userId={userId} tier={report.tier} reportId={report.id} />
         )}
       </div>
     </div>

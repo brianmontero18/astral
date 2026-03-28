@@ -65,6 +65,22 @@ const s = StyleSheet.create({
     fontStyle: "italic",
     textAlign: "center",
   },
+  coverName: {
+    fontFamily: "Cormorant",
+    fontSize: 18,
+    color: colors.textMuted,
+    fontStyle: "italic",
+    textAlign: "center",
+    marginTop: 20,
+  },
+  coverFooter: {
+    fontFamily: "Cormorant",
+    fontSize: 14,
+    color: colors.textMuted,
+    fontStyle: "italic",
+    textAlign: "center",
+    marginTop: 40,
+  },
   sectionTitle: {
     fontFamily: "Cormorant",
     fontSize: 20,
@@ -136,9 +152,9 @@ function CoverPage({ userName }: { userName?: string }) {
       <Text style={s.coverSubtitle}>DISEÑO HUMANO</Text>
       <Text style={s.coverTitle}>Informe Personal</Text>
       {userName && (
-        <Text style={{ ...s.coverAccent, marginTop: 20, fontSize: 18 }}>{userName}</Text>
+        <Text style={s.coverName}>{userName}</Text>
       )}
-      <Text style={{ ...s.coverAccent, marginTop: 40 }}>Astral Guide</Text>
+      <Text style={s.coverFooter}>Astral Guide</Text>
       <View style={s.footer}>
         <Text>Astral Guide — Diseño Humano</Text>
         <Text>{new Date().toLocaleDateString("es-AR")}</Text>
@@ -179,7 +195,7 @@ function CTAPage() {
             centros indefinidos, cruz de encarnación, variables y más.
           </Text>
           <Text style={{ ...s.ctaSubtext, marginTop: 12 }}>
-            Contactanos por WhatsApp para obtener tu informe premium.
+            Contactanos por WhatsApp al +54 9 11 5344-6030 para obtener tu informe premium.
           </Text>
         </View>
       </View>
@@ -199,8 +215,8 @@ function ReportDocument({ report, userName }: { report: DesignReport; userName?:
   return (
     <Document>
       <CoverPage userName={userName} />
-      {visibleSections.map((section, i) => (
-        <SectionPage key={section.id ?? i} section={section} />
+      {visibleSections.map((section) => (
+        <SectionPage key={section.id} section={section} />
       ))}
       {report.tier === "free" && <CTAPage />}
     </Document>

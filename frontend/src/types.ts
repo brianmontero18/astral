@@ -75,6 +75,7 @@ export interface DesignReport {
   tokensUsed: number;
   costUsd: number;
   createdAt: string;
+  degraded?: boolean;
 }
 
 // ─── Chat ─────────────────────────────────────────────────────────────────────
@@ -125,6 +126,11 @@ export interface TransitsResponse {
   activatedChannels: string[];
   impact?: TransitImpact;
 }
+
+// ─── Navigation ──────────────────────────────────────────────────────────────
+
+export type View = "onboarding" | "chat" | "transits" | "assets" | "intake" | "report";
+export type NavView = Exclude<View, "onboarding">;
 
 // ─── Local storage types ─────────────────────────────────────────────────────
 

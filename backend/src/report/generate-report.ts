@@ -1,14 +1,3 @@
-/**
- * Report Generation — Hybrid Static + LLM
- *
- * Builds a DesignReport from:
- * - 75% pre-written static descriptions (static-content.ts)
- * - 25% personalized LLM interpretations (3 parallel calls for premium, 1 for free)
- *
- * Caching: reports are stored by (userId, tier, profileHash).
- * If the hash matches, the cached report is returned.
- */
-
 import { createHash } from "node:crypto";
 import type { UserProfile } from "../agent-service.js";
 import {
@@ -93,10 +82,13 @@ async function callLLMWithRetry(
 ): Promise<LLMResult> {
   try {
     return await callLLM(system, user, openaiKey);
-  } catch {
+  } catch (err) {
+    console.error("[report] LLM call failed, retrying in 1.5s:", (err as Error).message);
+    await new Promise((r) => setTimeout(r, 1500));
     try {
       return await callLLM(system, user, openaiKey);
-    } catch {
+    } catch (retryErr) {
+      console.error("[report] LLM retry failed:", (retryErr as Error).message);
       return { content: "", promptTokens: 0, completionTokens: 0 };
     }
   }
@@ -231,10 +223,15 @@ export async function generateReport(
   // gpt-4o-mini pricing: $0.15/1M input, $0.60/1M output
   const costUsd = (totalPromptTokens * 0.00000015) + (totalCompletionTokens * 0.0000006);
 
-  // Parse LLM outputs
-  const call1Parts = call1Result.content.split(/\n\n+/).filter(Boolean);
-  const call2Parts = call2Result.content.split(/---+/).map(s => s.trim()).filter(Boolean);
-  const call3Parts = call3Result.content.split(/---+/).map(s => s.trim()).filter(Boolean);
+  // Parse LLM outputs by [SECTION] marker (fallback to double-newline / --- for robustness)
+  const splitSections = (text: string): string[] => {
+    if (text.includes("[SECTION]")) return text.split(/\[SECTION\]/).map(s => s.trim()).filter(Boolean);
+    if (text.includes("---")) return text.split(/---+/).map(s => s.trim()).filter(Boolean);
+    return text.split(/\n\n+/).filter(Boolean);
+  };
+  const call1Parts = splitSections(call1Result.content);
+  const call2Parts = splitSections(call2Result.content);
+  const call3Parts = splitSections(call3Result.content);
 
   // Build sections
   const sections: ReportSection[] = SECTION_META.map((meta) => {
@@ -292,11 +289,19 @@ export async function generateReport(
     return section;
   });
 
+  const degraded = (tier === "free" && !call1Result.content)
+    || (tier === "premium" && (!call1Result.content || !call2Result.content || !call3Result.content));
+
+  if (degraded) {
+    console.warn("[report] Report generated in degraded mode — one or more LLM calls returned empty");
+  }
+
   return {
     tier,
     profileHash,
     sections,
     tokensUsed,
     costUsd: Math.round(costUsd * 1000000) / 1000000,
+    degraded,
   };
 }

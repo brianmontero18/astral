@@ -1,12 +1,3 @@
-/**
- * HD Internationalization — Report Display
- *
- * Translation maps for displaying HD data in Spanish within reports.
- * These complement (not duplicate) the extraction maps in extraction-service.ts.
- * Extraction maps: English→Spanish for normalizing GPT output.
- * These maps: canonical English IDs → Spanish display labels for reports.
- */
-
 export const PLANET_ES: Record<string, string> = {
   Sun: "Sol",
   Earth: "Tierra",

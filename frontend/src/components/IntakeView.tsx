@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useVoiceRecorder } from "../hooks/useVoiceRecorder";
 import type { Intake } from "../types";
 
 interface Props {
   initialIntake?: Intake;
+  hasExistingReport?: boolean;
   onSubmit: (intake: Intake) => void;
   onSkip: () => void;
 }
@@ -14,8 +15,15 @@ const FIELDS: { key: keyof Intake; label: string; placeholder: string }[] = [
   { key: "desafios", label: "¿Cuál es tu mayor desafío?", placeholder: "Ej: Me cuesta decir que no a proyectos..." },
 ];
 
-function MicButton({ fieldKey, onTranscription }: { fieldKey: string; onTranscription: (text: string) => void }) {
-  const { isRecording, isTranscribing, error, startRecording, stopRecording, cancelRecording } = useVoiceRecorder();
+function MicButton({ onTranscription }: { onTranscription: (text: string) => void }) {
+  const { isRecording, isTranscribing, error, autoResult, startRecording, stopRecording, cancelRecording, consumeAutoResult } = useVoiceRecorder();
+
+  useEffect(() => {
+    if (autoResult) {
+      onTranscription(autoResult);
+      consumeAutoResult();
+    }
+  }, [autoResult, onTranscription, consumeAutoResult]);
 
   const handleClick = async () => {
     if (isRecording) {
@@ -80,12 +88,13 @@ function MicButton({ fieldKey, onTranscription }: { fieldKey: string; onTranscri
   );
 }
 
-export function IntakeView({ initialIntake, onSubmit, onSkip }: Props) {
+export function IntakeView({ initialIntake, hasExistingReport, onSubmit, onSkip }: Props) {
   const [values, setValues] = useState<Intake>({
     actividad: initialIntake?.actividad ?? "",
     objetivos: initialIntake?.objetivos ?? "",
     desafios: initialIntake?.desafios ?? "",
   });
+  const [submitting, setSubmitting] = useState(false);
 
   const handleChange = (key: keyof Intake, value: string) => {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -96,7 +105,7 @@ export function IntakeView({ initialIntake, onSubmit, onSkip }: Props) {
       flex: 1, overflowY: "auto", display: "flex", flexDirection: "column",
       alignItems: "center", padding: "32px 16px",
     }}>
-      <div style={{ maxWidth: 600, width: "100%" }}>
+      <div style={{ maxWidth: 760, width: "100%" }}>
         <div style={{
           color: "var(--color-primary)", fontSize: 10, letterSpacing: "0.2em",
           fontWeight: 600, marginBottom: 8, fontFamily: "var(--font-sans)",
@@ -123,18 +132,18 @@ export function IntakeView({ initialIntake, onSubmit, onSkip }: Props) {
               display: "flex", justifyContent: "space-between", alignItems: "center",
               marginBottom: 8,
             }}>
-              <label style={{
+              <label htmlFor={`intake-${key}`} style={{
                 color: "var(--text-main)", fontSize: 13, fontWeight: 500,
                 fontFamily: "var(--font-sans)",
               }}>
                 {label}
               </label>
               <MicButton
-                fieldKey={key}
                 onTranscription={(text) => handleChange(key, (values[key] ?? "") + (values[key] ? " " : "") + text)}
               />
             </div>
             <textarea
+              id={`intake-${key}`}
               value={values[key] ?? ""}
               onChange={(e) => handleChange(key, e.target.value)}
               placeholder={placeholder}
@@ -155,28 +164,30 @@ export function IntakeView({ initialIntake, onSubmit, onSkip }: Props) {
 
         <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
           <button
-            onClick={onSkip}
+            onClick={() => { if (!submitting) { if (hasExistingReport) { onSkip(); } else { setSubmitting(true); onSkip(); } } }}
+            disabled={submitting}
             style={{
               flex: 1, padding: "14px 20px", borderRadius: 30,
               background: "transparent", border: "1px solid rgba(124,111,205,0.3)",
               color: "var(--text-muted)", fontSize: 13, fontWeight: 500,
-              cursor: "pointer", fontFamily: "var(--font-sans)", letterSpacing: "0.03em",
-              transition: "all 0.3s ease",
+              cursor: submitting ? "default" : "pointer", fontFamily: "var(--font-sans)", letterSpacing: "0.03em",
+              transition: "all 0.3s ease", opacity: submitting ? 0.5 : 1,
             }}
           >
-            Omitir
+            {hasExistingReport ? "Volver al informe" : "Omitir"}
           </button>
           <button
-            onClick={() => onSubmit(values)}
+            onClick={() => { if (!submitting) { setSubmitting(true); onSubmit(values); } }}
+            disabled={submitting}
             style={{
               flex: 2, padding: "14px 20px", borderRadius: 30,
               background: "var(--color-primary-dim)", border: "none",
               color: "var(--text-main)", fontSize: 13, fontWeight: 600,
-              cursor: "pointer", fontFamily: "var(--font-sans)", letterSpacing: "0.03em",
-              transition: "all 0.3s ease",
+              cursor: submitting ? "default" : "pointer", fontFamily: "var(--font-sans)", letterSpacing: "0.03em",
+              transition: "all 0.3s ease", opacity: submitting ? 0.6 : 1,
             }}
           >
-            ✦ Generar mi informe
+            {submitting ? "Generando..." : hasExistingReport ? "✦ Regenerar mi informe" : "✦ Generar mi informe"}
           </button>
         </div>
       </div>

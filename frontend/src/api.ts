@@ -202,7 +202,7 @@ export async function createUser(
 
 export async function getUser(
   id: string,
-): Promise<{ id: string; name: string; profile: UserProfile }> {
+): Promise<{ id: string; name: string; profile: UserProfile; intake: Intake | null }> {
   const res = await fetch(`${BASE}/users/${id}`);
   if (!res.ok) throw new Error(`Get user error ${res.status}`);
   return res.json();
@@ -301,8 +301,9 @@ export async function generateReport(
 export async function getReport(
   userId: string,
   tier: "free" | "premium" = "free",
-): Promise<DesignReport> {
+): Promise<DesignReport | null> {
   const res = await fetch(`${BASE}/users/${userId}/report?tier=${tier}`);
+  if (res.status === 404) return null;
   if (!res.ok) {
     const err = await readErrorMessage(res);
     throw new Error(err);
@@ -318,6 +319,7 @@ export async function shareReport(userId: string): Promise<{ token: string; url:
   const res = await fetch(`${BASE}/users/${userId}/report/share`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
   });
   if (!res.ok) {
     const err = await readErrorMessage(res);

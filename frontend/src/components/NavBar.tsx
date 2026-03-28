@@ -1,20 +1,18 @@
-import type { UserProfile } from "../types";
+import type { UserProfile, NavView, View } from "../types";
 import { ProfilePanel } from "./ProfilePanel";
-import { useState } from "react";
-
-type View = "chat" | "transits" | "assets" | "intake" | "report";
+import { useState, useRef, useEffect } from "react";
 
 interface Props {
-  currentView: View;
+  currentView: NavView;
   onNavigate: (view: View) => void;
   userName: string;
   profile: UserProfile;
   onReset: () => void;
   onGenerateReport?: () => void;
-  previousView?: string;
+  previousView?: View;
 }
 
-const TABS: { key: View; label: string }[] = [
+const TABS: { key: NavView; label: string }[] = [
   { key: "chat", label: "Chat" },
   { key: "transits", label: "Tránsitos" },
   { key: "assets", label: "Mis Cartas" },
@@ -22,6 +20,18 @@ const TABS: { key: View; label: string }[] = [
 
 export function NavBar({ currentView, onNavigate, userName, profile, onReset, onGenerateReport, previousView }: Props) {
   const [showProfile, setShowProfile] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showProfile) return;
+    const handleClick = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setShowProfile(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showProfile]);
 
   return (
     <header
@@ -75,7 +85,7 @@ export function NavBar({ currentView, onNavigate, userName, profile, onReset, on
           </div>
         </div>
 
-        <div style={{ position: "relative", flexShrink: 0 }}>
+        <div ref={profileRef} style={{ position: "relative", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <button
               onClick={() => setShowProfile((v) => !v)}
@@ -133,7 +143,7 @@ export function NavBar({ currentView, onNavigate, userName, profile, onReset, on
       <div style={{ display: "flex", gap: "24px", paddingLeft: "4px" }}>
         {(currentView === "intake" || currentView === "report") ? (
           <button
-            onClick={() => onNavigate((previousView ?? "chat") as View)}
+            onClick={() => onNavigate(previousView ?? "chat")}
             style={{
               background: "transparent", border: "none",
               borderBottom: "1px solid transparent",

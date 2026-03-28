@@ -36,13 +36,13 @@ export function translateCenters(ids: string[]): string {
 
 // ─── Report parser ────────────────────────────────────────────────────────────
 
-export interface ReportSection {
+export interface ChatReportSection {
   icon: string | null;
   body: string;
 }
 
-export function parseReport(rawText: string): ReportSection[] {
-  const sections: ReportSection[] = [];
+export function parseReport(rawText: string): ChatReportSection[] {
+  const sections: ChatReportSection[] = [];
   let currentIcon: string | null = null;
   let bodyLines: string[] = [];
 

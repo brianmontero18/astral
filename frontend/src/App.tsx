@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { OnboardingFlow } from "./components/OnboardingFlow";
 import { NavBar } from "./components/NavBar";
 import { ChatView } from "./components/ChatView";
@@ -6,8 +6,8 @@ import { TransitViewer } from "./components/TransitViewer";
 import { AssetViewer } from "./components/AssetViewer";
 import { IntakeView } from "./components/IntakeView";
 import { ReportView } from "./components/ReportView";
-import { getUser, updateUser, generateReport } from "./api";
-import type { LocalUser, UserProfile, Intake, DesignReport } from "./types";
+import { getUser, updateUser, generateReport, getReport } from "./api";
+import type { LocalUser, UserProfile, Intake, DesignReport, View } from "./types";
 
 // ─── Dust Particles — (replacing old stars) ──────────────────────────────────
 
@@ -20,8 +20,6 @@ const PARTICLES = Array.from({ length: 45 }, () => ({
   dur: 4 + Math.random() * 6,
 }));
 
-type View = "onboarding" | "chat" | "transits" | "assets" | "intake" | "report";
-
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -33,6 +31,8 @@ export default function App() {
   const [report, setReport] = useState<DesignReport | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [previousView, setPreviousView] = useState<View>("chat");
+  const [intakeError, setIntakeError] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   // Check localStorage on mount
   useEffect(() => {
@@ -44,6 +44,7 @@ export default function App() {
           .then((data) => {
             setUser({ id: data.id, name: data.name });
             setProfile(data.profile);
+            if (data.intake) setIntake(data.intake);
             setCurrentView("chat");
           })
           .catch(() => {
@@ -67,36 +68,79 @@ export default function App() {
   };
 
   const handleNavigate = (view: View) => {
+    // Only update previousView when entering the intake/report flow from a main tab.
+    // If already inside the flow (intake→report), preserve the original source tab.
     if (view === "intake" || view === "report") {
-      setPreviousView(currentView === "intake" || currentView === "report" ? previousView : currentView);
+      if (currentView !== "intake" && currentView !== "report") {
+        setPreviousView(currentView);
+      }
     }
     setCurrentView(view);
   };
 
+  const handleGoToReport = async () => {
+    if (!user) return;
+    try {
+      const cached = await getReport(user.id);
+      if (cached) {
+        setReport(cached);
+        setIntakeError(false);
+        handleNavigate("report");
+      } else {
+        handleNavigate("intake");
+      }
+    } catch {
+      handleNavigate("intake");
+    }
+  };
+
+  const handleEditIntake = () => {
+    handleNavigate("intake");
+  };
+
   const handleGenerateReport = async (intakeData?: Intake) => {
     if (!user || !profile) return;
+
+    if (report && !window.confirm("Esto va a reemplazar tu informe actual. ¿Continuar?")) return;
+
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setReportLoading(true);
+    setIntakeError(false);
     setCurrentView("report");
+
     if (intakeData) {
       setIntake(intakeData);
       try {
         await updateUser(user.id, user.name, profile, intakeData);
-      } catch { /* intake save failed — report will generate without it */ }
+      } catch {
+        setIntakeError(true);
+      }
     }
+
+    if (controller.signal.aborted) return;
+
     try {
       const result = await generateReport(user.id, "free");
-      setReport(result);
+      if (!controller.signal.aborted) setReport(result);
     } catch {
-      setReport(null);
+      if (!controller.signal.aborted && !report) setReport(null);
     } finally {
-      setReportLoading(false);
+      if (!controller.signal.aborted) setReportLoading(false);
     }
   };
 
   const handleReset = () => {
+    abortRef.current?.abort();
     localStorage.removeItem("astral_user");
     setUser(null);
     setProfile(null);
+    setReport(null);
+    setIntake(undefined);
+    setIntakeError(false);
+    setReportLoading(false);
     setCurrentView("onboarding");
   };
 
@@ -160,7 +204,7 @@ export default function App() {
             userName={user.name}
             profile={profile}
             onReset={handleReset}
-            onGenerateReport={() => handleNavigate("intake")}
+            onGenerateReport={handleGoToReport}
             previousView={previousView}
           />
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
@@ -170,16 +214,19 @@ export default function App() {
             {currentView === "intake" && (
               <IntakeView
                 initialIntake={intake}
+                hasExistingReport={!!report}
                 onSubmit={(data) => handleGenerateReport(data)}
-                onSkip={() => handleGenerateReport()}
+                onSkip={() => report ? handleNavigate("report") : handleGenerateReport()}
               />
             )}
             {currentView === "report" && (
               <ReportView
                 report={report}
                 loading={reportLoading}
-                onBack={() => handleNavigate(previousView as View)}
+                onBack={() => handleNavigate(previousView)}
+                onEditIntake={handleEditIntake}
                 userId={user.id}
+                intakeWarning={intakeError}
               />
             )}
           </div>

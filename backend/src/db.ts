@@ -1,10 +1,3 @@
-/**
- * SQLite Database Layer
- *
- * Uses @libsql/client for async SQLite access (local file or Turso remote).
- * Tables: users, assets, transit_cache, chat_messages
- */
-
 import { createClient, type Client } from "@libsql/client";
 import { randomUUID } from "node:crypto";
 
@@ -62,18 +55,16 @@ export async function initDb(): Promise<void> {
         created_at   TEXT NOT NULL DEFAULT (datetime('now')),
         UNIQUE(user_id, tier)
       )`,
+      `CREATE TABLE IF NOT EXISTS report_shares (
+        token      TEXT PRIMARY KEY,
+        user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        report_id  TEXT NOT NULL REFERENCES hd_reports(id) ON DELETE CASCADE,
+        expires_at TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
     ],
     "write",
   );
-
-  // Slice 4 — report sharing
-  await client.execute(`CREATE TABLE IF NOT EXISTS report_shares (
-    token      TEXT PRIMARY KEY,
-    user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    report_id  TEXT NOT NULL REFERENCES hd_reports(id) ON DELETE CASCADE,
-    expires_at TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  )`);
 
   // Add intake column to existing DBs (idempotent)
   try {
@@ -259,7 +250,7 @@ export async function getReport(
   tier: string,
 ): Promise<{ id: string; user_id: string; tier: string; profile_hash: string; content: string; tokens_used: number; cost_usd: number; created_at: string } | undefined> {
   const result = await client.execute({
-    sql: "SELECT * FROM hd_reports WHERE user_id = ? AND tier = ?",
+    sql: "SELECT id, user_id, tier, profile_hash, content, tokens_used, cost_usd, created_at FROM hd_reports WHERE user_id = ? AND tier = ?",
     args: [userId, tier],
   });
   const row = result.rows[0];
@@ -301,11 +292,31 @@ export async function saveReport(report: {
   content: string;
   tokensUsed: number;
   costUsd: number;
-}): Promise<void> {
+}): Promise<string> {
+  const existing = await client.execute({
+    sql: "SELECT id FROM hd_reports WHERE user_id = ? AND tier = ?",
+    args: [report.userId, report.tier],
+  });
+  if (existing.rows.length > 0) {
+    const existingId = existing.rows[0].id as string;
+    await client.execute({
+      sql: `UPDATE hd_reports SET profile_hash = ?, content = ?, tokens_used = ?, cost_usd = ?, created_at = datetime('now') WHERE id = ?`,
+      args: [report.profileHash, report.content, report.tokensUsed, report.costUsd, existingId],
+    });
+    return existingId;
+  }
   await client.execute({
-    sql: `INSERT OR REPLACE INTO hd_reports (id, user_id, tier, profile_hash, content, tokens_used, cost_usd, created_at)
+    sql: `INSERT INTO hd_reports (id, user_id, tier, profile_hash, content, tokens_used, cost_usd, created_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
     args: [report.id, report.userId, report.tier, report.profileHash, report.content, report.tokensUsed, report.costUsd],
+  });
+  return report.id;
+}
+
+export async function updateReportContent(id: string, content: string): Promise<void> {
+  await client.execute({
+    sql: "UPDATE hd_reports SET content = ? WHERE id = ?",
+    args: [content, id],
   });
 }
 
@@ -329,7 +340,7 @@ export async function getShareByToken(
   token: string,
 ): Promise<{ token: string; user_id: string; report_id: string; expires_at: string } | undefined> {
   const result = await client.execute({
-    sql: "SELECT * FROM report_shares WHERE token = ?",
+    sql: "SELECT token, user_id, report_id, expires_at FROM report_shares WHERE token = ?",
     args: [token],
   });
   const row = result.rows[0];
@@ -340,6 +351,14 @@ export async function getShareByToken(
     report_id: row.report_id as string,
     expires_at: row.expires_at as string,
   };
+}
+
+export async function cleanupExpiredShares(): Promise<number> {
+  const result = await client.execute({
+    sql: "DELETE FROM report_shares WHERE expires_at < datetime('now')",
+    args: [],
+  });
+  return result.rowsAffected;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

@@ -1,13 +1,3 @@
-/**
- * Report Prompts — LLM System Prompts
- *
- * 4 prompts for the hybrid report generation:
- * - Call 1 Free: Type + Authority + Profile teaser
- * - Call 1 Premium: Type + Authority + Profile + Definition
- * - Call 2: Channels + Undefined Centers + Variables
- * - Call 3: Incarnation Cross + Strengths & Shadows
- */
-
 import type { UserProfile } from "../agent-service.js";
 import type { Intake } from "./types.js";
 
@@ -59,7 +49,7 @@ Párrafo 2 — AUTORIDAD: Explicá cómo la autoridad funciona en el contexto de
 
 Párrafo 3 — PERFIL (teaser): 2-3 oraciones que conecten el perfil con el tipo y la autoridad. Dejá al lector queriendo saber más. No des la interpretación completa.
 
-Formato: 3 párrafos separados por doble salto de línea. Sin títulos, sin markdown, sin numeración. Prosa directa en segunda persona (vos/tú). Tono: cálido pero directo, como un mentor que te conoce.`,
+Formato: separá cada párrafo con la marca "[SECTION]" en su propia línea. Sin títulos, sin markdown, sin numeración. Prosa directa en segunda persona (vos/tú). Tono: cálido pero directo, como un mentor que te conoce.`,
     user: `Datos del usuario:\n${profileBlock(profile)}${intakeBlock(intake)}`,
   };
 }
@@ -81,7 +71,7 @@ Párrafo 3 — PERFIL: Interpretación completa del perfil. Cómo las dos línea
 
 Párrafo 4 — DEFINICIÓN: Cómo su tipo de definición afecta su procesamiento interno, sus relaciones, y su forma de tomar decisiones. Conectá con el tipo y la autoridad.
 
-Formato: 4 párrafos separados por doble salto de línea. Sin títulos, sin markdown. Prosa directa en segunda persona. Tono: profundo, cálido, mentor.`,
+Formato: separá cada párrafo con la marca "[SECTION]" en su propia línea. Sin títulos, sin markdown. Prosa directa en segunda persona. Tono: profundo, cálido, mentor.`,
     user: `Datos del usuario:\n${profileBlock(profile)}${intakeBlock(intake)}`,
   };
 }
@@ -90,7 +80,6 @@ export function buildCall2Prompt(profile: UserProfile, intake?: Intake): {
   system: string;
   user: string;
 } {
-  const hd = profile.humanDesign;
   return {
     system: `Sos un experto en Diseño Humano. ${SPANISH_RULE}
 
@@ -102,14 +91,8 @@ Sección 2 — CENTROS INDEFINIDOS: Para cada centro indefinido, explicá el pat
 
 Sección 3 — VARIABLES: Si el usuario tiene datos de digestión, ambiente o sentido más fuerte, integrá una interpretación práctica de cómo estos elementos afectan su vida cotidiana. Si no hay datos de variables, omití esta sección.
 
-Formato: 3 secciones separadas por "---". Dentro de cada sección, prosa continua. Sin títulos, sin markdown. Segunda persona. Tono mentor.`,
-    user: `Datos del usuario:\n${profileBlock(profile)}${intakeBlock(intake)}
-
-Canales: ${hd.channels.map(c => `${c.name} (${c.id})`).join(", ") || "Ninguno definido"}
-Centros indefinidos: ${hd.undefinedCenters.join(", ") || "Ninguno"}
-Digestión: ${hd.digestion || "No disponible"}
-Ambiente: ${hd.environment || "No disponible"}
-Sentido más fuerte: ${hd.strongestSense || "No disponible"}`,
+Formato: separá cada sección con la marca "[SECTION]" en su propia línea. Dentro de cada sección, prosa continua. Sin títulos, sin markdown. Segunda persona. Tono mentor.`,
+    user: `Datos del usuario:\n${profileBlock(profile)}${intakeBlock(intake)}`,
   };
 }
 
@@ -126,7 +109,7 @@ Sección 1 — CRUZ DE ENCARNACIÓN: Interpretá la cruz de encarnación como el
 
 Sección 2 — FORTALEZAS Y SOMBRAS: Sintetizá todo el diseño en un balance de fortalezas (dones del diseño vivido correctamente) y sombras (patrones del no-ser). No hagas una lista; escribí una síntesis narrativa que integre tipo, autoridad, perfil, canales y centros indefinidos. Si hay intake, conectá con sus desafíos específicos.
 
-Formato: 2 secciones separadas por "---". Prosa continua, sin títulos, sin markdown. Segunda persona. Tono: profundo, inspirador pero honesto.`,
+Formato: separá cada sección con la marca "[SECTION]" en su propia línea. Prosa continua, sin títulos, sin markdown. Segunda persona. Tono: profundo, inspirador pero honesto.`,
     user: `Datos del usuario:\n${profileBlock(profile)}${intakeBlock(intake)}`,
   };
 }

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { transcribeAudio } from "../api";
+import { getAudioErrorMessage, detectAudioMime } from "../utils/audio";
 
 interface Props {
   onTranscription: (text: string) => void;
@@ -7,27 +8,6 @@ interface Props {
 }
 
 const BAR_COUNT = 50;
-const MIC_BLOCKED_MSG = "Micrófono bloqueado. Habilitalo en la configuración del navegador (ícono de candado en la barra de dirección).";
-
-function getErrorMessage(err: unknown): string {
-  if (!(err instanceof DOMException)) {
-    return "Error al acceder al micrófono";
-  }
-
-  switch (err.name) {
-    case "NotAllowedError":
-    case "PermissionDeniedError":
-      return MIC_BLOCKED_MSG;
-    case "NotFoundError":
-    case "DevicesNotFoundError":
-      return "No se detectó ningún micrófono en este dispositivo.";
-    case "NotReadableError":
-    case "TrackStartError":
-      return "El micrófono está siendo usado por otra aplicación. Cerrala e intentá de nuevo.";
-    default:
-      return "No se pudo acceder al micrófono";
-  }
-}
 
 export function VoiceRecorder({ onTranscription, onCancel }: Props) {
   const [transcribing, setTranscribing] = useState(false);
@@ -74,7 +54,7 @@ export function VoiceRecorder({ onTranscription, onCancel }: Props) {
         if (navigator.permissions?.query) {
           const status = await navigator.permissions.query({ name: "microphone" as PermissionName });
           if (status.state === "denied") {
-            setError(MIC_BLOCKED_MSG);
+            setError("Micrófono bloqueado. Habilitalo en la configuración del navegador (ícono de candado en la barra de dirección).");
             return;
           }
         }
@@ -99,11 +79,7 @@ export function VoiceRecorder({ onTranscription, onCancel }: Props) {
         source.connect(analyser);
         analyserRef.current = analyser;
 
-        const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-          ? "audio/webm;codecs=opus"
-          : MediaRecorder.isTypeSupported("audio/webm")
-            ? "audio/webm"
-            : "audio/mp4";
+        const mime = detectAudioMime();
         mimeRef.current = mime;
 
         const recorder = new MediaRecorder(stream, { mimeType: mime });
@@ -116,7 +92,7 @@ export function VoiceRecorder({ onTranscription, onCancel }: Props) {
 
         drawBars();
       } catch (err) {
-        setError(getErrorMessage(err));
+        setError(getAudioErrorMessage(err));
       }
     }
 

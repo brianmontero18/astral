@@ -1,10 +1,3 @@
-/**
- * Report Types
- *
- * Interfaces for the HD report generation system.
- * Shared between generate-report, prompts, pdf-renderer, and routes.
- */
-
 export interface Intake {
   actividad?: string;
   objetivos?: string;
@@ -32,6 +25,7 @@ export interface DesignReport {
   tokensUsed: number;
   costUsd: number;
   createdAt: string;
+  degraded?: boolean;
 }
 
 export const SECTION_ORDER = [

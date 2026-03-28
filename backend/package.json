@@ -21,6 +21,10 @@
     "tsx": "^4.19.3",
     "typescript": "^5.8.3"
   },
+  "optionalDependencies": {
+    "@esbuild/darwin-arm64": "^0.27.3",
+    "@libsql/darwin-arm64": "^0.5.22"
+  },
   "devDependencies": {
     "@types/node": "^22.15.3",
     "@types/react": "^19.2.14",
