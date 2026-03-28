@@ -314,6 +314,18 @@ export function getReportPdfUrl(userId: string, tier: "free" | "premium" = "free
   return `${BASE}/users/${userId}/report/pdf?tier=${tier}`;
 }
 
+export async function shareReport(userId: string): Promise<{ token: string; url: string }> {
+  const res = await fetch(`${BASE}/users/${userId}/report/share`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) {
+    const err = await readErrorMessage(res);
+    throw new Error(err);
+  }
+  return res.json();
+}
+
 // ─── Extraction ──────────────────────────────────────────────────────────────
 
 export async function extractProfile(

@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { randomUUID } from "node:crypto";
-import { getUser, getReport, saveReport } from "../db.js";
+import { getUser, getReport, getReportById, saveReport, createShareToken, getShareByToken } from "../db.js";
 import { generateReport, computeProfileHash } from "../report/generate-report.js";
 import { renderReportPDF } from "../report/pdf-renderer.js";
 import type { UserProfile } from "../agent-service.js";
@@ -93,6 +93,53 @@ export async function reportRoutes(app: FastifyInstance) {
       return reply
         .header("Content-Type", "application/pdf")
         .header("Content-Disposition", `attachment; filename="informe-hd-${tier}.pdf"`)
+        .send(pdfBuffer);
+    },
+  );
+
+  // Create share link
+  app.post<{ Params: { id: string } }>(
+    "/users/:id/report/share",
+    async (req, reply) => {
+      const tier: ReportTier = "free";
+      const cached = await getReport(req.params.id, tier);
+      if (!cached) {
+        return reply.status(404).send({ error: "No report found. Generate one first." });
+      }
+
+      const token = await createShareToken(req.params.id, cached.id);
+      const baseUrl = `${req.protocol}://${req.hostname}`;
+      const url = `${baseUrl}/api/report/shared/${token}`;
+
+      return reply.send({ token, url });
+    },
+  );
+
+  // Public shared report (serves PDF)
+  app.get<{ Params: { token: string } }>(
+    "/report/shared/:token",
+    async (req, reply) => {
+      const share = await getShareByToken(req.params.token);
+      if (!share) {
+        return reply.status(404).send({ error: "Enlace no encontrado." });
+      }
+
+      if (new Date(share.expires_at) < new Date()) {
+        return reply.status(410).send({ error: "Este enlace ha expirado." });
+      }
+
+      const report = await getReportById(share.report_id);
+      if (!report) {
+        return reply.status(404).send({ error: "Reporte no encontrado." });
+      }
+
+      const user = await getUser(share.user_id);
+      const reportData = JSON.parse(report.content) as DesignReport;
+      const pdfBuffer = await renderReportPDF(reportData, user?.name);
+
+      return reply
+        .header("Content-Type", "application/pdf")
+        .header("Content-Disposition", `inline; filename="informe-hd.pdf"`)
         .send(pdfBuffer);
     },
   );

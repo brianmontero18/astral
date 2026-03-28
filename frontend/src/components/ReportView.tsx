@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { DesignReport, ReportSection } from "../types";
-import { getReportPdfUrl } from "../api";
+import { getReportPdfUrl, shareReport } from "../api";
 
 interface Props {
   report: DesignReport | null;
@@ -80,6 +80,52 @@ function SectionCard({ section, locked }: { section: ReportSection; locked: bool
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function ReportActions({ userId, tier }: { userId: string; tier: "free" | "premium" }) {
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
+
+  const handleShare = async () => {
+    setSharing(true);
+    try {
+      const { url } = await shareReport(userId);
+      setShareUrl(url);
+      try { await navigator.clipboard.writeText(url); } catch { /* fallback below */ }
+    } catch { /* ignore */ }
+    setSharing(false);
+  };
+
+  return (
+    <div style={{ marginTop: 24, textAlign: "center", display: "flex", justifyContent: "center", gap: 12, flexWrap: "wrap" }}>
+      <a
+        href={getReportPdfUrl(userId, tier)}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          display: "inline-block", padding: "12px 28px", borderRadius: 30,
+          background: "var(--color-primary-dim)", color: "var(--text-main)",
+          fontSize: 13, fontWeight: 600, textDecoration: "none",
+          fontFamily: "var(--font-sans)", letterSpacing: "0.03em",
+        }}
+      >
+        📄 Descargar PDF
+      </a>
+      <button
+        onClick={handleShare}
+        disabled={sharing}
+        style={{
+          padding: "12px 28px", borderRadius: 30,
+          background: "transparent", border: "1px solid rgba(124,111,205,0.3)",
+          color: "var(--text-muted)", fontSize: 13, fontWeight: 500,
+          cursor: sharing ? "default" : "pointer", fontFamily: "var(--font-sans)",
+          letterSpacing: "0.03em", opacity: sharing ? 0.6 : 1,
+        }}
+      >
+        {sharing ? "..." : shareUrl ? "✓ Link copiado" : "🔗 Compartir"}
+      </button>
     </div>
   );
 }
@@ -200,22 +246,7 @@ export function ReportView({ report, loading, onBack, userId }: Props) {
         )}
 
         {userId && report && (
-          <div style={{ marginTop: 24, textAlign: "center" }}>
-            <a
-              href={getReportPdfUrl(userId, report.tier)}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: "inline-block", padding: "12px 32px", borderRadius: 30,
-                background: "var(--color-primary-dim)", color: "var(--text-main)",
-                fontSize: 13, fontWeight: 600, textDecoration: "none",
-                fontFamily: "var(--font-sans)", letterSpacing: "0.03em",
-                transition: "all 0.3s ease",
-              }}
-            >
-              📄 Descargar PDF
-            </a>
-          </div>
+          <ReportActions userId={userId} tier={report.tier} />
         )}
       </div>
     </div>

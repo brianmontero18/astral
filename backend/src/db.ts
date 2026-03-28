@@ -64,6 +64,15 @@ export async function initDb(): Promise<void> {
     "write",
   );
 
+  // Slice 4 — report sharing
+  await client.execute(`CREATE TABLE IF NOT EXISTS report_shares (
+    token      TEXT PRIMARY KEY,
+    user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    report_id  TEXT NOT NULL REFERENCES hd_reports(id) ON DELETE CASCADE,
+    expires_at TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+
   // Add intake column to existing DBs (idempotent)
   try {
     await client.execute("ALTER TABLE users ADD COLUMN intake TEXT DEFAULT NULL");
@@ -265,6 +274,23 @@ export async function getReport(
   };
 }
 
+export async function getReportById(
+  id: string,
+): Promise<{ id: string; user_id: string; tier: string; content: string } | undefined> {
+  const result = await client.execute({
+    sql: "SELECT id, user_id, tier, content FROM hd_reports WHERE id = ?",
+    args: [id],
+  });
+  const row = result.rows[0];
+  if (!row) return undefined;
+  return {
+    id: row.id as string,
+    user_id: row.user_id as string,
+    tier: row.tier as string,
+    content: row.content as string,
+  };
+}
+
 export async function saveReport(report: {
   id: string;
   userId: string;
@@ -279,6 +305,39 @@ export async function saveReport(report: {
           VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
     args: [report.id, report.userId, report.tier, report.profileHash, report.content, report.tokensUsed, report.costUsd],
   });
+}
+
+// ─── Report Shares ───────────────────────────────────────────────────────────
+
+export async function createShareToken(
+  userId: string,
+  reportId: string,
+  expiryDays: number = 7,
+): Promise<string> {
+  const token = randomUUID();
+  const expiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000).toISOString();
+  await client.execute({
+    sql: "INSERT INTO report_shares (token, user_id, report_id, expires_at) VALUES (?, ?, ?, ?)",
+    args: [token, userId, reportId, expiresAt],
+  });
+  return token;
+}
+
+export async function getShareByToken(
+  token: string,
+): Promise<{ token: string; user_id: string; report_id: string; expires_at: string } | undefined> {
+  const result = await client.execute({
+    sql: "SELECT * FROM report_shares WHERE token = ?",
+    args: [token],
+  });
+  const row = result.rows[0];
+  if (!row) return undefined;
+  return {
+    token: row.token as string,
+    user_id: row.user_id as string,
+    report_id: row.report_id as string,
+    expires_at: row.expires_at as string,
+  };
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
