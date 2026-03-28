@@ -58,6 +58,8 @@ export interface ChatMessage {
 export interface ChatResponse {
   reply: string;
   transits_used: string; // ISO datetime of when transits were fetched
+  userMsgId?: number;
+  assistantMsgId?: number;
 }
 
 export interface PlanetTransit {

@@ -156,7 +156,15 @@ export function ChatView({ user }: Props) {
       setLoading(true);
       try {
         const data = await sendChat(user.id, updated);
-        setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
+        setMessages((prev) => {
+          const copy = [...prev];
+          // Set dbId on the user message we just sent
+          if (data.userMsgId && copy.length >= 1) {
+            copy[copy.length - 1] = { ...copy[copy.length - 1], dbId: data.userMsgId };
+          }
+          copy.push({ role: "assistant", content: data.reply, dbId: data.assistantMsgId });
+          return copy;
+        });
         if (messageUsage && messageUsage.used + 1 >= messageUsage.limit) {
           setLimitReached(true);
         }
