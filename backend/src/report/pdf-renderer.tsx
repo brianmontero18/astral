@@ -1,4 +1,3 @@
-// @ts-nocheck — @react-pdf/renderer types conflict with strict React JSX
 import React from "react";
 import { Document, Page, Text, View, Font, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
 import path from "node:path";

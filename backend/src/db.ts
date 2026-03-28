@@ -17,6 +17,8 @@ export async function initDb(): Promise<void> {
   const authToken = process.env.TURSO_AUTH_TOKEN;
   client = createClient({ url, ...(authToken && { authToken }) });
 
+  await client.execute("PRAGMA foreign_keys = ON");
+
   await client.batch(
     [
       `CREATE TABLE IF NOT EXISTS users (

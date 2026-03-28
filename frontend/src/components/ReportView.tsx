@@ -9,7 +9,7 @@ interface Props {
   userId?: string;
 }
 
-const WHATSAPP_URL = "https://wa.me/584121234567?text=Quiero%20desbloquear%20mi%20informe%20premium";
+const WHATSAPP_URL = "https://wa.me/5491153446030?text=Quiero%20desbloquear%20mi%20informe%20premium";
 
 function SectionCard({ section, locked }: { section: ReportSection; locked: boolean }) {
   const [expanded, setExpanded] = useState(!locked);
@@ -93,8 +93,12 @@ function ReportActions({ userId, tier }: { userId: string; tier: "free" | "premi
     try {
       const { url } = await shareReport(userId);
       setShareUrl(url);
-      try { await navigator.clipboard.writeText(url); } catch { /* fallback below */ }
-    } catch { /* ignore */ }
+      try {
+        await navigator.clipboard.writeText(url);
+      } catch {
+        window.prompt("Copiá este enlace:", url);
+      }
+    } catch { /* share creation failed */ }
     setSharing(false);
   };
 

@@ -75,14 +75,14 @@ export default function App() {
 
   const handleGenerateReport = async (intakeData?: Intake) => {
     if (!user || !profile) return;
+    setReportLoading(true);
+    setCurrentView("report");
     if (intakeData) {
       setIntake(intakeData);
       try {
         await updateUser(user.id, user.name, profile, intakeData);
-      } catch { /* continue — intake save is best-effort */ }
+      } catch { /* intake save failed — report will generate without it */ }
     }
-    setReportLoading(true);
-    setCurrentView("report");
     try {
       const result = await generateReport(user.id, "free");
       setReport(result);
