@@ -44,6 +44,8 @@ export function NavBar({ currentView, onNavigate, userName, profile, onReset, on
         backdropFilter: "blur(24px)",
         WebkitBackdropFilter: "blur(24px)",
         flexShrink: 0,
+        position: "relative",
+        zIndex: 50,
       }}
     >
       {/* Top row */}

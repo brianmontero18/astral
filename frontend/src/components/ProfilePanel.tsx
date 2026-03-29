@@ -1,6 +1,5 @@
 import type { UserProfile } from "../types";
 import { translateCenters } from "../utils";
-import { ChannelChips } from "./ChannelChips";
 
 interface Props {
   profile: UserProfile;
@@ -48,15 +47,11 @@ export function ProfilePanel({ profile, onGenerateReport }: Props) {
           <span style={{ color: "#d4cef0", fontSize: 10 }}>{v}</span>
         </div>
       ))}
-      <div style={{ marginTop: 6, display: "flex", gap: 6, alignItems: "flex-start" }}>
+      <div style={{ marginTop: 5, marginBottom: 5, display: "flex", gap: 6 }}>
         <span style={{ color: "#7c6fcd", fontSize: 10, flexShrink: 0, width: 76 }}>Canales:</span>
-        {hd.channels.length > 0 ? (
-          <div style={{ flex: 1 }}>
-            <ChannelChips channels={hd.channels.map((c) => c.name)} size="sm" align="start" />
-          </div>
-        ) : (
-          <span style={{ color: "#d4cef0", fontSize: 10 }}>—</span>
-        )}
+        <span style={{ color: "#d4cef0", fontSize: 10 }}>
+          {hd.channels.length > 0 ? hd.channels.map((c) => c.name).join(", ") : "—"}
+        </span>
       </div>
 
       {onGenerateReport && (
