@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { fetchTransits } from "../api";
 import { CENTER_DISPLAY } from "../utils";
 import { getGateTheme, getChannelInfo, getChannelInfoByName } from "../hd-data";
+import { getTransitFailureMessage } from "../transit-errors";
 import type { TransitsResponse, PlanetTransit, PersonalChannel, UserProfile } from "../types";
 
 // ─── Planetary glyphs ────────────────────────────────────────────────────────
@@ -16,10 +17,9 @@ const PLANET_GLYPHS: Record<string, string> = {
 
 interface Props {
   profile: UserProfile;
-  userId: string;
 }
 
-export function TransitViewer({ profile, userId }: Props) {
+export function TransitViewer({ profile }: Props) {
   const [data, setData] = useState<TransitsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,11 +34,11 @@ export function TransitViewer({ profile, userId }: Props) {
     setExpandedCard((prev) => (prev === id ? null : id));
 
   useEffect(() => {
-    fetchTransits(userId)
+    fetchTransits()
       .then(setData)
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+      .catch((e) => setError(getTransitFailureMessage(e)))
       .finally(() => setLoading(false));
-  }, [userId]);
+  }, []);
 
   if (loading) {
     return (
@@ -61,7 +61,7 @@ export function TransitViewer({ profile, userId }: Props) {
     return (
       <div style={{ margin: "40px auto", maxWidth: 600, padding: "24px", textAlign: "center" }} className="glass-panel">
         <div style={{ color: "#f0a0b0", fontSize: "14px", fontFamily: "var(--font-sans)" }}>
-          Error cargando tránsitos: {error}
+          {error}
         </div>
       </div>
     );
@@ -168,7 +168,7 @@ export function TransitViewer({ profile, userId }: Props) {
         </p>
       )}
 
-      {/* ─── Impact sections (only when userId provided) ─────────────────── */}
+      {/* ─── Impact sections (available when the session has a linked user) ─────────────────── */}
 
       {data.impact && data.impact.personalChannels.length > 0 && (
         <div className="glass-panel-gold" style={{

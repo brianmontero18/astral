@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import type { DesignReport, ReportSection } from "../types";
 import { getReportPdfUrl, shareReport } from "../api";
+import { buildReportViewModel } from "../report-view-model";
 
 interface Props {
   report: DesignReport | null;
   loading: boolean;
   onBack: () => void;
   onEditIntake?: () => void;
-  userId?: string;
   intakeWarning?: boolean;
 }
 
@@ -16,20 +16,29 @@ const WHATSAPP_URL = "https://wa.me/5491153446030?text=Quiero%20desbloquear%20mi
 function SectionCard({ section, locked, onUnlockClick }: { section: ReportSection; locked: boolean; onUnlockClick?: () => void }) {
   const [expanded, setExpanded] = useState(!locked);
 
+  useEffect(() => {
+    setExpanded(!locked);
+  }, [locked, section.id]);
+
   if (locked) {
     return (
       <div
         onClick={onUnlockClick}
         role="button"
         tabIndex={0}
-        onKeyDown={(e) => { if (e.key === "Enter") onUnlockClick?.(); }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onUnlockClick?.();
+          }
+        }}
         style={{
           background: "rgba(124,111,205,0.04)", border: "1px solid rgba(124,111,205,0.15)",
           borderRadius: 14, padding: "18px 20px", marginBottom: 14,
           cursor: "pointer", transition: "border-color 0.2s ease",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10, opacity: 0.5 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, opacity: 0.7 }}>
           <span style={{ fontSize: 18 }}>{section.icon}</span>
           <span style={{
             fontFamily: "var(--font-serif)", color: "var(--text-main)",
@@ -39,6 +48,17 @@ function SectionCard({ section, locked, onUnlockClick }: { section: ReportSectio
           </span>
           <span style={{ marginLeft: "auto", fontSize: 14 }}>🔒</span>
         </div>
+        {section.previewContent && (
+          <div style={{
+            marginTop: 10,
+            color: "var(--text-muted)",
+            fontSize: 12,
+            lineHeight: 1.6,
+            opacity: 0.95,
+          }}>
+            {section.previewContent}
+          </div>
+        )}
       </div>
     );
   }
@@ -85,7 +105,7 @@ function SectionCard({ section, locked, onUnlockClick }: { section: ReportSectio
               background: "rgba(212,175,55,0.06)", border: "1px solid rgba(212,175,55,0.2)",
               fontSize: 12, color: "var(--text-gold)", fontStyle: "italic",
             }}>
-              Continuá leyendo en el informe completo...
+              Tu informe continúa más abajo con una capa aplicada premium.
             </div>
           )}
         </div>
@@ -94,7 +114,7 @@ function SectionCard({ section, locked, onUnlockClick }: { section: ReportSectio
   );
 }
 
-function ReportActions({ userId, tier, reportId }: { userId: string; tier: "free" | "premium"; reportId: string }) {
+function ReportActions({ tier, reportId }: { tier: "free" | "premium"; reportId: string }) {
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [shareError, setShareError] = useState(false);
   const [sharing, setSharing] = useState(false);
@@ -108,7 +128,7 @@ function ReportActions({ userId, tier, reportId }: { userId: string; tier: "free
     setSharing(true);
     setShareError(false);
     try {
-      const { url } = await shareReport(userId);
+      const { url } = await shareReport(tier);
       setShareUrl(url);
       try {
         await navigator.clipboard.writeText(url);
@@ -124,7 +144,7 @@ function ReportActions({ userId, tier, reportId }: { userId: string; tier: "free
   return (
     <div style={{ marginTop: 24, textAlign: "center", display: "flex", justifyContent: "center", gap: 12, flexWrap: "wrap" }}>
       <a
-        href={getReportPdfUrl(userId, tier)}
+        href={getReportPdfUrl(tier)}
         target="_blank"
         rel="noopener noreferrer"
         style={{
@@ -153,7 +173,7 @@ function ReportActions({ userId, tier, reportId }: { userId: string; tier: "free
   );
 }
 
-export function ReportView({ report, loading, onBack, onEditIntake, userId, intakeWarning }: Props) {
+export function ReportView({ report, loading, onBack, onEditIntake, intakeWarning }: Props) {
   if (loading) {
     return (
       <div style={{
@@ -205,8 +225,14 @@ export function ReportView({ report, loading, onBack, onEditIntake, userId, inta
     );
   }
 
-  const freeSections = report.sections.filter((s) => s.tier === "free");
-  const premiumSections = report.sections.filter((s) => s.tier === "premium");
+  const {
+    freeSections,
+    premiumSections,
+    premiumUnlocked,
+    premiumCtaTitle,
+    premiumCtaBody,
+    premiumCtaLabel,
+  } = buildReportViewModel(report);
 
   const scrollToUnlock = () => {
     const cta = document.getElementById("premium-cta");
@@ -276,7 +302,7 @@ export function ReportView({ report, loading, onBack, onEditIntake, userId, inta
           <SectionCard key={section.id} section={section} locked={false} />
         ))}
 
-        {premiumSections.length > 0 && (
+        {premiumSections.length > 0 && !premiumUnlocked && (
           <>
             <div id="premium-cta" style={{
               margin: "24px 0 16px", padding: "16px 20px", borderRadius: 14,
@@ -286,12 +312,12 @@ export function ReportView({ report, loading, onBack, onEditIntake, userId, inta
               <div style={{
                 color: "var(--text-gold)", fontSize: 13, fontWeight: 500, marginBottom: 4,
               }}>
-                ✦ Informe Premium
+                {premiumCtaTitle}
               </div>
               <div style={{
                 color: "var(--text-muted)", fontSize: 12, lineHeight: 1.6, marginBottom: 12,
               }}>
-                {premiumSections.length} secciones adicionales con interpretación profunda
+                {premiumCtaBody}
               </div>
               <a
                 href={WHATSAPP_URL}
@@ -304,7 +330,7 @@ export function ReportView({ report, loading, onBack, onEditIntake, userId, inta
                   fontFamily: "var(--font-sans)", letterSpacing: "0.03em",
                 }}
               >
-                Desbloquear informe completo
+                {premiumCtaLabel}
               </a>
             </div>
 
@@ -314,9 +340,11 @@ export function ReportView({ report, loading, onBack, onEditIntake, userId, inta
           </>
         )}
 
-        {userId && (
-          <ReportActions userId={userId} tier={report.tier} reportId={report.id} />
-        )}
+        {premiumSections.length > 0 && premiumUnlocked && premiumSections.map((section) => (
+          <SectionCard key={section.id} section={section} locked={false} />
+        ))}
+
+        <ReportActions tier={report.tier} reportId={report.id} />
       </div>
     </div>
   );

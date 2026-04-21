@@ -61,14 +61,31 @@ test.describe("Chat — Edit Message", () => {
 
   test("Edit calls truncate API before re-sending", async ({ page }) => {
     let truncateCalled = false;
-    await page.route("**/api/users/*/messages**", async (route) => {
+    await page.route("**/api/me/messages**", async (route) => {
       if (route.request().method() === "DELETE") {
         truncateCalled = true;
-        await route.fulfill({ status: 200, json: { deleted: 2, used: 1, limit: 15 } });
+        await route.fulfill({
+          status: 200,
+          json: {
+            deleted: 2,
+            plan: "free",
+            used: 1,
+            limit: 20,
+            cycle: "2026-04",
+            resetsAt: "2026-05-01T00:00:00-03:00",
+          },
+        });
       } else if (route.request().method() === "GET") {
         await route.fulfill({
           status: 200,
-          json: { messages: HISTORY_MESSAGES, used: 2, limit: 15 },
+          json: {
+            messages: HISTORY_MESSAGES,
+            plan: "free",
+            used: 2,
+            limit: 20,
+            cycle: "2026-04",
+            resetsAt: "2026-05-01T00:00:00-03:00",
+          },
         });
       } else {
         await route.fallback();
@@ -96,8 +113,10 @@ test.describe("Chat — Edit Message", () => {
     const editTextarea = page.getByRole("textbox").first();
     await editTextarea.fill("");
     const saveBtn = page.getByRole("button", { name: "Guardar y enviar" });
-    // Button should be visually disabled (opacity 0.4)
-    await expect(saveBtn).toBeVisible();
-    // Clicking it should not do anything — original message should remain after cancel
+    await expect(saveBtn).toBeDisabled();
+
+    await expect(editTextarea).toHaveValue("");
+    await expect(page.getByText("Como afecta mi centro Sacral?")).toBeVisible();
+    await expect(page.getByText("Nueva respuesta...")).not.toBeVisible();
   });
 });

@@ -1,16 +1,26 @@
 import type { FastifyInstance } from "fastify";
 import { fetchWeeklyTransits, type WeeklyTransits, analyzeTransitImpact, type TransitImpact } from "../transit-service.js";
 import { getCachedTransits, setCachedTransits, getISOWeekKey, getUser } from "../db.js";
+import { type AuthenticatedRequest } from "../auth/session.js";
+import { resolveRequestCurrentUser } from "../auth/current-user.js";
 
 export async function transitRoutes(app: FastifyInstance) {
   app.get<{ Querystring: { userId?: string; timeZone?: string; clientNow?: string } }>("/transits", async (req, reply) => {
     try {
       const transits = await getTransitsCached(req.query.timeZone, req.query.clientNow);
 
-      // Si viene userId, calcular impacto personalizado
       let impact: TransitImpact | undefined;
-      if (req.query.userId) {
-        const user = await getUser(req.query.userId);
+      const currentUser = await resolveRequestCurrentUser(
+        req as AuthenticatedRequest,
+        reply,
+      );
+
+      if (reply.sent) {
+        return;
+      }
+
+      if (currentUser.kind === "linked") {
+        const user = await getUser(currentUser.user.id);
         if (user) {
           const profile = user.profile as { humanDesign?: { activatedGates?: Array<{ number: number }>; definedCenters?: string[] } };
           impact = analyzeTransitImpact(transits, {

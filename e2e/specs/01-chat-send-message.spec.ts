@@ -85,6 +85,81 @@ test.describe("Chat — Send Message", () => {
     await expect(page.getByText("Respuesta fallback")).toBeVisible();
   });
 
+  test("Timeout-style failures keep the UI usable and hide backend details", async ({ page }) => {
+    await mockChatHistory(page, HISTORY_MESSAGES);
+    await mockChatStreamError(page);
+    await page.route("**/api/chat", async (route) => {
+      if (route.request().method() === "POST") {
+        await route.fulfill({ status: 504, json: { error: "gateway timed out" } });
+      } else {
+        await route.fallback();
+      }
+    });
+    await page.goto("/");
+
+    const input = page.getByPlaceholder("Preguntá al oráculo");
+    await input.fill("Necesito contexto ya");
+    await page.getByRole("button", { name: "Enviar" }).click();
+
+    await expect(page.getByText("La respuesta tardó demasiado. Probá de nuevo.")).toBeVisible();
+    await expect(page.getByText("gateway timed out")).not.toBeVisible();
+    await expect(page.getByText(/Backend error 504/)).not.toBeVisible();
+    await expect(page.getByText("Que transitos tengo esta semana?")).toBeVisible();
+    await expect(page.getByText("Necesito contexto ya")).toBeVisible();
+    await expect(input).toBeVisible();
+  });
+
+  test("Connectivity failures after stream abort keep the UI usable and hide transport details", async ({ page }) => {
+    await mockChatHistory(page, HISTORY_MESSAGES);
+    await mockChatStreamError(page);
+    await page.route("**/api/chat", async (route) => {
+      if (route.request().method() === "POST") {
+        await route.abort("failed");
+      } else {
+        await route.fallback();
+      }
+    });
+    await page.goto("/");
+
+    const input = page.getByPlaceholder("Preguntá al oráculo");
+    await input.fill("Necesito una segunda mirada");
+    await page.getByRole("button", { name: "Enviar" }).click();
+
+    await expect(page.getByText("No pudimos conectar con Astral Guide en este momento. Revisá tu conexión y reintentá.")).toBeVisible();
+    await expect(page.getByText("Failed to fetch")).not.toBeVisible();
+    await expect(page.getByText("Que transitos tengo esta semana?")).toBeVisible();
+    await expect(page.getByText("Necesito una segunda mirada")).toBeVisible();
+    await expect(input).toBeVisible();
+    await input.fill("Puedo reintentar manualmente");
+    await expect(input).toHaveValue("Puedo reintentar manualmente");
+  });
+
+  test("Generic backend failures after stream abort keep the UI usable and hide provider details", async ({ page }) => {
+    await mockChatHistory(page, HISTORY_MESSAGES);
+    await mockChatStreamError(page);
+    await page.route("**/api/chat", async (route) => {
+      if (route.request().method() === "POST") {
+        await route.fulfill({ status: 500, body: "OpenAI API error 500: boom" });
+      } else {
+        await route.fallback();
+      }
+    });
+    await page.goto("/");
+
+    const input = page.getByPlaceholder("Preguntá al oráculo");
+    await input.fill("Necesito una síntesis más clara");
+    await page.getByRole("button", { name: "Enviar" }).click();
+
+    await expect(page.getByText("No se pudo responder en este momento. Probá de nuevo.")).toBeVisible();
+    await expect(page.getByText("OpenAI API error 500: boom")).not.toBeVisible();
+    await expect(page.getByText(/Backend error 500/)).not.toBeVisible();
+    await expect(page.getByText("Que transitos tengo esta semana?")).toBeVisible();
+    await expect(page.getByText("Necesito una síntesis más clara")).toBeVisible();
+    await expect(input).toBeVisible();
+    await input.fill("El chat sigue usable");
+    await expect(input).toHaveValue("El chat sigue usable");
+  });
+
   test("Quick actions send a message", async ({ page }) => {
     await mockChatHistory(page, []);
     await mockChatStream(page, ["Tus tránsitos de hoy..."], { userMsgId: 10, assistantMsgId: 11 });

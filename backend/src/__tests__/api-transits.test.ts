@@ -5,18 +5,51 @@
  * Tests verify the API returns proper structure and impact analysis.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
 import type { FastifyInstance } from "fastify";
-import { createTestApp, createTestUser } from "./helpers.js";
+import { mockSessionModule } from "./session-mock.js";
+
+const { fetchWeeklyTransitsMock } = vi.hoisted(() => ({
+  fetchWeeklyTransitsMock: vi.fn(),
+}));
+
+vi.mock("../auth/session.js", () => mockSessionModule());
+
+vi.mock("../transit-service.js", async () => {
+  const actual = await vi.importActual<typeof import("../transit-service.js")>(
+    "../transit-service.js",
+  );
+
+  return {
+    ...actual,
+    fetchWeeklyTransits: fetchWeeklyTransitsMock,
+  };
+});
+
+const {
+  createLinkedTestUser,
+  createTestApp,
+  createTestUser,
+  sessionHeaders,
+} = await import("./helpers.js");
+const actualTransitService = await vi.importActual<typeof import("../transit-service.js")>(
+  "../transit-service.js",
+);
 
 let app: FastifyInstance;
 
 beforeAll(async () => {
+  fetchWeeklyTransitsMock.mockImplementation(actualTransitService.fetchWeeklyTransits);
   app = await createTestApp();
 });
 
 afterAll(async () => {
   await app.close();
+});
+
+afterEach(() => {
+  fetchWeeklyTransitsMock.mockReset();
+  fetchWeeklyTransitsMock.mockImplementation(actualTransitService.fetchWeeklyTransits);
 });
 
 describe("GET /api/transits", () => {
@@ -58,18 +91,19 @@ describe("GET /api/transits", () => {
     }
   });
 
-  it("does NOT include impact without userId", async () => {
+  it("does NOT include impact without a validated session", async () => {
     const res = await app.inject({ method: "GET", url: "/api/transits" });
     const body = JSON.parse(res.body);
 
     expect(body.impact).toBeUndefined();
   });
 
-  it("includes impact with valid userId", async () => {
-    const userId = await createTestUser(app);
+  it("includes impact for the linked session user even without a query userId", async () => {
+    await createLinkedTestUser(app, "st-transits-linked");
     const res = await app.inject({
       method: "GET",
-      url: `/api/transits?userId=${userId}`,
+      url: "/api/transits",
+      headers: sessionHeaders("st-transits-linked"),
     });
     const body = JSON.parse(res.body);
 
@@ -81,10 +115,11 @@ describe("GET /api/transits", () => {
     expect(Array.isArray(body.impact.educationalChannels)).toBe(true);
   });
 
-  it("returns transits without impact for nonexistent userId (graceful)", async () => {
+  it("ignores userId query authority when there is no validated session", async () => {
+    const userId = await createTestUser(app);
     const res = await app.inject({
       method: "GET",
-      url: "/api/transits?userId=nonexistent-fake-id",
+      url: `/api/transits?userId=${userId}`,
     });
     const body = JSON.parse(res.body);
 
@@ -102,5 +137,33 @@ describe("GET /api/transits", () => {
 
     expect(res.statusCode).toBe(200);
     expect(body.weekRange).toMatch(/de \w+ de \d{4}/); // Spanish date format
+  });
+
+  it("returns 502 on upstream transit failures and recovers on a later request", async () => {
+    fetchWeeklyTransitsMock
+      .mockRejectedValueOnce(new Error("Swiss Ephemeris unavailable"))
+      .mockImplementation(actualTransitService.fetchWeeklyTransits);
+    const recoveryUrl = "/api/transits?timeZone=Pacific%2FHonolulu";
+
+    const failedRes = await app.inject({
+      method: "GET",
+      url: recoveryUrl,
+    });
+
+    expect(failedRes.statusCode).toBe(502);
+    expect(JSON.parse(failedRes.body)).toMatchObject({
+      error: expect.any(String),
+    });
+
+    const recoveredRes = await app.inject({
+      method: "GET",
+      url: recoveryUrl,
+    });
+    const recoveredBody = JSON.parse(recoveredRes.body);
+
+    expect(recoveredRes.statusCode).toBe(200);
+    expect(recoveredBody.planets).toHaveLength(13);
+    expect(recoveredBody.weekRange).toBeDefined();
+    expect(fetchWeeklyTransitsMock).toHaveBeenCalledTimes(2);
   });
 });

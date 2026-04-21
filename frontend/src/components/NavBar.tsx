@@ -1,11 +1,15 @@
-import type { UserProfile, NavView, View } from "../types";
+import type { AppUserPlan, AppUserRole, UserProfile, NavView, View } from "../types";
 import { ProfilePanel } from "./ProfilePanel";
 import { useState, useRef, useEffect } from "react";
 
 interface Props {
   currentView: NavView;
+  supportRoute: "users-list" | "user-detail" | null;
   onNavigate: (view: View) => void;
+  onOpenSupportPanel: () => void;
   userName: string;
+  userPlan: AppUserPlan;
+  userRole: AppUserRole;
   profile: UserProfile;
   onReset: () => void;
   onGenerateReport?: () => void;
@@ -18,7 +22,19 @@ const TABS: { key: NavView; label: string }[] = [
   { key: "assets", label: "Mis Cartas" },
 ];
 
-export function NavBar({ currentView, onNavigate, userName, profile, onReset, onGenerateReport, previousView }: Props) {
+export function NavBar({
+  currentView,
+  supportRoute,
+  onNavigate,
+  onOpenSupportPanel,
+  userName,
+  userPlan,
+  userRole,
+  profile,
+  onReset,
+  onGenerateReport,
+  previousView,
+}: Props) {
   const [showProfile, setShowProfile] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
 
@@ -89,6 +105,27 @@ export function NavBar({ currentView, onNavigate, userName, profile, onReset, on
 
         <div ref={profileRef} style={{ position: "relative", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            {userRole === "admin" ? (
+              <a
+                href="/auth/dashboard"
+                style={{
+                  background: "transparent",
+                  border: "1px solid rgba(212, 175, 55, 0.35)",
+                  color: "var(--text-gold)",
+                  padding: "6px 14px",
+                  borderRadius: 30,
+                  fontSize: "10px",
+                  fontFamily: "var(--font-sans)",
+                  fontWeight: 600,
+                  letterSpacing: "0.05em",
+                  textTransform: "uppercase",
+                  textDecoration: "none",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Dashboard Auth
+              </a>
+            ) : null}
             <button
               onClick={() => setShowProfile((v) => !v)}
               style={{
@@ -137,13 +174,19 @@ export function NavBar({ currentView, onNavigate, userName, profile, onReset, on
               Salir
             </button>
           </div>
-          {showProfile && <ProfilePanel profile={profile} onGenerateReport={onGenerateReport ? () => { setShowProfile(false); onGenerateReport(); } : undefined} />}
+          {showProfile && (
+            <ProfilePanel
+              profile={profile}
+              userPlan={userPlan}
+              onGenerateReport={onGenerateReport ? () => { setShowProfile(false); onGenerateReport(); } : undefined}
+            />
+          )}
         </div>
       </div>
 
       {/* Tab bar */}
       <div style={{ display: "flex", gap: "24px", paddingLeft: "4px" }}>
-        {(currentView === "intake" || currentView === "report") ? (
+        {!supportRoute && (currentView === "intake" || currentView === "report") ? (
           <button
             onClick={() => onNavigate(previousView ?? "chat")}
             style={{
@@ -158,28 +201,51 @@ export function NavBar({ currentView, onNavigate, userName, profile, onReset, on
             ← Volver
           </button>
         ) : (
-          TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => onNavigate(tab.key)}
-              style={{
-                background: "transparent",
-                border: "none",
-                borderBottom: currentView === tab.key ? "1px solid var(--color-primary)" : "1px solid transparent",
-                color: currentView === tab.key ? "var(--text-main)" : "var(--text-muted)",
-                padding: "10px 4px",
-                cursor: "pointer",
-                fontSize: "12px",
-                fontWeight: currentView === tab.key ? 600 : 400,
-                letterSpacing: "0.15em",
-                fontFamily: "var(--font-sans)",
-                textTransform: "uppercase",
-                transition: "all 0.3s ease",
-              }}
-            >
-              {tab.label}
-            </button>
-          ))
+          <>
+            {TABS.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => onNavigate(tab.key)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  borderBottom: !supportRoute && currentView === tab.key ? "1px solid var(--color-primary)" : "1px solid transparent",
+                  color: !supportRoute && currentView === tab.key ? "var(--text-main)" : "var(--text-muted)",
+                  padding: "10px 4px",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  fontWeight: !supportRoute && currentView === tab.key ? 600 : 400,
+                  letterSpacing: "0.15em",
+                  fontFamily: "var(--font-sans)",
+                  textTransform: "uppercase",
+                  transition: "all 0.3s ease",
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+            {userRole === "admin" ? (
+              <button
+                onClick={onOpenSupportPanel}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  borderBottom: supportRoute ? "1px solid var(--color-primary)" : "1px solid transparent",
+                  color: supportRoute ? "var(--text-main)" : "var(--text-muted)",
+                  padding: "10px 4px",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  fontWeight: supportRoute ? 600 : 400,
+                  letterSpacing: "0.15em",
+                  fontFamily: "var(--font-sans)",
+                  textTransform: "uppercase",
+                  transition: "all 0.3s ease",
+                }}
+              >
+                Usuarios
+              </button>
+            ) : null}
+          </>
         )}
       </div>
     </header>

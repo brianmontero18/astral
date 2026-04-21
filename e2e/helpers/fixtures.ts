@@ -29,12 +29,12 @@ export const FREE_REPORT: DesignReport = {
     { id: "type", title: "Tu Tipo", icon: "🔋", tier: "free", staticContent: "Los Generadores...", llmContent: "Tu energía sacral..." },
     { id: "authority", title: "Tu Autoridad", icon: "🧭", tier: "free", staticContent: "La autoridad emocional...", llmContent: "Tus decisiones..." },
     { id: "profile", title: "Tu Perfil", icon: "🎭", tier: "free", staticContent: "El perfil 6/2...", llmContent: "Tu línea 6...", teaser: true },
-    { id: "definition", title: "Tu Definición", icon: "🔗", tier: "premium", staticContent: "" },
-    { id: "channels", title: "Tus Canales", icon: "⚡", tier: "premium", staticContent: "" },
-    { id: "undefined-centers", title: "Centros Indefinidos", icon: "🌀", tier: "premium", staticContent: "" },
-    { id: "incarnation-cross", title: "Cruz de Encarnación", icon: "✨", tier: "premium", staticContent: "" },
-    { id: "variables", title: "Variables", icon: "🔬", tier: "premium", staticContent: "" },
-    { id: "strengths-shadows", title: "Fortalezas y Sombras", icon: "☯️", tier: "premium", staticContent: "" },
+    { id: "work-rhythm", title: "Cómo trabajás mejor", icon: "⏱️", tier: "premium", staticContent: "", previewContent: "Tu ritmo sostenible, dónde te forzás de más y qué condiciones te ayudan a sostener resultados." },
+    { id: "decision-style", title: "Cómo decidir sin forzarte", icon: "🧭", tier: "premium", staticContent: "", previewContent: "Tu timing real para decidir, qué patrón te hace apurarte y cómo detectar claridad genuina." },
+    { id: "positioning-offer", title: "Dónde está tu mayor valor", icon: "💼", tier: "premium", staticContent: "", previewContent: "Cómo se traduce tu diseño en propuesta de valor, tipo de oferta y problema que mejor resolvés." },
+    { id: "client-dynamics", title: "Con quién sí, con quién no", icon: "🤝", tier: "premium", staticContent: "", previewContent: "Señales de fit, límites necesarios, red flags y dinámicas que protegen tu energía y tus resultados." },
+    { id: "visibility-sales", title: "Cómo te conviene comunicar y vender", icon: "📣", tier: "premium", staticContent: "", previewContent: "Tu mejor estilo de visibilidad, comunicación y venta sin forzar una estrategia que no es tuya." },
+    { id: "next-30-days", title: "Próximos 30 días", icon: "🗓️", tier: "premium", staticContent: "", previewContent: "Una síntesis de mentoring con movimientos concretos, cosas a dejar de forzar y una señal para observar." },
   ],
   tokensUsed: 1200,
   costUsd: 0.001,
@@ -48,6 +48,24 @@ export const REGENERATED_REPORT: DesignReport = {
   sections: FREE_REPORT.sections.map((s) =>
     s.id === "type" ? { ...s, llmContent: "Tu energía sacral renovada..." } : s,
   ),
+};
+
+export const PREMIUM_REPORT: DesignReport = {
+  ...FREE_REPORT,
+  id: "report-premium-123",
+  tier: "premium",
+  sections: FREE_REPORT.sections.map((section) => {
+    if (section.tier === "free") {
+      return section;
+    }
+
+    return {
+      ...section,
+      staticContent: `${section.title}\n`,
+      llmContent: `Contenido premium aplicado para ${section.title.toLowerCase()}.`,
+      previewContent: undefined,
+    };
+  }),
 };
 
 export const HD_PROFILE = {

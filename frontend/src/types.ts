@@ -63,6 +63,7 @@ export interface ReportSection {
   tier: "free" | "premium";
   staticContent: string;
   llmContent?: string;
+  previewContent?: string;
   teaser?: boolean;
 }
 
@@ -134,9 +135,76 @@ export type NavView = Exclude<View, "onboarding">;
 
 // ─── Local storage types ─────────────────────────────────────────────────────
 
+export type AppUserRole = "user" | "admin";
+export type AppUserStatus = "active" | "disabled" | "banned";
+export type AppUserPlan = "free" | "basic" | "premium";
+
 export interface LocalUser {
   id: string;
   name: string;
+  role: AppUserRole;
+  status: AppUserStatus;
+  plan: AppUserPlan;
+}
+
+export interface AdminUserSummary {
+  id: string;
+  name: string;
+  email: string | null;
+  plan: AppUserPlan;
+  status: AppUserStatus;
+  role: AppUserRole;
+  linked: boolean;
+  createdAt: string;
+}
+
+export interface AdminUserListResponse {
+  users: AdminUserSummary[];
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  pageSize: number;
+  rangeStart: number;
+  rangeEnd: number;
+}
+
+export interface AdminUserAccessValues {
+  plan: AppUserPlan;
+  status: AppUserStatus;
+  role: AppUserRole;
+}
+
+export interface AdminUserAccessPatch {
+  plan?: AppUserPlan;
+  status?: AppUserStatus;
+  role?: AppUserRole;
+}
+
+export interface AdminUserDetail {
+  id: string;
+  name: string;
+  email: string | null;
+  plan: AppUserPlan;
+  status: AppUserStatus;
+  role: AppUserRole;
+  linked: boolean;
+  authIdentity: null | {
+    provider: "supertokens";
+    subject: string;
+  };
+  support: {
+    messagesUsed: number;
+    messageLimit: number | null;
+    assetCount: number;
+    reportsAvailable: Array<"free" | "premium">;
+  };
+  humanDesign: {
+    type: string | null;
+    authority: string | null;
+    profile: string | null;
+  };
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AssetMeta {

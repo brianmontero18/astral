@@ -1,6 +1,13 @@
 import { useState, useRef } from "react";
 import type { UserProfile, LocalUser } from "../types";
-import { uploadAsset, extractProfile, createUser } from "../api";
+import {
+  uploadAsset,
+  extractProfile,
+  bootstrapCurrentUser,
+  getCurrentUser,
+  updateCurrentUser,
+} from "../api";
+import { getOnboardingFailureMessage } from "../onboarding-errors";
 import { ChannelChips } from "./ChannelChips";
 
 interface Props {
@@ -19,6 +26,7 @@ export function OnboardingFlow({ onComplete }: Props) {
   const [step, setStep] = useState<Step>("welcome");
   const [name, setName] = useState("");
   const [slot, setSlot] = useState<FileSlot>({ file: null, label: "Carta de Diseño Humano", type: "hd" });
+  const [bootstrappedUser, setBootstrappedUser] = useState<LocalUser | null>(null);
   const [extractedProfile, setExtractedProfile] = useState<UserProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -36,7 +44,6 @@ export function OnboardingFlow({ onComplete }: Props) {
     setLoading(true);
 
     try {
-      // Create a temporary user to upload assets
       const tempProfile: UserProfile = {
         name,
         humanDesign: {
@@ -47,32 +54,36 @@ export function OnboardingFlow({ onComplete }: Props) {
         },
       };
 
-      const { id: userId } = await createUser(name, tempProfile);
+      await bootstrapCurrentUser(name, tempProfile);
       const assetIds: string[] = [];
 
       if (slot.file) {
-        const result = await uploadAsset(userId, slot.file, slot.type);
+        const result = await uploadAsset(slot.file, slot.type);
         assetIds.push(result.id);
       }
 
       const { profile } = await extractProfile(assetIds);
       profile.name = profile.name || name;
-      setExtractedProfile(profile);
 
-      // Update the user with the real profile
-      await fetch(`/api/users/${userId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: profile.name, profile }),
+      await updateCurrentUser(profile.name, profile);
+
+      const currentUser = await getCurrentUser();
+      if (currentUser.kind !== "linked") {
+        throw new Error("No se pudo resolver el usuario actual después del bootstrap.");
+      }
+
+      setBootstrappedUser({
+        id: currentUser.user.id,
+        name: currentUser.user.name,
+        plan: currentUser.user.plan,
+        role: currentUser.user.role,
+        status: currentUser.user.status,
       });
-
-      // Save to localStorage
-      localStorage.setItem("astral_user", JSON.stringify({ id: userId, name: profile.name }));
+      setExtractedProfile(currentUser.user.profile);
 
       setStep("review");
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setError(msg);
+      setError(getOnboardingFailureMessage(e));
       setStep("upload");
     } finally {
       setLoading(false);
@@ -80,14 +91,13 @@ export function OnboardingFlow({ onComplete }: Props) {
   };
 
   const handleConfirm = () => {
-    const stored = localStorage.getItem("astral_user");
-    if (stored && extractedProfile) {
-      const user = JSON.parse(stored) as LocalUser;
-      onComplete(user, extractedProfile);
+    if (bootstrappedUser && extractedProfile) {
+      onComplete(bootstrappedUser, extractedProfile);
     }
   };
 
   const handleRetry = () => {
+    setBootstrappedUser(null);
     setExtractedProfile(null);
     setError(null);
     setStep("upload");

@@ -1,154 +1,217 @@
-# Freemium Paywall — Spec
+# Access Model v1 — Contract
 
-## Objetivo
+## Status
 
-Limitar a 15 mensajes gratuitos por usuario. Al alcanzar el límite, mostrar CTA a WhatsApp para desbloquear plan Pro.
+Policy closed and implemented on 2026-04-19.
 
-## Constante
+This document replaces the old "15 free lifetime messages + WhatsApp CTA" spec.
+It is the current source of truth implemented in `astral-rkw.3`.
 
-```
-FREE_MESSAGE_LIMIT = 15
-```
+## Current-state audit
 
-Cuenta solo mensajes con `role = 'user'` en `chat_messages`.
+### Code truth today
 
----
+- `backend/src/chat-limits.ts` and `frontend/src/chat-limits.ts` define:
+  - `free = 20`
+  - `basic = 120`
+  - `premium = 300`
+- `backend/src/routes/chat.ts` enforces the cap with `getUserMessageCount(userId)`.
+- `backend/src/db.ts` counts only monthly user messages in the active window:
+  - `role = 'user'`
+  - `created_at >= current_window_start`
+  - `created_at < next_window_start`
+- `backend/src/routes/report.ts` allows premium report access only for `plan === "premium"`.
+- `backend/src/report/types.ts` defines the premium continuation as 6 applied sections:
+  - `work-rhythm`
+  - `decision-style`
+  - `positioning-offer`
+  - `client-dynamics`
+  - `visibility-sales`
+  - `next-30-days`
 
-## Backend
+### Inconsistencies now open
 
-### 1. `db.ts` — Nueva función
+- None at contract level after `astral-rkw.4` implementation.
 
-```typescript
-export async function getUserMessageCount(userId: string): Promise<number> {
-  const result = await client.execute({
-    sql: "SELECT COUNT(*) as count FROM chat_messages WHERE user_id = ? AND role = 'user'",
-    args: [userId],
-  });
-  return (result.rows[0]?.count as number) ?? 0;
+## Closed contract v1
+
+| Plan | Chat quota | Usage cycle | Report access | Premium-only value | Behavior at limit |
+|------|------------|-------------|---------------|--------------------|-------------------|
+| `free` | `20` user messages | Calendar month | Single report surface, base layer only | None | Hard stop on new chat messages |
+| `basic` | `120` user messages | Calendar month | Single report surface, base layer only | None | Hard stop on new chat messages |
+| `premium` | `300` user messages | Calendar month | Single report surface, base + premium layer | Premium business/mentorship continuation | Hard stop on new chat messages |
+
+## Usage cycle definition
+
+### Decision
+
+Use **calendar month**, not rolling 30 days.
+
+### Exact semantics
+
+- The quota window runs from the first day of the month at `00:00:00` to the last day of the month at `23:59:59`.
+- The reference timezone for v1 is `America/Argentina/Buenos_Aires`.
+- Count only persisted messages with:
+  - `role = 'user'`
+  - `created_at` inside the active monthly window
+- Unused quota does not roll over.
+- There is no proration.
+- New users start with the full quota of the current month.
+
+### Why this and not rolling 30d
+
+- Easier to explain to users.
+- Easier to support from admin.
+- Easier to implement and debug in `.3`.
+- Easier to align later with billing.
+
+## Limit behavior at cap
+
+### Decision
+
+Use a **hard cap** for all 3 plans in v1.
+
+### Exact behavior
+
+- When the user reaches the monthly limit, the product becomes read-only for chat.
+- Existing chat history remains visible.
+- Existing reports remain accessible according to the user's plan.
+- New user messages are rejected until the next monthly reset or until the user changes plan.
+- No carryover, no grace bucket, no manual overflow logic in v1.
+
+### Contract for API/frontend
+
+When the cap is reached, chat endpoints must reject the request with:
+
+```json
+{
+  "error": "message_limit_reached",
+  "plan": "free|basic|premium",
+  "used": 20,
+  "limit": 20,
+  "cycle": "2026-04",
+  "resetsAt": "2026-05-01T00:00:00-03:00"
 }
 ```
 
-### 2. `routes/chat.ts` — Enforcement
+The exact timestamp will vary by month, but the contract requires:
 
-En AMBOS handlers (`POST /chat` y `POST /chat/stream`), después de resolver el usuario pero ANTES de llamar al LLM o escribir headers SSE:
+- `plan`
+- `used`
+- `limit`
+- `cycle`
+- `resetsAt`
 
-```typescript
-const used = await getUserMessageCount(userId);
-if (used >= FREE_MESSAGE_LIMIT) {
-  return reply.status(403).send({
-    error: "message_limit_reached",
-    used,
-    limit: FREE_MESSAGE_LIMIT,
-  });
-}
-```
+### UX behavior
 
-En el stream: mover `reply.raw.writeHead(200, ...)` a DESPUÉS de este check para que el 403 sea JSON, no SSE.
+- `free`: show upgrade CTA to `basic` or `premium`.
+- `basic`: show upgrade CTA to `premium` plus next reset date.
+- `premium`: show next reset date. Do not invent a second hidden overflow tier.
 
-### 3. `routes/chat.ts` — Enriquecer GET `/messages`
+## Premium differentiation beyond chat
 
-```typescript
-// En GET /users/:userId/messages
-const count = await getUserMessageCount(userId);
-return reply.send({ messages, used: count, limit: FREE_MESSAGE_LIMIT });
-```
+### Decision
 
----
+`premium` must not be positioned as "basic with more messages".
 
-## Frontend
+### Premium promise in v1
 
-### 4. `types.ts` — Nuevo tipo
+`premium` includes the **premium continuation of the same report, oriented to business and mentorship**, not only a deeper HD glossary.
 
-```typescript
-export interface MessageLimitError {
-  error: "message_limit_reached";
-  used: number;
-  limit: number;
-}
-```
+That deliverable must:
 
-### 5. `api.ts` — Manejar 403
+- use the user's activity, goals, and challenges as business context
+- translate the chart into applied guidance for work, offer, positioning, client dynamics, and decision-making
+- surface strengths, shadows, and pattern-recognition angles with direct mentoring value
+- produce a concrete artifact the user can keep, revisit, and share
 
-En `sendChat` y `sendChatStream`, antes del throw genérico:
+### Product consequence
 
-```typescript
-if (res.status === 403) {
-  const data = await res.json();
-  if (data.error === "message_limit_reached") {
-    const err = new Error("message_limit_reached") as any;
-    err.used = data.used;
-    err.limit = data.limit;
-    throw err;
-  }
-}
-```
+This promise is now implemented as a continuation of the same report surface.
 
-Actualizar `getChatHistory` para retornar `{ messages, used, limit }`.
+Today premium unlocks:
 
-### 6. `ChatView.tsx` — UI
+- applied business interpretation
+- mentorship-oriented synthesis
+- clearer action/value than "6 more sections"
 
-**Estado nuevo:**
+## Why these limits
 
-```typescript
-const [messageUsage, setMessageUsage] = useState<{ used: number; limit: number } | null>(null);
-const [limitReached, setLimitReached] = useState(false);
-```
+### `free = 20`
 
-**Contador (cuando NO se alcanzó el límite):**
+- Enough to evaluate the product with real usage.
+- Clean round number.
+- Matches the already-decided business constraint.
 
-Arriba del input, alineado a la derecha:
+### `basic = 120`
 
-```
-{used}/{limit} mensajes
-```
+- Creates a real step up from free: `6x`.
+- Large enough for recurring weekly use without feeling tokenized.
+- Still bounded enough to keep cost and abuse predictable.
 
-Estilo: `color: var(--text-faint)`, `fontSize: 11px`, `fontFamily: var(--font-sans)`.
+### `premium = 300`
 
-Incrementar `used` optimísticamente al enviar mensaje.
+- Creates a real step up from basic: `2.5x`.
+- Supports near-daily usage without needing "unlimited".
+- Keeps the premium value anchored in the deliverable, not only in volume.
 
-**Paywall (cuando se alcanza el límite):**
+### Why not unlimited
 
-Reemplazar el footer/input con:
+- It weakens cost control.
+- It weakens plan differentiation.
+- It makes abuse harder to contain.
+- It is unnecessary for v1 if premium already includes a stronger deliverable.
 
-```
-    ✦
+### Why not a soft cap for premium
 
-    Tu ventana al cosmos se ha completado
+- It adds ops ambiguity.
+- It complicates implementation and support.
+- It blurs the contract right before `astral-rkw.3`.
 
-    Has usado tus 15 mensajes de exploración.
-    Para seguir recibiendo guía estelar personalizada,
-    accedé al plan completo.
+For v1, a hard cap is cleaner.
 
-    [ Desbloquear Astral Guide ✦ ]
-        ↓
-    https://wa.me/5491153446030
-```
+## Reference for premium direction
 
-Estilo del botón: `glass-panel-gold`, padding `14px 36px`, border-radius `24px`, color dorado, font serif.
+The premium deliverable should move toward the level of applied value seen in:
 
-El link abre en nueva pestaña (`target="_blank"`).
+- `../marca_personal/DANIELA_DESIGN_PROFILE.md`
 
----
+What matters from that reference is not "more theory", but:
 
-## Flujo completo
+- business pattern recognition
+- mentoring usefulness
+- decision and rhythm guidance
+- value perceived as strategic, not decorative
 
-```
-1. ChatView monta → GET /users/:id/messages → recibe { messages, used, limit }
-   → Si used >= limit → limitReached = true, mostrar paywall
-   → Si no → mostrar contador + input normal
+## Implementation scope for `astral-rkw.3`
 
-2. Usuario envía mensaje → POST /chat/stream
-   → Backend: getUserMessageCount()
-     → Si >= 15 → 403 { error: "message_limit_reached" }
-       → Frontend: catch → setLimitReached(true), mostrar paywall
-     → Si < 15 → procesar normal, stream respuesta
+`astral-rkw.3` implemented this contract without redefining plan policy.
 
-3. Paywall visible → usuario toca botón → abre WhatsApp en nueva pestaña
-```
+### Implemented in `.3`
 
-## No incluido (futuro)
+- Limits are:
+  - `free = 20`
+  - `basic = 120`
+  - `premium = 300`
+- Counting is monthly-window based.
+- Keep counting only `role = 'user'`.
+- Enforce the cap in both sync and streaming chat routes.
+- Return the richer limit payload with cycle metadata.
+- Update frontend usage display and cap state against the monthly contract.
 
-- Autenticación
-- Stripe/pagos automáticos
-- Desbloqueo programático post-pago
-- Rate limiting por tiempo
+### Explicitly not part of `.3`
+
+- Designing the premium report v2
+- Repricing plans
+- Billing implementation
+- Manual exceptions or soft-cap operations
+
+## Premium deliverable spec
+
+The exact contract for the premium business/mentorship deliverable is now defined in:
+
+- [docs/premium-report-v2-spec.md](/Users/brmontero/astral/docs/premium-report-v2-spec.md)
+
+That document closes `astral-rkw.4` at policy/spec level.
+
+The plan policy and the premium deliverable are now aligned in both contract and implementation.

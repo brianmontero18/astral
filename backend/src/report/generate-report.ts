@@ -4,12 +4,6 @@ import {
   TYPE_DESCRIPTIONS,
   AUTHORITY_DESCRIPTIONS,
   PROFILE_DESCRIPTIONS,
-  DEFINITION_DESCRIPTIONS,
-  CHANNEL_DESCRIPTIONS,
-  CENTER_UNDEFINED_DESCRIPTIONS,
-  DIGESTION_DESCRIPTIONS,
-  ENVIRONMENT_DESCRIPTIONS,
-  STRONGEST_SENSE_DESCRIPTIONS,
 } from "./static-content.js";
 import { centerToSpanish } from "./hd-i18n.js";
 import { SECTION_META } from "./types.js";
@@ -136,55 +130,6 @@ function getStaticProfile(profile: UserProfile): string {
   return PROFILE_DESCRIPTIONS[profile.humanDesign.profile] ?? "";
 }
 
-function getStaticDefinition(profile: UserProfile): string {
-  return DEFINITION_DESCRIPTIONS[profile.humanDesign.definition] ?? "";
-}
-
-function getStaticChannels(profile: UserProfile): string {
-  const hd = profile.humanDesign;
-  if (!hd.channels.length) return "No tenés canales definidos en tu diseño.";
-  return hd.channels
-    .map((c) => {
-      const desc = CHANNEL_DESCRIPTIONS[c.id];
-      return desc ? `${c.name} (${c.id})\n${desc}` : `${c.name} (${c.id})`;
-    })
-    .join("\n\n");
-}
-
-function getStaticUndefinedCenters(profile: UserProfile): string {
-  const hd = profile.humanDesign;
-  if (!hd.undefinedCenters.length) return "Todos tus centros están definidos.";
-  return hd.undefinedCenters
-    .map((c) => {
-      const desc = CENTER_UNDEFINED_DESCRIPTIONS[c];
-      const name = centerToSpanish(c);
-      return desc ? `${name}\n${desc}` : name;
-    })
-    .join("\n\n");
-}
-
-function getStaticVariables(profile: UserProfile): string {
-  const hd = profile.humanDesign;
-  const parts: string[] = [];
-  if (hd.digestion) {
-    const desc = DIGESTION_DESCRIPTIONS[hd.digestion];
-    parts.push(desc ? `Digestión: ${hd.digestion}\n${desc}` : `Digestión: ${hd.digestion}`);
-  }
-  if (hd.environment) {
-    const desc = ENVIRONMENT_DESCRIPTIONS[hd.environment];
-    parts.push(desc ? `Ambiente: ${hd.environment}\n${desc}` : `Ambiente: ${hd.environment}`);
-  }
-  if (hd.strongestSense) {
-    const desc = STRONGEST_SENSE_DESCRIPTIONS[hd.strongestSense];
-    parts.push(
-      desc
-        ? `Sentido más fuerte: ${hd.strongestSense}\n${desc}`
-        : `Sentido más fuerte: ${hd.strongestSense}`,
-    );
-  }
-  return parts.length ? parts.join("\n\n") : "No hay datos de variables disponibles en tu perfil.";
-}
-
 // ─── Report generation ───────────────────────────────────────────────────────
 
 export async function generateReport(
@@ -241,7 +186,8 @@ export async function generateReport(
       icon: meta.icon,
       tier: meta.tier,
       staticContent: "",
-      teaser: meta.teaser,
+      previewContent: meta.previewContent,
+      teaser: meta.id === "profile" && tier === "free",
     };
 
     switch (meta.id) {
@@ -260,29 +206,23 @@ export async function generateReport(
         section.staticContent = getStaticProfile(profile);
         section.llmContent = call1Parts[2] ?? "";
         break;
-      case "definition":
-        section.staticContent = getStaticDefinition(profile);
+      case "work-rhythm":
         section.llmContent = tier === "premium" ? (call1Parts[3] ?? "") : "";
         break;
-      case "channels":
-        section.staticContent = getStaticChannels(profile);
-        section.llmContent = call2Parts[0] ?? "";
+      case "decision-style":
+        section.llmContent = tier === "premium" ? (call2Parts[0] ?? "") : "";
         break;
-      case "undefined-centers":
-        section.staticContent = getStaticUndefinedCenters(profile);
-        section.llmContent = call2Parts[1] ?? "";
+      case "positioning-offer":
+        section.llmContent = tier === "premium" ? (call2Parts[1] ?? "") : "";
         break;
-      case "variables":
-        section.staticContent = getStaticVariables(profile);
-        section.llmContent = call2Parts[2] ?? "";
+      case "client-dynamics":
+        section.llmContent = tier === "premium" ? (call2Parts[2] ?? "") : "";
         break;
-      case "incarnation-cross":
-        section.staticContent = profile.humanDesign.incarnationCross || "Cruz de Encarnación no disponible.";
-        section.llmContent = call3Parts[0] ?? "";
+      case "visibility-sales":
+        section.llmContent = tier === "premium" ? (call3Parts[0] ?? "") : "";
         break;
-      case "strengths-shadows":
-        section.staticContent = "";
-        section.llmContent = call3Parts[1] ?? "";
+      case "next-30-days":
+        section.llmContent = tier === "premium" ? (call3Parts[1] ?? "") : "";
         break;
     }
 

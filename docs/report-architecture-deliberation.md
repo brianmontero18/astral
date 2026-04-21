@@ -1,6 +1,8 @@
 # HD Report — Arquitectura e Implementacion
 
-> Documento consolidado. Source of truth para la feature de reportes HD.
+> Nota 2026-04-19: este documento sigue vigente como baseline tecnico del sistema de reportes, pero el contrato de contenido para premium v2 fue reemplazado por [docs/premium-report-v2-spec.md](/Users/brmontero/astral/docs/premium-report-v2-spec.md). La arquitectura, el intake, el caching, el PDF y el gating siguen siendo referencias utiles; la seccion de contenido premium ya no es la source of truth.
+
+> Documento consolidado del baseline tecnico v1. No usarlo como source of truth del contenido premium actual.
 > Fecha: 2026-03-28 | Status: Listo para implementar
 
 ---
@@ -33,7 +35,10 @@ El usuario genera su informe desde el ProfilePanel. Opcionalmente completa un in
 
 **Fonts**: Archivos `.ttf` en `backend/assets/fonts/`. `Font.register()` usa `path.resolve(__dirname, '../assets/fonts/...')` para evitar problemas de path en Docker.
 
-### 2.3 Freemium: 3.5 secciones free, 6 premium
+### 2.3 Freemium v1: 3.5 secciones free, 6 premium
+
+La tabla siguiente documenta el modelo legacy v1 que existia antes de `premium report v2`.
+Sirve solo como contexto tecnico/historico. El contrato vigente de contenido premium esta en [docs/premium-report-v2-spec.md](/Users/brmontero/astral/docs/premium-report-v2-spec.md).
 
 | # | Seccion | Tier | Costo LLM | Justificacion |
 |---|---------|------|-----------|---------------|

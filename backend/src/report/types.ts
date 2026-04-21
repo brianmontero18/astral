@@ -13,6 +13,7 @@ export interface ReportSection {
   tier: ReportTier;
   staticContent: string;
   llmContent?: string;
+  previewContent?: string;
   teaser?: boolean;
 }
 
@@ -33,12 +34,12 @@ export const SECTION_ORDER = [
   "type",
   "authority",
   "profile",
-  "definition",
-  "channels",
-  "undefined-centers",
-  "incarnation-cross",
-  "variables",
-  "strengths-shadows",
+  "work-rhythm",
+  "decision-style",
+  "positioning-offer",
+  "client-dynamics",
+  "visibility-sales",
+  "next-30-days",
 ] as const;
 
 export type SectionId = (typeof SECTION_ORDER)[number];
@@ -48,6 +49,7 @@ export interface SectionMeta {
   title: string;
   icon: string;
   tier: ReportTier;
+  previewContent?: string;
   teaser?: boolean;
 }
 
@@ -56,10 +58,46 @@ export const SECTION_META: SectionMeta[] = [
   { id: "type", title: "Tu Tipo", icon: "🔋", tier: "free" },
   { id: "authority", title: "Tu Autoridad", icon: "🧭", tier: "free" },
   { id: "profile", title: "Tu Perfil", icon: "🎭", tier: "free", teaser: true },
-  { id: "definition", title: "Tu Definición", icon: "🔗", tier: "premium" },
-  { id: "channels", title: "Tus Canales", icon: "⚡", tier: "premium" },
-  { id: "undefined-centers", title: "Centros Indefinidos", icon: "🌀", tier: "premium" },
-  { id: "incarnation-cross", title: "Cruz de Encarnación", icon: "✨", tier: "premium" },
-  { id: "variables", title: "Variables", icon: "🔬", tier: "premium" },
-  { id: "strengths-shadows", title: "Fortalezas y Sombras", icon: "☯️", tier: "premium" },
+  {
+    id: "work-rhythm",
+    title: "Cómo trabajás mejor",
+    icon: "⏱️",
+    tier: "premium",
+    previewContent: "Tu ritmo sostenible, dónde te forzás de más y qué condiciones te ayudan a sostener resultados.",
+  },
+  {
+    id: "decision-style",
+    title: "Cómo decidir sin forzarte",
+    icon: "🧭",
+    tier: "premium",
+    previewContent: "Tu timing real para decidir, qué patrón te hace apurarte y cómo detectar claridad genuina.",
+  },
+  {
+    id: "positioning-offer",
+    title: "Dónde está tu mayor valor",
+    icon: "💼",
+    tier: "premium",
+    previewContent: "Cómo se traduce tu diseño en propuesta de valor, tipo de oferta y problema que mejor resolvés.",
+  },
+  {
+    id: "client-dynamics",
+    title: "Con quién sí, con quién no",
+    icon: "🤝",
+    tier: "premium",
+    previewContent: "Señales de fit, límites necesarios, red flags y dinámicas que protegen tu energía y tus resultados.",
+  },
+  {
+    id: "visibility-sales",
+    title: "Cómo te conviene comunicar y vender",
+    icon: "📣",
+    tier: "premium",
+    previewContent: "Tu mejor estilo de visibilidad, comunicación y venta sin forzar una estrategia que no es tuya.",
+  },
+  {
+    id: "next-30-days",
+    title: "Próximos 30 días",
+    icon: "🗓️",
+    tier: "premium",
+    previewContent: "Una síntesis de mentoring con movimientos concretos, cosas a dejar de forzar y una señal para observar.",
+  },
 ];

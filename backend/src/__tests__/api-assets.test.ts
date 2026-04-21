@@ -5,12 +5,20 @@
  * Uses Fastify inject() with multipart payloads.
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import type { FastifyInstance } from "fastify";
-import { createTestApp, createTestUser } from "./helpers.js";
+import { mockSessionModule } from "./session-mock.js";
+
+vi.mock("../auth/session.js", () => mockSessionModule());
+
+const {
+  createLinkedTestUser,
+  createTestApp,
+  sessionHeaders,
+} = await import("./helpers.js");
+const { getUserAssets } = await import("../db.js");
 
 let app: FastifyInstance;
-let userId: string;
 
 beforeAll(async () => {
   app = await createTestApp();
@@ -18,10 +26,6 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await app.close();
-});
-
-beforeEach(async () => {
-  userId = await createTestUser(app);
 });
 
 /** Build a multipart form body for Fastify inject */
@@ -51,12 +55,17 @@ function multipartPayload(
 
 describe("POST /api/users/:userId/assets — upload", () => {
   it("uploads a PDF successfully", async () => {
+    const sessionSubject = "st-assets-upload-pdf";
+    const linkedUserId = await createLinkedTestUser(app, sessionSubject);
     const { headers, body } = multipartPayload("chart.pdf", "%PDF-1.4 fake content", "application/pdf");
 
     const res = await app.inject({
       method: "POST",
-      url: `/api/users/${userId}/assets`,
-      headers,
+      url: `/api/users/${linkedUserId}/assets`,
+      headers: {
+        ...headers,
+        ...sessionHeaders(sessionSubject),
+      },
       body,
     });
 
@@ -71,11 +80,16 @@ describe("POST /api/users/:userId/assets — upload", () => {
 
   it("uploads a PNG image (as natal type)", async () => {
     const { headers, body } = multipartPayload("chart.png", "PNG fake", "image/png", "natal");
+    const sessionSubject = `st-assets-upload-${Date.now()}`;
+    const linkedUserId = await createLinkedTestUser(app, sessionSubject);
 
     const res = await app.inject({
       method: "POST",
-      url: `/api/users/${userId}/assets`,
-      headers,
+      url: `/api/users/${linkedUserId}/assets`,
+      headers: {
+        ...headers,
+        ...sessionHeaders(sessionSubject),
+      },
       body,
     });
 
@@ -85,11 +99,16 @@ describe("POST /api/users/:userId/assets — upload", () => {
 
   it("rejects HD file type if not PDF", async () => {
     const { headers, body } = multipartPayload("chart.png", "PNG fake", "image/png", "hd");
+    const sessionSubject = `st-assets-hd-${Date.now()}`;
+    const linkedUserId = await createLinkedTestUser(app, sessionSubject);
 
     const res = await app.inject({
       method: "POST",
-      url: `/api/users/${userId}/assets`,
-      headers,
+      url: `/api/users/${linkedUserId}/assets`,
+      headers: {
+        ...headers,
+        ...sessionHeaders(sessionSubject),
+      },
       body,
     });
 
@@ -99,11 +118,16 @@ describe("POST /api/users/:userId/assets — upload", () => {
 
   it("rejects unsupported mime types", async () => {
     const { headers, body } = multipartPayload("doc.docx", "fake", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "natal");
+    const sessionSubject = `st-assets-mime-${Date.now()}`;
+    const linkedUserId = await createLinkedTestUser(app, sessionSubject);
 
     const res = await app.inject({
       method: "POST",
-      url: `/api/users/${userId}/assets`,
-      headers,
+      url: `/api/users/${linkedUserId}/assets`,
+      headers: {
+        ...headers,
+        ...sessionHeaders(sessionSubject),
+      },
       body,
     });
 
@@ -111,38 +135,132 @@ describe("POST /api/users/:userId/assets — upload", () => {
     expect(JSON.parse(res.body).error).toMatch(/Invalid file type/);
   });
 
-  it("returns 404 for nonexistent user", async () => {
+  it("returns authentication_required when no validated session exists", async () => {
+    const sessionSubject = "st-assets-auth-required";
+    const linkedUserId = await createLinkedTestUser(app, sessionSubject);
     const { headers, body } = multipartPayload("chart.pdf", "%PDF", "application/pdf");
 
     const res = await app.inject({
       method: "POST",
-      url: "/api/users/fake-user-id/assets",
+      url: `/api/users/${linkedUserId}/assets`,
       headers,
       body,
     });
 
-    expect(res.statusCode).toBe(404);
+    expect(res.statusCode).toBe(401);
+    expect(JSON.parse(res.body)).toEqual({
+      error: "authentication_required",
+    });
+  });
+
+  it("returns client_identity_mismatch when the legacy path userId does not match the session user", async () => {
+    const { headers, body } = multipartPayload("chart.pdf", "%PDF", "application/pdf");
+    const ownerSubject = "st-assets-owner";
+    const otherSubject = "st-assets-other";
+    const ownerId = await createLinkedTestUser(app, ownerSubject);
+    const otherId = await createLinkedTestUser(app, otherSubject);
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/users/${otherId}/assets`,
+      headers: {
+        ...headers,
+        ...sessionHeaders(ownerSubject),
+      },
+      body,
+    });
+
+    expect(res.statusCode).toBe(403);
+    expect(JSON.parse(res.body)).toEqual({
+      error: "client_identity_mismatch",
+      userId: ownerId,
+      requestedUserId: otherId,
+      provider: "supertokens",
+      subject: ownerSubject,
+    });
+  });
+
+  it("POST /api/me/assets uploads to the current session user without the legacy path", async () => {
+    const sessionSubject = "st-assets-upload-me";
+    await createLinkedTestUser(app, sessionSubject);
+    const { headers, body } = multipartPayload("chart.pdf", "%PDF-1.4 me route", "application/pdf");
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/me/assets",
+      headers: {
+        ...headers,
+        ...sessionHeaders(sessionSubject),
+      },
+      body,
+    });
+
+    expect(res.statusCode).toBe(201);
+    expect(JSON.parse(res.body)).toMatchObject({
+      id: expect.any(String),
+      filename: "chart.pdf",
+      mimeType: "application/pdf",
+      fileType: "hd",
+    });
+  });
+
+  it("POST /api/me/assets returns authentication_required and does not persist assets without a validated session", async () => {
+    const sessionSubject = "st-assets-upload-me-expired";
+    const linkedUserId = await createLinkedTestUser(app, sessionSubject);
+    const { headers, body } = multipartPayload("chart.pdf", "%PDF-1.4 me route", "application/pdf");
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/me/assets",
+      headers,
+      body,
+    });
+
+    expect(res.statusCode).toBe(401);
+    expect(JSON.parse(res.body)).toEqual({
+      error: "authentication_required",
+    });
+
+    const assets = await getUserAssets(linkedUserId);
+    expect(assets).toEqual([]);
   });
 });
 
-describe("GET /api/users/:userId/assets — list", () => {
-  it("returns empty list for user with no assets", async () => {
+describe("Assets list routes", () => {
+  it("GET /api/me/assets returns authentication_required without a validated session", async () => {
     const res = await app.inject({
       method: "GET",
-      url: `/api/users/${userId}/assets`,
+      url: "/api/me/assets",
     });
 
-    expect(res.statusCode).toBe(200);
-    expect(JSON.parse(res.body).assets).toEqual([]);
+    expect(res.statusCode).toBe(401);
+    expect(JSON.parse(res.body)).toEqual({
+      error: "authentication_required",
+    });
   });
 
-  it("returns camelCase asset metadata after upload", async () => {
+  it("GET /api/me/assets returns camelCase asset metadata for the current session user", async () => {
+    const sessionSubject = "st-assets-list";
+    const linkedUserId = await createLinkedTestUser(app, sessionSubject);
+
     // Upload one
     const { headers, body } = multipartPayload("test.pdf", "%PDF-content", "application/pdf");
-    await app.inject({ method: "POST", url: `/api/users/${userId}/assets`, headers, body });
+    await app.inject({
+      method: "POST",
+      url: `/api/users/${linkedUserId}/assets`,
+      headers: {
+        ...headers,
+        ...sessionHeaders(sessionSubject),
+      },
+      body,
+    });
 
     // List
-    const res = await app.inject({ method: "GET", url: `/api/users/${userId}/assets` });
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/me/assets",
+      headers: sessionHeaders(sessionSubject),
+    });
     const { assets } = JSON.parse(res.body);
 
     expect(assets).toHaveLength(1);
@@ -157,18 +275,80 @@ describe("GET /api/users/:userId/assets — list", () => {
 });
 
 describe("GET /api/assets/:id — download", () => {
-  it("returns file content with correct mime type", async () => {
-    const content = "%PDF-1.4 test file content";
-    const { headers, body } = multipartPayload("download.pdf", content, "application/pdf");
+  it("returns authentication_required when no validated session exists", async () => {
+    const sessionSubject = "st-assets-download-auth";
+    const linkedUserId = await createLinkedTestUser(app, sessionSubject);
+    const { headers, body } = multipartPayload("download.pdf", "%PDF", "application/pdf");
     const uploadRes = await app.inject({
       method: "POST",
-      url: `/api/users/${userId}/assets`,
-      headers,
+      url: `/api/users/${linkedUserId}/assets`,
+      headers: {
+        ...headers,
+        ...sessionHeaders(sessionSubject),
+      },
       body,
     });
     const { id } = JSON.parse(uploadRes.body);
 
     const res = await app.inject({ method: "GET", url: `/api/assets/${id}` });
+
+    expect(res.statusCode).toBe(401);
+    expect(JSON.parse(res.body)).toEqual({
+      error: "authentication_required",
+    });
+  });
+
+  it("returns asset_forbidden when the asset belongs to another user", async () => {
+    const ownerSubject = "st-assets-download-owner";
+    const otherSubject = "st-assets-download-other";
+    const ownerId = await createLinkedTestUser(app, ownerSubject);
+    await createLinkedTestUser(app, otherSubject);
+    const { headers, body } = multipartPayload("download.pdf", "%PDF", "application/pdf");
+    const uploadRes = await app.inject({
+      method: "POST",
+      url: `/api/users/${ownerId}/assets`,
+      headers: {
+        ...headers,
+        ...sessionHeaders(ownerSubject),
+      },
+      body,
+    });
+    const { id } = JSON.parse(uploadRes.body);
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/assets/${id}`,
+      headers: sessionHeaders(otherSubject),
+    });
+
+    expect(res.statusCode).toBe(403);
+    expect(JSON.parse(res.body)).toEqual({
+      error: "asset_forbidden",
+      assetId: id,
+    });
+  });
+
+  it("returns file content with correct mime type", async () => {
+    const sessionSubject = "st-assets-download-owner-ok";
+    const linkedUserId = await createLinkedTestUser(app, sessionSubject);
+    const content = "%PDF-1.4 test file content";
+    const { headers, body } = multipartPayload("download.pdf", content, "application/pdf");
+    const uploadRes = await app.inject({
+      method: "POST",
+      url: `/api/users/${linkedUserId}/assets`,
+      headers: {
+        ...headers,
+        ...sessionHeaders(sessionSubject),
+      },
+      body,
+    });
+    const { id } = JSON.parse(uploadRes.body);
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/assets/${id}`,
+      headers: sessionHeaders(sessionSubject),
+    });
 
     expect(res.statusCode).toBe(200);
     expect(res.headers["content-type"]).toBe("application/pdf");
@@ -176,33 +356,88 @@ describe("GET /api/assets/:id — download", () => {
   });
 
   it("returns 404 for nonexistent asset", async () => {
-    const res = await app.inject({ method: "GET", url: "/api/assets/fake-asset-id" });
+    const sessionSubject = "st-assets-missing-download";
+    await createLinkedTestUser(app, sessionSubject);
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/assets/fake-asset-id",
+      headers: sessionHeaders(sessionSubject),
+    });
     expect(res.statusCode).toBe(404);
   });
 });
 
 describe("DELETE /api/assets/:id", () => {
-  it("deletes an existing asset", async () => {
-    const { headers, body } = multipartPayload("delete-me.pdf", "%PDF", "application/pdf");
+  it("returns asset_forbidden when trying to delete another user's asset", async () => {
+    const ownerSubject = "st-assets-delete-owner";
+    const otherSubject = "st-assets-delete-other";
+    const ownerId = await createLinkedTestUser(app, ownerSubject);
+    await createLinkedTestUser(app, otherSubject);
+    const { headers, body } = multipartPayload("delete-other.pdf", "%PDF", "application/pdf");
     const uploadRes = await app.inject({
       method: "POST",
-      url: `/api/users/${userId}/assets`,
-      headers,
+      url: `/api/users/${ownerId}/assets`,
+      headers: {
+        ...headers,
+        ...sessionHeaders(ownerSubject),
+      },
       body,
     });
     const { id } = JSON.parse(uploadRes.body);
 
-    const deleteRes = await app.inject({ method: "DELETE", url: `/api/assets/${id}` });
+    const deleteRes = await app.inject({
+      method: "DELETE",
+      url: `/api/assets/${id}`,
+      headers: sessionHeaders(otherSubject),
+    });
+
+    expect(deleteRes.statusCode).toBe(403);
+    expect(JSON.parse(deleteRes.body)).toEqual({
+      error: "asset_forbidden",
+      assetId: id,
+    });
+  });
+
+  it("deletes an existing asset", async () => {
+    const sessionSubject = "st-assets-delete-owner-ok";
+    const linkedUserId = await createLinkedTestUser(app, sessionSubject);
+    const { headers, body } = multipartPayload("delete-me.pdf", "%PDF", "application/pdf");
+    const uploadRes = await app.inject({
+      method: "POST",
+      url: `/api/users/${linkedUserId}/assets`,
+      headers: {
+        ...headers,
+        ...sessionHeaders(sessionSubject),
+      },
+      body,
+    });
+    const { id } = JSON.parse(uploadRes.body);
+
+    const deleteRes = await app.inject({
+      method: "DELETE",
+      url: `/api/assets/${id}`,
+      headers: sessionHeaders(sessionSubject),
+    });
     expect(deleteRes.statusCode).toBe(200);
     expect(JSON.parse(deleteRes.body).ok).toBe(true);
 
     // Verify it's gone
-    const getRes = await app.inject({ method: "GET", url: `/api/assets/${id}` });
+    const getRes = await app.inject({
+      method: "GET",
+      url: `/api/assets/${id}`,
+      headers: sessionHeaders(sessionSubject),
+    });
     expect(getRes.statusCode).toBe(404);
   });
 
   it("returns 404 for nonexistent asset", async () => {
-    const res = await app.inject({ method: "DELETE", url: "/api/assets/fake-id" });
+    const sessionSubject = "st-assets-missing-delete";
+    await createLinkedTestUser(app, sessionSubject);
+    const res = await app.inject({
+      method: "DELETE",
+      url: "/api/assets/fake-id",
+      headers: sessionHeaders(sessionSubject),
+    });
     expect(res.statusCode).toBe(404);
   });
 });

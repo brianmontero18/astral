@@ -91,6 +91,44 @@ test.describe("Chat — Voice Notes", () => {
     await expect(page.getByText(/[Ee]rror al transcribir/)).toBeVisible();
   });
 
+  test("Transcription failure can be dismissed and retried successfully", async ({ page }) => {
+    await mockMediaDevicesGranted(page);
+    let transcribeAttempt = 0;
+    await page.route("**/api/transcribe", async (route) => {
+      transcribeAttempt += 1;
+
+      if (transcribeAttempt === 1) {
+        await route.fulfill({
+          status: 504,
+          json: { error: "Transcription failed" },
+        });
+        return;
+      }
+
+      await route.fulfill({
+        status: 200,
+        json: { text: "segundo intento transcrito" },
+      });
+    });
+    await mockChatStream(page, ["Respuesta recuperada"], { userMsgId: 12, assistantMsgId: 13 });
+    await page.goto("/");
+
+    await page.getByRole("button", { name: "Grabar nota de voz" }).click();
+    await page.getByRole("button", { name: "Enviar nota de voz" }).click();
+    await expect(page.getByText(/[Ee]rror al transcribir/)).toBeVisible();
+
+    await page.getByRole("button", { name: "Cerrar" }).click();
+    await expect(page.getByRole("button", { name: "Grabar nota de voz" })).toBeVisible();
+    await expect(page.getByText(/[Ee]rror al transcribir/)).not.toBeVisible();
+
+    await page.getByRole("button", { name: "Grabar nota de voz" }).click();
+    await page.getByRole("button", { name: "Enviar nota de voz" }).click();
+
+    await expect(page.getByText("segundo intento transcrito")).toBeVisible();
+    await expect(page.getByText("Respuesta recuperada")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Grabar nota de voz" })).toBeVisible();
+  });
+
   test("Mic button hidden if browser does not support mediaDevices", async ({ page }) => {
     await mockNoMediaDevices(page);
     await page.goto("/");

@@ -1,7 +1,78 @@
 import { createClient, type Client } from "@libsql/client";
 import { randomUUID } from "node:crypto";
 
+import { getCurrentChatUsageCycle } from "./chat-limits.js";
+import type { ReportTier } from "./report/types.js";
+
 let client: Client;
+
+export type AppUserPlan = "free" | "basic" | "premium";
+export type AppUserRole = "user" | "admin";
+export type AppUserStatus = "active" | "disabled" | "banned";
+
+interface AppUserAccessInput {
+  plan?: AppUserPlan;
+  role?: AppUserRole;
+  status?: AppUserStatus;
+}
+
+interface AppUserCreateInput extends AppUserAccessInput {
+  // Astral-owned support contact field. Nullable until auth/provider sync exists.
+  email?: string | null;
+}
+
+export interface AppUserRecord {
+  id: string;
+  name: string;
+  email: string | null;
+  profile: object;
+  intake: object | null;
+  plan: AppUserPlan;
+  role: AppUserRole;
+  status: AppUserStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AppUserListRecord extends AppUserRecord {
+  linked: boolean;
+}
+
+export interface AppUserIdentityRecord {
+  provider: string;
+  subject: string;
+}
+
+const DEFAULT_USER_PLAN: AppUserPlan = "free";
+const DEFAULT_USER_ROLE: AppUserRole = "user";
+const DEFAULT_USER_STATUS: AppUserStatus = "active";
+
+function resolveUserAccess(access: AppUserAccessInput = {}) {
+  return {
+    plan: access.plan ?? DEFAULT_USER_PLAN,
+    role: access.role ?? DEFAULT_USER_ROLE,
+    status: access.status ?? DEFAULT_USER_STATUS,
+  };
+}
+
+function mapUserRow(row: Record<string, unknown>): AppUserRecord {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    email: typeof row.email === "string" ? row.email : null,
+    profile: JSON.parse(row.profile as string),
+    intake: row.intake ? JSON.parse(row.intake as string) : null,
+    plan: (row.plan as AppUserPlan | null) ?? DEFAULT_USER_PLAN,
+    role: (row.role as AppUserRole | null) ?? DEFAULT_USER_ROLE,
+    status: (row.status as AppUserStatus | null) ?? DEFAULT_USER_STATUS,
+    created_at: row.created_at as string,
+    updated_at: row.updated_at as string,
+  };
+}
+
+function mapLinkedFlag(value: unknown): boolean {
+  return value === true || value === 1 || value === "1";
+}
 
 // ─── Init ────────────────────────────────────────────────────────────────────
 
@@ -17,8 +88,12 @@ export async function initDb(): Promise<void> {
       `CREATE TABLE IF NOT EXISTS users (
         id         TEXT PRIMARY KEY,
         name       TEXT NOT NULL,
+        email      TEXT DEFAULT NULL,
         profile    TEXT NOT NULL,
         intake     TEXT DEFAULT NULL,
+        plan       TEXT NOT NULL DEFAULT 'free',
+        role       TEXT NOT NULL DEFAULT 'user',
+        status     TEXT NOT NULL DEFAULT 'active',
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       )`,
@@ -62,6 +137,14 @@ export async function initDb(): Promise<void> {
         expires_at TEXT NOT NULL,
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       )`,
+      `CREATE TABLE IF NOT EXISTS user_identities (
+        id               TEXT PRIMARY KEY,
+        user_id          TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        provider         TEXT NOT NULL,
+        provider_user_id TEXT NOT NULL,
+        created_at       TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(provider, provider_user_id)
+      )`,
     ],
     "write",
   );
@@ -72,43 +155,298 @@ export async function initDb(): Promise<void> {
   } catch {
     // Column already exists
   }
+
+  try {
+    await client.execute("ALTER TABLE users ADD COLUMN email TEXT DEFAULT NULL");
+  } catch {
+    // Column already exists
+  }
+
+  try {
+    await client.execute("ALTER TABLE users ADD COLUMN plan TEXT NOT NULL DEFAULT 'free'");
+  } catch {
+    // Column already exists
+  }
+
+  try {
+    await client.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'");
+  } catch {
+    // Column already exists
+  }
+
+  try {
+    await client.execute("ALTER TABLE users ADD COLUMN status TEXT NOT NULL DEFAULT 'active'");
+  } catch {
+    // Column already exists
+  }
 }
 
 // ─── Users ───────────────────────────────────────────────────────────────────
 
-export async function createUser(name: string, profile: object): Promise<string> {
+export async function createUser(
+  name: string,
+  profile: object,
+  options: AppUserCreateInput = {},
+): Promise<string> {
   const id = randomUUID();
+  const resolvedAccess = resolveUserAccess(options);
   await client.execute({
-    sql: "INSERT INTO users (id, name, profile) VALUES (?, ?, ?)",
-    args: [id, name, JSON.stringify(profile)],
+    sql: "INSERT INTO users (id, name, email, profile, plan, role, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    args: [
+      id,
+      name,
+      options.email ?? null,
+      JSON.stringify(profile),
+      resolvedAccess.plan,
+      resolvedAccess.role,
+      resolvedAccess.status,
+    ],
   });
   return id;
 }
 
+export async function createUserWithIdentity(
+  name: string,
+  profile: object,
+  provider: string,
+  providerUserId: string,
+  options: AppUserCreateInput = {},
+): Promise<string> {
+  const userId = randomUUID();
+  const resolvedAccess = resolveUserAccess(options);
+  await client.batch(
+    [
+      {
+        sql: "INSERT INTO users (id, name, email, profile, plan, role, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        args: [
+          userId,
+          name,
+          options.email ?? null,
+          JSON.stringify(profile),
+          resolvedAccess.plan,
+          resolvedAccess.role,
+          resolvedAccess.status,
+        ],
+      },
+      {
+        sql: "INSERT INTO user_identities (id, user_id, provider, provider_user_id) VALUES (?, ?, ?, ?)",
+        args: [randomUUID(), userId, provider, providerUserId],
+      },
+    ],
+    "write",
+  );
+
+  return userId;
+}
+
 export async function getUser(
   id: string,
-): Promise<{ id: string; name: string; profile: object; intake: object | null; created_at: string; updated_at: string } | undefined> {
+): Promise<AppUserRecord | undefined> {
   const result = await client.execute({
     sql: "SELECT * FROM users WHERE id = ?",
     args: [id],
   });
   const row = result.rows[0];
   if (!row) return undefined;
+  return mapUserRow(row);
+}
+
+export async function findUserByIdentity(
+  provider: string,
+  providerUserId: string,
+): Promise<AppUserRecord | undefined> {
+  const result = await client.execute({
+    sql: `
+      SELECT
+        users.id,
+        users.name,
+        users.email,
+        users.profile,
+        users.intake,
+        users.plan,
+        users.role,
+        users.status,
+        users.created_at,
+        users.updated_at
+      FROM user_identities
+      INNER JOIN users ON users.id = user_identities.user_id
+      WHERE user_identities.provider = ? AND user_identities.provider_user_id = ?
+      LIMIT 1
+    `,
+    args: [provider, providerUserId],
+  });
+  const row = result.rows[0];
+  if (!row) return undefined;
+  return mapUserRow(row);
+}
+
+export interface AppUserListPageRecord {
+  users: Array<AppUserListRecord>;
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  pageSize: number;
+  rangeStart: number;
+  rangeEnd: number;
+}
+
+const DEFAULT_ADMIN_USERS_PAGE_SIZE = 12;
+const MAX_ADMIN_USERS_PAGE_SIZE = 100;
+
+export async function listUsers({
+  query = "",
+  page = 1,
+  pageSize = DEFAULT_ADMIN_USERS_PAGE_SIZE,
+}: {
+  query?: string;
+  page?: number;
+  pageSize?: number;
+} = {}): Promise<AppUserListPageRecord> {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const safePageSize = Math.min(
+    MAX_ADMIN_USERS_PAGE_SIZE,
+    Math.max(1, Number.isFinite(pageSize) ? Math.floor(pageSize) : DEFAULT_ADMIN_USERS_PAGE_SIZE),
+  );
+  const normalizedPage =
+    Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
+  const whereClause = normalizedQuery
+    ? `
+      WHERE
+        lower(users.name) LIKE ?
+        OR lower(COALESCE(users.email, '')) LIKE ?
+        OR lower(users.id) LIKE ?
+    `
+    : "";
+  const searchPattern = `%${normalizedQuery}%`;
+  const filterArgs = normalizedQuery
+    ? [searchPattern, searchPattern, searchPattern]
+    : [];
+
+  const countResult = await client.execute({
+    sql: `
+      SELECT COUNT(*) AS count
+      FROM users
+      ${whereClause}
+    `,
+    args: filterArgs,
+  });
+  const totalItems = Number(countResult.rows[0]?.count ?? 0);
+
+  if (totalItems === 0) {
+    return {
+      users: [],
+      currentPage: 1,
+      totalPages: 1,
+      totalItems: 0,
+      pageSize: safePageSize,
+      rangeStart: 0,
+      rangeEnd: 0,
+    };
+  }
+
+  const totalPages = Math.max(1, Math.ceil(totalItems / safePageSize));
+  const currentPage = Math.min(normalizedPage, totalPages);
+  const offset = (currentPage - 1) * safePageSize;
+  const result = await client.execute({
+    sql: `
+      SELECT
+        users.*,
+        EXISTS(
+          SELECT 1
+          FROM user_identities
+          WHERE user_identities.user_id = users.id
+        ) AS linked
+      FROM users
+      ${whereClause}
+      ORDER BY datetime(users.created_at) DESC, users.id DESC
+      LIMIT ? OFFSET ?
+    `,
+    args: [...filterArgs, safePageSize, offset],
+  });
+
   return {
-    id: row.id as string,
-    name: row.name as string,
-    profile: JSON.parse(row.profile as string),
-    intake: row.intake ? JSON.parse(row.intake as string) : null,
-    created_at: row.created_at as string,
-    updated_at: row.updated_at as string,
+    users: result.rows.map((row) => ({
+      ...mapUserRow(row),
+      linked: mapLinkedFlag(row.linked),
+    })),
+    currentPage,
+    totalPages,
+    totalItems,
+    pageSize: safePageSize,
+    rangeStart: offset + 1,
+    rangeEnd: offset + result.rows.length,
   };
 }
 
-export async function updateUser(id: string, name: string, profile: object, intake?: object | null): Promise<boolean> {
+export async function getUserIdentity(
+  userId: string,
+): Promise<AppUserIdentityRecord | null> {
+  const result = await client.execute({
+    sql: `
+      SELECT provider, provider_user_id AS subject
+      FROM user_identities
+      WHERE user_id = ?
+      ORDER BY datetime(created_at) ASC, id ASC
+      LIMIT 1
+    `,
+    args: [userId],
+  });
+  const row = result.rows[0];
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    provider: row.provider as string,
+    subject: row.subject as string,
+  };
+}
+
+export async function updateUserProfile(
+  id: string,
+  name: string,
+  profile: object,
+  intake?: object | null,
+): Promise<boolean> {
   const result = await client.execute({
     sql: "UPDATE users SET name = ?, profile = ?, intake = ?, updated_at = datetime('now') WHERE id = ?",
     args: [name, JSON.stringify(profile), intake ? JSON.stringify(intake) : null, id],
   });
+  return result.rowsAffected > 0;
+}
+
+export async function updateUserAccess(
+  id: string,
+  access: AppUserAccessInput,
+): Promise<boolean> {
+  const updates: Array<string> = [];
+  const args: Array<string> = [];
+
+  if (access.role) {
+    updates.push("role = ?");
+    args.push(access.role);
+  }
+
+  if (access.plan) {
+    updates.push("plan = ?");
+    args.push(access.plan);
+  }
+
+  if (access.status) {
+    updates.push("status = ?");
+    args.push(access.status);
+  }
+
+  if (updates.length === 0) {
+    return false;
+  }
+
+  const result = await client.execute({
+    sql: `UPDATE users SET ${updates.join(", ")}, updated_at = datetime('now') WHERE id = ?`,
+    args: [...args, id],
+  });
+
   return result.rowsAffected > 0;
 }
 
@@ -152,6 +490,15 @@ export async function getUserAssets(
     size_bytes: row.size_bytes as number,
     created_at: row.created_at as string,
   }));
+}
+
+export async function getUserAssetCount(userId: string): Promise<number> {
+  const result = await client.execute({
+    sql: "SELECT COUNT(*) as count FROM assets WHERE user_id = ?",
+    args: [userId],
+  });
+
+  return (result.rows[0]?.count as number) ?? 0;
 }
 
 export async function getAsset(
@@ -204,10 +551,19 @@ export async function setCachedTransits(weekKey: string, data: object): Promise<
 
 // ─── Chat Messages ───────────────────────────────────────────────────────────
 
-export async function saveChatMessage(userId: string, role: string, content: string): Promise<number> {
+export async function saveChatMessage(
+  userId: string,
+  role: string,
+  content: string,
+  createdAt?: string,
+): Promise<number> {
   const result = await client.execute({
-    sql: "INSERT INTO chat_messages (user_id, role, content) VALUES (?, ?, ?) RETURNING id",
-    args: [userId, role, content],
+    sql: createdAt
+      ? "INSERT INTO chat_messages (user_id, role, content, created_at) VALUES (?, ?, ?, ?) RETURNING id"
+      : "INSERT INTO chat_messages (user_id, role, content) VALUES (?, ?, ?) RETURNING id",
+    args: createdAt
+      ? [userId, role, content, createdAt]
+      : [userId, role, content],
   });
   return result.rows[0].id as number;
 }
@@ -235,10 +591,19 @@ export async function deleteChatMessagesFrom(userId: string, fromId: number): Pr
   return result.rowsAffected;
 }
 
-export async function getUserMessageCount(userId: string): Promise<number> {
+export async function getUserMessageCount(
+  userId: string,
+  now = new Date(),
+): Promise<number> {
+  const { windowStartUtc, nextWindowStartUtc } = getCurrentChatUsageCycle(now);
   const result = await client.execute({
-    sql: "SELECT COUNT(*) as count FROM chat_messages WHERE user_id = ? AND role = 'user'",
-    args: [userId],
+    sql: `SELECT COUNT(*) as count
+          FROM chat_messages
+          WHERE user_id = ?
+            AND role = 'user'
+            AND created_at >= ?
+            AND created_at < ?`,
+    args: [userId, windowStartUtc, nextWindowStartUtc],
   });
   return (result.rows[0]?.count as number) ?? 0;
 }
@@ -318,6 +683,22 @@ export async function updateReportContent(id: string, content: string): Promise<
     sql: "UPDATE hd_reports SET content = ? WHERE id = ?",
     args: [content, id],
   });
+}
+
+export async function listUserReportTiers(
+  userId: string,
+): Promise<Array<ReportTier>> {
+  const result = await client.execute({
+    sql: `
+      SELECT tier
+      FROM hd_reports
+      WHERE user_id = ?
+      ORDER BY CASE tier WHEN 'free' THEN 0 ELSE 1 END, datetime(created_at) ASC
+    `,
+    args: [userId],
+  });
+
+  return result.rows.map((row) => row.tier as ReportTier);
 }
 
 // ─── Report Shares ───────────────────────────────────────────────────────────

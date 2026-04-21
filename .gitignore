@@ -26,3 +26,7 @@ AGENTS.md
 .DS_Store
 .beads/
 test-results/
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+.beads-credential-key

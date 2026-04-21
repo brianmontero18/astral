@@ -184,16 +184,36 @@ function SectionPage({ section }: { section: ReportSection }) {
   );
 }
 
-function CTAPage() {
+function CTAPage({ premiumSections }: { premiumSections: ReportSection[] }) {
   return (
     <Page size="A4" style={s.page}>
       <View style={{ flex: 1, justifyContent: "center" }}>
         <View style={s.ctaBox}>
-          <Text style={s.ctaText}>✦ Desbloquea tu informe completo</Text>
+          <Text style={s.ctaText}>✦ Completá la continuación premium de tu informe</Text>
           <Text style={{ ...s.ctaSubtext, marginTop: 8 }}>
-            Accedé a las 10 secciones con interpretación profunda de tus canales,
-            centros indefinidos, cruz de encarnación, variables y más.
+            Desbloqueá la capa aplicada de negocio y mentoría con trabajo, decisiones,
+            posicionamiento, clientes, visibilidad y próximos pasos.
           </Text>
+          <View style={{ marginTop: 14, alignSelf: "stretch" }}>
+            {premiumSections.map((section) => (
+              <View
+                key={section.id}
+                style={{
+                  paddingTop: 8,
+                  paddingBottom: 8,
+                  borderTopWidth: 1,
+                  borderTopColor: colors.border,
+                }}
+              >
+                <Text style={{ ...s.ctaText, fontSize: 11, marginBottom: 4 }}>
+                  {section.icon} {section.title}
+                </Text>
+                {section.previewContent && (
+                  <Text style={s.ctaSubtext}>{section.previewContent}</Text>
+                )}
+              </View>
+            ))}
+          </View>
           <Text style={{ ...s.ctaSubtext, marginTop: 12 }}>
             Contactanos por WhatsApp al +54 9 11 5344-6030 para obtener tu informe premium.
           </Text>
@@ -211,6 +231,7 @@ function ReportDocument({ report, userName }: { report: DesignReport; userName?:
   const visibleSections = report.tier === "free"
     ? report.sections.filter((sec) => sec.tier === "free")
     : report.sections;
+  const premiumSections = report.sections.filter((sec) => sec.tier === "premium");
 
   return (
     <Document>
@@ -218,7 +239,7 @@ function ReportDocument({ report, userName }: { report: DesignReport; userName?:
       {visibleSections.map((section) => (
         <SectionPage key={section.id} section={section} />
       ))}
-      {report.tier === "free" && <CTAPage />}
+      {report.tier === "free" && <CTAPage premiumSections={premiumSections} />}
     </Document>
   );
 }

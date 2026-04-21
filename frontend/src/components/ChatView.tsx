@@ -1,8 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { ReportRenderer } from "./ReportRenderer";
 import { sendChat, sendChatStream, getChatHistory, truncateChatHistory } from "../api";
+import { getChatFailureMessage } from "../chat-errors";
 import { VoiceRecorder } from "./VoiceRecorder";
-import type { ChatMessage, LocalUser } from "../types";
+import type { ChatMessage } from "../types";
+import {
+  getChatLimitExperience,
+  isChatLimitReached,
+  type ChatUsageSnapshot,
+} from "../chat-limits";
 
 interface ChatMsg extends ChatMessage {
   dbId?: number;
@@ -55,17 +61,35 @@ const QUICK_ACTIONS = [
   "¿Qué tránsitos me afectan hoy?",
 ];
 
-interface Props {
-  user: LocalUser;
+function formatResetDate(value: string | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  return new Intl.DateTimeFormat("es-AR", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(parsed);
 }
 
-export function ChatView({ user }: Props) {
+interface Props {
+  userName: string;
+}
+
+export function ChatView({ userName }: Props) {
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [historyLoaded, setHistoryLoaded] = useState(false);
-  const [messageUsage, setMessageUsage] = useState<{ used: number; limit: number } | null>(null);
+  const [messageUsage, setMessageUsage] = useState<ChatUsageSnapshot | null>(null);
   const [limitReached, setLimitReached] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -73,23 +97,81 @@ export function ChatView({ user }: Props) {
   const [editIndex, setEditIndex] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const resetDateLabel = formatResetDate(messageUsage?.resetsAt);
+
+  const applyHistoryPayload = ({
+    messages: history,
+    plan,
+    used,
+    limit,
+    cycle,
+    resetsAt,
+  }: Awaited<ReturnType<typeof getChatHistory>>) => {
+    if (history.length) {
+      setMessages(history.map((m) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+        dbId: m.id,
+      })));
+    }
+
+    const usage = { plan, used, limit, cycle, resetsAt };
+    setMessageUsage(usage);
+    setLimitReached(isChatLimitReached(usage));
+  };
+
+  const bumpMessageUsage = () => {
+    setMessageUsage((prev) => {
+      if (!prev) {
+        return prev;
+      }
+
+      const next = { ...prev, used: prev.used + 1 };
+      setLimitReached(isChatLimitReached(next));
+      return next;
+    });
+  };
+
+  const decrementMessageUsage = () => {
+    setMessageUsage((prev) => {
+      if (!prev) {
+        return prev;
+      }
+
+      const next = { ...prev, used: Math.max(0, prev.used - 1) };
+      setLimitReached(isChatLimitReached(next));
+      return next;
+    });
+  };
 
   useEffect(() => {
-    getChatHistory(user.id)
-      .then(({ messages: history, used, limit }) => {
-        if (history.length) {
-          setMessages(history.map((m) => ({
-            role: m.role as "user" | "assistant",
-            content: m.content,
-            dbId: m.id,
-          })));
-        }
-        setMessageUsage({ used, limit });
-        if (used >= limit) setLimitReached(true);
-      })
+    getChatHistory()
+      .then(applyHistoryPayload)
       .catch(() => {})
       .finally(() => setHistoryLoaded(true));
-  }, [user.id]);
+  }, []);
+
+  useEffect(() => {
+    if (!messageUsage?.resetsAt) {
+      return;
+    }
+
+    const refreshUsageIfWindowRolled = () => {
+      const resetAtMs = Date.parse(messageUsage.resetsAt);
+      if (!Number.isFinite(resetAtMs) || resetAtMs > Date.now()) {
+        return;
+      }
+
+      void getChatHistory()
+        .then(applyHistoryPayload)
+        .catch(() => {});
+    };
+
+    refreshUsageIfWindowRolled();
+    const intervalId = window.setInterval(refreshUsageIfWindowRolled, 60_000);
+
+    return () => window.clearInterval(intervalId);
+  }, [messageUsage?.resetsAt]);
 
   useEffect(() => {
     const el = bottomRef.current?.parentElement;
@@ -108,7 +190,7 @@ export function ChatView({ user }: Props) {
     const updated: ChatMsg[] = [...base, { role: "user", content: trimmed }];
     setMessages(updated);
     setLoading(true);
-    setMessageUsage((prev) => (prev ? { ...prev, used: prev.used + 1 } : prev));
+    bumpMessageUsage();
 
     try {
       const withPlaceholder: ChatMsg[] = [...updated, { role: "assistant", content: "" }];
@@ -116,7 +198,7 @@ export function ChatView({ user }: Props) {
       setStreaming(true);
       setLoading(false);
 
-      const result = await sendChatStream(user.id, updated, (accumulated) => {
+      const result = await sendChatStream(updated, (accumulated) => {
         setMessages((prev) => {
           const copy = [...prev];
           copy[copy.length - 1] = { role: "assistant", content: accumulated };
@@ -137,17 +219,20 @@ export function ChatView({ user }: Props) {
       });
 
       setStreaming(false);
-
-      if (messageUsage && messageUsage.used + 1 >= messageUsage.limit) {
-        setLimitReached(true);
-      }
     } catch (e) {
       setStreaming(false);
       const isLimitError = e instanceof Error && e.message === "message_limit_reached";
       if (isLimitError) {
-        const limitErr = e as Error & { used: number; limit: number };
-        setMessageUsage({ used: limitErr.used, limit: limitErr.limit });
-        setLimitReached(true);
+        const limitErr = e as Error & ChatUsageSnapshot;
+        const usage = {
+          plan: limitErr.plan,
+          used: limitErr.used,
+          limit: limitErr.limit,
+          cycle: limitErr.cycle,
+          resetsAt: limitErr.resetsAt,
+        };
+        setMessageUsage(usage);
+        setLimitReached(isChatLimitReached(usage));
         setMessages(base);
         setLoading(false);
         return;
@@ -155,7 +240,7 @@ export function ChatView({ user }: Props) {
       setMessages(updated);
       setLoading(true);
       try {
-        const data = await sendChat(user.id, updated);
+        const data = await sendChat(updated);
         setMessages((prev) => {
           const copy = [...prev];
           // Set dbId on the user message we just sent
@@ -165,22 +250,25 @@ export function ChatView({ user }: Props) {
           copy.push({ role: "assistant", content: data.reply, dbId: data.assistantMsgId });
           return copy;
         });
-        if (messageUsage && messageUsage.used + 1 >= messageUsage.limit) {
-          setLimitReached(true);
-        }
       } catch (e2) {
         const isLimitError2 = e2 instanceof Error && e2.message === "message_limit_reached";
         if (isLimitError2) {
-          const limitErr = e2 as Error & { used: number; limit: number };
-          setMessageUsage({ used: limitErr.used, limit: limitErr.limit });
-          setLimitReached(true);
+          const limitErr = e2 as Error & ChatUsageSnapshot;
+          const usage = {
+            plan: limitErr.plan,
+            used: limitErr.used,
+            limit: limitErr.limit,
+            cycle: limitErr.cycle,
+            resetsAt: limitErr.resetsAt,
+          };
+          setMessageUsage(usage);
+          setLimitReached(isChatLimitReached(usage));
           setMessages(base);
           setLoading(false);
           return;
         }
-        const msg2 = e2 instanceof Error ? e2.message : String(e2);
-        setErrorMsg(msg2);
-        setMessageUsage((prev) => (prev ? { ...prev, used: prev.used - 1 } : prev));
+        setErrorMsg(getChatFailureMessage(e2));
+        decrementMessageUsage();
       } finally {
         setLoading(false);
       }
@@ -237,8 +325,16 @@ export function ChatView({ user }: Props) {
     // Truncate persisted messages from the edit point onward
     if (editedMsg.dbId) {
       try {
-        const result = await truncateChatHistory(user.id, editedMsg.dbId);
-        setMessageUsage((prev) => prev ? { ...prev, used: result.used } : prev);
+        const result = await truncateChatHistory(editedMsg.dbId);
+        const usage = {
+          plan: result.plan,
+          used: result.used,
+          limit: result.limit,
+          cycle: result.cycle,
+          resetsAt: result.resetsAt,
+        };
+        setMessageUsage(usage);
+        setLimitReached(isChatLimitReached(usage));
       } catch {
         // If truncate fails, still proceed with local edit
       }
@@ -257,6 +353,12 @@ export function ChatView({ user }: Props) {
   if (!historyLoaded) return null;
 
   const isBusy = loading || streaming;
+  const limitPlan = messageUsage?.plan ?? "free";
+  const limitValue = messageUsage?.limit ?? 20;
+  const showUpgradeCta = limitPlan !== "premium";
+  const limitExperience = messageUsage
+    ? getChatLimitExperience(messageUsage, resetDateLabel)
+    : null;
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
@@ -287,7 +389,7 @@ export function ChatView({ user }: Props) {
                 fontWeight: 400,
               }}
             >
-              Hola, {user.name}
+              Hola, {userName}
             </div>
             <div style={{ color: "var(--text-muted)", fontSize: "13px", marginBottom: "32px", fontWeight: 300 }}>
               Tu carta cósmica está entrelazada en la matriz.
@@ -547,7 +649,7 @@ export function ChatView({ user }: Props) {
                 margin: "0 0 8px 0",
               }}
             >
-              Tu ventana al cosmos se ha completado
+              {limitExperience?.title ?? "Tu ventana al cosmos de este mes se ha completado"}
             </h3>
             <p
               style={{
@@ -558,28 +660,29 @@ export function ChatView({ user }: Props) {
                 lineHeight: 1.6,
               }}
             >
-              Has usado tus {messageUsage?.limit ?? 15} mensajes de exploración. Para seguir recibiendo guía estelar
-              personalizada, accedé al plan completo.
+              {limitExperience?.body ?? `Ya usaste tus ${limitValue} mensajes de este mes.`}
             </p>
-            <a
-              href="https://wa.me/5491153446030"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="glass-panel-gold"
-              style={{
-                display: "inline-block",
-                padding: "14px 36px",
-                borderRadius: 24,
-                color: "var(--color-primary)",
-                fontSize: 15,
-                fontFamily: "var(--font-serif)",
-                textDecoration: "none",
-                fontWeight: 600,
-                letterSpacing: "0.05em",
-              }}
-            >
-              Desbloquear Astral Guide ✦
-            </a>
+            {showUpgradeCta && limitExperience?.ctaLabel && (
+              <a
+                href="https://wa.me/5491153446030"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="glass-panel-gold"
+                style={{
+                  display: "inline-block",
+                  padding: "14px 36px",
+                  borderRadius: 24,
+                  color: "var(--color-primary)",
+                  fontSize: 15,
+                  fontFamily: "var(--font-serif)",
+                  textDecoration: "none",
+                  fontWeight: 600,
+                  letterSpacing: "0.05em",
+                }}
+              >
+                {limitExperience.ctaLabel}
+              </a>
+            )}
           </div>
         </footer>
       ) : (

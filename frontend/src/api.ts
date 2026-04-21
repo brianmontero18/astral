@@ -7,6 +7,10 @@
  */
 
 import type {
+  AdminUserAccessPatch,
+  AdminUserDetail,
+  AdminUserListResponse,
+  AppUserStatus,
   ChatMessage,
   ChatResponse,
   TransitsResponse,
@@ -15,8 +19,52 @@ import type {
   Intake,
   DesignReport,
 } from "./types";
+import type { ChatUsageSnapshot } from "./chat-limits";
 
 const BASE = "/api";
+
+interface ChatLimitResponse extends Partial<ChatUsageSnapshot> {
+  error?: string;
+}
+
+function buildMessageLimitError(data: ChatLimitResponse) {
+  const err = new Error("message_limit_reached") as Error & ChatUsageSnapshot;
+  err.plan = data.plan ?? "free";
+  err.used = data.used ?? 0;
+  err.limit = data.limit ?? null;
+  err.cycle = data.cycle ?? "";
+  err.resetsAt = data.resetsAt ?? "";
+  return err;
+}
+
+export interface CurrentUserResponse {
+  id: string;
+  name: string;
+  profile: UserProfile;
+  intake: Intake | null;
+  plan: "free" | "basic" | "premium";
+  role: "user" | "admin";
+  status: AppUserStatus;
+}
+
+export type CurrentUserBootstrapResult =
+  | { kind: "linked"; user: CurrentUserResponse }
+  | { kind: "anonymous" }
+  | { kind: "inactive"; status: AppUserStatus }
+  | { kind: "unlinked"; provider: string; subject: string };
+
+async function readJsonBody<T>(res: Response): Promise<T | null> {
+  const contentType = res.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    return null;
+  }
+
+  try {
+    return await res.json() as T;
+  } catch {
+    return null;
+  }
+}
 
 async function readErrorMessage(res: Response): Promise<string> {
   const contentType = res.headers.get("content-type") ?? "";
@@ -37,22 +85,19 @@ async function readErrorMessage(res: Response): Promise<string> {
 // ─── Chat ────────────────────────────────────────────────────────────────────
 
 export async function sendChat(
-  userId: string,
   messages: ChatMessage[],
+  profile?: UserProfile,
 ): Promise<ChatResponse> {
   const res = await fetch(`${BASE}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId, messages }),
+    body: JSON.stringify(profile ? { profile, messages } : { messages }),
   });
   if (!res.ok) {
     if (res.status === 403) {
-      const data = await res.json() as { error?: string; used?: number; limit?: number };
+      const data = await res.json() as ChatLimitResponse;
       if (data.error === "message_limit_reached") {
-        const err = new Error("message_limit_reached") as Error & { used: number; limit: number };
-        err.used = data.used ?? 0;
-        err.limit = data.limit ?? 15;
-        throw err;
+        throw buildMessageLimitError(data);
       }
     }
     const err = await res.text();
@@ -62,24 +107,21 @@ export async function sendChat(
 }
 
 export async function sendChatStream(
-  userId: string,
   messages: ChatMessage[],
   onChunk: (accumulated: string) => void,
+  profile?: UserProfile,
 ): Promise<{ transits_used: string; userMsgId?: number; assistantMsgId?: number }> {
   const res = await fetch(`${BASE}/chat/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId, messages }),
+    body: JSON.stringify(profile ? { profile, messages } : { messages }),
   });
 
   if (!res.ok) {
     if (res.status === 403) {
-      const data = await res.json() as { error?: string; used?: number; limit?: number };
+      const data = await res.json() as ChatLimitResponse;
       if (data.error === "message_limit_reached") {
-        const err = new Error("message_limit_reached") as Error & { used: number; limit: number };
-        err.used = data.used ?? 0;
-        err.limit = data.limit ?? 15;
-        throw err;
+        throw buildMessageLimitError(data);
       }
     }
     const err = await res.text();
@@ -138,18 +180,18 @@ export async function sendChatStream(
 }
 
 export async function getChatHistory(
-  userId: string,
-): Promise<{ messages: Array<{ id: number; role: string; content: string; created_at: string }>; used: number; limit: number }> {
-  const res = await fetch(`${BASE}/users/${userId}/messages`);
+): Promise<{
+  messages: Array<{ id: number; role: string; content: string; created_at: string }>;
+} & ChatUsageSnapshot> {
+  const res = await fetch(`${BASE}/me/messages`);
   if (!res.ok) throw new Error(`Chat history error ${res.status}`);
   return res.json();
 }
 
 export async function truncateChatHistory(
-  userId: string,
   fromId: number,
-): Promise<{ deleted: number; used: number; limit: number }> {
-  const res = await fetch(`${BASE}/users/${userId}/messages?fromId=${fromId}`, {
+): Promise<{ deleted: number } & ChatUsageSnapshot> {
+  const res = await fetch(`${BASE}/me/messages?fromId=${fromId}`, {
     method: "DELETE",
   });
   if (!res.ok) throw new Error(`Truncate error ${res.status}`);
@@ -158,11 +200,10 @@ export async function truncateChatHistory(
 
 // ─── Transits ────────────────────────────────────────────────────────────────
 
-export async function fetchTransits(userId?: string): Promise<TransitsResponse> {
+export async function fetchTransits(): Promise<TransitsResponse> {
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const clientNow = Date.now();
   const search = new URLSearchParams();
-  if (userId) search.set("userId", userId);
   if (timeZone) search.set("timeZone", timeZone);
   search.set("clientNow", String(clientNow));
   const params = search.toString() ? `?${search.toString()}` : "";
@@ -184,7 +225,7 @@ export async function healthCheck(): Promise<boolean> {
 
 // ─── Users ───────────────────────────────────────────────────────────────────
 
-export async function createUser(
+export async function bootstrapCurrentUser(
   name: string,
   profile: UserProfile,
 ): Promise<{ id: string }> {
@@ -193,42 +234,92 @@ export async function createUser(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, profile }),
   });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Create user error ${res.status}: ${err}`);
+
+  if (res.status === 409) {
+    const data = await readJsonBody<{ error?: string; userId?: string }>(res);
+    if (data?.error === "identity_already_linked" && data.userId) {
+      return { id: data.userId };
+    }
   }
+
+  if (!res.ok) {
+    const err = await readErrorMessage(res);
+    throw new Error(`Bootstrap current user error ${res.status}: ${err}`);
+  }
+
   return res.json();
 }
 
-export async function getUser(
-  id: string,
-): Promise<{ id: string; name: string; profile: UserProfile; intake: Intake | null }> {
-  const res = await fetch(`${BASE}/users/${id}`);
-  if (!res.ok) throw new Error(`Get user error ${res.status}`);
-  return res.json();
+export async function getCurrentUser(): Promise<CurrentUserBootstrapResult> {
+  const res = await fetch(`${BASE}/me`);
+
+  if (res.status === 401) {
+    return { kind: "anonymous" };
+  }
+
+  if (res.status === 409) {
+    const data = await readJsonBody<{
+      error?: string;
+      provider?: string;
+      subject?: string;
+    }>(res);
+
+    if (data?.error === "identity_not_linked") {
+      return {
+        kind: "unlinked",
+        provider: data.provider ?? "supertokens",
+        subject: data.subject ?? "",
+      };
+    }
+
+    throw new Error(`Get current user error ${res.status}: ${data?.error ?? "identity_not_linked"}`);
+  }
+
+  if (res.status === 403) {
+    const data = await readJsonBody<{
+      error?: string;
+      status?: AppUserStatus;
+    }>(res);
+
+    if (data?.error === "account_inactive" && data.status) {
+      return {
+        kind: "inactive",
+        status: data.status,
+      };
+    }
+  }
+
+  if (!res.ok) {
+    const err = await readErrorMessage(res);
+    throw new Error(`Get current user error ${res.status}: ${err}`);
+  }
+
+  return {
+    kind: "linked",
+    user: await res.json() as CurrentUserResponse,
+  };
 }
 
-export async function updateUser(
-  id: string,
+export async function updateCurrentUser(
   name: string,
   profile: UserProfile,
   intake?: Intake,
 ): Promise<void> {
-  const res = await fetch(`${BASE}/users/${id}`, {
+  const res = await fetch(`${BASE}/me`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, profile, ...(intake !== undefined && { intake }) }),
   });
+
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Update user error ${res.status}: ${err}`);
+    const err = await readErrorMessage(res);
+    throw new Error(`Update current user error ${res.status}: ${err}`);
   }
 }
 
 // ─── Assets ──────────────────────────────────────────────────────────────────
 
 export async function uploadAsset(
-  userId: string,
   file: File,
   fileType: string,
 ): Promise<AssetMeta> {
@@ -236,7 +327,7 @@ export async function uploadAsset(
   formData.append("file", file);
   formData.append("fileType", fileType);
 
-  const res = await fetch(`${BASE}/users/${userId}/assets`, {
+  const res = await fetch(`${BASE}/me/assets`, {
     method: "POST",
     body: formData,
   });
@@ -248,16 +339,87 @@ export async function uploadAsset(
 }
 
 export async function getUserAssets(
-  userId: string,
 ): Promise<{ assets: AssetMeta[] }> {
-  const res = await fetch(`${BASE}/users/${userId}/assets`);
-  if (!res.ok) throw new Error(`Assets error ${res.status}`);
+  const res = await fetch(`${BASE}/me/assets`);
+  if (!res.ok) {
+    const err = await readErrorMessage(res);
+    throw new Error(err);
+  }
   return res.json();
 }
 
 export async function deleteAsset(id: string): Promise<void> {
   const res = await fetch(`${BASE}/assets/${id}`, { method: "DELETE" });
-  if (!res.ok) throw new Error(`Delete asset error ${res.status}`);
+  if (!res.ok) {
+    const err = await readErrorMessage(res);
+    throw new Error(err);
+  }
+}
+
+export async function getAdminUsers({
+  query,
+  page,
+  pageSize,
+}: {
+  query?: string;
+  page?: number;
+  pageSize?: number;
+} = {}): Promise<AdminUserListResponse> {
+  const search = new URLSearchParams();
+
+  if (query?.trim()) {
+    search.set("q", query.trim());
+  }
+
+  if (typeof page === "number" && Number.isFinite(page)) {
+    search.set("page", String(page));
+  }
+
+  if (typeof pageSize === "number" && Number.isFinite(pageSize)) {
+    search.set("pageSize", String(pageSize));
+  }
+
+  const params = search.toString() ? `?${search.toString()}` : "";
+  const res = await fetch(`${BASE}/admin/users${params}`);
+
+  if (!res.ok) {
+    const err = await readErrorMessage(res);
+    throw new Error(`Admin users error ${res.status}: ${err}`);
+  }
+
+  return await res.json() as AdminUserListResponse;
+}
+
+export async function getAdminUserDetail(
+  userId: string,
+): Promise<AdminUserDetail> {
+  const res = await fetch(`${BASE}/users/${encodeURIComponent(userId)}`);
+
+  if (!res.ok) {
+    const err = await readErrorMessage(res);
+    throw new Error(`Admin user detail error ${res.status}: ${err}`);
+  }
+
+  return await res.json() as AdminUserDetail;
+}
+
+export async function updateAdminUserAccess(
+  userId: string,
+  patch: AdminUserAccessPatch,
+): Promise<void> {
+  const res = await fetch(
+    `${BASE}/admin/users/${encodeURIComponent(userId)}/access`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    },
+  );
+
+  if (!res.ok) {
+    const err = await readErrorMessage(res);
+    throw new Error(`Admin user access update error ${res.status}: ${err}`);
+  }
 }
 
 // ─── Transcription ───────────────────────────────────────────────────────────
@@ -283,10 +445,9 @@ export async function transcribeAudio(
 // ─── Reports ─────────────────────────────────────────────────────────────────
 
 export async function generateReport(
-  userId: string,
   tier: "free" | "premium" = "free",
 ): Promise<DesignReport> {
-  const res = await fetch(`${BASE}/users/${userId}/report`, {
+  const res = await fetch(`${BASE}/me/report`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ tier }),
@@ -299,10 +460,9 @@ export async function generateReport(
 }
 
 export async function getReport(
-  userId: string,
   tier: "free" | "premium" = "free",
 ): Promise<DesignReport | null> {
-  const res = await fetch(`${BASE}/users/${userId}/report?tier=${tier}`);
+  const res = await fetch(`${BASE}/me/report?tier=${tier}`);
   if (res.status === 404) return null;
   if (!res.ok) {
     const err = await readErrorMessage(res);
@@ -311,15 +471,17 @@ export async function getReport(
   return res.json();
 }
 
-export function getReportPdfUrl(userId: string, tier: "free" | "premium" = "free"): string {
-  return `${BASE}/users/${userId}/report/pdf?tier=${tier}`;
+export function getReportPdfUrl(tier: "free" | "premium" = "free"): string {
+  return `${BASE}/me/report/pdf?tier=${tier}`;
 }
 
-export async function shareReport(userId: string): Promise<{ token: string; url: string }> {
-  const res = await fetch(`${BASE}/users/${userId}/report/share`, {
+export async function shareReport(
+  tier: "free" | "premium" = "free",
+): Promise<{ token: string; url: string }> {
+  const res = await fetch(`${BASE}/me/report/share`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({}),
+    body: JSON.stringify({ tier }),
   });
   if (!res.ok) {
     const err = await readErrorMessage(res);

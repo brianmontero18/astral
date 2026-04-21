@@ -1,12 +1,29 @@
 import { useState, useEffect, useRef } from "react";
 import { getUserAssets, uploadAsset, deleteAsset } from "../api";
+import { getAssetFailureMessage } from "../asset-errors";
 import type { AssetMeta } from "../types";
 
-interface Props {
-  userId: string;
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function AssetViewer({ userId }: Props) {
+function fileTypeLabel(ft: string): string {
+  if (ft === "natal") return "Carta Natal";
+  if (ft === "hd") return "Diseño Humano";
+  return ft;
+}
+
+interface PreviewContentProps {
+  asset: AssetMeta;
+}
+
+interface TextPreviewProps {
+  url: string;
+}
+
+export function AssetViewer() {
   const [assets, setAssets] = useState<AssetMeta[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -16,48 +33,62 @@ export function AssetViewer({ userId }: Props) {
 
   const loadAssets = () => {
     setLoading(true);
-    getUserAssets(userId)
+    setError(null);
+    getUserAssets()
       .then(({ assets: a }) => setAssets(a))
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+      .catch((e) =>
+        setError(getAssetFailureMessage(e, "No pudimos cargar tus archivos ahora.")),
+      )
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { loadAssets(); }, [userId]);
+  useEffect(() => { loadAssets(); }, []);
+
+  useEffect(() => {
+    if (!previewAsset) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setPreviewAsset(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [previewAsset]);
 
   const handleUpload = async (file: File) => {
     setUploading(true);
     setError(null);
     try {
-      await uploadAsset(userId, file, "natal");
+      await uploadAsset(file, "natal");
       loadAssets();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(getAssetFailureMessage(e, "No pudimos sincronizar el archivo."));
     } finally {
       setUploading(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("¿Eliminar este archivo?")) return;
+    if (!confirm("¿Querés eliminar este archivo? Esta acción no se puede deshacer.")) return;
+    setError(null);
     try {
       await deleteAsset(id);
       setAssets((prev) => prev.filter((a) => a.id !== id));
       if (previewAsset?.id === id) setPreviewAsset(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(getAssetFailureMessage(e, "No pudimos eliminar el archivo."));
     }
-  };
-
-  const formatSize = (bytes: number) => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
-
-  const fileTypeLabel = (ft: string) => {
-    if (ft === "natal") return "Carta Natal";
-    if (ft === "hd") return "Diseño Humano";
-    return ft;
   };
 
   if (loading) {
@@ -68,7 +99,7 @@ export function AssetViewer({ userId }: Props) {
           border: "3px solid var(--color-primary-faint)", borderTopColor: "var(--color-primary)",
           animation: "spin 1s linear infinite", margin: "0 auto 16px",
         }} />
-        <span style={{ color: "var(--text-faint)", fontSize: "13px", letterSpacing: "0.05em" }}>Cargando códices...</span>
+        <span style={{ color: "var(--text-faint)", fontSize: "13px", letterSpacing: "0.05em" }}>Cargando archivos...</span>
       </div>
     );
   }
@@ -116,7 +147,7 @@ export function AssetViewer({ userId }: Props) {
       {/* Asset list */}
       {assets.length === 0 && (
         <p style={{ color: "var(--text-faint)", fontSize: "14px", textAlign: "center", fontStyle: "italic", fontFamily: "var(--font-serif)" }}>
-          El vacío cósmico. No hay archivos subidos.
+          Todavía no subiste archivos.
         </p>
       )}
 
@@ -179,6 +210,7 @@ export function AssetViewer({ userId }: Props) {
       {previewAsset && (
         <div
           onClick={() => setPreviewAsset(null)}
+          role="presentation"
           style={{
             position: "fixed", inset: 0, zIndex: 1000,
             background: "rgba(10, 9, 16, 0.85)",
@@ -192,6 +224,9 @@ export function AssetViewer({ userId }: Props) {
           <div
             onClick={(e) => e.stopPropagation()}
             className="glass-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="asset-preview-title"
             style={{
               padding: "24px",
               maxWidth: 800, width: "100%", maxHeight: "85vh",
@@ -199,10 +234,40 @@ export function AssetViewer({ userId }: Props) {
               position: "relative",
             }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-              <span style={{ color: "var(--text-main)", fontSize: "16px", fontWeight: 500, fontFamily: "var(--font-serif)" }}>{previewAsset.filename}</span>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "16px", marginBottom: "20px" }}>
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    color: "var(--color-primary)",
+                    fontSize: "9px",
+                    letterSpacing: "0.14em",
+                    textTransform: "uppercase",
+                    fontWeight: 700,
+                    marginBottom: "8px",
+                  }}
+                >
+                  Vista previa
+                </div>
+                <div
+                  id="asset-preview-title"
+                  style={{ color: "var(--text-main)", fontSize: "16px", fontWeight: 500, fontFamily: "var(--font-serif)", lineHeight: 1.2, wordBreak: "break-word" }}
+                >
+                  {previewAsset.filename}
+                </div>
+                <div
+                  style={{
+                    marginTop: "8px",
+                    color: "var(--text-muted)",
+                    fontSize: "12px",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {fileTypeLabel(previewAsset.fileType)} · {formatSize(previewAsset.sizeBytes)}
+                </div>
+              </div>
               <button
                 onClick={() => setPreviewAsset(null)}
+                aria-label="Cerrar vista previa"
                 style={{
                   background: "transparent", border: "none",
                   color: "var(--text-muted)", fontSize: "24px", cursor: "pointer",
@@ -222,7 +287,7 @@ export function AssetViewer({ userId }: Props) {
   );
 }
 
-function PreviewContent({ asset }: { asset: AssetMeta }) {
+function PreviewContent({ asset }: PreviewContentProps) {
   const url = `/api/assets/${asset.id}`;
   const mime = asset.mimeType ?? "";
 
@@ -238,14 +303,51 @@ function PreviewContent({ asset }: { asset: AssetMeta }) {
     return <TextPreview url={url} />;
   }
 
-  return <p style={{ color: "#7c6fcd", fontSize: 13 }}>Vista previa no disponible para este tipo de archivo.</p>;
+  return (
+    <div
+      style={{
+        padding: "18px 20px",
+        borderRadius: 14,
+        border: "1px solid rgba(255,255,255,0.06)",
+        background: "rgba(255,255,255,0.03)",
+        color: "var(--text-muted)",
+        fontSize: 13,
+        lineHeight: 1.7,
+      }}
+    >
+      Este archivo está guardado correctamente, pero no tiene vista previa dentro de Astral.
+    </div>
+  );
 }
 
-function TextPreview({ url }: { url: string }) {
-  const [text, setText] = useState("Cargando...");
+function TextPreview({ url }: TextPreviewProps) {
+  const [text, setText] = useState("Cargando archivo...");
 
   useEffect(() => {
-    fetch(url).then((r) => r.text()).then(setText).catch(() => setText("Error cargando archivo."));
+    let cancelled = false;
+
+    fetch(url)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("preview_unavailable");
+        }
+
+        return response.text();
+      })
+      .then((value) => {
+        if (!cancelled) {
+          setText(value);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setText("No pudimos mostrar este archivo ahora.");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [url]);
 
   return (

@@ -1,47 +1,82 @@
 import { test, expect } from "@playwright/test";
-import { mockGetUser, mockGetReport, mockUpdateUser, mockGenerateReport, mockHealth } from "../helpers/mock-api";
+import {
+  mockChatHistory,
+  mockGetUser,
+  mockGetReport,
+  mockUpdateUser,
+  mockGenerateReport,
+  mockGenerateReportError,
+  mockHealth,
+} from "../helpers/mock-api";
 import { TEST_USER, TEST_USER_NO_INTAKE, FREE_REPORT } from "../helpers/fixtures";
+import {
+  openFreshReportIntake,
+  openReportEntryPoint,
+  seedAuthenticatedReportShell,
+} from "../helpers/report";
 
 test.describe("Report — First Generation", () => {
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript((user) => {
-      localStorage.setItem("astral_user", JSON.stringify(user));
-    }, TEST_USER);
+    await seedAuthenticatedReportShell(page, TEST_USER);
+  });
+
+  test("Basic users keep initial report load and first generation bound to the allowed free tier", async ({ page }) => {
+    const basicUser = {
+      ...TEST_USER_NO_INTAKE,
+      plan: "basic",
+      role: "user",
+      status: "active",
+    };
+    const requestedReportTiers: string[] = [];
+    const generatedReportTiers: string[] = [];
+
+    await page.unrouteAll();
     await mockHealth(page);
+    await mockChatHistory(page, []);
+    await mockGetUser(page, basicUser);
+    await page.route("**/api/me/report**", async (route) => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+
+      if (pathname !== "/api/me/report") {
+        await route.fallback();
+        return;
+      }
+
+      if (request.method() === "GET") {
+        requestedReportTiers.push(new URL(request.url()).searchParams.get("tier") ?? "missing");
+        await route.fulfill({ status: 404, json: { error: "No report found" } });
+        return;
+      }
+
+      if (request.method() === "POST") {
+        const body = request.postDataJSON() as { tier?: string };
+        generatedReportTiers.push(body.tier ?? "missing");
+        await route.fulfill({ status: 200, json: FREE_REPORT });
+        return;
+      }
+
+      await route.fallback();
+    });
+
+    await openFreshReportIntake(page);
+    await page.getByRole("button", { name: "Omitir" }).click();
+    await expect(page.getByText("Informe Personal")).toBeVisible();
+
+    expect(requestedReportTiers).toEqual(["free"]);
+    expect(generatedReportTiers).toEqual(["free"]);
   });
 
   test('Clicking "Generar mi informe" from Profile Panel navigates to IntakeView', async ({ page }) => {
     await mockGetUser(page, TEST_USER_NO_INTAKE);
     await mockGetReport(page, null); // No cached report — 404
-    // Mock chat history for initial load
-    await page.route("**/api/users/*/messages**", async (route) => {
-      if (route.request().method() === "GET") {
-        await route.fulfill({ status: 200, json: { messages: [], used: 0, limit: 15 } });
-      } else await route.fallback();
-    });
-    await page.goto("/");
-
-    // Open profile panel and click generate
-    await page.getByRole("button", { name: "Test User" }).click();
-    await page.getByRole("button", { name: /Generar mi informe/ }).click();
-
-    // Should land on IntakeView (GET report returned 404)
-    await expect(page.getByText("Personalizá tu informe")).toBeVisible();
+    await openFreshReportIntake(page);
   });
 
   test("User can type in all 3 intake fields", async ({ page }) => {
     await mockGetUser(page, TEST_USER_NO_INTAKE);
     await mockGetReport(page, null);
-    await page.route("**/api/users/*/messages**", async (route) => {
-      if (route.request().method() === "GET") {
-        await route.fulfill({ status: 200, json: { messages: [], used: 0, limit: 15 } });
-      } else await route.fallback();
-    });
-    await page.goto("/");
-
-    await page.getByRole("button", { name: "Test User" }).click();
-    await page.getByRole("button", { name: /Generar mi informe/ }).click();
-    await expect(page.getByText("Personalizá tu informe")).toBeVisible();
+    await openFreshReportIntake(page);
 
     await page.getByLabel("¿A qué te dedicás?").fill("Soy diseñadora");
     await page.getByLabel("¿Qué buscás en este momento?").fill("Entender mi energía");
@@ -57,15 +92,7 @@ test.describe("Report — First Generation", () => {
     await mockGetReport(page, null);
     await mockUpdateUser(page);
     await mockGenerateReport(page, FREE_REPORT);
-    await page.route("**/api/users/*/messages**", async (route) => {
-      if (route.request().method() === "GET") {
-        await route.fulfill({ status: 200, json: { messages: [], used: 0, limit: 15 } });
-      } else await route.fallback();
-    });
-    await page.goto("/");
-
-    await page.getByRole("button", { name: "Test User" }).click();
-    await page.getByRole("button", { name: /Generar mi informe/ }).click();
+    await openFreshReportIntake(page);
 
     await page.getByLabel("¿A qué te dedicás?").fill("Soy diseñadora");
     await page.getByRole("button", { name: /Generar mi informe/ }).click();
@@ -79,19 +106,21 @@ test.describe("Report — First Generation", () => {
     await mockGetUser(page, TEST_USER_NO_INTAKE);
     await mockGetReport(page, null);
     await mockGenerateReport(page, FREE_REPORT);
-    await page.route("**/api/users/*/messages**", async (route) => {
-      if (route.request().method() === "GET") {
-        await route.fulfill({ status: 200, json: { messages: [], used: 0, limit: 15 } });
-      } else await route.fallback();
-    });
-    await page.goto("/");
-
-    await page.getByRole("button", { name: "Test User" }).click();
-    await page.getByRole("button", { name: /Generar mi informe/ }).click();
-    await expect(page.getByText("Personalizá tu informe")).toBeVisible();
-
+    await openFreshReportIntake(page);
     await page.getByRole("button", { name: "Omitir" }).click();
     await expect(page.getByText("Informe Personal")).toBeVisible();
+  });
+
+  test("First generation failure shows a user-safe fallback instead of backend details", async ({ page }) => {
+    await mockGetUser(page, TEST_USER_NO_INTAKE);
+    await mockGetReport(page, null);
+    await mockGenerateReportError(page, 500);
+    await openFreshReportIntake(page);
+    await page.getByRole("button", { name: "Omitir" }).click();
+
+    await expect(page.getByText("No se pudo generar el informe. Intentá de nuevo.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Volver", exact: true })).toBeVisible();
+    await expect(page.getByText("Generation failed")).not.toBeVisible();
   });
 
   test("Report shows free sections expanded and premium sections locked", async ({ page }) => {
@@ -99,20 +128,11 @@ test.describe("Report — First Generation", () => {
     await mockGetReport(page, null);
     await mockUpdateUser(page);
     await mockGenerateReport(page, FREE_REPORT);
-    await page.route("**/api/users/*/messages**", async (route) => {
-      if (route.request().method() === "GET") {
-        await route.fulfill({ status: 200, json: { messages: [], used: 0, limit: 15 } });
-      } else await route.fallback();
-    });
-    await page.goto("/");
-
-    await page.getByRole("button", { name: "Test User" }).click();
-    await page.getByRole("button", { name: /Generar mi informe/ }).click();
+    await openFreshReportIntake(page);
     await page.getByRole("button", { name: "Omitir" }).click();
 
     await expect(page.getByText("Tu Tipo")).toBeVisible();
     await expect(page.getByText("Tu Autoridad")).toBeVisible();
-    // Premium sections have lock icon
     await expect(page.getByText("🔒").first()).toBeVisible();
   });
 
@@ -120,17 +140,8 @@ test.describe("Report — First Generation", () => {
     await mockGetUser(page, TEST_USER_NO_INTAKE);
     await mockGetReport(page, null);
     await mockGenerateReport(page, FREE_REPORT);
-    await page.route("**/api/users/*/messages**", async (route) => {
-      if (route.request().method() === "GET") {
-        await route.fulfill({ status: 200, json: { messages: [], used: 0, limit: 15 } });
-      } else await route.fallback();
-    });
-    await page.goto("/");
-
-    await page.getByRole("button", { name: "Test User" }).click();
-    await page.getByRole("button", { name: /Generar mi informe/ }).click();
+    await openFreshReportIntake(page);
     await page.getByRole("button", { name: "Omitir" }).click();
-
     await expect(page.getByText(/Generado el/)).toBeVisible();
   });
 
@@ -138,15 +149,7 @@ test.describe("Report — First Generation", () => {
     await mockGetUser(page, TEST_USER_NO_INTAKE);
     await mockGetReport(page, null);
     await mockGenerateReport(page, FREE_REPORT);
-    await page.route("**/api/users/*/messages**", async (route) => {
-      if (route.request().method() === "GET") {
-        await route.fulfill({ status: 200, json: { messages: [], used: 0, limit: 15 } });
-      } else await route.fallback();
-    });
-    await page.goto("/");
-
-    await page.getByRole("button", { name: "Test User" }).click();
-    await page.getByRole("button", { name: /Generar mi informe/ }).click();
+    await openReportEntryPoint(page);
     await page.getByRole("button", { name: "Omitir" }).click();
     await expect(page.getByText("Informe Personal")).toBeVisible();
 
