@@ -89,11 +89,11 @@ export async function initDb(): Promise<void> {
         id         TEXT PRIMARY KEY,
         name       TEXT NOT NULL,
         email      TEXT DEFAULT NULL,
-        profile    TEXT NOT NULL,
-        intake     TEXT DEFAULT NULL,
-        plan       TEXT NOT NULL DEFAULT 'free',
-        role       TEXT NOT NULL DEFAULT 'user',
-        status     TEXT NOT NULL DEFAULT 'active',
+        profile    TEXT NOT NULL CHECK(json_valid(profile)),
+        intake     TEXT DEFAULT NULL CHECK(intake IS NULL OR json_valid(intake)),
+        plan       TEXT NOT NULL DEFAULT 'free' CHECK(plan IN ('free', 'basic', 'premium')),
+        role       TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('user', 'admin')),
+        status     TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'disabled', 'banned')),
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       )`,
@@ -105,7 +105,8 @@ export async function initDb(): Promise<void> {
         file_type  TEXT NOT NULL,
         data       BLOB NOT NULL,
         size_bytes INTEGER NOT NULL,
-        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       )`,
       `CREATE TABLE IF NOT EXISTS transit_cache (
         week_key   TEXT PRIMARY KEY,
@@ -128,6 +129,7 @@ export async function initDb(): Promise<void> {
         tokens_used  INTEGER NOT NULL DEFAULT 0,
         cost_usd     REAL NOT NULL DEFAULT 0,
         created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
         UNIQUE(user_id, tier)
       )`,
       `CREATE TABLE IF NOT EXISTS report_shares (
@@ -149,36 +151,54 @@ export async function initDb(): Promise<void> {
     "write",
   );
 
-  // Add intake column to existing DBs (idempotent)
-  try {
-    await client.execute("ALTER TABLE users ADD COLUMN intake TEXT DEFAULT NULL");
-  } catch {
-    // Column already exists
+  // ─── Idempotent migrations for existing DBs ────────────────────────────────
+  // SQLite ALTER TABLE ADD COLUMN doesn't accept dynamic defaults like
+  // datetime('now'), so we add the column nullable and backfill from created_at.
+  const idempotentAlters: Array<string> = [
+    "ALTER TABLE users ADD COLUMN intake TEXT DEFAULT NULL",
+    "ALTER TABLE users ADD COLUMN email TEXT DEFAULT NULL",
+    "ALTER TABLE users ADD COLUMN plan TEXT NOT NULL DEFAULT 'free'",
+    "ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'",
+    "ALTER TABLE users ADD COLUMN status TEXT NOT NULL DEFAULT 'active'",
+    "ALTER TABLE assets ADD COLUMN updated_at TEXT",
+    "ALTER TABLE hd_reports ADD COLUMN updated_at TEXT",
+  ];
+
+  for (const sql of idempotentAlters) {
+    try {
+      await client.execute(sql);
+    } catch {
+      // Column already exists — safe to ignore.
+    }
   }
 
+  // Backfill new updated_at columns from created_at so rows inserted before the
+  // migration still have a meaningful timestamp.
   try {
-    await client.execute("ALTER TABLE users ADD COLUMN email TEXT DEFAULT NULL");
+    await client.batch(
+      [
+        "UPDATE assets SET updated_at = created_at WHERE updated_at IS NULL",
+        "UPDATE hd_reports SET updated_at = created_at WHERE updated_at IS NULL",
+      ],
+      "write",
+    );
   } catch {
-    // Column already exists
+    // Tables may not exist yet on a fresh run; CREATE TABLE above handled defaults.
   }
 
-  try {
-    await client.execute("ALTER TABLE users ADD COLUMN plan TEXT NOT NULL DEFAULT 'free'");
-  } catch {
-    // Column already exists
-  }
-
-  try {
-    await client.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'");
-  } catch {
-    // Column already exists
-  }
-
-  try {
-    await client.execute("ALTER TABLE users ADD COLUMN status TEXT NOT NULL DEFAULT 'active'");
-  } catch {
-    // Column already exists
-  }
+  // ─── Indexes ───────────────────────────────────────────────────────────────
+  // SQLite does not auto-index foreign keys. These cover the hot-path queries
+  // that filter or order by user_id and shared-token expiry.
+  await client.batch(
+    [
+      "CREATE INDEX IF NOT EXISTS idx_assets_user ON assets(user_id)",
+      "CREATE INDEX IF NOT EXISTS idx_chat_user_created ON chat_messages(user_id, created_at)",
+      "CREATE INDEX IF NOT EXISTS idx_identities_user ON user_identities(user_id)",
+      "CREATE INDEX IF NOT EXISTS idx_shares_user ON report_shares(user_id)",
+      "CREATE INDEX IF NOT EXISTS idx_shares_expires ON report_shares(expires_at)",
+    ],
+    "write",
+  );
 }
 
 // ─── Users ───────────────────────────────────────────────────────────────────
@@ -503,7 +523,7 @@ export async function getUserAssetCount(userId: string): Promise<number> {
 
 export async function getAsset(
   id: string,
-): Promise<{ id: string; user_id: string; filename: string; mime_type: string; file_type: string; data: Buffer; size_bytes: number; created_at: string } | undefined> {
+): Promise<{ id: string; user_id: string; filename: string; mime_type: string; file_type: string; data: Buffer; size_bytes: number; created_at: string; updated_at: string } | undefined> {
   const result = await client.execute({
     sql: "SELECT * FROM assets WHERE id = ?",
     args: [id],
@@ -519,6 +539,7 @@ export async function getAsset(
     data: Buffer.from(row.data as ArrayBuffer),
     size_bytes: row.size_bytes as number,
     created_at: row.created_at as string,
+    updated_at: row.updated_at as string,
   };
 }
 
@@ -613,9 +634,9 @@ export async function getUserMessageCount(
 export async function getReport(
   userId: string,
   tier: string,
-): Promise<{ id: string; user_id: string; tier: string; profile_hash: string; content: string; tokens_used: number; cost_usd: number; created_at: string } | undefined> {
+): Promise<{ id: string; user_id: string; tier: string; profile_hash: string; content: string; tokens_used: number; cost_usd: number; created_at: string; updated_at: string } | undefined> {
   const result = await client.execute({
-    sql: "SELECT id, user_id, tier, profile_hash, content, tokens_used, cost_usd, created_at FROM hd_reports WHERE user_id = ? AND tier = ?",
+    sql: "SELECT id, user_id, tier, profile_hash, content, tokens_used, cost_usd, created_at, updated_at FROM hd_reports WHERE user_id = ? AND tier = ?",
     args: [userId, tier],
   });
   const row = result.rows[0];
@@ -629,6 +650,7 @@ export async function getReport(
     tokens_used: row.tokens_used as number,
     cost_usd: row.cost_usd as number,
     created_at: row.created_at as string,
+    updated_at: row.updated_at as string,
   };
 }
 
@@ -665,14 +687,14 @@ export async function saveReport(report: {
   if (existing.rows.length > 0) {
     const existingId = existing.rows[0].id as string;
     await client.execute({
-      sql: `UPDATE hd_reports SET profile_hash = ?, content = ?, tokens_used = ?, cost_usd = ?, created_at = datetime('now') WHERE id = ?`,
+      sql: `UPDATE hd_reports SET profile_hash = ?, content = ?, tokens_used = ?, cost_usd = ?, updated_at = datetime('now') WHERE id = ?`,
       args: [report.profileHash, report.content, report.tokensUsed, report.costUsd, existingId],
     });
     return existingId;
   }
   await client.execute({
-    sql: `INSERT INTO hd_reports (id, user_id, tier, profile_hash, content, tokens_used, cost_usd, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+    sql: `INSERT INTO hd_reports (id, user_id, tier, profile_hash, content, tokens_used, cost_usd, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
     args: [report.id, report.userId, report.tier, report.profileHash, report.content, report.tokensUsed, report.costUsd],
   });
   return report.id;
@@ -680,7 +702,7 @@ export async function saveReport(report: {
 
 export async function updateReportContent(id: string, content: string): Promise<void> {
   await client.execute({
-    sql: "UPDATE hd_reports SET content = ? WHERE id = ?",
+    sql: "UPDATE hd_reports SET content = ?, updated_at = datetime('now') WHERE id = ?",
     args: [content, id],
   });
 }

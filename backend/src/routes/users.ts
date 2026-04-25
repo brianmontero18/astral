@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
+import SuperTokens from "supertokens-node";
 import {
   createUserWithIdentity,
   deleteUser,
@@ -24,6 +25,27 @@ import {
 } from "../auth/current-user.js";
 import type { AuthenticatedAppUser } from "../auth/identity.js";
 import { getMessageLimitForPlan } from "../chat-limits.js";
+
+async function fetchProviderEmail(
+  app: FastifyInstance,
+  provider: string,
+  subject: string,
+): Promise<string | null> {
+  if (provider !== "supertokens") {
+    return null;
+  }
+
+  try {
+    const stUser = await SuperTokens.getUser(subject);
+    return stUser?.emails?.[0] ?? null;
+  } catch (error) {
+    app.log.warn(
+      { err: error, provider, subject },
+      "Failed to fetch email from SuperTokens at signup",
+    );
+    return null;
+  }
+}
 
 const ALLOWED_USER_PLANS = new Set<AppUserPlan>(["free", "basic", "premium"]);
 const ALLOWED_USER_ROLES = new Set<AppUserRole>(["user", "admin"]);
@@ -55,12 +77,19 @@ export async function userRoutes(app: FastifyInstance) {
       return sendCurrentUserError(reply, currentUser);
     }
 
+    const email = await fetchProviderEmail(
+      app,
+      currentUser.provider,
+      currentUser.subject,
+    );
+
     try {
       const id = await createUserWithIdentity(
         name,
         profile,
         currentUser.provider,
         currentUser.subject,
+        { email },
       );
 
       return reply.status(201).send({ id });
