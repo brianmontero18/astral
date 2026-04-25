@@ -17,6 +17,7 @@ vi.mock("../report/generate-report.js", () => ({
 }));
 
 const {
+  getReport,
   getUser,
   saveReport,
   updateUserProfile,
@@ -689,4 +690,91 @@ describe("Report routes", () => {
       expect(generateReportMock).not.toHaveBeenCalled();
     },
   );
+
+  // Regression tests for the saveReport / updateReportContent timestamp
+  // contract. SQLite datetime('now') has second-level precision, so the
+  // tests sleep ~1.1s between seed and re-write to make the assertion
+  // unambiguous: with the previous bug (created_at being overwritten on
+  // regen) these assertions would fail because the bumped timestamp
+  // would land in a different second than the original seed.
+  it("POST /api/me/report regeneration preserves created_at and bumps updated_at", async () => {
+    const subject = "st-report-regen-timestamps";
+    const userId = await createLinkedTestUser(app, subject);
+
+    await saveReport({
+      id: `report-${userId}-free`,
+      userId,
+      tier: "free",
+      profileHash: "stale-hash",
+      content: "{}",
+      tokensUsed: 0,
+      costUsd: 0,
+    });
+
+    const initial = await getReport(userId, "free");
+    expect(initial).toBeDefined();
+    const originalCreatedAt = initial!.created_at;
+    expect(initial!.updated_at).toBe(originalCreatedAt);
+
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+
+    generateReportMock.mockResolvedValueOnce({
+      tier: "free",
+      profileHash: "fresh-hash",
+      sections: [
+        {
+          id: "mechanical-chart",
+          title: "Tu Carta Mecánica",
+          icon: "⚙️",
+          tier: "free",
+          staticContent: "regenerated chart",
+        },
+      ],
+      tokensUsed: 7,
+      costUsd: 0.0001,
+      degraded: false,
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/me/report",
+      headers: sessionHeaders(subject),
+      payload: { tier: "free" },
+    });
+
+    expect(res.statusCode).toBe(200);
+
+    const after = await getReport(userId, "free");
+    expect(after).toBeDefined();
+    expect(after!.created_at).toBe(originalCreatedAt);
+    expect(after!.updated_at > originalCreatedAt).toBe(true);
+  });
+
+  it("updateReportContent bumps updated_at without touching created_at", async () => {
+    const subject = "st-report-content-update-timestamps";
+    const userId = await createLinkedTestUser(app, subject);
+
+    const reportId = await saveReport({
+      id: `report-${userId}-free`,
+      userId,
+      tier: "free",
+      profileHash: "any-hash",
+      content: "{}",
+      tokensUsed: 0,
+      costUsd: 0,
+    });
+
+    const initial = await getReport(userId, "free");
+    expect(initial).toBeDefined();
+    const originalCreatedAt = initial!.created_at;
+
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+
+    await updateReportContent(reportId, JSON.stringify({ summary: "patched" }));
+
+    const after = await getReport(userId, "free");
+    expect(after).toBeDefined();
+    expect(after!.created_at).toBe(originalCreatedAt);
+    expect(after!.updated_at > originalCreatedAt).toBe(true);
+  });
 });

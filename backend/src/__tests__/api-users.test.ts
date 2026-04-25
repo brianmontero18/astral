@@ -5,12 +5,27 @@
  * Uses Fastify inject() with in-memory SQLite. No running server needed.
  */
 
-import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { randomUUID } from "node:crypto";
 import { mockSessionModule } from "./session-mock.js";
 
 vi.mock("../auth/session.js", () => mockSessionModule());
+
+// Mock SuperTokens.getUser so signup tests can control the email returned
+// by the auth provider without contacting a real SuperTokens core.
+const supertokensGetUserMock = vi.fn();
+vi.mock("supertokens-node", async () => {
+  const actual =
+    await vi.importActual<typeof import("supertokens-node")>("supertokens-node");
+  return {
+    ...actual,
+    default: {
+      ...actual.default,
+      getUser: supertokensGetUserMock,
+    },
+  };
+});
 
 const {
   createLinkedTestUser,
@@ -28,6 +43,10 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await app.close();
+});
+
+beforeEach(() => {
+  supertokensGetUserMock.mockReset();
 });
 
 describe("POST /api/users", () => {
@@ -115,6 +134,46 @@ describe("POST /api/users", () => {
       plan: "free",
       linked: true,
     });
+  });
+
+  it("persists the email returned by SuperTokens at signup", async () => {
+    supertokensGetUserMock.mockResolvedValueOnce({
+      emails: ["new-signup@astral.test"],
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/users",
+      headers: sessionHeaders("st-signup-with-email"),
+      payload: { name: "Brian", profile: { type: "Generador" } },
+    });
+
+    expect(res.statusCode).toBe(201);
+    const { id } = JSON.parse(res.body);
+
+    const { getUser } = await import("../db.js");
+    const user = await getUser(id);
+    expect(user?.email).toBe("new-signup@astral.test");
+  });
+
+  it("falls back to null email when SuperTokens lookup throws", async () => {
+    supertokensGetUserMock.mockRejectedValueOnce(
+      new Error("supertokens core unavailable"),
+    );
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/users",
+      headers: sessionHeaders("st-signup-email-fallback"),
+      payload: { name: "Brian", profile: { type: "Generador" } },
+    });
+
+    expect(res.statusCode).toBe(201);
+    const { id } = JSON.parse(res.body);
+
+    const { getUser } = await import("../db.js");
+    const user = await getUser(id);
+    expect(user?.email).toBeNull();
   });
 
   it("rejects anonymous bootstrap after rollout cleanup", async () => {
