@@ -8,6 +8,7 @@
     "start": "cd backend && npm start",
     "test": "cd backend && npm test",
     "check": "cd frontend && npx tsc --noEmit && cd ../backend && npx tsc --noEmit",
+    "check:registry": "if grep -lE 'furycloud|artifacts\\.fury|registry\\..*\\.mercadolibre' package-lock.json backend/package-lock.json frontend/package-lock.json 2>/dev/null; then echo '\\n❌ ERROR: package-lock contains private/internal registry URLs. Run: sed -i \"\" \"s|https://npm.artifacts.furycloud.io/repository/all|https://registry.npmjs.org|g\" path/to/package-lock.json' && exit 1; else echo '✅ Lock files clean (public npm only)'; fi",
     "test:e2e": "playwright test --config=e2e/playwright.config.ts",
     "test:e2e:ui": "playwright test --config=e2e/playwright.config.ts --ui"
   },
