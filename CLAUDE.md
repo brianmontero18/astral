@@ -125,8 +125,8 @@ El proxy Vite reenvía `/api/*` a `localhost:3000`. Backend usa prefix `/api` en
 - **Center normalization**: GPT-4o Vision extrae centros en español ("Cabeza", "Bazo"). El código usa IDs canónicos en inglés ("Head", "Spleen"). `normalizeCenter()` en `hd-gates.ts` maneja la conversión.
 - **No Next.js**: Fastify sirve el build estático de React en producción. Una app, un deploy.
 - **No npm workspaces**: causaba hoisting que rompía tipos. Root usa `cd backend && ...`.
-- **Archivos como BLOB**: suficiente para MVP. No filesystem.
-- **Sin autenticación**: UUID del usuario es la llave. Guardado en localStorage.
+- **Assets en Cloudflare R2**: `assets.storage_key` apunta a `users/{userId}/assets/{assetId}.{ext}`. La columna BLOB legacy se dropeó. Setup en `docs/r2-setup.md`. R2 es obligatorio en producción — `server.ts` valida al boot.
+- **Auth con SuperTokens managed**: passwordless email + sessions httpOnly. Mapping de identity en `user_identities`. Setup y env vars en backend cubren dev (Dev core) y prod (Production core). Email del user se persiste en `users.email` en signup desde la sesión de SuperTokens.
 - **Backend sin hot-reload**: `node --import tsx/esm` sin watch. Reiniciar manualmente.
 - **API responses en camelCase**: rutas backend mapean snake_case de SQLite a camelCase.
 

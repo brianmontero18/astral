@@ -20,11 +20,11 @@ const PORT = parseInt(process.env.PORT ?? "3000", 10);
 const IS_PROD = process.env.NODE_ENV === "production";
 
 function assertEnv() {
-  const missing = [
-    !OPENAI_KEY && "OPENAI_API_KEY",
-    IS_PROD && !isR2Configured() &&
-      "R2_ACCOUNT_ID + R2_ACCESS_KEY_ID + R2_SECRET_ACCESS_KEY + R2_BUCKET_NAME",
-  ].filter(Boolean);
+  const missing: Array<string> = [];
+  if (!OPENAI_KEY) missing.push("OPENAI_API_KEY");
+  if (IS_PROD && !isR2Configured()) {
+    missing.push("R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET_NAME");
+  }
   if (missing.length) {
     throw new Error(`Missing env vars: ${missing.join(", ")}`);
   }

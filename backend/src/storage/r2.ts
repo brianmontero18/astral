@@ -4,9 +4,9 @@
  * R2 is S3-compatible, so we drive it with @aws-sdk/client-s3 pointed at the
  * R2 endpoint. Credentials and bucket are R2-only — AWS is never contacted.
  *
- * The module is intentionally lazy: if R2 env vars are absent, the asset
- * layer in db.ts keeps using the legacy BLOB column. This lets us deploy the
- * code before the bucket is provisioned without breaking the running app.
+ * Initialization is lazy: the S3 client is built on the first put/get/delete
+ * call. server.ts asserts isR2Configured() in production at boot, so a
+ * misconfigured prod deploy fails loudly before any request is served.
  */
 
 import {
