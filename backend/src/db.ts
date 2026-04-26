@@ -199,14 +199,19 @@ export async function initDb(): Promise<void> {
   // stored the R2 key as nullable. With R2 as the source of truth the BLOB
   // column is dead weight and storage_key must be NOT NULL. Detect the legacy
   // shape via pragma and rebuild the table when present. Idempotent.
+  // pragma_table_info exposes a column literally named `notnull`, which is a
+  // reserved word in libsql/SQLite (part of the `IS NOTNULL` operator). It can
+  // be referenced if quoted, but it cannot be used as an unquoted alias —
+  // hence we read it back without aliasing and access it via bracket notation
+  // on the row object.
   const assetsInfo = await client.execute({
-    sql: "SELECT name, [notnull] AS notnull FROM pragma_table_info('assets')",
+    sql: 'SELECT name, "notnull" FROM pragma_table_info(\'assets\')',
     args: [],
   });
   const dataColumnExists = assetsInfo.rows.some((row) => row.name === "data");
   const storageKeyColumn = assetsInfo.rows.find((row) => row.name === "storage_key");
   const storageKeyNullable = storageKeyColumn
-    ? Number(storageKeyColumn.notnull) === 0
+    ? Number(storageKeyColumn["notnull"]) === 0
     : false;
 
   if (dataColumnExists || storageKeyNullable) {
