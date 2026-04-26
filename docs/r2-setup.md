@@ -42,41 +42,25 @@ R2_SECRET_ACCESS_KEY=<el secret access key de paso 2.6>
 R2_BUCKET_NAME=astral-assets
 ```
 
-Save → Render redespliega automáticamente.
+Save → Render redespliega automáticamente. **El boot del backend valida las 4
+env vars al arrancar** (`isR2Configured()` en `server.ts`), así que si faltan
+o están mal escritas el deploy falla loud — no esperás al primer upload.
 
-### 4. Migrar el asset legado (uno-shot)
+### 4. Verificar
 
-Para mover el bodygraph que ya tenés en la columna BLOB de Turso hacia R2, corré la migración:
-
-```bash
-# Local, con las mismas creds de prod:
-cd backend
-npm run migrate:assets-to-r2
-```
-
-Output esperado:
-```
-Found 1 asset(s) to migrate.
-  ✓ <asset-id> → users/<user-id>/assets/<asset-id>.pdf (xxxxx bytes)
-
-Done. Migrated: 1. Failed: 0.
-```
-
-El script es **idempotente**: solo procesa rows con `storage_key IS NULL AND length(data) > 0`. Si lo corrés dos veces, la segunda no hace nada.
-
-### 5. Verificar
-
-Cargá `https://astral.soydanielamedina.com/`, andá al onboarding, y abrí tu bodygraph. Si descarga normal → migración OK.
-
-En logs de Render no debería haber errores. En la DB, ahora:
+Cargá `https://astral.soydanielamedina.com/`, andá al onboarding, subí un
+bodygraph. Verificás:
 
 ```sql
-SELECT id, filename, length(data) AS blob_size, storage_key FROM assets;
+SELECT id, filename, size_bytes, storage_key FROM assets;
 ```
 
-Vas a ver:
-- `blob_size = 0` (placeholder)
-- `storage_key = users/<user-id>/assets/<asset-id>.pdf`
+Tendrías que ver `storage_key = users/<user-id>/assets/<asset-id>.pdf` para
+cada asset. La tabla **ya no tiene** la columna `data` (la dropeamos al
+consolidar el modelo).
+
+En el R2 dashboard → bucket `astral-assets` → tab Objects → drilling down
+`users/.../assets/` ves el PDF servido.
 
 ## Observabilidad
 
@@ -85,7 +69,6 @@ Vas a ver:
 
 ## Pendientes futuros (no en este PR)
 
-- **Drop column `data`** de `assets` después de validar que todos los assets están en R2 (segundo PR — requiere table rebuild en SQLite).
 - **Signed URLs / direct serving**: hoy los downloads pasan por el backend Fastify (proxy). Más adelante se puede generar signed URL y redirigir, o usar el dominio público de R2 con un CNAME → menor latencia + caché de Cloudflare.
 - **Lifecycle rules**: borrar uploads orfanados (> 30 días, sin row en DB) automáticamente desde R2.
 

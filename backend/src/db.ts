@@ -8,7 +8,6 @@ import {
   deleteObject as r2DeleteObject,
   getObject as r2GetObject,
   inferExtensionFromFile,
-  isR2Configured,
   putObject as r2PutObject,
 } from "./storage/r2.js";
 
@@ -111,9 +110,8 @@ export async function initDb(): Promise<void> {
         filename    TEXT NOT NULL,
         mime_type   TEXT NOT NULL,
         file_type   TEXT NOT NULL,
-        data        BLOB NOT NULL,
         size_bytes  INTEGER NOT NULL,
-        storage_key TEXT DEFAULT NULL,
+        storage_key TEXT NOT NULL,
         created_at  TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
       )`,
@@ -194,6 +192,57 @@ export async function initDb(): Promise<void> {
     );
   } catch {
     // Tables may not exist yet on a fresh run; CREATE TABLE above handled defaults.
+  }
+
+  // ─── One-shot R2 schema cleanup ────────────────────────────────────────────
+  // Legacy schema kept the asset bytes in a `data BLOB NOT NULL` column and
+  // stored the R2 key as nullable. With R2 as the source of truth the BLOB
+  // column is dead weight and storage_key must be NOT NULL. Detect the legacy
+  // shape via pragma and rebuild the table when present. Idempotent.
+  const assetsInfo = await client.execute({
+    sql: "SELECT name, [notnull] AS notnull FROM pragma_table_info('assets')",
+    args: [],
+  });
+  const dataColumnExists = assetsInfo.rows.some((row) => row.name === "data");
+  const storageKeyColumn = assetsInfo.rows.find((row) => row.name === "storage_key");
+  const storageKeyNullable = storageKeyColumn
+    ? Number(storageKeyColumn.notnull) === 0
+    : false;
+
+  if (dataColumnExists || storageKeyNullable) {
+    const orphans = await client.execute({
+      sql: "SELECT COUNT(*) AS count FROM assets WHERE storage_key IS NULL",
+      args: [],
+    });
+    const orphanCount = Number(orphans.rows[0]?.count ?? 0);
+    if (orphanCount > 0) {
+      throw new Error(
+        `Cannot rebuild assets table: ${orphanCount} row(s) have NULL storage_key. ` +
+        "Migrate them to R2 (or DELETE the rows) before redeploying with this schema.",
+      );
+    }
+
+    await client.batch(
+      [
+        `CREATE TABLE assets_new (
+          id          TEXT PRIMARY KEY,
+          user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          filename    TEXT NOT NULL,
+          mime_type   TEXT NOT NULL,
+          file_type   TEXT NOT NULL,
+          size_bytes  INTEGER NOT NULL,
+          storage_key TEXT NOT NULL,
+          created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+        )`,
+        `INSERT INTO assets_new (id, user_id, filename, mime_type, file_type, size_bytes, storage_key, created_at, updated_at)
+         SELECT id, user_id, filename, mime_type, file_type, size_bytes, storage_key, created_at, updated_at
+         FROM assets`,
+        "DROP TABLE assets",
+        "ALTER TABLE assets_new RENAME TO assets",
+      ],
+      "write",
+    );
   }
 
   // ─── Indexes ───────────────────────────────────────────────────────────────
@@ -490,8 +539,6 @@ export async function deleteUser(id: string): Promise<boolean> {
 
 // ─── Assets ──────────────────────────────────────────────────────────────────
 
-const EMPTY_BLOB = Buffer.alloc(0);
-
 export async function createAsset(
   userId: string,
   filename: string,
@@ -500,19 +547,14 @@ export async function createAsset(
   data: Buffer,
 ): Promise<string> {
   const id = randomUUID();
-  let storageKey: string | null = null;
-  let blobToStore: Buffer = data;
+  const ext = inferExtensionFromFile(filename, mimeType);
+  const storageKey = buildAssetKey(userId, id, ext);
 
-  if (isR2Configured()) {
-    const ext = inferExtensionFromFile(filename, mimeType);
-    storageKey = buildAssetKey(userId, id, ext);
-    await r2PutObject({ key: storageKey, body: data, contentType: mimeType });
-    blobToStore = EMPTY_BLOB;
-  }
+  await r2PutObject({ key: storageKey, body: data, contentType: mimeType });
 
   await client.execute({
-    sql: "INSERT INTO assets (id, user_id, filename, mime_type, file_type, data, size_bytes, storage_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-    args: [id, userId, filename, mimeType, fileType, blobToStore, data.length, storageKey],
+    sql: "INSERT INTO assets (id, user_id, filename, mime_type, file_type, size_bytes, storage_key) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    args: [id, userId, filename, mimeType, fileType, data.length, storageKey],
   });
   return id;
 }
@@ -545,18 +587,16 @@ export async function getUserAssetCount(userId: string): Promise<number> {
 
 export async function getAsset(
   id: string,
-): Promise<{ id: string; user_id: string; filename: string; mime_type: string; file_type: string; data: Buffer; size_bytes: number; storage_key: string | null; created_at: string; updated_at: string } | undefined> {
+): Promise<{ id: string; user_id: string; filename: string; mime_type: string; file_type: string; data: Buffer; size_bytes: number; storage_key: string; created_at: string; updated_at: string } | undefined> {
   const result = await client.execute({
-    sql: "SELECT * FROM assets WHERE id = ?",
+    sql: "SELECT id, user_id, filename, mime_type, file_type, size_bytes, storage_key, created_at, updated_at FROM assets WHERE id = ?",
     args: [id],
   });
   const row = result.rows[0];
   if (!row) return undefined;
 
-  const storageKey = (row.storage_key as string | null) ?? null;
-  const data = storageKey
-    ? await r2GetObject(storageKey)
-    : Buffer.from(row.data as ArrayBuffer);
+  const storageKey = row.storage_key as string;
+  const data = await r2GetObject(storageKey);
 
   return {
     id: row.id as string,
@@ -577,17 +617,19 @@ export async function deleteAsset(id: string): Promise<boolean> {
     sql: "SELECT storage_key FROM assets WHERE id = ?",
     args: [id],
   });
-  const storageKey = (lookup.rows[0]?.storage_key as string | null) ?? null;
+  const storageKey = lookup.rows[0]?.storage_key as string | undefined;
 
-  if (storageKey) {
-    try {
-      await r2DeleteObject(storageKey);
-    } catch (error) {
-      // Log via stderr but don't fail the DB delete — the row removal is
-      // the source of truth for the user-facing operation. R2 orphans can
-      // be reaped by a separate cleanup job later.
-      console.error(`[deleteAsset] R2 delete failed for ${storageKey}:`, error);
-    }
+  if (!storageKey) {
+    return false;
+  }
+
+  try {
+    await r2DeleteObject(storageKey);
+  } catch (error) {
+    // Log via stderr but don't fail the DB delete — the row removal is
+    // the source of truth for the user-facing operation. R2 orphans can
+    // be reaped by a separate cleanup job later.
+    console.error(`[deleteAsset] R2 delete failed for ${storageKey}:`, error);
   }
 
   const result = await client.execute({
@@ -595,49 +637,6 @@ export async function deleteAsset(id: string): Promise<boolean> {
     args: [id],
   });
   return result.rowsAffected > 0;
-}
-
-export interface UnmigratedAssetRow {
-  id: string;
-  user_id: string;
-  filename: string;
-  mime_type: string;
-  size_bytes: number;
-  data: Buffer;
-}
-
-/** Return assets that still hold their bytes in the BLOB column. */
-export async function listUnmigratedAssets(): Promise<Array<UnmigratedAssetRow>> {
-  const result = await client.execute({
-    sql: `SELECT id, user_id, filename, mime_type, size_bytes, data
-          FROM assets
-          WHERE storage_key IS NULL AND length(data) > 0`,
-    args: [],
-  });
-
-  return result.rows.map((row) => ({
-    id: row.id as string,
-    user_id: row.user_id as string,
-    filename: row.filename as string,
-    mime_type: row.mime_type as string,
-    size_bytes: row.size_bytes as number,
-    data: Buffer.from(row.data as ArrayBuffer),
-  }));
-}
-
-/**
- * Mark an asset as migrated to R2: record the storage key and clear the
- * BLOB column to a 0-byte placeholder. The placeholder keeps the existing
- * NOT NULL constraint satisfied without rebuilding the table.
- */
-export async function markAssetMigratedToR2(
-  id: string,
-  storageKey: string,
-): Promise<void> {
-  await client.execute({
-    sql: "UPDATE assets SET storage_key = ?, data = ?, updated_at = datetime('now') WHERE id = ?",
-    args: [storageKey, EMPTY_BLOB, id],
-  });
 }
 
 // ─── Transit Cache ───────────────────────────────────────────────────────────

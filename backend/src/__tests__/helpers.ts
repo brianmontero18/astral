@@ -7,6 +7,7 @@
 
 import { initDb } from "../db.js";
 import { buildApp } from "../app.js";
+import { __setHandleForTesting } from "../storage/r2.js";
 import type { FastifyInstance } from "fastify";
 
 export const TEST_SESSION_HEADER = "x-test-session-subject";
@@ -16,7 +17,58 @@ process.env.OPENAI_API_KEY ??= "test-key-not-real";
 // Use in-memory SQLite for tests
 process.env.TURSO_DATABASE_URL = "file::memory:";
 
+interface StubbedObject {
+  body: Buffer;
+  contentType: string;
+}
+
+/**
+ * In-memory stub for the R2 client used during tests. Records every Put,
+ * serves Gets back from the in-memory store, and no-ops Deletes. The asset
+ * routes treat it as a real bucket for the purposes of contract tests.
+ */
+function installInMemoryR2Stub(): void {
+  const objects = new Map<string, StubbedObject>();
+  __setHandleForTesting({
+    bucket: "test-bucket",
+    client: {
+      send: async (command: unknown) => {
+        const cmd = command as { constructor?: { name?: string }; input?: { Key?: string; Body?: Buffer; ContentType?: string } };
+        const name = cmd.constructor?.name ?? "";
+        const key = cmd.input?.Key ?? "";
+
+        if (name === "PutObjectCommand") {
+          objects.set(key, {
+            body: Buffer.isBuffer(cmd.input?.Body)
+              ? cmd.input!.Body
+              : Buffer.from((cmd.input?.Body as Uint8Array | undefined) ?? []),
+            contentType: cmd.input?.ContentType ?? "application/octet-stream",
+          });
+          return {};
+        }
+        if (name === "GetObjectCommand") {
+          const stored = objects.get(key);
+          if (!stored) {
+            throw new Error(`Stubbed R2: object not found at key ${key}`);
+          }
+          return {
+            Body: (async function* () {
+              yield new Uint8Array(stored.body);
+            })(),
+          };
+        }
+        if (name === "DeleteObjectCommand") {
+          objects.delete(key);
+          return {};
+        }
+        return {};
+      },
+    },
+  });
+}
+
 export async function createTestApp(): Promise<FastifyInstance> {
+  installInMemoryR2Stub();
   await initDb();
   const app = await buildApp({ logger: false });
   await app.ready();

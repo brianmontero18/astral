@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import fastifyStatic from "@fastify/static";
 import { initDb } from "./db.js";
 import { buildApp } from "./app.js";
+import { isR2Configured } from "./storage/r2.js";
 
 // ─── Env ──────────────────────────────────────────────────────────────────────
 
@@ -19,7 +20,11 @@ const PORT = parseInt(process.env.PORT ?? "3000", 10);
 const IS_PROD = process.env.NODE_ENV === "production";
 
 function assertEnv() {
-  const missing = [!OPENAI_KEY && "OPENAI_API_KEY"].filter(Boolean);
+  const missing = [
+    !OPENAI_KEY && "OPENAI_API_KEY",
+    IS_PROD && !isR2Configured() &&
+      "R2_ACCOUNT_ID + R2_ACCESS_KEY_ID + R2_SECRET_ACCESS_KEY + R2_BUCKET_NAME",
+  ].filter(Boolean);
   if (missing.length) {
     throw new Error(`Missing env vars: ${missing.join(", ")}`);
   }
