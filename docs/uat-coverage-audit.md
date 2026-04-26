@@ -1,17 +1,17 @@
 # UAT Coverage Audit
 
-Fecha: 2026-04-21
+Fecha: 2026-04-26
 
 Scope:
 - Auditoría de cobertura real contra `docs/uat-test-plan.md`
 - Cruce obligatorio con `docs/freemium-spec.md` y `docs/premium-report-v2-spec.md`
 - Relevamiento de tests backend, frontend-helper y Playwright existentes
-- Sin cambios de producto propuestos desde este artefacto; el documento fue reconciliado contra el estado real de la suite tras las correcciones
+- Reconciliación contra cambios de la sesión 2026-04-25/26 (auth deploy real, R2 storage migration, schema cleanup, email persistence, regen timestamp fix)
 
 ## Executive summary
 
 - Ya no quedan IDs UAT en estado `missing` ni `partial`; el mapa funcional quedó cubierto y el cleanup estructural prioritario de la suite también quedó cerrado.
-- La cobertura BE de contratos actuales es razonable en identidad, límites, report access, chat upgrade semantics y assets.
+- La cobertura BE de contratos actuales es razonable en identidad, límites, report access, chat upgrade semantics, assets y migrations.
 - La cobertura UI real sigue siendo baja: predominan tests de helpers/view-model, no tests de superficies renderizadas.
 - La desalineación base de la suite `e2e/` con el contrato actual ya quedó corregida:
   - el harness usa `/api/me*` donde corresponde
@@ -20,15 +20,24 @@ Scope:
 - El bloque `P0` del audit quedó cubierto sobre el contrato actual:
   - `ONBOARD-01`, `AUTH-01..05`, `CHAT-01..05`, `CHAT-07`, `REPORT-01..03`, `REPORT-05`, `RESP-01` y `COPY-01` ya tienen evidencia confiable acorde al contrato vigente
   - no queda backlog urgente de reparación contractual dentro de este audit
+- Contratos nuevos agregados en esta corrida (cubiertos por tests directos):
+  - email del provider persistido en `users.email` al signup → cubierto por `api-users.test.ts`
+  - regen del report preserva `created_at` y avanza `updated_at` → cubierto por `api-report.test.ts`
+  - storage de assets en Cloudflare R2 vía adapter S3-compatible → cubierto por `storage-r2.test.ts` + stub R2 en `helpers.ts`
+  - migración del schema legacy a la forma R2-only → cubierto por `db-migration-rebuild.test.ts`
+- `MIGRATION-01` (P1, nuevo) quedó cubierto por `db-migration-rebuild.test.ts` con tres casos: rebuild happy path, refusal con NULL storage_key, no-op sobre schema ya migrado.
 
 ## Inventory real
 
-- Backend test files bajo `backend/src/__tests__`: `29`
+- Backend test files bajo `backend/src/__tests__`: `31`
 - Test files adicionales fuera de `__tests__`: `2`
   - `backend/src/hd-pdf/pdf-fixtures.test.ts`
   - `frontend/vite.config.test.ts`
 - Playwright specs bajo `e2e/specs`: `23`
 - Los tests `backend/src/__tests__/frontend-*.test.ts` cubren helpers/view-models, no UI renderizada
+- Test files agregados en la sesión 2026-04-25/26:
+  - `backend/src/__tests__/storage-r2.test.ts` (R2 adapter + key/extension helpers + stubbed S3 client round-trip)
+  - `backend/src/__tests__/db-migration-rebuild.test.ts` (assets schema rebuild en sus tres estados)
 
 ## Findings por severidad / prioridad
 
@@ -156,10 +165,59 @@ Impacto:
 Cobertura confiable agregada:
 - `REPORT-04`: `backend/src/__tests__/api-report.test.ts` ahora cubre cache hit cuando `profile + intake` no cambian y regeneración in-place cuando cambia el intake persistido, verificando reuse del mismo report id y uso del intake actualizado al llamar al generador
 - `REPORT-04`: `e2e/specs/08-report-cache-first-loading.spec.ts`, `e2e/specs/09-report-intake-persistence.spec.ts` y `e2e/specs/11-report-regeneration.spec.ts` ya cubrían la superficie UI real para skip de intake, prefill, edición y regeneración desde el shell actual
+- `REPORT-04`: `backend/src/__tests__/api-report.test.ts` además ahora cubre la regression de `saveReport` que pisaba `created_at` en regen — dos tests con sleep de 1.1s validan que `created_at` queda intacto y `updated_at` avanza al regenerar y al hacer `updateReportContent`
 
 Impacto:
 - Intake deja de ser sólo un flow visible en UI y pasa a tener semántica backend directa sobre cache/regeneration.
+- El timestamp contract de regeneración queda explícito y verificado.
 - Ya no quedan gaps funcionales abiertos en la matriz UAT actual.
+
+### P0 / covered (nuevo) — email persistido en signup desde el provider
+
+Contrato nuevo de la sesión 2026-04-25/26:
+- Al primer signup linked, `routes/users.ts:POST /users` consulta `SuperTokens.getUser(subject)` y persiste el primer email del provider en `users.email`. Antes era siempre NULL y el panel admin no podía buscar por email de manera confiable.
+
+Cobertura confiable:
+- `backend/src/__tests__/api-users.test.ts` cubre dos escenarios:
+  - happy path: SuperTokens devuelve `emails: [...]` → `users.email` queda con el primer valor
+  - failure path: SuperTokens.getUser throw → backend cae a `null` sin propagar el error al cliente
+
+Impacto:
+- `AUTH-01` ahora también valida que el email del provider llegue a la fila local del user.
+- `ADMIN-01`/`ADMIN-02` se benefician indirecto: la búsqueda por email del panel admin tiene data real para filtrar.
+
+### P1 / covered (nuevo) — Cloudflare R2 como source of truth de assets
+
+Contrato nuevo de la sesión 2026-04-25/26:
+- El contenido binario de los assets vive en Cloudflare R2 (`bucket: astral-assets`) accedido vía S3-compatible API con `@aws-sdk/client-s3` apuntado al endpoint de R2. El SQL `assets.storage_key` apunta a `users/{userId}/assets/{assetId}.{ext}`. La columna `data BLOB` legacy quedó dropeada al rebuild de la tabla.
+- `server.ts:assertEnv()` valida en boot de producción que las 4 env vars `R2_*` estén presentes; falla loud antes de servir requests si falta config.
+
+Cobertura confiable:
+- `backend/src/__tests__/storage-r2.test.ts` cubre:
+  - `isR2Configured()` con presencia parcial / completa de env vars
+  - `buildAssetKey()` con/sin punto inicial en la extensión
+  - `inferExtensionFromFile()` por filename y por mime fallback
+  - put/get/delete via stubbed S3 client + verificación del comando emitido
+- `backend/src/__tests__/helpers.ts` instala un stub R2 in-memory en `__setHandleForTesting` por cada `createTestApp()`. El stub registra Puts en un Map, sirve Gets desde ese mismo store y no-opea Deletes. `api-assets.test.ts` y `api-users.test.ts` corren por encima de ese stub sin cambiar el contrato HTTP de assets.
+
+Impacto:
+- `ASSET-01` y `ASSET-02` siguen covered en su contrato HTTP (sin cambios para el usuario final), ahora corriendo en tests sobre el adapter R2 simulado.
+- Si el SDK rompe contra R2 real en runtime (creds inválidas, bucket inexistente), el upload propaga error → 500 → la UI cae a copy genérica `COPY-01`.
+
+### P1 / covered (nuevo) — schema migrations idempotentes
+
+Contrato nuevo (`MIGRATION-01`):
+- `initDb()` corre rebuild dance idempotente sobre `assets` cuando detecta el schema legacy (`data BLOB NOT NULL` o `storage_key` nullable). El rebuild es atómico (transaction libsql) y rechaza ejecutar si alguna fila tiene `storage_key IS NULL`.
+
+Cobertura confiable:
+- `backend/src/__tests__/db-migration-rebuild.test.ts` cubre:
+  - rebuild happy path: legacy schema con un row migrado → rebuild aplica, row preservado, `data` borrada, `storage_key NOT NULL`
+  - refusal: legacy schema con un row sin `storage_key` → throw con mensaje claro, tabla legacy intacta (no partial state)
+  - no-op: schema ya migrado → función no toca nada
+
+Impacto:
+- El bug que rompió el primer deploy de `6dc0a7f` (libsql `SQL_PARSE_ERROR` por `[notnull] AS notnull`) ahora habría sido detectado en CI antes del push. La gap de "no había tests sobre la propia lógica de migración" queda cerrada.
+- Render mantiene la garantía de "deploy fail = previous version stays live" pero ya no depende de eso para validar correctitud de migrations.
 
 ## Coverage map resumido
 
@@ -173,7 +231,7 @@ Leyenda:
 |----|-----|--------|------------------|-------|----------------|---------------------------------|
 | `ONBOARD-01` | `P0` | `covered` | `BE + E2E` | - | `backend/src/__tests__/api-assets.test.ts`, `backend/src/__tests__/api-extract.test.ts`, `backend/src/__tests__/api-users.test.ts`, `e2e/specs/17-auth-bootstrap-and-restore.spec.ts` | First-time onboarding actual ya cubre nombre, upload soportado, review del perfil extraído y entrada al shell sin perder contexto |
 | `ONBOARD-02` | `P1` | `covered` | `BE + helper + E2E` | - | `backend/src/__tests__/api-extract.test.ts`, `backend/src/__tests__/frontend-onboarding-errors.test.ts`, `e2e/specs/18-onboarding-and-assets-resilience.spec.ts` | Fallas de extracción ya muestran copy segura, esconden detalles internos y permiten retry limpio sobre la UI actual |
-| `AUTH-01` | `P0` | `covered` | `BE + E2E` | - | `backend/src/__tests__/api-me.test.ts`, `backend/src/__tests__/api-users.test.ts`, `e2e/specs/17-auth-bootstrap-and-restore.spec.ts` | Bootstrap linked-first-login ya cubre landing real, entrada al shell y plan `free` visible sin dead-end |
+| `AUTH-01` | `P0` | `covered` | `BE + E2E` | - | `backend/src/__tests__/api-me.test.ts`, `backend/src/__tests__/api-users.test.ts` (incluye email del provider persistido), `e2e/specs/17-auth-bootstrap-and-restore.spec.ts` | Bootstrap linked-first-login ya cubre landing real, entrada al shell, plan `free` visible y `users.email` poblado desde la sesión SuperTokens |
 | `AUTH-02` | `P0` | `covered` | `BE + E2E` | - | `backend/src/__tests__/api-me.test.ts`, `backend/src/__tests__/api-chat.test.ts`, `e2e/specs/17-auth-bootstrap-and-restore.spec.ts` | Restore linked `free` ya recupera historial persistido y evita tratar al usuario como nuevo |
 | `AUTH-03` | `P0` | `covered` | `BE + helper + E2E` | - | `backend/src/__tests__/api-chat.test.ts`, `backend/src/__tests__/api-report.test.ts`, `backend/src/__tests__/frontend-report-access.test.ts`, `e2e/specs/17-auth-bootstrap-and-restore.spec.ts` | Restore linked `basic` y `premium` ya expone label de plan y gating/unlock correctos en la UI real |
 | `AUTH-04` | `P0` | `covered` | `BE + helper + E2E` | - | `backend/src/__tests__/api-me.test.ts`, `backend/src/__tests__/auth-identity-contract.test.ts`, `backend/src/__tests__/auth-surface.test.ts`, `e2e/specs/17-auth-bootstrap-and-restore.spec.ts` | Anonymous redirige limpio a auth, unlinked puede completar bootstrap y inactive queda bloqueado con copy user-safe |
@@ -190,12 +248,12 @@ Leyenda:
 | `REPORT-01` | `P0` | `covered` | `BE + unit + helper + E2E` | - | `backend/src/__tests__/api-report.test.ts`, `backend/src/__tests__/report-generation.test.ts`, `backend/src/__tests__/frontend-report-view-model.test.ts`, `e2e/specs/07-report-first-generation.spec.ts`, `e2e/specs/08-report-cache-first-loading.spec.ts`, `e2e/specs/10-report-pdf-share.spec.ts`, `e2e/specs/17-auth-bootstrap-and-restore.spec.ts` | `free/basic` ya comparten una sola superficie con base visible y continuación premium locked según el contrato actual |
 | `REPORT-02` | `P0` | `covered` | `BE + unit + helper + E2E` | - | `backend/src/__tests__/api-report.test.ts`, `backend/src/__tests__/report-generation.test.ts`, `backend/src/__tests__/frontend-report-view-model.test.ts`, `e2e/specs/17-auth-bootstrap-and-restore.spec.ts` | `premium` ya desbloquea la misma continuación in place con acciones `share/pdf` en tier correcto y sin locks residuales |
 | `REPORT-03` | `P0` | `covered` | `BE + E2E` | - | `backend/src/__tests__/api-report.test.ts`, `e2e/specs/07-report-first-generation.spec.ts`, `e2e/specs/10-report-pdf-share.spec.ts`, `e2e/specs/11-report-regeneration.spec.ts` | Generate, replace/regenerate, share y PDF ya quedan protegidos en UI real para el tier permitido; backend directo cubre el rechazo premium disallowed para `free/basic` |
-| `REPORT-04` | `P1` | `covered` | `BE + UI + E2E` | - | `backend/src/__tests__/api-report.test.ts`, `e2e/specs/08-report-cache-first-loading.spec.ts`, `e2e/specs/09-report-intake-persistence.spec.ts`, `e2e/specs/11-report-regeneration.spec.ts` | El intake actual ya puede omitirse, editarse y forzar regeneración in-place sin romper cache ni estado previo |
+| `REPORT-04` | `P1` | `covered` | `BE + UI + E2E` | - | `backend/src/__tests__/api-report.test.ts` (incluye regression de timestamps en regen), `e2e/specs/08-report-cache-first-loading.spec.ts`, `e2e/specs/09-report-intake-persistence.spec.ts`, `e2e/specs/11-report-regeneration.spec.ts` | El intake actual ya puede omitirse, editarse y forzar regeneración in-place sin romper cache ni estado previo. Regen preserva `created_at` original y avanza solo `updated_at` |
 | `REPORT-05` | `P0` | `covered` | `BE + UI + E2E` | - | `backend/src/__tests__/api-report.test.ts`, `e2e/specs/07-report-first-generation.spec.ts`, `e2e/specs/11-report-regeneration.spec.ts` | Degraded path, 502 saneado, 429, preservación de reporte previo y cooldown actual tras fallo ya quedan explicitados y cubiertos |
 | `TRANSIT-01` | `P1` | `covered` | `BE + unit + E2E` | - | `backend/src/__tests__/api-transits.test.ts`, `backend/src/__tests__/transit-impact.test.ts`, `e2e/specs/13-mobile-core-surfaces.spec.ts`, `e2e/specs/20-transits-weekly-view.spec.ts` | Weekly transits actual ya carga, expande cards y muestra impact sections personalizadas en UI real |
 | `TRANSIT-02` | `P1` | `covered` | `BE + helper + E2E` | - | `backend/src/__tests__/api-transits.test.ts`, `backend/src/__tests__/frontend-transit-errors.test.ts`, `e2e/specs/13-mobile-core-surfaces.spec.ts`, `e2e/specs/20-transits-weekly-view.spec.ts` | Falla backend y recovery ya quedan cubiertos con copy segura y reentrada limpia a la superficie |
-| `ASSET-01` | `P1` | `covered` | `BE + E2E` | - | `backend/src/__tests__/api-assets.test.ts`, `e2e/specs/13-mobile-core-surfaces.spec.ts`, `e2e/specs/18-onboarding-and-assets-resilience.spec.ts` | Empty state, upload, preview, close preview y delete ya quedan cubiertos sobre la superficie actual |
-| `ASSET-02` | `P1` | `covered` | `BE + helper + E2E` | - | `backend/src/__tests__/api-assets.test.ts`, `backend/src/__tests__/frontend-asset-errors.test.ts`, `e2e/specs/18-onboarding-and-assets-resilience.spec.ts` | Invalid upload, oversize, preview failure, forbidden delete y missing delete ya preservan copy amigable y superficie usable |
+| `ASSET-01` | `P1` | `covered` | `BE + E2E` | - | `backend/src/__tests__/api-assets.test.ts` (corre sobre stub R2), `backend/src/__tests__/storage-r2.test.ts`, `e2e/specs/13-mobile-core-surfaces.spec.ts`, `e2e/specs/18-onboarding-and-assets-resilience.spec.ts` | Empty state, upload, preview, close preview y delete ya quedan cubiertos sobre la superficie actual. Backend ahora usa Cloudflare R2 como source of truth — contrato HTTP no cambió |
+| `ASSET-02` | `P1` | `covered` | `BE + helper + E2E` | - | `backend/src/__tests__/api-assets.test.ts`, `backend/src/__tests__/frontend-asset-errors.test.ts`, `backend/src/__tests__/storage-r2.test.ts`, `e2e/specs/18-onboarding-and-assets-resilience.spec.ts` | Invalid upload, oversize, preview failure, forbidden delete y missing delete ya preservan copy amigable y superficie usable. R2 errors propagan a 500 sin leakear detalles del SDK |
 | `PROFILE-01` | `P1` | `covered` | `UI + E2E` | - | `e2e/specs/17-auth-bootstrap-and-restore.spec.ts`, `e2e/specs/22-profile-panel-visibility.spec.ts` | El panel de perfil actual muestra cues de plan/acceso y sigue usable aunque el HD venga parcial |
 | `NAV-01` | `P1` | `covered` | `UI + E2E` | - | `e2e/specs/21-navigation-state-preservation.spec.ts`, `e2e/specs/07-report-first-generation.spec.ts`, `e2e/specs/08-report-cache-first-loading.spec.ts` | La navegación principal actual preserva el tab originante y evita dead-ends entre Chat/Tránsitos/Mis Cartas/Intake/Report |
 | `ADMIN-01` | `P1` | `covered` | `BE + helper + E2E` | - | `backend/src/__tests__/api-users.test.ts`, `backend/src/__tests__/frontend-admin-support.test.ts`, `e2e/specs/15-admin-support-copy.spec.ts`, `e2e/specs/16-admin-support-flow.spec.ts` | List, search, paginate, open detail y soporte visible ya quedan protegidos en UI real; los failure states user-safe siguen cubiertos aparte |
@@ -203,6 +261,7 @@ Leyenda:
 | `RESP-01` | `P0` | `covered` | `E2E + visual smoke` | - | `e2e/specs/13-mobile-core-surfaces.spec.ts`, `e2e/specs/13-mobile-core-surfaces.spec.ts-snapshots/mobile-chat-shell-visual-smoke-chromium-darwin.png`, `e2e/specs/13-mobile-core-surfaces.spec.ts-snapshots/mobile-report-locked-visual-smoke-chromium-darwin.png` | Auth/logout, chat, voice success/error recovery, report, transits, assets, profile y upgrade CTA ya quedan protegidos en viewport mobile real sin overflow horizontal; visual smoke vigente sobre chat shell y locked report |
 | `RESP-02` | `P1` | `covered` | `E2E + visual smoke` | - | `e2e/specs/23-layout-stability-overlays.spec.ts`, `e2e/specs/23-layout-stability-overlays.spec.ts-snapshots/desktop-profile-panel-layout-smoke-chromium-darwin.png`, `e2e/specs/23-layout-stability-overlays.spec.ts-snapshots/desktop-report-locked-layout-smoke-chromium-darwin.png`, `e2e/specs/23-layout-stability-overlays.spec.ts-snapshots/desktop-asset-preview-layout-smoke-chromium-darwin.png`, `e2e/specs/23-layout-stability-overlays.spec.ts-snapshots/mobile-profile-panel-layout-smoke-chromium-darwin.png`, `e2e/specs/23-layout-stability-overlays.spec.ts-snapshots/mobile-asset-preview-layout-smoke-chromium-darwin.png` | El shell actual ya protege overlay/dropdown/modal/locked-state fit y cierre limpio en desktop/mobile, sin depender de wiring legacy ni de smoke incidental |
 | `COPY-01` | `P0` | `covered` | `helper + UI + E2E` | - | `backend/src/__tests__/frontend-chat-errors.test.ts`, `backend/src/__tests__/frontend-transit-errors.test.ts`, `backend/src/__tests__/frontend-auth-flow.test.ts`, `backend/src/__tests__/frontend-admin-support.test.ts`, `backend/src/__tests__/frontend-asset-errors.test.ts`, `e2e/specs/01-chat-send-message.spec.ts`, `e2e/specs/07-report-first-generation.spec.ts`, `e2e/specs/12-auth-runtime-resilience.spec.ts`, `e2e/specs/13-mobile-core-surfaces.spec.ts`, `e2e/specs/15-admin-support-copy.spec.ts` | Chat/report/transits/auth/admin/assets ya tienen coverage helper y/o UI real para no filtrar strings internas, rutas, status codes ni diagnósticos crudos en las superficies auditadas actuales |
+| `MIGRATION-01` | `P1` | `covered` | `BE` | - | `backend/src/__tests__/db-migration-rebuild.test.ts` | Rebuild del schema legacy de `assets` cubre happy path, refusal con NULL `storage_key` y no-op sobre schema migrado. Cierra la gap de "no había tests sobre la lógica de migración" que dejó pasar el bug `SQL_PARSE_ERROR` del primer deploy |
 
 ## Existing suites que sí aportan valor real hoy
 
@@ -211,19 +270,23 @@ Leyenda:
 - `backend/src/__tests__/api-me.test.ts`
   - protege `GET /api/me`, `PUT /api/me`, bootstrap compatibility
 - `backend/src/__tests__/api-users.test.ts`
-  - protege admin list/detail/access mutation y default plan `free`
+  - protege admin list/detail/access mutation, default plan `free` y persistencia del email del provider en signup (happy + fallback a NULL ante `SuperTokens.getUser` falla)
 - `backend/src/__tests__/api-chat.test.ts`
   - protege auth/identity mismatch, history retrieval, monthly usage windows, limits `20/120/300`, happy-path persisted send/stream, no duplicate persistence ante fallo y upgrade de plan preservando identidad/historial
 - `backend/src/__tests__/api-transcribe.test.ts`
   - protege `POST /api/transcribe` para missing-file, transcripción larga y timeout-style upstream failure
 - `backend/src/__tests__/api-assets.test.ts`
-  - protege upload/list/download/delete, validaciones, ownership y `POST /api/me/assets`
+  - protege upload/list/download/delete, validaciones, ownership y `POST /api/me/assets` corriendo sobre el stub R2 in-memory de `helpers.ts`
 - `backend/src/__tests__/api-report.test.ts`
-  - protege `POST /api/me/report`, degraded/failure handling, cache hit/regeneration con intake, read/share/pdf access y gating premium
+  - protege `POST /api/me/report`, degraded/failure handling, cache hit/regeneration con intake, read/share/pdf access, gating premium y la regression de timestamps en regen (`created_at` preservado, `updated_at` avanza)
 - `backend/src/__tests__/api-transits.test.ts`
   - protege shape, impacto, failure 502 y recovery posterior de `/api/transits`
 - `backend/src/__tests__/api-extract.test.ts`
   - protege auth/ownership/existence/success de extraction
+- `backend/src/__tests__/storage-r2.test.ts`
+  - protege el adapter R2: detección de config, build de keys, inferencia de extensión y put/get/delete sobre cliente S3 stubbed
+- `backend/src/__tests__/db-migration-rebuild.test.ts`
+  - protege la migración del schema legacy de `assets` en sus tres estados reales (rebuild aplicado, refusal por NULL `storage_key`, no-op sobre schema migrado)
 
 ### Unit/helper coverage útil pero no equivalente a UI
 
@@ -284,7 +347,11 @@ Leyenda:
 
 ## UAT update recommendation
 
-- No propongo cambio de `docs/uat-test-plan.md` en esta auditoría.
-- El UAT actual ya describe bien los contratos que hoy faltan proteger.
+- En esta corrida sí se actualizó `docs/uat-test-plan.md` para reflejar los contratos nuevos de la sesión 2026-04-25/26:
+  - email del provider persistido al signup
+  - `created_at` preservado en regen del report
+  - assets viviendo en Cloudflare R2 (BLOB legacy dropeado)
+  - `MIGRATION-01` (P1) agregado como contrato de boot-time schema migrations
 - El drift de contrato detectado al inicio ya quedó reparado en la base E2E.
-- El drift de contrato base y el cleanup estructural prioritario de esta corrida ya quedaron resueltos; cualquier trabajo siguiente ya sería expansión nueva o refactor oportunista, no reparación urgente de confiabilidad.
+- El gap de "no había tests sobre la propia lógica de migración" quedó cerrado con `db-migration-rebuild.test.ts`. El bug `SQL_PARSE_ERROR` del primer deploy de `6dc0a7f` ahora habría sido detectado en CI antes del push.
+- Cualquier trabajo siguiente ya sería expansión nueva o refactor oportunista, no reparación urgente de confiabilidad.

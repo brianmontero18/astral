@@ -26,12 +26,15 @@ This is not a classic QA script. It is the minimum agent-facing checklist that d
 
 - Auth is passwordless email.
 - A first-time linked user is created as `free`.
+- The user's email from the auth provider is persisted at signup and is searchable from admin surfaces.
 - Chat quotas are monthly calendar quotas: `free=20`, `basic=120`, `premium=300`.
 - Normal chat UI must not expose running usage counters.
 - Report is one single surface: `free` and `basic` see the base layer plus locked premium continuation, while `premium` unlocks that same continuation in place.
+- Report regeneration preserves the original `created_at` timestamp; only `updated_at` advances.
 - Linked users recover persisted chat history on later sessions.
 - Editing a past message rewrites the conversation from that point onward.
 - The assets surface currently allows more than one source file, even if future copy may move from "Mis Cartas" to "Mi Carta".
+- Asset binary content lives in Cloudflare R2 via S3-compatible API. The SQL row carries `storage_key` metadata only; the legacy `data BLOB` column was dropped.
 - Manual retry is currently acceptable where no explicit automatic retry contract exists, but the user must never get stuck in a broken state.
 
 ## Coverage matrix
@@ -57,7 +60,7 @@ This is not a classic QA script. It is the minimum agent-facing checklist that d
 | `REPORT-01` | `P0` | Free/basic report experience | `free` and `basic` users see one report surface with base content plus locked premium continuation, not a separate premium artifact | `BE + UI + E2E` |
 | `REPORT-02` | `P0` | Premium report experience | `premium` unlocks the same report continuation in place and receives the full applied layer | `BE + UI + E2E` |
 | `REPORT-03` | `P0` | Report actions | Generate, replace/regenerate, share, and PDF/download work for allowed tiers and fail safely for disallowed tiers | `BE + UI` |
-| `REPORT-04` | `P1` | Intake and regeneration | Intake is optional, editable, and can be used to regenerate the report without breaking previous state | `BE + UI` |
+| `REPORT-04` | `P1` | Intake and regeneration | Intake is optional, editable, and can be used to regenerate the report without breaking previous state. Regeneration preserves the original `created_at` and only bumps `updated_at` | `BE + UI` |
 | `REPORT-05` | `P0` | Report failure handling | Generation failures or degraded backend paths produce a clear user-safe state; no blank screen or technical dump | `BE + UI` |
 | `TRANSIT-01` | `P1` | Weekly transits for a linked user | The app loads the weekly transit view, expands cards cleanly, and shows the personalized HD impact sections when user context exists | `BE + UI + E2E` |
 | `TRANSIT-02` | `P1` | Transit resilience | Transit backend failure still results in a clear recoverable UI state with no broken layout or confusing copy | `BE + UI` |
@@ -70,6 +73,7 @@ This is not a classic QA script. It is the minimum agent-facing checklist that d
 | `RESP-01` | `P0` | Mobile core flows | Auth, chat, voice, report, transits, assets, profile, and upgrade CTAs remain usable at mobile widths with no overlap or horizontal scroll | `E2E + visual smoke` |
 | `RESP-02` | `P1` | Overlays and layout stability | Drawers, dropdowns, dialogs, locked cards, and preview modals open, close, and fit correctly on mobile and desktop | `UI + E2E + visual smoke` |
 | `COPY-01` | `P0` | User-safe copy | No user-facing screen leaks internal names like provider, backend, route paths, status codes, or admin diagnostics | `UI + E2E` |
+| `MIGRATION-01` | `P1` | Schema migrations at boot | Boot-time DB migrations are atomic, idempotent across redeploys, and refuse to run when data integrity invariants would be violated. A failed migration leaves the previous schema intact (no partial state, no data loss) | `BE` |
 
 ## Clarifications that the next audit must lock explicitly
 
@@ -79,6 +83,7 @@ This is not a classic QA script. It is the minimum agent-facing checklist that d
 - If the session expires mid-action, the app must recover cleanly; the audit should verify the exact UX that exists today and flag any broken or ambiguous path.
 - Automatic retry is not assumed. If a flow only supports manual retry today, the audit should mark that behavior clearly instead of inventing hidden retry semantics.
 - The assets surface currently behaves as a multi-file source area. If product later formalizes a strict single-file model, this UAT must be updated first.
+- Schema migrations live in `initDb()` and run at every boot. They must be idempotent on subsequent restarts: detecting "already migrated" state is part of the contract, not optional. Untested migration code is the most common source of zero-downtime deploy failures.
 
 ## Out of scope for this document
 
