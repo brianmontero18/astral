@@ -81,6 +81,74 @@ function mapLinkedFlag(value: unknown): boolean {
   return value === true || value === 1 || value === "1";
 }
 
+// ─── Migrations ──────────────────────────────────────────────────────────────
+
+/**
+ * Detects the legacy `assets` schema (with `data BLOB NOT NULL` and a nullable
+ * `storage_key`) and rebuilds the table to the R2-only shape inside a single
+ * libsql transaction. Idempotent: running it on an already-migrated DB or a
+ * fresh install is a no-op. Refuses to run when any row would violate the
+ * new NOT NULL invariant — preserves the legacy table untouched and surfaces
+ * a clear error instead of silently dropping data.
+ *
+ * Exported for direct testing: see `__tests__/db-migration-rebuild.test.ts`.
+ *
+ * Note on the SELECT below: `pragma_table_info` exposes a column literally
+ * named `notnull`, which is a reserved word in libsql/SQLite (part of the
+ * `IS NOTNULL` operator). It can be referenced if quoted, but it cannot be
+ * used as an unquoted alias — hence we read it back without aliasing and
+ * access it via bracket notation on the row object.
+ */
+export async function rebuildLegacyAssetsTableIfNeeded(c: Client): Promise<void> {
+  const assetsInfo = await c.execute({
+    sql: 'SELECT name, "notnull" FROM pragma_table_info(\'assets\')',
+    args: [],
+  });
+  const dataColumnExists = assetsInfo.rows.some((row) => row.name === "data");
+  const storageKeyColumn = assetsInfo.rows.find((row) => row.name === "storage_key");
+  const storageKeyNullable = storageKeyColumn
+    ? Number(storageKeyColumn["notnull"]) === 0
+    : false;
+
+  if (!(dataColumnExists || storageKeyNullable)) {
+    return;
+  }
+
+  const orphans = await c.execute({
+    sql: "SELECT COUNT(*) AS count FROM assets WHERE storage_key IS NULL",
+    args: [],
+  });
+  const orphanCount = Number(orphans.rows[0]?.count ?? 0);
+  if (orphanCount > 0) {
+    throw new Error(
+      `Cannot rebuild assets table: ${orphanCount} row(s) have NULL storage_key. ` +
+      "Migrate them to R2 (or DELETE the rows) before redeploying with this schema.",
+    );
+  }
+
+  await c.batch(
+    [
+      `CREATE TABLE assets_new (
+        id          TEXT PRIMARY KEY,
+        user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        filename    TEXT NOT NULL,
+        mime_type   TEXT NOT NULL,
+        file_type   TEXT NOT NULL,
+        size_bytes  INTEGER NOT NULL,
+        storage_key TEXT NOT NULL,
+        created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `INSERT INTO assets_new (id, user_id, filename, mime_type, file_type, size_bytes, storage_key, created_at, updated_at)
+       SELECT id, user_id, filename, mime_type, file_type, size_bytes, storage_key, created_at, updated_at
+       FROM assets`,
+      "DROP TABLE assets",
+      "ALTER TABLE assets_new RENAME TO assets",
+    ],
+    "write",
+  );
+}
+
 // ─── Init ────────────────────────────────────────────────────────────────────
 
 export async function initDb(): Promise<void> {
@@ -198,57 +266,9 @@ export async function initDb(): Promise<void> {
   // Legacy schema kept the asset bytes in a `data BLOB NOT NULL` column and
   // stored the R2 key as nullable. With R2 as the source of truth the BLOB
   // column is dead weight and storage_key must be NOT NULL. Detect the legacy
-  // shape via pragma and rebuild the table when present. Idempotent.
-  // pragma_table_info exposes a column literally named `notnull`, which is a
-  // reserved word in libsql/SQLite (part of the `IS NOTNULL` operator). It can
-  // be referenced if quoted, but it cannot be used as an unquoted alias —
-  // hence we read it back without aliasing and access it via bracket notation
-  // on the row object.
-  const assetsInfo = await client.execute({
-    sql: 'SELECT name, "notnull" FROM pragma_table_info(\'assets\')',
-    args: [],
-  });
-  const dataColumnExists = assetsInfo.rows.some((row) => row.name === "data");
-  const storageKeyColumn = assetsInfo.rows.find((row) => row.name === "storage_key");
-  const storageKeyNullable = storageKeyColumn
-    ? Number(storageKeyColumn["notnull"]) === 0
-    : false;
-
-  if (dataColumnExists || storageKeyNullable) {
-    const orphans = await client.execute({
-      sql: "SELECT COUNT(*) AS count FROM assets WHERE storage_key IS NULL",
-      args: [],
-    });
-    const orphanCount = Number(orphans.rows[0]?.count ?? 0);
-    if (orphanCount > 0) {
-      throw new Error(
-        `Cannot rebuild assets table: ${orphanCount} row(s) have NULL storage_key. ` +
-        "Migrate them to R2 (or DELETE the rows) before redeploying with this schema.",
-      );
-    }
-
-    await client.batch(
-      [
-        `CREATE TABLE assets_new (
-          id          TEXT PRIMARY KEY,
-          user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-          filename    TEXT NOT NULL,
-          mime_type   TEXT NOT NULL,
-          file_type   TEXT NOT NULL,
-          size_bytes  INTEGER NOT NULL,
-          storage_key TEXT NOT NULL,
-          created_at  TEXT NOT NULL DEFAULT (datetime('now')),
-          updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
-        )`,
-        `INSERT INTO assets_new (id, user_id, filename, mime_type, file_type, size_bytes, storage_key, created_at, updated_at)
-         SELECT id, user_id, filename, mime_type, file_type, size_bytes, storage_key, created_at, updated_at
-         FROM assets`,
-        "DROP TABLE assets",
-        "ALTER TABLE assets_new RENAME TO assets",
-      ],
-      "write",
-    );
-  }
+  // shape and rebuild the table when present. See rebuildLegacyAssetsTableIfNeeded
+  // for the detail (extracted so it is directly testable).
+  await rebuildLegacyAssetsTableIfNeeded(client);
 
   // ─── Indexes ───────────────────────────────────────────────────────────────
   // SQLite does not auto-index foreign keys. These cover the hot-path queries
