@@ -553,7 +553,7 @@ Composite runner: `runEvals(suites)` retorna `{ passed, failed, results }`.
 | **Retry strategy** | 1 retry con 1.5s delay (reports); none para chat/extraction |
 | **Streaming** | Chat only (SSE) |
 | **Conversation memory** | Full history, no summarization |
-| **Observability** | Logging only; no evals, no automated validation |
+| **Observability** | Logging only. Prompt evals foundation existe (`prompt-eval.ts`, 8 funciones puras structure+grounding) pero solo corre contra fixtures, no aplicado al pipeline real. Sin LLM-as-judge. |
 
 ---
 
@@ -589,7 +589,7 @@ Composite runner: `runEvals(suites)` retorna `{ passed, failed, results }`.
 - **No memory entre sesiones** ← Sprint 2
 - **Conversation history sin límite** ← Sprint 2 (con memory) o futuro
 - **No prompt caching** ← Sprint 4
-- **No evals** ← Sprint 3
+- **Evals existen (`prompt-eval.ts`) pero no aplicados al pipeline real, sin LLM-as-judge, sin custom data viewer** ← Sprint 3 EXTIENDE esta foundation
 - **No anti-sycophancy explícito** ← Sprint 4
 - **Premium report: 3 calls sin coherencia entre secciones** ← Sprint 6
 - **No tracking cost/tokens en chat** ← Sprint 1
