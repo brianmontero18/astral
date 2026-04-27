@@ -207,6 +207,26 @@ export interface AdminUserDetail {
   updatedAt: string;
 }
 
+export type LlmCallRoute = "chat" | "chat_stream" | "report" | "extraction";
+
+export interface AdminUserLlmUsageBreakdownEntry {
+  callCount: number;
+  tokensIn: number;
+  tokensOut: number;
+  costUsd: number;
+}
+
+export interface AdminUserLlmUsage {
+  days: number;
+  since: string;
+  totalCallCount: number;
+  totalTokensIn: number;
+  totalTokensOut: number;
+  totalCostUsd: number;
+  byRoute: Array<{ route: LlmCallRoute } & AdminUserLlmUsageBreakdownEntry>;
+  byModel: Array<{ model: string } & AdminUserLlmUsageBreakdownEntry>;
+}
+
 export interface AssetMeta {
   id: string;
   filename: string;

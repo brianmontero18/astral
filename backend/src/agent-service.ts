@@ -5,9 +5,27 @@
  * via Claude API. No hallucinated transits — only real ephemeris data.
  */
 
+import { createHash } from "node:crypto";
+
 import type { WeeklyTransits, TransitImpact } from "./transit-service.js";
+import type { Intake } from "./report/types.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface LlmUsage {
+  promptTokens: number;
+  completionTokens: number;
+}
+
+export interface AgentCallMeta {
+  usage: LlmUsage;
+  latencyMs: number;
+  systemPrompt: string;
+}
+
+export interface AgentResult extends AgentCallMeta {
+  content: string;
+}
 
 export interface UserProfile {
   name: string;
@@ -42,7 +60,35 @@ export interface ChatMessage {
 
 // ─── Prompt builder ───────────────────────────────────────────────────────────
 
-function buildSystemPrompt(profile: UserProfile, transits: WeeklyTransits, impact?: TransitImpact): string {
+/**
+ * Builds the optional `<business_context>` block injected into the system
+ * prompt when the user has filled the intake. Returns an empty string when
+ * the intake is missing or has no usable fields, so callers can interpolate
+ * unconditionally without producing dangling whitespace.
+ *
+ * The leading `\n` is intentional: it sits right after `</user_profile>` so
+ * the block visually anchors to the user's identity in the prompt.
+ */
+function buildBusinessContextBlock(intake?: Intake): string {
+  if (!intake) return "";
+  const parts: string[] = [];
+  if (intake.actividad) parts.push(`  <actividad>${intake.actividad}</actividad>`);
+  if (intake.objetivos) parts.push(`  <objetivos>${intake.objetivos}</objetivos>`);
+  if (intake.desafios)  parts.push(`  <desafios>${intake.desafios}</desafios>`);
+  if (parts.length === 0) return "";
+  return `\n<business_context>\n${parts.join("\n")}\n</business_context>`;
+}
+
+export function hashSystemPrompt(systemPrompt: string): string {
+  return createHash("sha256").update(systemPrompt).digest("hex").slice(0, 16);
+}
+
+export function buildSystemPrompt(
+  profile: UserProfile,
+  transits: WeeklyTransits,
+  impact?: TransitImpact,
+  intake?: Intake,
+): string {
   const { humanDesign: hd } = profile;
 
   const gatesDesign = hd.activatedGates.filter(g => !g.isPersonality);
@@ -54,6 +100,9 @@ function buildSystemPrompt(profile: UserProfile, transits: WeeklyTransits, impac
   if (hd.environment) variableDetails.push(`Ambiente: ${hd.environment}`);
   if (hd.strongestSense) variableDetails.push(`Sentido más fuerte: ${hd.strongestSense}`);
   const hasVariable = variableDetails.length > 0 || !!hd.variable;
+
+  const businessContextBlock = buildBusinessContextBlock(intake);
+  const hasBusinessContext = businessContextBlock.length > 0;
 
   return `# Rol y objetivo
 
@@ -78,7 +127,7 @@ Tu función: leer la energía disponible en los tránsitos, cruzarla con el body
 
 ## Reglas de datos
 
-- Usá ÚNICAMENTE los tránsitos reales provistos en <transits>. No inventes ni asumas posiciones planetarias.${impact ? `\n- Usá los datos de IMPACTO provistos en <impact>. Son pre-calculados — no los recalcules ni contradigas.` : ""}
+- Usá ÚNICAMENTE los tránsitos reales provistos en <transits>. No inventes ni asumas posiciones planetarias.${impact ? `\n- Usá los datos de IMPACTO provistos en <impact>. Son pre-calculados — no los recalcules ni contradigas.` : ""}${hasBusinessContext ? `\n- Si hay <business_context>, integrá la actividad, objetivos y desafíos del usuario en cada respuesta concreta. El consejo aterriza en su negocio; no es decoración.` : ""}
 - Cuando un tránsito active una puerta del usuario o complete un canal, destacalo y conectá con qué significa para su comunicación, su oferta o su energía de marca.
 - Cuando un tránsito toque un centro indefinido, mencioná el condicionamiento potencial y cómo evitar decisiones de negocio desde el no-self.
 - Integrá la Cruz de Encarnación, la estrategia y el tema del No-Self cuando sean relevantes para el propósito y posicionamiento.
@@ -107,7 +156,7 @@ ${profile.birthData ? `<birth>${profile.birthData.date}, ${profile.birthData.tim
   <defined_centers>${hd.definedCenters.join(", ") || "—"}</defined_centers>
   <undefined_centers>${hd.undefinedCenters.join(", ") || "—"}</undefined_centers>
 </human_design>
-</user_profile>
+</user_profile>${businessContextBlock}
 
 <transits week="${transits.weekRange}" calculated="${transits.fetchedAt}" source="Swiss Ephemeris">
 ${transits.planets.map(p => `<planet name="${p.name}" sign="${p.sign}" degree="${p.degree}" retrograde="${p.isRetrograde}" hd_gate="${p.hdGate}" hd_line="${p.hdLine}" />`).join("\n")}
@@ -160,11 +209,16 @@ const MODEL = "gpt-4o-mini"; // swap to "gpt-4o" for higher quality
 
 // ─── OpenAI API call ──────────────────────────────────────────────────────────
 
+interface OpenAICallResult {
+  content: string;
+  usage: LlmUsage;
+}
+
 async function callOpenAI(
   messages: ChatMessage[],
   systemPrompt: string,
   openaiKey: string,
-): Promise<string> {
+): Promise<OpenAICallResult> {
   const response = await fetch(OPENAI_API_URL, {
     method: "POST",
     headers: {
@@ -188,12 +242,21 @@ async function callOpenAI(
 
   const data = await response.json() as {
     choices: Array<{ message: { content: string } }>;
+    usage?: { prompt_tokens?: number; completion_tokens?: number };
   };
 
-  return data.choices[0]?.message?.content ?? "";
+  return {
+    content: data.choices[0]?.message?.content ?? "",
+    usage: {
+      promptTokens: data.usage?.prompt_tokens ?? 0,
+      completionTokens: data.usage?.completion_tokens ?? 0,
+    },
+  };
 }
 
 // ─── Main agent function ──────────────────────────────────────────────────────
+
+export const CHAT_MODEL = MODEL;
 
 export async function runAstralAgent(
   profile: UserProfile,
@@ -201,12 +264,18 @@ export async function runAstralAgent(
   messages: ChatMessage[],
   openaiKey: string,
   impact?: TransitImpact,
-): Promise<string> {
-  const systemPrompt = buildSystemPrompt(profile, transits, impact);
-  return callOpenAI(messages, systemPrompt, openaiKey);
+  intake?: Intake,
+): Promise<AgentResult> {
+  const systemPrompt = buildSystemPrompt(profile, transits, impact, intake);
+  const start = Date.now();
+  const { content, usage } = await callOpenAI(messages, systemPrompt, openaiKey);
+  const latencyMs = Date.now() - start;
+  return { content, usage, latencyMs, systemPrompt };
 }
 
 // ─── Streaming agent function ────────────────────────────────────────────────
+
+export type AgentStreamCompleteHandler = (meta: AgentCallMeta) => void;
 
 export async function* runAstralAgentStream(
   profile: UserProfile,
@@ -214,8 +283,11 @@ export async function* runAstralAgentStream(
   messages: ChatMessage[],
   openaiKey: string,
   impact?: TransitImpact,
+  intake?: Intake,
+  onComplete?: AgentStreamCompleteHandler,
 ): AsyncGenerator<string> {
-  const systemPrompt = buildSystemPrompt(profile, transits, impact);
+  const systemPrompt = buildSystemPrompt(profile, transits, impact, intake);
+  const start = Date.now();
 
   const response = await fetch(OPENAI_API_URL, {
     method: "POST",
@@ -227,6 +299,9 @@ export async function* runAstralAgentStream(
       model: MODEL,
       max_tokens: 4096,
       stream: true,
+      // Ask OpenAI to send a final chunk with prompt/completion token counts
+      // so the chat path can persist telemetry without a second round-trip.
+      stream_options: { include_usage: true },
       messages: [
         { role: "system", content: systemPrompt },
         ...messages.map(m => ({ role: m.role, content: m.content })),
@@ -246,31 +321,53 @@ export async function* runAstralAgentStream(
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let usage: LlmUsage = { promptTokens: 0, completionTokens: 0 };
+  let completed = false;
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+  const finish = () => {
+    if (completed) return;
+    completed = true;
+    onComplete?.({ usage, latencyMs: Date.now() - start, systemPrompt });
+  };
 
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    // Keep the last incomplete line in the buffer
-    buffer = lines.pop() ?? "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
 
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed || !trimmed.startsWith("data: ")) continue;
-      const payload = trimmed.slice(6);
-      if (payload === "[DONE]") return;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      // Keep the last incomplete line in the buffer
+      buffer = lines.pop() ?? "";
 
-      try {
-        const parsed = JSON.parse(payload) as {
-          choices: Array<{ delta: { content?: string } }>;
-        };
-        const content = parsed.choices[0]?.delta?.content;
-        if (content) yield content;
-      } catch {
-        // Skip malformed JSON lines
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith("data: ")) continue;
+        const payload = trimmed.slice(6);
+        if (payload === "[DONE]") {
+          finish();
+          return;
+        }
+
+        try {
+          const parsed = JSON.parse(payload) as {
+            choices: Array<{ delta: { content?: string } }>;
+            usage?: { prompt_tokens?: number; completion_tokens?: number };
+          };
+          if (parsed.usage) {
+            usage = {
+              promptTokens: parsed.usage.prompt_tokens ?? 0,
+              completionTokens: parsed.usage.completion_tokens ?? 0,
+            };
+          }
+          const content = parsed.choices[0]?.delta?.content;
+          if (content) yield content;
+        } catch {
+          // Skip malformed JSON lines
+        }
       }
     }
+  } finally {
+    finish();
   }
 }

@@ -13,10 +13,11 @@ import {
   getAdminStatusLabel,
   getAdminUserDetailDisplay,
 } from "../admin-support";
-import { getAdminUserDetail, updateAdminUserAccess } from "../api";
+import { getAdminUserDetail, getAdminUserLlmUsage, updateAdminUserAccess } from "../api";
 import type {
   AdminUserAccessValues,
   AdminUserDetail,
+  AdminUserLlmUsage,
   AppUserPlan,
   AppUserRole,
   AppUserStatus,
@@ -52,6 +53,26 @@ function buildAccessValues(detail: AdminUserDetail): AdminUserAccessValues {
     role: detail.role,
   };
 }
+
+function formatUsd(value: number): string {
+  if (!Number.isFinite(value) || value === 0) return "$0.00";
+  // Sub-cent costs deserve more precision; otherwise show two decimals.
+  const decimals = value < 0.01 ? 4 : 2;
+  return `$${value.toFixed(decimals)}`;
+}
+
+function formatTokens(value: number): string {
+  if (!Number.isFinite(value)) return "0";
+  return value.toLocaleString("es-AR");
+}
+
+const LLM_USAGE_DAYS = 7;
+const LLM_ROUTE_LABELS: Record<string, string> = {
+  chat: "Chat",
+  chat_stream: "Chat (stream)",
+  report: "Report",
+  extraction: "Extraction",
+};
 
 function SupportValue({
   label,
@@ -325,6 +346,8 @@ export function AdminUserDetailView({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
+  const [llmUsage, setLlmUsage] = useState<AdminUserLlmUsage | null>(null);
+  const [llmUsageError, setLlmUsageError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -361,6 +384,34 @@ export function AdminUserDetailView({
     };
 
     void loadDetail();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    setLlmUsage(null);
+    setLlmUsageError(null);
+
+    getAdminUserLlmUsage(userId, LLM_USAGE_DAYS)
+      .then((response) => {
+        if (!cancelled) {
+          setLlmUsage(response);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setLlmUsageError(
+            getAdminSupportFailureMessage(
+              err,
+              "No pudimos cargar el uso reciente de LLM para esta cuenta.",
+            ),
+          );
+        }
+      });
 
     return () => {
       cancelled = true;
@@ -749,6 +800,129 @@ export function AdminUserDetailView({
                 <SupportValue key={field.label} label={field.label} value={field.value} />
               ))}
             </div>
+          </SupportSection>
+
+          <SupportSection
+            title={`Uso LLM últimos ${llmUsage?.days ?? LLM_USAGE_DAYS} días`}
+            body="Lectura directa de la tabla llm_calls. Refleja todos los call-sites que ya escriben telemetría."
+          >
+            {llmUsageError ? (
+              <InlineNotice tone="error">{llmUsageError}</InlineNotice>
+            ) : !llmUsage ? (
+              <span style={{ color: "var(--text-faint)", fontSize: 13 }}>
+                Cargando uso reciente...
+              </span>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                    gap: 16,
+                  }}
+                >
+                  <SupportValue
+                    label="Calls totales"
+                    value={String(llmUsage.totalCallCount)}
+                  />
+                  <SupportValue
+                    label="Tokens entrada"
+                    value={formatTokens(llmUsage.totalTokensIn)}
+                  />
+                  <SupportValue
+                    label="Tokens salida"
+                    value={formatTokens(llmUsage.totalTokensOut)}
+                  />
+                  <SupportValue
+                    label="Costo USD"
+                    value={formatUsd(llmUsage.totalCostUsd)}
+                  />
+                </div>
+                {llmUsage.totalCallCount === 0 && (
+                  <span
+                    style={{
+                      color: "var(--text-faint)",
+                      fontSize: 13,
+                      fontStyle: "italic",
+                    }}
+                  >
+                    Sin actividad registrada en la ventana.
+                  </span>
+                )}
+                {llmUsage.byRoute.length > 0 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        letterSpacing: "0.14em",
+                        textTransform: "uppercase",
+                        color: "var(--text-faint)",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Por ruta
+                    </span>
+                    {llmUsage.byRoute.map((entry) => (
+                      <div
+                        key={entry.route}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "minmax(140px, 1fr) repeat(3, auto)",
+                          gap: 12,
+                          fontSize: 13,
+                          color: "var(--text-main)",
+                        }}
+                      >
+                        <span>{LLM_ROUTE_LABELS[entry.route] ?? entry.route}</span>
+                        <span style={{ color: "var(--text-muted)" }}>
+                          {entry.callCount} {entry.callCount === 1 ? "call" : "calls"}
+                        </span>
+                        <span style={{ color: "var(--text-muted)" }}>
+                          {formatTokens(entry.tokensIn)} / {formatTokens(entry.tokensOut)} tok
+                        </span>
+                        <span>{formatUsd(entry.costUsd)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {llmUsage.byModel.length > 0 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        letterSpacing: "0.14em",
+                        textTransform: "uppercase",
+                        color: "var(--text-faint)",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Por modelo
+                    </span>
+                    {llmUsage.byModel.map((entry) => (
+                      <div
+                        key={entry.model}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "minmax(140px, 1fr) repeat(3, auto)",
+                          gap: 12,
+                          fontSize: 13,
+                          color: "var(--text-main)",
+                        }}
+                      >
+                        <span>{entry.model}</span>
+                        <span style={{ color: "var(--text-muted)" }}>
+                          {entry.callCount} {entry.callCount === 1 ? "call" : "calls"}
+                        </span>
+                        <span style={{ color: "var(--text-muted)" }}>
+                          {formatTokens(entry.tokensIn)} / {formatTokens(entry.tokensOut)} tok
+                        </span>
+                        <span>{formatUsd(entry.costUsd)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </SupportSection>
 
           <SupportSection title={personContextTitle}>

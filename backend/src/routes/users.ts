@@ -4,6 +4,7 @@ import {
   createUserWithIdentity,
   deleteUser,
   findUserByIdentity,
+  getLlmUsageForUser,
   getUserAssetCount,
   getUserIdentity,
   getUserMessageCount,
@@ -320,6 +321,34 @@ export async function userRoutes(app: FastifyInstance) {
       }
 
       return reply.send({ ok: true });
+    },
+  );
+
+  app.get<{ Params: { id: string }; Querystring: { days?: string } }>(
+    "/admin/users/:id/llm-usage",
+    async (req, reply) => {
+      const adminUser = await requireAdminUser(
+        req as AuthenticatedRequest,
+        reply,
+      );
+
+      if (!adminUser) {
+        return;
+      }
+
+      const targetUser = await getUser(req.params.id);
+      if (!targetUser) {
+        return reply.status(404).send({ error: "User not found" });
+      }
+
+      const rawDays = Number.parseInt(req.query.days ?? "7", 10);
+      const days =
+        Number.isFinite(rawDays) && rawDays > 0 && rawDays <= 90 ? rawDays : 7;
+      const sinceDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      const sinceIso = sinceDate.toISOString();
+
+      const usage = await getLlmUsageForUser(req.params.id, sinceIso);
+      return reply.send({ days, since: sinceIso, ...usage });
     },
   );
 }

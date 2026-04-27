@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { ReportRenderer } from "./ReportRenderer";
-import { sendChat, sendChatStream, getChatHistory, truncateChatHistory } from "../api";
+import {
+  sendChat,
+  sendChatStream,
+  getChatHistory,
+  truncateChatHistory,
+  submitMessageFeedback,
+} from "../api";
 import { getChatFailureMessage } from "../chat-errors";
 import { VoiceRecorder } from "./VoiceRecorder";
 import type { ChatMessage } from "../types";
@@ -9,6 +15,7 @@ import {
   isChatLimitReached,
   type ChatUsageSnapshot,
 } from "../chat-limits";
+import { FLAGS } from "../config/flags";
 
 interface ChatMsg extends ChatMessage {
   dbId?: number;
@@ -55,6 +62,46 @@ function CopyButton({ copied, onCopy }: { copied: boolean; onCopy: () => void })
   );
 }
 
+function FeedbackButton({
+  emoji,
+  ariaLabel,
+  active,
+  disabled,
+  onClick,
+}: {
+  emoji: string;
+  ariaLabel: string;
+  active: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={ariaLabel}
+      aria-pressed={active}
+      disabled={disabled}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        background: "transparent",
+        border: "none",
+        color: active ? "var(--color-primary)" : "var(--text-faint)",
+        fontSize: 14,
+        cursor: disabled ? "default" : "pointer",
+        padding: "4px 6px",
+        borderRadius: 6,
+        transition: "all 0.2s ease",
+        opacity: disabled && !active ? 0.5 : 1,
+      }}
+      onMouseOver={(e) => { if (!active && !disabled) e.currentTarget.style.color = "var(--text-muted)"; }}
+      onMouseOut={(e) => { if (!active && !disabled) e.currentTarget.style.color = "var(--text-faint)"; }}
+    >
+      {emoji}
+    </button>
+  );
+}
+
 const QUICK_ACTIONS = [
   "Reporte semanal completo",
   "¿Cómo está mi energía esta semana?",
@@ -96,6 +143,8 @@ export function ChatView({ userName }: Props) {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [editIndex, setEditIndex] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
+  const [feedback, setFeedback] = useState<Record<number, "up" | "down">>({});
+  const [feedbackPending, setFeedbackPending] = useState<Record<number, boolean>>({});
   const bottomRef = useRef<HTMLDivElement>(null);
   const resetDateLabel = formatResetDate(messageUsage?.resetsAt);
 
@@ -301,6 +350,37 @@ export function ChatView({ userName }: Props) {
       setCopiedIndex(index);
       setTimeout(() => setCopiedIndex(null), 2000);
     });
+  };
+
+  // ─── Feedback ──────────────────────────────────────────────────────────────
+
+  const handleFeedback = async (messageId: number, thumb: "up" | "down") => {
+    if (feedback[messageId] === thumb || feedbackPending[messageId]) return;
+
+    const previous = feedback[messageId];
+    setFeedback((prev) => ({ ...prev, [messageId]: thumb }));
+    setFeedbackPending((prev) => ({ ...prev, [messageId]: true }));
+
+    try {
+      await submitMessageFeedback(messageId, thumb);
+    } catch {
+      // Roll back optimistic update on failure
+      setFeedback((prev) => {
+        const next = { ...prev };
+        if (previous) {
+          next[messageId] = previous;
+        } else {
+          delete next[messageId];
+        }
+        return next;
+      });
+    } finally {
+      setFeedbackPending((prev) => {
+        const next = { ...prev };
+        delete next[messageId];
+        return next;
+      });
+    }
   };
 
   // ─── Edit ──────────────────────────────────────────────────────────────────
@@ -571,10 +651,28 @@ export function ChatView({ userName }: Props) {
                   <span>✦</span> ASTRAL GUIDE
                 </div>
                 <ReportRenderer text={msg.content} />
-                {/* Copy button */}
+                {/* Copy + feedback */}
                 {msg.content && (
-                  <div style={{ marginTop: 8, display: "flex", alignItems: "center" }}>
+                  <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 2 }}>
                     <CopyButton copied={copiedIndex === i} onCopy={() => copyMessage(msg.content, i)} />
+                    {FLAGS.FEEDBACK_BUTTONS && msg.dbId !== undefined && (
+                      <>
+                        <FeedbackButton
+                          emoji="👍"
+                          ariaLabel="Marcar respuesta útil"
+                          active={feedback[msg.dbId] === "up"}
+                          disabled={!!feedbackPending[msg.dbId]}
+                          onClick={() => msg.dbId !== undefined && handleFeedback(msg.dbId, "up")}
+                        />
+                        <FeedbackButton
+                          emoji="👎"
+                          ariaLabel="Marcar respuesta no útil"
+                          active={feedback[msg.dbId] === "down"}
+                          disabled={!!feedbackPending[msg.dbId]}
+                          onClick={() => msg.dbId !== undefined && handleFeedback(msg.dbId, "down")}
+                        />
+                      </>
+                    )}
                   </div>
                 )}
               </div>

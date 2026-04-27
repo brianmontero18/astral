@@ -6,6 +6,7 @@
     "dev": "node --env-file=.env --import tsx/esm src/server.ts",
     "start": "node --env-file=.env dist/server.js",
     "build": "tsc",
+    "check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
   },

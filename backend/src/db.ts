@@ -189,11 +189,26 @@ export async function initDb(): Promise<void> {
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       )`,
       `CREATE TABLE IF NOT EXISTS chat_messages (
-        id         INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        role       TEXT NOT NULL,
-        content    TEXT NOT NULL,
-        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id        TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        role           TEXT NOT NULL,
+        content        TEXT NOT NULL,
+        feedback_thumb TEXT DEFAULT NULL CHECK(feedback_thumb IS NULL OR feedback_thumb IN ('up','down')),
+        feedback_note  TEXT DEFAULT NULL,
+        feedback_at    TEXT DEFAULT NULL,
+        created_at     TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE TABLE IF NOT EXISTS llm_calls (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        route       TEXT NOT NULL CHECK(route IN ('chat','chat_stream','report','extraction')),
+        model       TEXT NOT NULL,
+        tokens_in   INTEGER NOT NULL DEFAULT 0,
+        tokens_out  INTEGER NOT NULL DEFAULT 0,
+        cost_usd    REAL    NOT NULL DEFAULT 0,
+        latency_ms  INTEGER NOT NULL DEFAULT 0,
+        prompt_hash TEXT NOT NULL,
+        created_at  TEXT NOT NULL DEFAULT (datetime('now'))
       )`,
       `CREATE TABLE IF NOT EXISTS hd_reports (
         id           TEXT PRIMARY KEY,
@@ -238,6 +253,9 @@ export async function initDb(): Promise<void> {
     "ALTER TABLE assets ADD COLUMN updated_at TEXT",
     "ALTER TABLE hd_reports ADD COLUMN updated_at TEXT",
     "ALTER TABLE assets ADD COLUMN storage_key TEXT DEFAULT NULL",
+    "ALTER TABLE chat_messages ADD COLUMN feedback_thumb TEXT DEFAULT NULL",
+    "ALTER TABLE chat_messages ADD COLUMN feedback_note TEXT DEFAULT NULL",
+    "ALTER TABLE chat_messages ADD COLUMN feedback_at TEXT DEFAULT NULL",
   ];
 
   for (const sql of idempotentAlters) {
@@ -280,6 +298,7 @@ export async function initDb(): Promise<void> {
       "CREATE INDEX IF NOT EXISTS idx_identities_user ON user_identities(user_id)",
       "CREATE INDEX IF NOT EXISTS idx_shares_user ON report_shares(user_id)",
       "CREATE INDEX IF NOT EXISTS idx_shares_expires ON report_shares(expires_at)",
+      "CREATE INDEX IF NOT EXISTS idx_llm_calls_user_created ON llm_calls(user_id, created_at)",
     ],
     "write",
   );
@@ -875,6 +894,145 @@ export async function cleanupExpiredShares(): Promise<number> {
     args: [],
   });
   return result.rowsAffected;
+}
+
+// ─── LLM Calls (telemetry) ───────────────────────────────────────────────────
+
+export type LlmCallRoute = "chat" | "chat_stream" | "report" | "extraction";
+
+export interface LlmCallInput {
+  userId: string;
+  route: LlmCallRoute;
+  model: string;
+  tokensIn: number;
+  tokensOut: number;
+  costUsd: number;
+  latencyMs: number;
+  promptHash: string;
+}
+
+export async function insertLlmCall(input: LlmCallInput): Promise<void> {
+  await client.execute({
+    sql: `INSERT INTO llm_calls (user_id, route, model, tokens_in, tokens_out, cost_usd, latency_ms, prompt_hash)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [
+      input.userId,
+      input.route,
+      input.model,
+      input.tokensIn,
+      input.tokensOut,
+      input.costUsd,
+      input.latencyMs,
+      input.promptHash,
+    ],
+  });
+}
+
+export interface LlmUsageBreakdownEntry {
+  callCount: number;
+  tokensIn: number;
+  tokensOut: number;
+  costUsd: number;
+}
+
+export interface LlmUsageSummary {
+  totalCallCount: number;
+  totalTokensIn: number;
+  totalTokensOut: number;
+  totalCostUsd: number;
+  byRoute: Array<{ route: LlmCallRoute } & LlmUsageBreakdownEntry>;
+  byModel: Array<{ model: string } & LlmUsageBreakdownEntry>;
+}
+
+export async function getLlmUsageForUser(
+  userId: string,
+  sinceIso: string,
+): Promise<LlmUsageSummary> {
+  const totalsResult = await client.execute({
+    sql: `SELECT
+            COUNT(*)                  AS call_count,
+            COALESCE(SUM(tokens_in),  0) AS tokens_in,
+            COALESCE(SUM(tokens_out), 0) AS tokens_out,
+            COALESCE(SUM(cost_usd),   0) AS cost_usd
+          FROM llm_calls
+          WHERE user_id = ? AND datetime(created_at) >= datetime(?)`,
+    args: [userId, sinceIso],
+  });
+
+  const totalsRow = totalsResult.rows[0] ?? {};
+  const totalCallCount = Number(totalsRow.call_count ?? 0);
+  const totalTokensIn = Number(totalsRow.tokens_in ?? 0);
+  const totalTokensOut = Number(totalsRow.tokens_out ?? 0);
+  const totalCostUsd = Number(totalsRow.cost_usd ?? 0);
+
+  const byRouteResult = await client.execute({
+    sql: `SELECT
+            route,
+            COUNT(*)                  AS call_count,
+            COALESCE(SUM(tokens_in),  0) AS tokens_in,
+            COALESCE(SUM(tokens_out), 0) AS tokens_out,
+            COALESCE(SUM(cost_usd),   0) AS cost_usd
+          FROM llm_calls
+          WHERE user_id = ? AND datetime(created_at) >= datetime(?)
+          GROUP BY route
+          ORDER BY route ASC`,
+    args: [userId, sinceIso],
+  });
+
+  const byRoute = byRouteResult.rows.map((row) => ({
+    route: row.route as LlmCallRoute,
+    callCount: Number(row.call_count ?? 0),
+    tokensIn: Number(row.tokens_in ?? 0),
+    tokensOut: Number(row.tokens_out ?? 0),
+    costUsd: Number(row.cost_usd ?? 0),
+  }));
+
+  const byModelResult = await client.execute({
+    sql: `SELECT
+            model,
+            COUNT(*)                  AS call_count,
+            COALESCE(SUM(tokens_in),  0) AS tokens_in,
+            COALESCE(SUM(tokens_out), 0) AS tokens_out,
+            COALESCE(SUM(cost_usd),   0) AS cost_usd
+          FROM llm_calls
+          WHERE user_id = ? AND datetime(created_at) >= datetime(?)
+          GROUP BY model
+          ORDER BY model ASC`,
+    args: [userId, sinceIso],
+  });
+
+  const byModel = byModelResult.rows.map((row) => ({
+    model: row.model as string,
+    callCount: Number(row.call_count ?? 0),
+    tokensIn: Number(row.tokens_in ?? 0),
+    tokensOut: Number(row.tokens_out ?? 0),
+    costUsd: Number(row.cost_usd ?? 0),
+  }));
+
+  return { totalCallCount, totalTokensIn, totalTokensOut, totalCostUsd, byRoute, byModel };
+}
+
+// ─── Message Feedback ────────────────────────────────────────────────────────
+
+export type FeedbackThumb = "up" | "down";
+
+export async function setMessageFeedback(
+  messageId: number,
+  userId: string,
+  thumb: FeedbackThumb,
+  note?: string | null,
+): Promise<boolean> {
+  const result = await client.execute({
+    sql: `UPDATE chat_messages
+            SET feedback_thumb = ?,
+                feedback_note  = ?,
+                feedback_at    = datetime('now')
+          WHERE id      = ?
+            AND user_id = ?
+            AND role    = 'assistant'`,
+    args: [thumb, note ?? null, messageId, userId],
+  });
+  return result.rowsAffected > 0;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
