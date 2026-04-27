@@ -28,10 +28,14 @@ y el plan completo viven en docs/ai-refactor/ — léelos en este orden:
 Los archivos 02-04 son material de research de respaldo — consultá según
 necesites. El plan ya cita los hallazgos relevantes inline.
 
-Sprint 0 ya está hecho en docs/ai-refactor/00-product-position.md. Estamos
-por arrancar Sprint 1 (intake en chat + observability básica).
-Confirmá que entendiste el contexto y proponé el plan de ejecución del
-Sprint 1 antes de tocar código.
+Sprint 0 ya está hecho — los entregables están en docs/ai-refactor/ entero
+(no solo en 00-product-position.md). Estamos por arrancar Sprint 1
+(intake en chat + observability básica). Confirmá que entendiste el
+contexto y proponé el plan de ejecución del Sprint 1 antes de tocar código.
+
+Importante: backend/src/__tests__/prompt-eval.ts ya tiene foundation de
+evals (structure + grounding incluyendo anti-hallucination). Sprint 3 los
+EXTIENDE, no los crea de cero. Leelo antes de planear el harness.
 ```
 
 ## Orden de ejecución (resumen, ver `05-plan.md` para detalle)

@@ -26,7 +26,7 @@
 | 3 | **Conversation history sin límite** → context rot inevitable | Chroma "Context Rot" (2025): degradación medible empieza a 1k–32k tokens en TODOS los frontier models. Astral hoy mete toda la history. |
 | 4 | **System prompt sin estructura cache-friendly** | Manus: "KV-cache hit rate is the single most important metric" — 10× ahorro en Sonnet con prefijos estables. Astral no usa caching. |
 | 5 | **gpt-4o-mini para advisor chat** | 2025-2026 comparisons unánimes: Claude Sonnet 4.5 gana en tono, nuance, anti-sycophancy para advisor tasks. |
-| 6 | **Cero observability/evals** | Hamel Husain: evals son el #1 lever. NurtureBoss case: 33% → 95% tras error analysis sistemático. Astral hoy = ciegos. |
+| 6 | **Observability básica + foundation de prompt evals — pero falta LLM-as-judge y application al pipeline real** | Existen `prompt-eval.ts`/`prompt-eval.test.ts` con 8 funciones puras (structure, format, grounding incluyendo anti-hallucination de gates). Pero solo cubren reports, no chat; corren contra fixtures, no output real; sin LLM-as-judge ni custom data viewer (Hamel methodology). Foundation para extender, no construir desde cero. |
 | 7 | **System prompt sin disciplina anti-sycophancy** | npj Digital Medicine 2025: 100% compliance con misinformation en advisors sin guardrails. |
 | 8 | **Premium report = 3 parallel calls sin coherencia entre secciones** | ACE paper (Oct 2025): Generator + Reflector + Curator beats single-shot por +10.6%. |
 | 9 | **Cero tracking de cost/tokens en chat** | Cost blow-up es failure mode documentado. Astral hoy = invisible. |
@@ -49,6 +49,7 @@ Ver `00-product-position.md` para el detalle de esa decisión.
 5. **Right-altitude prompts** (Anthropic) — prompts más cortos, ejemplos canónicos no exhaustivos.
 6. **Modelo donde importa** — Claude para advisor chat, gpt-4o para vision, Haiku/mini para clasificación.
 7. **Single-agent default** — multi-agent solo donde el research muestra ROI (Editor loop en reports).
+8. **Reversible by feature flag** — cada cambio user-facing detrás de un flag. Si tanquea métricas (👍/👎 ratio, eval pass-rate, retention), rollback es 1 línea de config, no un revert. Aplica especial a: P2.3 anti-sycophancy persona (riesgo de churn), P3.1 migración Sonnet (riesgo de costo + behavior shift), P3.2 structured outputs (riesgo de break en PDF rendering).
 
 ## Plan en fases
 
@@ -74,17 +75,23 @@ Ver `00-product-position.md` para el detalle de esa decisión.
 
 ### 🟢 P2 — Calidad y disciplina (~1-2 semanas)
 
-**P2.1 Eval harness (Hamel methodology)**
-- Custom data viewer (extender admin panel existente).
-- 30 conversaciones de seed con label binario (good/bad) + critique en texto libre.
-- LLM-as-judge con rúbricas:
+**P2.1 Eval harness — EXTENDER el existente, no crear desde cero**
+
+> **Foundation existente** (`backend/src/__tests__/prompt-eval.ts` + `prompt-eval.test.ts`): 8 eval functions puras que cubren structure (7 secciones, orden, no-pre-text, min sentences), format (no-markdown, español heurístico) y grounding (mentions gates, **no-hallucinated-gates**, mentions centers). Solo aplican a output de reports, no a chat. Solo corren contra fixtures, no contra output real.
+
+Lo que falta agregar (en orden):
+- **Aplicar evals existentes al pipeline real** — correr `runEvals()` sobre cada report generado en prod, loggear pass/fail, alertar en degradación.
+- **Extender evals a chat output** — sin estructura de 7 secciones, foco en grounding (mentions gates/centers/canales del user) + no-hallucinated-gates + uso del intake.
+- **Custom data viewer** (extender admin panel existente) — ver cada conversación con: input completo, system prompt, output, eval results, 👍/👎 user.
+- **30 conversaciones de seed con label binario** (good/bad) + critique en texto libre. Punto de partida para training de juez.
+- **LLM-as-judge con rúbricas** (capa nueva sobre las puras):
   - ¿está groundeado en gates/centros específicos del user?
   - ¿usa el intake del negocio?
   - ¿es específico o genérico?
   - ¿hay sycophancy?
   - ¿se inventa atributos del user?
-- Target: judge-vs-human alignment >90%.
-- Estilo: binary + critique, no scale 1-5 (Hamel).
+- **Target**: judge-vs-human alignment >90%.
+- **Estilo**: binary + critique, no scale 1-5 (Hamel).
 
 **P2.2 KV-cache discipline + prompt caching**
 - Reordenar `buildSystemPrompt`:
@@ -189,12 +196,19 @@ Reviso críticamente antes de ejecutar.
 
 ### Lo que el plan NO cubre (gaps consciously deferred)
 
+**Engineering / técnico:**
 - Conversational intake (form → conversation). Defer hasta P1.2 (memory) operativo.
 - Multilingual chat (hoy solo español). No prioritario.
 - Voice input/output (no en producto hoy, defer).
 - Mobile-specific UX (responsive existe, deeper UX defer).
-- Marketplace de prompts comunitario (HDAI tiene, defer).
-- Public API for Daniela's coaches (defer).
+- Public API para coaches de Daniela (defer).
+- Hume EVI `chat_id` / `chat_group_id` pattern para session boundaries explícitos (hoy todo en un solo log; pattern útil cuando el producto crezca).
+
+**Product / negocio (mencionados como ganadores en research, defer hasta tener tracción real):**
+- **Bundled content / "staff writers" curado** (CHANI/Pattern pattern): contenido escrito por humanos junto al AI. Para Astral: contenido escrito por Daniela bundleado con el chat. Decisión de producto, no engineering.
+- **Live-human escalation** (Sanctuary pattern): al pasar plan premium, opción de booking de sesión 1:1 con Daniela. Upsell natural y retiene users que el AI no puede ayudar.
+- **Daily push-notification habit anchor** (Co-Star pattern): hoy Astral es weekly. Daily check-in con transit-light para crear hábito. Trade-off: agrega latency operativa y push fatigue risk.
+- **Marketplace de prompts comunitario** (HDAI tiene): users pueden compartir prompts de "preguntas que les funcionaron". Network effect. Defer hasta N>100 users.
 
 ## Sprints de ejecución
 
@@ -203,7 +217,7 @@ Reviso críticamente antes de ejecutar.
 | **Sprint 0** | Posicionamiento + knowledge pack | Este doc + `00-product-position.md` + carpeta `docs/ai-refactor/` | — |
 | **Sprint 1** | P1.1 + P1.3 | Intake en chat + tracking cost/tokens + 👍👎 UI | Sprint 0 |
 | **Sprint 2** | P1.2 (memory) | Living document layer + writeback automático | Sprint 1 (necesita observability para medir) |
-| **Sprint 3** | P2.1 (evals) | Custom data viewer + 30 seed conversations + LLM-as-judge harness | Sprint 1 (necesita data tracked) |
+| **Sprint 3** | P2.1 (evals) | Aplicar `prompt-eval.ts` existente al pipeline real + extender a chat + custom data viewer + 30 seed conversations + LLM-as-judge harness | Sprint 1 (necesita data tracked). Foundation existente: `prompt-eval.ts` con 8 functions estructurales/grounding. |
 | **Sprint 4** | P2.2 + P2.3 | KV-cache discipline + anti-sycophancy persona | Sprint 3 (cambios de prompt pasan por evals) |
 | **Sprint 5** | P3.0 + P3.1 | Retry/fallback + migración Sonnet con A/B/shadow | Sprint 3 |
 | **Sprint 6+** | P3.2, P3.3, P4 | Structured outputs, editor loop, model routing, tools, prompt library | Según necesidad |

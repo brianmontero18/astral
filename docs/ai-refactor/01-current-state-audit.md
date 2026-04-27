@@ -473,9 +473,39 @@ System prompts son **inline en código**, no separados en disco.
 - **Error logging**: Via Fastify logger
 - **Retry logging**: `console.error` on LLM failures
 
+### Existing prompt evals — ¡SÍ hay foundation!
+
+**Files**: `backend/src/__tests__/prompt-eval.ts` (208 líneas, 8 funciones puras) y `backend/src/__tests__/prompt-eval.test.ts` (211 líneas, fixtures + tests).
+
+**Evals implementadas** (puras, sin LLM call, retornan `{ pass, reason }`):
+
+Structure evals:
+- `evalReportSections(output)` — verifica 7 secciones requeridas presentes y en orden
+- `evalNoPreText(output)` — no hay texto antes del primer emoji 🔭
+- `evalMinSentencesPerSection(output, min=3)` — ≥3 oraciones por sección
+
+Format evals:
+- `evalNoMarkdown(output)` — sin `**`, `##`, backticks, bullets
+- `evalSpanish(output)` — heurística de marcadores español vs inglés
+
+Grounding evals (¡ya hay anti-hallucination!):
+- `evalMentionsGates(output, expectedGates)` — referencia gates específicos del contexto
+- `evalNoHallucinatedGates(output, validGates)` — **detecta gates que el LLM inventó** (no estaban en context)
+- `evalMentionsCenters(output, definedCenters, undefinedCenters)` — referencia centros HD por nombre
+
+Composite runner: `runEvals(suites)` retorna `{ passed, failed, results }`.
+
+**Limitaciones de la cobertura actual**:
+- Solo evalúan output de **reports** (pattern de 7 emojis), no de chat
+- Sin LLM-as-judge — solo regex/heurísticas estructurales
+- Sin custom data viewer (Hamel methodology)
+- Sin judge-vs-human alignment measurement
+- Sin error analysis sistemático sobre data real
+- No están integrados al pipeline de generación (no corren automáticamente sobre output real, solo contra fixtures)
+
 ### Testing
-- **No prompt evals found**
-- **No LLM output validation**
+- **Existing prompt evals son foundation** — Sprint 3 los va a extender, no crear desde cero
+- **No LLM output validation en pipeline real** — los evals existen pero no se aplican a output de prod
 - **Manual validation**: User feedback loop only
 
 ### Monitoring
