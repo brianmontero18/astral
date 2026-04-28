@@ -28,10 +28,9 @@
   },
   "optionalDependencies": {
     "@esbuild/darwin-arm64": "^0.27.3",
-    "@libsql/darwin-arm64": "^0.5.22",
-    "@rolldown/binding-linux-x64-gnu": "1.0.0-rc.12"
+    "@libsql/darwin-arm64": "^0.5.22"
   },
   "devDependencies": {
-    "vitest": "^4.1.2"
+    "vitest": "^3.2.4"
   }
 }
