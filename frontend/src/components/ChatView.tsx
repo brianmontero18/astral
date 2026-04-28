@@ -24,33 +24,16 @@ const CopyIcon = () => (
 );
 
 function CopyButton({ copied, onCopy, tone = "dark" }: { copied: boolean; onCopy: () => void; tone?: "dark" | "light" }) {
-  const restColor = tone === "dark" ? "var(--text-faint)" : "var(--text-on-light-faint)";
-  const hoverColor = tone === "dark" ? "var(--text-muted)" : "var(--text-on-light)";
+  const toneClass = tone === "dark" ? "chat-copy-button--dark" : "chat-copy-button--light";
 
   return (
     <button
       onClick={onCopy}
       aria-label="Copiar mensaje"
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 5,
-        background: "transparent",
-        border: "none",
-        color: copied ? "var(--color-primary)" : restColor,
-        fontSize: 12,
-        cursor: "pointer",
-        padding: "4px 8px",
-        borderRadius: 6,
-        transition: "all 0.2s ease",
-        fontFamily: "var(--font-sans)",
-        fontWeight: 500,
-      }}
-      onMouseOver={(e) => { if (!copied) e.currentTarget.style.color = hoverColor; }}
-      onMouseOut={(e) => { if (!copied) e.currentTarget.style.color = restColor; }}
+      className={`chat-copy-button ${toneClass}${copied ? " chat-copy-button--copied" : ""}`}
     >
       {copied ? (
-        <><span style={{ fontSize: 13 }}>✓</span><span>Copiado</span></>
+        <><span className="chat-copied-mark">✓</span><span>Copiado</span></>
       ) : (
         <><CopyIcon /><span>Copiar</span></>
       )}
@@ -364,64 +347,23 @@ export function ChatView({ userName }: Props) {
     : null;
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-      <main
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          padding: "20px 16px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 18,
-          maxWidth: 760,
-          width: "100%",
-          margin: "0 auto",
-          boxSizing: "border-box",
-        }}
-      >
+    <div className="chat-shell">
+      <main className="chat-main">
         {/* Empty state */}
         {messages.length === 0 && (
-          <div style={{ textAlign: "center", marginTop: 48 }} className="animate-fade-in-slow">
-            <div
-              style={{
-                color: "var(--text-on-light)",
-                fontSize: "26px",
-                marginBottom: "8px",
-                fontFamily: "var(--font-serif)",
-                fontWeight: 500,
-                letterSpacing: "0.02em",
-              }}
-            >
+          <div className="chat-empty animate-fade-in-slow">
+            <div className="chat-empty-title">
               Hola, {userName}
             </div>
-            <div style={{ color: "var(--text-on-light-muted)", fontSize: "14px", marginBottom: "32px", fontWeight: 400, lineHeight: 1.6 }}>
+            <div className="chat-empty-copy">
               Tu guía de Diseño Humano está lista para acompañarte.
             </div>
-            <div style={{ display: "flex", gap: "10px", justifyContent: "center", flexWrap: "wrap" }}>
+            <div className="chat-quick-actions">
               {QUICK_ACTIONS.map((q) => (
                 <button
                   key={q}
                   onClick={() => sendMessage(q)}
-                  style={{
-                    background: "var(--surface-dark)",
-                    border: "1px solid rgba(248, 244, 232, 0.1)",
-                    color: "var(--text-main)",
-                    padding: "10px 18px",
-                    borderRadius: "999px",
-                    cursor: "pointer",
-                    fontSize: "12px",
-                    transition: "all 0.3s ease",
-                    fontFamily: "var(--font-sans)",
-                    fontWeight: 500,
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.borderColor = "var(--color-primary)";
-                    e.currentTarget.style.background = "var(--surface-deeper)";
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.borderColor = "rgba(248, 244, 232, 0.1)";
-                    e.currentTarget.style.background = "var(--surface-dark)";
-                  }}
+                  className="chat-quick-action"
                 >
                   {q}
                 </button>
@@ -434,71 +376,30 @@ export function ChatView({ userName }: Props) {
         {messages.map((msg, i) => (
           <div
             key={i}
-            style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }}
-            className="animate-fade-in"
+            className={`chat-message-row chat-message-row--${msg.role} animate-fade-in`}
           >
             {msg.role === "user" ? (
-              <div style={{ maxWidth: "80%", display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+              <div className="chat-user-stack">
                 {editIndex === i ? (
                   /* Edit mode */
-                  <div
-                    style={{
-                      background: "var(--surface-dark)",
-                      border: "1px solid var(--color-primary)",
-                      borderRadius: 14,
-                      padding: "12px 16px",
-                      width: "100%",
-                      minWidth: 260,
-                    }}
-                  >
+                  <div className="chat-edit-card">
                     <textarea
                       value={editText}
                       onChange={(e) => setEditText(e.target.value)}
                       rows={3}
-                      style={{
-                        width: "100%",
-                        background: "transparent",
-                        border: "none",
-                        color: "var(--text-main)",
-                        fontSize: 14,
-                        fontFamily: "var(--font-sans)",
-                        fontWeight: 400,
-                        resize: "vertical",
-                        outline: "none",
-                        lineHeight: 1.6,
-                      }}
+                      className="chat-edit-textarea"
                     />
-                    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 8 }}>
+                    <div className="chat-edit-actions">
                       <button
                         onClick={cancelEdit}
-                        style={{
-                          background: "transparent",
-                          border: "1px solid rgba(248, 244, 232, 0.18)",
-                          color: "var(--text-muted)",
-                          borderRadius: 8,
-                          padding: "6px 14px",
-                          fontSize: 12,
-                          cursor: "pointer",
-                          fontFamily: "var(--font-sans)",
-                        }}
+                        className="button-outline"
                       >
                         Cancelar
                       </button>
                       <button
                         onClick={() => saveEdit(i)}
                         disabled={!editText.trim() || isBusy}
-                        style={{
-                          background: "linear-gradient(135deg, #e0c081 0%, #9d7f4d 100%)",
-                          border: "none",
-                          color: "var(--surface-deeper)",
-                          borderRadius: 8,
-                          padding: "6px 14px",
-                          fontSize: 12,
-                          fontWeight: 600,
-                          cursor: !editText.trim() || isBusy ? "default" : "pointer",
-                          fontFamily: "var(--font-sans)",
-                          opacity: !editText.trim() || isBusy ? 0.4 : 1,
-                        }}
+                        className="button-gold"
                       >
                         Guardar y enviar
                       </button>
@@ -507,45 +408,17 @@ export function ChatView({ userName }: Props) {
                 ) : (
                   /* Display mode */
                   <>
-                    <div
-                      style={{
-                        background: "var(--surface-dark)",
-                        border: "1px solid rgba(248, 244, 232, 0.08)",
-                        borderRadius: "18px 18px 4px 18px",
-                        padding: "12px 18px",
-                        color: "var(--text-main)",
-                        fontSize: "15px",
-                        fontWeight: 400,
-                        lineHeight: 1.6,
-                        fontFamily: "var(--font-sans)",
-                      }}
-                    >
+                    <div className="chat-bubble-user">
                       {msg.content}
                     </div>
                     {/* Action buttons below user bubble */}
-                    {msg.content && <div style={{ display: "flex", alignItems: "center", gap: 2, marginTop: 4 }}>
+                    {msg.content && <div className="chat-message-actions">
                       <CopyButton tone="light" copied={copiedIndex === i} onCopy={() => copyMessage(msg.content, i)} />
                       {!isBusy && !limitReached && (
                         <button
                           onClick={() => startEdit(i)}
                           aria-label="Editar mensaje"
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 5,
-                            background: "transparent",
-                            border: "none",
-                            color: "var(--text-on-light-faint)",
-                            fontSize: 12,
-                            cursor: "pointer",
-                            padding: "4px 8px",
-                            borderRadius: 6,
-                            transition: "all 0.2s ease",
-                            fontFamily: "var(--font-sans)",
-                            fontWeight: 500,
-                          }}
-                          onMouseOver={(e) => (e.currentTarget.style.color = "var(--text-on-light)")}
-                          onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-on-light-faint)")}
+                          className="chat-edit-button"
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
@@ -560,36 +433,14 @@ export function ChatView({ userName }: Props) {
               </div>
             ) : (
               /* Assistant message — premium guided insight on dark green */
-              <div
-                style={{
-                  maxWidth: "95%",
-                  width: "100%",
-                  background: "var(--surface-dark)",
-                  border: "1px solid rgba(248, 244, 232, 0.08)",
-                  borderRadius: "16px",
-                  padding: "18px 22px",
-                  color: "var(--text-main)",
-                }}
-              >
-                <div
-                  style={{
-                    color: "var(--color-primary)",
-                    fontSize: "10px",
-                    marginBottom: "12px",
-                    letterSpacing: "0.2em",
-                    fontWeight: 700,
-                    fontFamily: "var(--font-sans)",
-                    textTransform: "uppercase",
-                    paddingBottom: 10,
-                    borderBottom: "1px solid rgba(207, 172, 108, 0.18)",
-                  }}
-                >
+              <div className="chat-assistant-card">
+                <div className="chat-assistant-header">
                   Astral Guide
                 </div>
                 <ReportRenderer text={msg.content} />
                 {/* Copy button */}
                 {msg.content && (
-                  <div style={{ marginTop: 10, display: "flex", alignItems: "center" }}>
+                  <div className="chat-assistant-actions">
                     <CopyButton copied={copiedIndex === i} onCopy={() => copyMessage(msg.content, i)} />
                   </div>
                 )}
@@ -600,37 +451,22 @@ export function ChatView({ userName }: Props) {
 
         {/* Loading indicator */}
         {loading && (
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }} className="animate-fade-in">
+          <div className="chat-loading animate-fade-in">
             {[0, 1, 2].map((i) => (
               <div
                 key={i}
-                style={{
-                  width: "6px",
-                  height: "6px",
-                  borderRadius: "50%",
-                  background: "var(--color-primary)",
-                  animation: `pulse 1.2s ease infinite ${i * 0.2}s`,
-                }}
+                className="chat-loading-dot"
+                style={{ animationDelay: `${i * 0.2}s` }}
               />
             ))}
-            <span style={{ color: "var(--text-on-light-muted)", fontSize: "12px", letterSpacing: "0.06em" }}>
+            <span className="chat-loading-label">
               Canalizando tu lectura...
             </span>
           </div>
         )}
 
         {errorMsg && (
-          <div
-            style={{
-              background: "rgba(196, 96, 96, 0.14)",
-              border: "1px solid rgba(196, 96, 96, 0.4)",
-              borderRadius: 10,
-              padding: "10px 14px",
-              color: "#9a3737",
-              fontSize: 13,
-              animation: "fadeIn 0.2s ease",
-            }}
-          >
+          <div className="chat-error">
             {errorMsg}
           </div>
         )}
@@ -640,39 +476,12 @@ export function ChatView({ userName }: Props) {
 
       {/* Footer */}
       {limitReached ? (
-        <footer
-          style={{
-            padding: "32px 24px",
-            textAlign: "center",
-            borderTop: "1px solid rgba(33, 41, 30, 0.12)",
-            background: "var(--surface-deeper)",
-            zIndex: 10,
-            flexShrink: 0,
-          }}
-          className="animate-fade-in"
-        >
-          <div style={{ maxWidth: 760, margin: "0 auto" }}>
-            <h3
-              style={{
-                fontFamily: "var(--font-serif)",
-                color: "var(--color-primary)",
-                fontSize: 24,
-                fontWeight: 500,
-                marginBottom: 8,
-                margin: "0 0 12px 0",
-              }}
-            >
+        <footer className="chat-limit-footer animate-fade-in">
+          <div className="chat-footer-inner">
+            <h3 className="chat-limit-title">
               {limitExperience?.title ?? "Tu ventana de mensajes de este mes se completó"}
             </h3>
-            <p
-              style={{
-                color: "var(--text-muted)",
-                fontSize: 14,
-                fontWeight: 400,
-                marginBottom: 24,
-                lineHeight: 1.65,
-              }}
-            >
+            <p className="chat-limit-copy">
               {limitExperience?.body ?? `Ya usaste tus ${limitValue} mensajes de este mes.`}
             </p>
             {showUpgradeCta && limitExperience?.ctaLabel && (
@@ -680,19 +489,7 @@ export function ChatView({ userName }: Props) {
                 href="https://wa.me/5491153446030"
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{
-                  display: "inline-block",
-                  padding: "14px 36px",
-                  borderRadius: 8,
-                  background: "linear-gradient(135deg, #e0c081 0%, #9d7f4d 100%)",
-                  color: "var(--surface-deeper)",
-                  fontSize: 13,
-                  fontFamily: "var(--font-sans)",
-                  textDecoration: "none",
-                  fontWeight: 700,
-                  letterSpacing: "0.16em",
-                  textTransform: "uppercase",
-                }}
+                className="chat-limit-cta"
               >
                 {limitExperience.ctaLabel}
               </a>
@@ -700,36 +497,8 @@ export function ChatView({ userName }: Props) {
           </div>
         </footer>
       ) : (
-        <footer
-          style={{
-            padding: "16px 24px",
-            borderTop: "1px solid rgba(33, 41, 30, 0.1)",
-            background: "transparent",
-            zIndex: 10,
-            flexShrink: 0,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              gap: "12px",
-              maxWidth: 760,
-              margin: "0 auto",
-              background: "var(--surface-dark)",
-              border: `1px solid ${isRecording ? "var(--color-primary)" : "rgba(248, 244, 232, 0.1)"}`,
-              borderRadius: "18px",
-              padding: "8px 16px",
-              alignItems: "center",
-              transition: "border-color 0.3s ease",
-              boxShadow: "0 4px 18px rgba(33, 41, 30, 0.12)",
-            }}
-            onFocus={(e) => {
-              if (!isRecording) e.currentTarget.style.border = "1px solid var(--color-primary)";
-            }}
-            onBlur={(e) => {
-              if (!isRecording) e.currentTarget.style.border = "1px solid rgba(248, 244, 232, 0.1)";
-            }}
-          >
+        <footer className="chat-composer-footer">
+          <div className={`chat-composer${isRecording ? " chat-composer--recording" : ""}`}>
             {isRecording ? (
               <VoiceRecorder
                 onTranscription={handleVoiceTranscription}
@@ -743,43 +512,14 @@ export function ChatView({ userName }: Props) {
                   onKeyDown={handleKey}
                   placeholder="Preguntale a tu guía sobre tu semana..."
                   rows={1}
-                  style={{
-                    flex: 1,
-                    background: "transparent",
-                    border: "none",
-                    color: "var(--text-main)",
-                    fontSize: "15px",
-                    fontWeight: 400,
-                    fontFamily: "var(--font-sans)",
-                    resize: "none",
-                    lineHeight: 1.5,
-                    paddingTop: "6px",
-                    paddingBottom: "6px",
-                    outline: "none",
-                  }}
+                  className="chat-composer-input"
                 />
                 {/* Mic button — shown when input is empty and browser supports it */}
                 {hasMicSupport && !input.trim() && !isBusy && (
                   <button
                     onClick={() => setIsRecording(true)}
                     aria-label="Grabar nota de voz"
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: "50%",
-                      flexShrink: 0,
-                      background: "transparent",
-                      border: "none",
-                      cursor: "pointer",
-                      color: "var(--text-muted)",
-                      fontSize: 18,
-                      transition: "all 0.3s ease",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                    onMouseOver={(e) => (e.currentTarget.style.color = "var(--color-primary)")}
-                    onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+                    className="chat-icon-button"
                   >
                     <svg
                       width="20"
@@ -803,21 +543,7 @@ export function ChatView({ userName }: Props) {
                   onClick={() => sendMessage(input)}
                   disabled={isBusy || !input.trim()}
                   aria-label="Enviar"
-                  style={{
-                    width: "40px",
-                    height: "40px",
-                    borderRadius: "50%",
-                    flexShrink: 0,
-                    background: isBusy || !input.trim() ? "transparent" : "linear-gradient(135deg, #e0c081 0%, #9d7f4d 100%)",
-                    border: isBusy || !input.trim() ? "1px solid rgba(248, 244, 232, 0.15)" : "none",
-                    cursor: isBusy || !input.trim() ? "default" : "pointer",
-                    color: isBusy || !input.trim() ? "var(--text-faint)" : "var(--surface-deeper)",
-                    fontSize: "16px",
-                    transition: "all 0.3s ease",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
+                  className="chat-icon-button chat-send-button"
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="5" y1="12" x2="19" y2="12" />
