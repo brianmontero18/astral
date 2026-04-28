@@ -33,6 +33,7 @@ AGENTS.md
 .DS_Store
 .beads/
 test-results/
+playwright-report/
 
 # Beads / Dolt files (added by bd init)
 .dolt/

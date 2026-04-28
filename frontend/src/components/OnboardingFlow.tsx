@@ -256,7 +256,7 @@ export function OnboardingFlow({ onComplete }: Props) {
             }}
           >
             <h2 style={{ color: "var(--text-main)", fontSize: "26px", marginBottom: "12px", textAlign: "center", fontFamily: "var(--font-serif)", fontWeight: 500 }}>
-              Sincronizá tu carta
+              Sincroniza tu energía
             </h2>
             <p style={{ color: "var(--text-muted)", fontSize: "14px", textAlign: "center", marginBottom: "28px", fontWeight: 400, lineHeight: 1.6 }}>
               Subí tu gráfico de Diseño Humano para sintonizar el reporte a tu esencia.<br />
@@ -323,7 +323,7 @@ export function OnboardingFlow({ onComplete }: Props) {
               className="astral-auth-primary"
               style={{ width: "100%" }}
             >
-              Procesar mi carta
+              CANALIZAR ENERGÍA
             </button>
           </div>
         )}
@@ -366,7 +366,7 @@ export function OnboardingFlow({ onComplete }: Props) {
         {step === "review" && extractedProfile && (
           <div className="animate-fade-in">
             <h2 style={{ color: "var(--text-on-light)", fontSize: "28px", marginBottom: "28px", textAlign: "center", fontFamily: "var(--font-serif)", fontWeight: 500 }}>
-              Tu Diseño Humano
+              Tu Identidad Cósmica
             </h2>
 
             <div
@@ -423,7 +423,7 @@ export function OnboardingFlow({ onComplete }: Props) {
                 Volver
               </button>
               <button onClick={handleConfirm} className="astral-auth-primary" style={{ flex: 2 }}>
-                Continuar
+                EMBARCAR
               </button>
             </div>
           </div>

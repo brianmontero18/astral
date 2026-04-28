@@ -122,7 +122,7 @@ export function ProfilePanel({ profile, userPlan, onGenerateReport }: Props) {
             marginBottom: 8,
           }}
         >
-          Perfil activo
+          ✦ Perfil activo
         </div>
         <div
           style={{

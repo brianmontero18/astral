@@ -360,7 +360,7 @@ function PlanetCard({ planet, touchesUser, expanded, onToggle }: {
             marginTop: "6px", fontSize: "9px", color: "var(--color-primary)",
             letterSpacing: "0.14em", fontWeight: 700, textTransform: "uppercase",
           }}>
-            Activa tu Puerta {planet.hdGate}
+            ✦ ACTIVA TU PUERTA {planet.hdGate}
           </div>
         )}
         {expanded && gateTheme && (

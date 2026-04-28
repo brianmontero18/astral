@@ -510,7 +510,7 @@ export function ChatView({ userName }: Props) {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKey}
-                  placeholder="Preguntale a tu guía sobre tu semana..."
+                  placeholder="Preguntá al oráculo sobre tu semana..."
                   rows={1}
                   className="chat-composer-input"
                 />
