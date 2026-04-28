@@ -8,12 +8,12 @@
 // ─── Section config ───────────────────────────────────────────────────────────
 
 export const SECTION_META: Record<string, { label: string; color: string }> = {
-  "🔭": { label: "Panorama General",      color: "#7c6fcd" },
-  "⚡": { label: "Energía & Cuerpo",      color: "#e8b84b" },
-  "💼": { label: "Trabajo & Creatividad", color: "#5ba3c9" },
-  "❤️": { label: "Vínculos & Amor",       color: "#c96b7a" },
-  "🧭": { label: "Estrategia",            color: "#6bba8a" },
-  "⚠️": { label: "Puntos de Atención",    color: "#d4845a" },
+  "🔭": { label: "Panorama General",      color: "#cfac6c" },
+  "⚡": { label: "Energía & Cuerpo",      color: "#e0c081" },
+  "💼": { label: "Trabajo & Creatividad", color: "#8aa897" },
+  "❤️": { label: "Vínculos & Amor",       color: "#d7c7ad" },
+  "🧭": { label: "Estrategia",            color: "#9d7f4d" },
+  "⚠️": { label: "Puntos de Atención",    color: "#c98c5a" },
 };
 
 export const SECTION_EMOJIS = Object.keys(SECTION_META);

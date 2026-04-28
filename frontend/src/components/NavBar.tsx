@@ -52,32 +52,40 @@ export function NavBar({
   return (
     <header
       style={{
-        padding: "20px 24px 0",
+        padding: "18px 28px 0",
         display: "flex",
         flexDirection: "column",
-        borderBottom: "1px solid var(--glass-border)",
-        background: "rgba(10, 9, 16, 0.4)",
-        backdropFilter: "blur(24px)",
-        WebkitBackdropFilter: "blur(24px)",
+        borderBottom: "1px solid rgba(248, 244, 232, 0.08)",
+        background: "var(--surface-deeper)",
         flexShrink: 0,
         position: "relative",
         zIndex: 50,
       }}
     >
       {/* Top row */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0, flexShrink: 1 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flexShrink: 1 }}>
           <div
+            aria-hidden
             style={{
-              width: 34,
-              height: 34,
+              width: 30,
+              height: 30,
               borderRadius: "50%",
               flexShrink: 0,
-              background: "radial-gradient(circle at 30% 30%, #D4AF37, #C5A059, #1c153a)",
-              boxShadow: "0 0 15px rgba(212,175,55,0.2)",
-              animation: "spin 20s linear infinite",
+              background: "var(--surface-dark)",
+              border: "1px solid var(--color-gold)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--color-gold)",
+              fontFamily: "var(--font-serif)",
+              fontSize: 14,
+              fontWeight: 500,
+              letterSpacing: "0.04em",
             }}
-          />
+          >
+            A
+          </div>
           <div style={{ minWidth: 0 }}>
             <div style={{
               color: "var(--text-main)",
@@ -92,11 +100,11 @@ export function NavBar({
             <div style={{
               color: "var(--color-primary)",
               fontSize: "9px",
-              letterSpacing: "0.2em",
+              letterSpacing: "0.22em",
               fontFamily: "var(--font-sans)",
               fontWeight: 600,
-              opacity: 0.8,
               whiteSpace: "nowrap",
+              opacity: 0.85,
             }}>
               DISEÑO HUMANO
             </div>
@@ -110,8 +118,8 @@ export function NavBar({
                 href="/auth/dashboard"
                 style={{
                   background: "transparent",
-                  border: "1px solid rgba(212, 175, 55, 0.35)",
-                  color: "var(--text-gold)",
+                  border: "1px solid rgba(207, 172, 108, 0.45)",
+                  color: "var(--color-primary)",
                   padding: "6px 14px",
                   borderRadius: 30,
                   fontSize: "10px",
@@ -129,9 +137,9 @@ export function NavBar({
             <button
               onClick={() => setShowProfile((v) => !v)}
               style={{
-                background: "var(--color-primary-faint)",
-                border: "1px solid var(--glass-gold-border)",
-                color: "var(--text-gold)",
+                background: "rgba(248, 244, 232, 0.06)",
+                border: "1px solid rgba(248, 244, 232, 0.14)",
+                color: "var(--text-main)",
                 padding: "6px 14px",
                 borderRadius: 30,
                 cursor: "pointer",
@@ -145,18 +153,18 @@ export function NavBar({
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
               }}
-              onMouseOver={(e) => { e.currentTarget.style.background = "var(--color-primary-dim)" }}
-              onMouseOut={(e) => { e.currentTarget.style.background = "var(--color-primary-faint)" }}
+              onMouseOver={(e) => { e.currentTarget.style.background = "rgba(207, 172, 108, 0.16)"; e.currentTarget.style.borderColor = "var(--color-primary-dim)"; }}
+              onMouseOut={(e) => { e.currentTarget.style.background = "rgba(248, 244, 232, 0.06)"; e.currentTarget.style.borderColor = "rgba(248, 244, 232, 0.14)"; }}
             >
               {userName}
             </button>
             <button
               onClick={onReset}
-              title="Desconectar y Empezar de Nuevo"
+              title="Cerrar sesión"
               style={{
                 background: "transparent",
-                border: "1px solid rgba(201,107,122,0.3)",
-                color: "#f0a0b0",
+                border: "1px solid rgba(248, 244, 232, 0.18)",
+                color: "var(--text-muted)",
                 padding: "6px 14px",
                 borderRadius: 30,
                 cursor: "pointer",
@@ -168,8 +176,8 @@ export function NavBar({
                 transition: "all 0.3s ease",
                 whiteSpace: "nowrap",
               }}
-              onMouseOver={(e) => { e.currentTarget.style.background = "rgba(201,107,122,0.1)" }}
-              onMouseOut={(e) => { e.currentTarget.style.background = "transparent" }}
+              onMouseOver={(e) => { e.currentTarget.style.background = "rgba(248, 244, 232, 0.06)"; e.currentTarget.style.color = "var(--text-main)"; }}
+              onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-muted)"; }}
             >
               Salir
             </button>
@@ -185,15 +193,15 @@ export function NavBar({
       </div>
 
       {/* Tab bar */}
-      <div style={{ display: "flex", gap: "24px", paddingLeft: "4px" }}>
+      <div style={{ display: "flex", gap: "26px", paddingLeft: "2px" }}>
         {!supportRoute && (currentView === "intake" || currentView === "report") ? (
           <button
             onClick={() => onNavigate(previousView ?? "chat")}
             style={{
               background: "transparent", border: "none",
-              borderBottom: "1px solid transparent",
-              color: "var(--text-muted)", padding: "10px 4px",
-              cursor: "pointer", fontSize: "12px", fontWeight: 400,
+              borderBottom: "2px solid transparent",
+              color: "var(--text-muted)", padding: "10px 2px",
+              cursor: "pointer", fontSize: "12px", fontWeight: 500,
               letterSpacing: "0.15em", fontFamily: "var(--font-sans)",
               textTransform: "uppercase", transition: "all 0.3s ease",
             }}
@@ -202,40 +210,43 @@ export function NavBar({
           </button>
         ) : (
           <>
-            {TABS.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => onNavigate(tab.key)}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  borderBottom: !supportRoute && currentView === tab.key ? "1px solid var(--color-primary)" : "1px solid transparent",
-                  color: !supportRoute && currentView === tab.key ? "var(--text-main)" : "var(--text-muted)",
-                  padding: "10px 4px",
-                  cursor: "pointer",
-                  fontSize: "12px",
-                  fontWeight: !supportRoute && currentView === tab.key ? 600 : 400,
-                  letterSpacing: "0.15em",
-                  fontFamily: "var(--font-sans)",
-                  textTransform: "uppercase",
-                  transition: "all 0.3s ease",
-                }}
-              >
-                {tab.label}
-              </button>
-            ))}
+            {TABS.map((tab) => {
+              const active = !supportRoute && currentView === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => onNavigate(tab.key)}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    borderBottom: active ? "2px solid var(--color-primary)" : "2px solid transparent",
+                    color: active ? "var(--color-primary)" : "var(--text-muted)",
+                    padding: "10px 2px",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                    fontWeight: active ? 600 : 500,
+                    letterSpacing: "0.15em",
+                    fontFamily: "var(--font-sans)",
+                    textTransform: "uppercase",
+                    transition: "all 0.3s ease",
+                  }}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
             {userRole === "admin" ? (
               <button
                 onClick={onOpenSupportPanel}
                 style={{
                   background: "transparent",
                   border: "none",
-                  borderBottom: supportRoute ? "1px solid var(--color-primary)" : "1px solid transparent",
-                  color: supportRoute ? "var(--text-main)" : "var(--text-muted)",
-                  padding: "10px 4px",
+                  borderBottom: supportRoute ? "2px solid var(--color-primary)" : "2px solid transparent",
+                  color: supportRoute ? "var(--color-primary)" : "var(--text-muted)",
+                  padding: "10px 2px",
                   cursor: "pointer",
                   fontSize: "12px",
-                  fontWeight: supportRoute ? 600 : 400,
+                  fontWeight: supportRoute ? 600 : 500,
                   letterSpacing: "0.15em",
                   fontFamily: "var(--font-sans)",
                   textTransform: "uppercase",

@@ -30,17 +30,6 @@ import {
 import { readFrontendAuthConfig } from "./auth/config";
 import type { AppUserStatus, LocalUser, UserProfile, Intake, DesignReport, View } from "./types";
 
-// ─── Dust Particles — (replacing old stars) ──────────────────────────────────
-
-const PARTICLES = Array.from({ length: 45 }, () => ({
-  x: Math.random() * 100,
-  y: Math.random() * 100,
-  sz: Math.random() * 1.5 + 0.5,
-  op: Math.random() * 0.3 + 0.05,
-  del: Math.random() * 5,
-  dur: 4 + Math.random() * 6,
-}));
-
 function readCurrentPathname(): string {
   if (typeof window === "undefined") {
     return "/";
@@ -330,38 +319,6 @@ export default function App() {
       }}
       className="animate-fade-in-slow"
     >
-      {/* Mystical Background Orbs */}
-      <div style={{
-        position: "absolute", top: "-10%", left: "-10%", width: "40vw", height: "40vw",
-        background: "radial-gradient(circle, rgba(157,139,223,0.03) 0%, transparent 70%)",
-        pointerEvents: "none", zIndex: 0
-      }} />
-      <div style={{
-        position: "absolute", bottom: "-20%", right: "-10%", width: "50vw", height: "50vw",
-        background: "radial-gradient(circle, rgba(212,175,55,0.03) 0%, transparent 70%)",
-        pointerEvents: "none", zIndex: 0
-      }} />
-
-      {/* Floating Dust Particles */}
-      {PARTICLES.map((s, i) => (
-        <div
-          key={i}
-          style={{
-            position: "absolute",
-            left: `${s.x}%`,
-            top: `${s.y}%`,
-            width: s.sz,
-            height: s.sz,
-            borderRadius: "50%",
-            background: "#C5A059",
-            opacity: s.op,
-            pointerEvents: "none",
-            animation: `pulse ${s.dur}s ease-in-out infinite ${s.del}s`,
-            boxShadow: `0 0 ${s.sz * 2}px rgba(212,175,55,0.4)`,
-          }}
-        />
-      ))}
-
       {/* Onboarding */}
       {currentView === "onboarding" && (
         <OnboardingFlow onComplete={handleOnboardingComplete} />

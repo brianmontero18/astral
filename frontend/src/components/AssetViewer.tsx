@@ -96,27 +96,30 @@ export function AssetViewer() {
       <div style={{ textAlign: "center", marginTop: 60 }} className="animate-fade-in-slow">
         <div style={{
           width: 36, height: 36, borderRadius: "50%",
-          border: "3px solid var(--color-primary-faint)", borderTopColor: "var(--color-primary)",
+          border: "3px solid rgba(33, 41, 30, 0.12)", borderTopColor: "var(--color-gold-deep)",
           animation: "spin 1s linear infinite", margin: "0 auto 16px",
         }} />
-        <span style={{ color: "var(--text-faint)", fontSize: "13px", letterSpacing: "0.05em" }}>Cargando archivos...</span>
+        <span style={{ color: "var(--text-on-light-muted)", fontSize: "13px", letterSpacing: "0.05em" }}>Cargando archivos...</span>
       </div>
     );
   }
 
   return (
     <div style={{ maxWidth: 760, margin: "0 auto", padding: "32px 16px", flex: 1, overflowY: "auto", width: "100%", boxSizing: "border-box" as const }} className="animate-fade-in-slow">
-      <h2 style={{ color: "var(--text-main)", fontSize: "24px", marginBottom: "8px", textAlign: "center", fontFamily: "var(--font-serif)", fontWeight: 400 }}>
+      <h2 style={{ color: "var(--text-on-light)", fontSize: "26px", marginBottom: "8px", textAlign: "center", fontFamily: "var(--font-serif)", fontWeight: 500 }}>
         Mis Cartas
       </h2>
-      <p style={{ color: "var(--text-muted)", fontSize: "14px", textAlign: "center", marginBottom: "32px", fontWeight: 300 }}>
-        Archivos originales sincronizados con tu perfil astral.
+      <p style={{ color: "var(--text-on-light-muted)", fontSize: "14px", textAlign: "center", marginBottom: "32px", fontWeight: 400, lineHeight: 1.6 }}>
+        Archivos originales sincronizados con tu perfil de Diseño Humano.
       </p>
 
       {error && (
-        <div className="glass-panel" style={{
-          borderColor: "rgba(201,107,122,0.3)", padding: "12px 16px",
-          color: "#f0a0b0", fontSize: "13px", marginBottom: "24px", textAlign: "center"
+        <div style={{
+          background: "rgba(196, 96, 96, 0.14)",
+          border: "1px solid rgba(196, 96, 96, 0.4)",
+          borderRadius: 12,
+          padding: "12px 16px",
+          color: "#9a3737", fontSize: "13px", marginBottom: "24px", textAlign: "center"
         }}>
           {error}
         </div>
@@ -138,15 +141,15 @@ export function AssetViewer() {
         <button
           onClick={() => fileRef.current?.click()}
           disabled={uploading}
-          className="btn-secondary"
+          className="btn-primary"
         >
-          {uploading ? "SINCRONIZANDO..." : "AGREGAR NUEVA CARTA"}
+          {uploading ? "Sincronizando..." : "Agregar nueva carta"}
         </button>
       </div>
 
       {/* Asset list */}
       {assets.length === 0 && (
-        <p style={{ color: "var(--text-faint)", fontSize: "14px", textAlign: "center", fontStyle: "italic", fontFamily: "var(--font-serif)" }}>
+        <p style={{ color: "var(--text-on-light-faint)", fontSize: "14px", textAlign: "center", fontStyle: "italic", fontFamily: "var(--font-serif)" }}>
           Todavía no subiste archivos.
         </p>
       )}
@@ -160,44 +163,45 @@ export function AssetViewer() {
               padding: "20px 24px",
               display: "flex", justifyContent: "space-between", alignItems: "center",
               animation: "fadeIn 0.4s ease",
+              gap: 16,
             }}
           >
-            <div>
-              <div style={{ color: "var(--text-main)", fontSize: "15px", fontWeight: 500, marginBottom: "4px" }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ color: "var(--text-main)", fontSize: "15px", fontWeight: 600, marginBottom: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {asset.filename}
               </div>
-              <div style={{ color: "var(--text-muted)", fontSize: "12px", fontFamily: "var(--font-serif)" }}>
+              <div style={{ color: "var(--text-muted)", fontSize: "12px", fontFamily: "var(--font-sans)" }}>
                 {fileTypeLabel(asset.fileType)} · {formatSize(asset.sizeBytes)} · {new Date(asset.createdAt).toLocaleDateString("es-AR")}
               </div>
             </div>
-            <div style={{ display: "flex", gap: "8px" }}>
+            <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
               <button
                 onClick={() => setPreviewAsset(asset)}
                 style={{
                   background: "transparent",
-                  border: "1px solid var(--glass-border)",
+                  border: "1px solid rgba(248, 244, 232, 0.2)",
                   color: "var(--text-main)", padding: "6px 14px",
                   borderRadius: "20px", cursor: "pointer", fontSize: "11px",
-                  letterSpacing: "0.05em", textTransform: "uppercase",
+                  letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 600,
                   transition: "all 0.2s ease"
                 }}
-                onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--color-primary-dim)" }}
-                onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--glass-border)" }}
+                onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--color-primary)"; e.currentTarget.style.color = "var(--color-primary)"; }}
+                onMouseOut={(e) => { e.currentTarget.style.borderColor = "rgba(248, 244, 232, 0.2)"; e.currentTarget.style.color = "var(--text-main)"; }}
               >
                 Ver
               </button>
               <button
                 onClick={() => handleDelete(asset.id)}
                 style={{
-                  background: "rgba(201,107,122,0.1)",
-                  border: "1px solid rgba(201,107,122,0.3)",
-                  color: "#f0a0b0", padding: "6px 14px",
+                  background: "transparent",
+                  border: "1px solid rgba(248, 244, 232, 0.16)",
+                  color: "var(--text-muted)", padding: "6px 14px",
                   borderRadius: "20px", cursor: "pointer", fontSize: "11px",
-                  letterSpacing: "0.05em", textTransform: "uppercase",
+                  letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 600,
                   transition: "all 0.2s ease"
                 }}
-                onMouseOver={(e) => { e.currentTarget.style.background = "rgba(201,107,122,0.2)" }}
-                onMouseOut={(e) => { e.currentTarget.style.background = "rgba(201,107,122,0.1)" }}
+                onMouseOver={(e) => { e.currentTarget.style.background = "rgba(196, 96, 96, 0.18)"; e.currentTarget.style.borderColor = "rgba(196, 96, 96, 0.5)"; e.currentTarget.style.color = "#f3c2c2"; }}
+                onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "rgba(248, 244, 232, 0.16)"; e.currentTarget.style.color = "var(--text-muted)"; }}
               >
                 Eliminar
               </button>
@@ -213,7 +217,7 @@ export function AssetViewer() {
           role="presentation"
           style={{
             position: "fixed", inset: 0, zIndex: 1000,
-            background: "rgba(10, 9, 16, 0.85)",
+            background: "rgba(33, 41, 30, 0.78)",
             backdropFilter: "blur(8px)",
             WebkitBackdropFilter: "blur(8px)",
             display: "flex", alignItems: "center", justifyContent: "center",
@@ -307,9 +311,9 @@ function PreviewContent({ asset }: PreviewContentProps) {
     <div
       style={{
         padding: "18px 20px",
-        borderRadius: 14,
-        border: "1px solid rgba(255,255,255,0.06)",
-        background: "rgba(255,255,255,0.03)",
+        borderRadius: 12,
+        border: "1px solid rgba(248, 244, 232, 0.1)",
+        background: "rgba(248, 244, 232, 0.05)",
         color: "var(--text-muted)",
         fontSize: 13,
         lineHeight: 1.7,
@@ -353,10 +357,10 @@ function TextPreview({ url }: TextPreviewProps) {
   return (
     <pre style={{
       color: "var(--text-main)", fontSize: "13px", lineHeight: 1.8,
-      background: "var(--bg-dark)", border: "1px solid var(--glass-border)", 
+      background: "var(--surface-deeper)", border: "1px solid rgba(248, 244, 232, 0.1)",
       borderRadius: "12px", padding: "20px",
       overflow: "auto", maxHeight: "60vh", whiteSpace: "pre-wrap",
-      fontFamily: "var(--font-sans)", fontWeight: 300
+      fontFamily: "var(--font-sans)", fontWeight: 400
     }}>
       {text}
     </pre>

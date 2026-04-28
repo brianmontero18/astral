@@ -23,7 +23,10 @@ const CopyIcon = () => (
   </svg>
 );
 
-function CopyButton({ copied, onCopy }: { copied: boolean; onCopy: () => void }) {
+function CopyButton({ copied, onCopy, tone = "dark" }: { copied: boolean; onCopy: () => void; tone?: "dark" | "light" }) {
+  const restColor = tone === "dark" ? "var(--text-faint)" : "var(--text-on-light-faint)";
+  const hoverColor = tone === "dark" ? "var(--text-muted)" : "var(--text-on-light)";
+
   return (
     <button
       onClick={onCopy}
@@ -34,17 +37,17 @@ function CopyButton({ copied, onCopy }: { copied: boolean; onCopy: () => void })
         gap: 5,
         background: "transparent",
         border: "none",
-        color: copied ? "var(--color-primary)" : "var(--text-faint)",
+        color: copied ? "var(--color-primary)" : restColor,
         fontSize: 12,
         cursor: "pointer",
         padding: "4px 8px",
         borderRadius: 6,
         transition: "all 0.2s ease",
         fontFamily: "var(--font-sans)",
-        fontWeight: 400,
+        fontWeight: 500,
       }}
-      onMouseOver={(e) => { if (!copied) e.currentTarget.style.color = "var(--text-muted)"; }}
-      onMouseOut={(e) => { if (!copied) e.currentTarget.style.color = "var(--text-faint)"; }}
+      onMouseOver={(e) => { if (!copied) e.currentTarget.style.color = hoverColor; }}
+      onMouseOut={(e) => { if (!copied) e.currentTarget.style.color = restColor; }}
     >
       {copied ? (
         <><span style={{ fontSize: 13 }}>✓</span><span>Copiado</span></>
@@ -379,44 +382,45 @@ export function ChatView({ userName }: Props) {
         {/* Empty state */}
         {messages.length === 0 && (
           <div style={{ textAlign: "center", marginTop: 48 }} className="animate-fade-in-slow">
-            <div style={{ color: "var(--color-primary)", fontSize: "38px", marginBottom: "16px" }}>✦</div>
             <div
               style={{
-                color: "var(--text-main)",
-                fontSize: "20px",
+                color: "var(--text-on-light)",
+                fontSize: "26px",
                 marginBottom: "8px",
                 fontFamily: "var(--font-serif)",
-                fontWeight: 400,
+                fontWeight: 500,
+                letterSpacing: "0.02em",
               }}
             >
               Hola, {userName}
             </div>
-            <div style={{ color: "var(--text-muted)", fontSize: "13px", marginBottom: "32px", fontWeight: 300 }}>
-              Tu carta cósmica está entrelazada en la matriz.
+            <div style={{ color: "var(--text-on-light-muted)", fontSize: "14px", marginBottom: "32px", fontWeight: 400, lineHeight: 1.6 }}>
+              Tu guía de Diseño Humano está lista para acompañarte.
             </div>
-            <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: "10px", justifyContent: "center", flexWrap: "wrap" }}>
               {QUICK_ACTIONS.map((q) => (
                 <button
                   key={q}
                   onClick={() => sendMessage(q)}
                   style={{
-                    background: "var(--glass-bg)",
-                    border: "1px solid var(--glass-border)",
-                    color: "var(--text-muted)",
+                    background: "var(--surface-dark)",
+                    border: "1px solid rgba(248, 244, 232, 0.1)",
+                    color: "var(--text-main)",
                     padding: "10px 18px",
-                    borderRadius: "20px",
+                    borderRadius: "999px",
                     cursor: "pointer",
                     fontSize: "12px",
                     transition: "all 0.3s ease",
                     fontFamily: "var(--font-sans)",
+                    fontWeight: 500,
                   }}
                   onMouseOver={(e) => {
-                    e.currentTarget.style.borderColor = "var(--color-primary-dim)";
-                    e.currentTarget.style.color = "var(--text-main)";
+                    e.currentTarget.style.borderColor = "var(--color-primary)";
+                    e.currentTarget.style.background = "var(--surface-deeper)";
                   }}
                   onMouseOut={(e) => {
-                    e.currentTarget.style.borderColor = "var(--glass-border)";
-                    e.currentTarget.style.color = "var(--text-muted)";
+                    e.currentTarget.style.borderColor = "rgba(248, 244, 232, 0.1)";
+                    e.currentTarget.style.background = "var(--surface-dark)";
                   }}
                 >
                   {q}
@@ -439,9 +443,9 @@ export function ChatView({ userName }: Props) {
                   /* Edit mode */
                   <div
                     style={{
-                      background: "var(--glass-bg)",
-                      border: "1px solid var(--color-primary-dim)",
-                      borderRadius: 16,
+                      background: "var(--surface-dark)",
+                      border: "1px solid var(--color-primary)",
+                      borderRadius: 14,
                       padding: "12px 16px",
                       width: "100%",
                       minWidth: 260,
@@ -458,7 +462,7 @@ export function ChatView({ userName }: Props) {
                         color: "var(--text-main)",
                         fontSize: 14,
                         fontFamily: "var(--font-sans)",
-                        fontWeight: 300,
+                        fontWeight: 400,
                         resize: "vertical",
                         outline: "none",
                         lineHeight: 1.6,
@@ -469,7 +473,7 @@ export function ChatView({ userName }: Props) {
                         onClick={cancelEdit}
                         style={{
                           background: "transparent",
-                          border: "1px solid var(--glass-border)",
+                          border: "1px solid rgba(248, 244, 232, 0.18)",
                           color: "var(--text-muted)",
                           borderRadius: 8,
                           padding: "6px 14px",
@@ -484,12 +488,13 @@ export function ChatView({ userName }: Props) {
                         onClick={() => saveEdit(i)}
                         disabled={!editText.trim() || isBusy}
                         style={{
-                          background: "var(--color-primary-dim)",
+                          background: "linear-gradient(135deg, #e0c081 0%, #9d7f4d 100%)",
                           border: "none",
-                          color: "var(--text-main)",
+                          color: "var(--surface-deeper)",
                           borderRadius: 8,
                           padding: "6px 14px",
                           fontSize: 12,
+                          fontWeight: 600,
                           cursor: !editText.trim() || isBusy ? "default" : "pointer",
                           fontFamily: "var(--font-sans)",
                           opacity: !editText.trim() || isBusy ? 0.4 : 1,
@@ -504,13 +509,13 @@ export function ChatView({ userName }: Props) {
                   <>
                     <div
                       style={{
-                        background: "var(--glass-bg)",
-                        border: "1px solid var(--glass-border)",
-                        borderRadius: "20px 20px 4px 20px",
+                        background: "var(--surface-dark)",
+                        border: "1px solid rgba(248, 244, 232, 0.08)",
+                        borderRadius: "18px 18px 4px 18px",
                         padding: "12px 18px",
                         color: "var(--text-main)",
                         fontSize: "15px",
-                        fontWeight: 300,
+                        fontWeight: 400,
                         lineHeight: 1.6,
                         fontFamily: "var(--font-sans)",
                       }}
@@ -519,7 +524,7 @@ export function ChatView({ userName }: Props) {
                     </div>
                     {/* Action buttons below user bubble */}
                     {msg.content && <div style={{ display: "flex", alignItems: "center", gap: 2, marginTop: 4 }}>
-                      <CopyButton copied={copiedIndex === i} onCopy={() => copyMessage(msg.content, i)} />
+                      <CopyButton tone="light" copied={copiedIndex === i} onCopy={() => copyMessage(msg.content, i)} />
                       {!isBusy && !limitReached && (
                         <button
                           onClick={() => startEdit(i)}
@@ -530,17 +535,17 @@ export function ChatView({ userName }: Props) {
                             gap: 5,
                             background: "transparent",
                             border: "none",
-                            color: "var(--text-faint)",
+                            color: "var(--text-on-light-faint)",
                             fontSize: 12,
                             cursor: "pointer",
                             padding: "4px 8px",
                             borderRadius: 6,
                             transition: "all 0.2s ease",
                             fontFamily: "var(--font-sans)",
-                            fontWeight: 400,
+                            fontWeight: 500,
                           }}
-                          onMouseOver={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
-                          onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-faint)")}
+                          onMouseOver={(e) => (e.currentTarget.style.color = "var(--text-on-light)")}
+                          onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-on-light-faint)")}
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
@@ -554,26 +559,37 @@ export function ChatView({ userName }: Props) {
                 )}
               </div>
             ) : (
-              /* Assistant message */
-              <div style={{ maxWidth: "95%", width: "100%" }}>
+              /* Assistant message — premium guided insight on dark green */
+              <div
+                style={{
+                  maxWidth: "95%",
+                  width: "100%",
+                  background: "var(--surface-dark)",
+                  border: "1px solid rgba(248, 244, 232, 0.08)",
+                  borderRadius: "16px",
+                  padding: "18px 22px",
+                  color: "var(--text-main)",
+                }}
+              >
                 <div
                   style={{
                     color: "var(--color-primary)",
                     fontSize: "10px",
-                    marginBottom: "8px",
-                    letterSpacing: "0.15em",
-                    fontWeight: 600,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
+                    marginBottom: "12px",
+                    letterSpacing: "0.2em",
+                    fontWeight: 700,
+                    fontFamily: "var(--font-sans)",
+                    textTransform: "uppercase",
+                    paddingBottom: 10,
+                    borderBottom: "1px solid rgba(207, 172, 108, 0.18)",
                   }}
                 >
-                  <span>✦</span> ASTRAL GUIDE
+                  Astral Guide
                 </div>
                 <ReportRenderer text={msg.content} />
                 {/* Copy button */}
                 {msg.content && (
-                  <div style={{ marginTop: 8, display: "flex", alignItems: "center" }}>
+                  <div style={{ marginTop: 10, display: "flex", alignItems: "center" }}>
                     <CopyButton copied={copiedIndex === i} onCopy={() => copyMessage(msg.content, i)} />
                   </div>
                 )}
@@ -592,13 +608,13 @@ export function ChatView({ userName }: Props) {
                   width: "6px",
                   height: "6px",
                   borderRadius: "50%",
-                  background: "var(--color-primary-dim)",
+                  background: "var(--color-primary)",
                   animation: `pulse 1.2s ease infinite ${i * 0.2}s`,
                 }}
               />
             ))}
-            <span style={{ color: "var(--text-faint)", fontSize: "12px", letterSpacing: "0.05em" }}>
-              Canalizando estrellas...
+            <span style={{ color: "var(--text-on-light-muted)", fontSize: "12px", letterSpacing: "0.06em" }}>
+              Canalizando tu lectura...
             </span>
           </div>
         )}
@@ -606,11 +622,11 @@ export function ChatView({ userName }: Props) {
         {errorMsg && (
           <div
             style={{
-              background: "rgba(201,107,122,0.12)",
-              border: "1px solid rgba(201,107,122,0.35)",
+              background: "rgba(196, 96, 96, 0.14)",
+              border: "1px solid rgba(196, 96, 96, 0.4)",
               borderRadius: 10,
               padding: "10px 14px",
-              color: "#f0a0b0",
+              color: "#9a3737",
               fontSize: 13,
               animation: "fadeIn 0.2s ease",
             }}
@@ -628,36 +644,33 @@ export function ChatView({ userName }: Props) {
           style={{
             padding: "32px 24px",
             textAlign: "center",
-            borderTop: "1px solid var(--glass-border)",
-            background: "rgba(10, 9, 16, 0.8)",
-            backdropFilter: "blur(12px)",
-            WebkitBackdropFilter: "blur(12px)",
+            borderTop: "1px solid rgba(33, 41, 30, 0.12)",
+            background: "var(--surface-deeper)",
             zIndex: 10,
             flexShrink: 0,
           }}
           className="animate-fade-in"
         >
           <div style={{ maxWidth: 760, margin: "0 auto" }}>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>✦</div>
             <h3
               style={{
                 fontFamily: "var(--font-serif)",
                 color: "var(--color-primary)",
-                fontSize: 22,
-                fontWeight: 400,
+                fontSize: 24,
+                fontWeight: 500,
                 marginBottom: 8,
-                margin: "0 0 8px 0",
+                margin: "0 0 12px 0",
               }}
             >
-              {limitExperience?.title ?? "Tu ventana al cosmos de este mes se ha completado"}
+              {limitExperience?.title ?? "Tu ventana de mensajes de este mes se completó"}
             </h3>
             <p
               style={{
                 color: "var(--text-muted)",
                 fontSize: 14,
-                fontWeight: 300,
+                fontWeight: 400,
                 marginBottom: 24,
-                lineHeight: 1.6,
+                lineHeight: 1.65,
               }}
             >
               {limitExperience?.body ?? `Ya usaste tus ${limitValue} mensajes de este mes.`}
@@ -667,17 +680,18 @@ export function ChatView({ userName }: Props) {
                 href="https://wa.me/5491153446030"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="glass-panel-gold"
                 style={{
                   display: "inline-block",
                   padding: "14px 36px",
-                  borderRadius: 24,
-                  color: "var(--color-primary)",
-                  fontSize: 15,
-                  fontFamily: "var(--font-serif)",
+                  borderRadius: 8,
+                  background: "linear-gradient(135deg, #e0c081 0%, #9d7f4d 100%)",
+                  color: "var(--surface-deeper)",
+                  fontSize: 13,
+                  fontFamily: "var(--font-sans)",
                   textDecoration: "none",
-                  fontWeight: 600,
-                  letterSpacing: "0.05em",
+                  fontWeight: 700,
+                  letterSpacing: "0.16em",
+                  textTransform: "uppercase",
                 }}
               >
                 {limitExperience.ctaLabel}
@@ -689,10 +703,8 @@ export function ChatView({ userName }: Props) {
         <footer
           style={{
             padding: "16px 24px",
-            borderTop: "1px solid var(--glass-border)",
-            background: "rgba(10, 9, 16, 0.6)",
-            backdropFilter: "blur(12px)",
-            WebkitBackdropFilter: "blur(12px)",
+            borderTop: "1px solid rgba(33, 41, 30, 0.1)",
+            background: "transparent",
             zIndex: 10,
             flexShrink: 0,
           }}
@@ -703,18 +715,19 @@ export function ChatView({ userName }: Props) {
               gap: "12px",
               maxWidth: 760,
               margin: "0 auto",
-              background: "var(--glass-bg)",
-              border: `1px solid ${isRecording ? "var(--color-primary-dim)" : "var(--glass-border)"}`,
-              borderRadius: "24px",
+              background: "var(--surface-dark)",
+              border: `1px solid ${isRecording ? "var(--color-primary)" : "rgba(248, 244, 232, 0.1)"}`,
+              borderRadius: "18px",
               padding: "8px 16px",
               alignItems: "center",
               transition: "border-color 0.3s ease",
+              boxShadow: "0 4px 18px rgba(33, 41, 30, 0.12)",
             }}
             onFocus={(e) => {
-              if (!isRecording) e.currentTarget.style.border = "1px solid var(--color-primary-dim)";
+              if (!isRecording) e.currentTarget.style.border = "1px solid var(--color-primary)";
             }}
             onBlur={(e) => {
-              if (!isRecording) e.currentTarget.style.border = "1px solid var(--glass-border)";
+              if (!isRecording) e.currentTarget.style.border = "1px solid rgba(248, 244, 232, 0.1)";
             }}
           >
             {isRecording ? (
@@ -728,7 +741,7 @@ export function ChatView({ userName }: Props) {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKey}
-                  placeholder="Preguntá al oráculo sobre tu semana..."
+                  placeholder="Preguntale a tu guía sobre tu semana..."
                   rows={1}
                   style={{
                     flex: 1,
@@ -736,7 +749,7 @@ export function ChatView({ userName }: Props) {
                     border: "none",
                     color: "var(--text-main)",
                     fontSize: "15px",
-                    fontWeight: 300,
+                    fontWeight: 400,
                     fontFamily: "var(--font-sans)",
                     resize: "none",
                     lineHeight: 1.5,
@@ -758,15 +771,15 @@ export function ChatView({ userName }: Props) {
                       background: "transparent",
                       border: "none",
                       cursor: "pointer",
-                      color: "var(--text-faint)",
+                      color: "var(--text-muted)",
                       fontSize: 18,
                       transition: "all 0.3s ease",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                     }}
-                    onMouseOver={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
-                    onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-faint)")}
+                    onMouseOver={(e) => (e.currentTarget.style.color = "var(--color-primary)")}
+                    onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
                   >
                     <svg
                       width="20"
@@ -795,18 +808,21 @@ export function ChatView({ userName }: Props) {
                     height: "40px",
                     borderRadius: "50%",
                     flexShrink: 0,
-                    background: isBusy || !input.trim() ? "transparent" : "var(--color-primary-dim)",
-                    border: "none",
+                    background: isBusy || !input.trim() ? "transparent" : "linear-gradient(135deg, #e0c081 0%, #9d7f4d 100%)",
+                    border: isBusy || !input.trim() ? "1px solid rgba(248, 244, 232, 0.15)" : "none",
                     cursor: isBusy || !input.trim() ? "default" : "pointer",
-                    color: isBusy || !input.trim() ? "var(--text-faint)" : "var(--text-main)",
-                    fontSize: "18px",
+                    color: isBusy || !input.trim() ? "var(--text-faint)" : "var(--surface-deeper)",
+                    fontSize: "16px",
                     transition: "all 0.3s ease",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                   }}
                 >
-                  ✦
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                    <polyline points="12 5 19 12 12 19" />
+                  </svg>
                 </button>
               </>
             )}

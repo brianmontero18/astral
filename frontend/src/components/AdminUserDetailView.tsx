@@ -132,8 +132,8 @@ function SupportField<T extends string>({
         style={{
           width: "100%",
           borderRadius: 14,
-          border: "1px solid rgba(255,255,255,0.08)",
-          background: "rgba(255,255,255,0.02)",
+          border: "1px solid rgba(248, 244, 232, 0.12)",
+          background: "rgba(248, 244, 232, 0.04)",
           color: "var(--text-main)",
           padding: "14px 16px",
           outline: "none",
@@ -243,8 +243,8 @@ function SupportSection({
         gap: 18,
         ...(subdued
           ? {
-              background: "rgba(255,255,255,0.03)",
-              borderColor: "rgba(255,255,255,0.05)",
+              background: "rgba(248, 244, 232, 0.05)",
+              borderColor: "rgba(248, 244, 232, 0.08)",
             }
           : {}),
       }}
@@ -288,14 +288,14 @@ function InlineNotice({
 }) {
   const styles = tone === "error"
     ? {
-        border: "1px solid rgba(201,107,122,0.35)",
-        background: "rgba(201,107,122,0.08)",
-        color: "#f0a0b0",
+        border: "1px solid rgba(196, 96, 96, 0.42)",
+        background: "rgba(196, 96, 96, 0.12)",
+        color: "#f3c2c2",
       }
     : {
-        border: "1px solid rgba(212,175,55,0.25)",
-        background: "rgba(212,175,55,0.08)",
-        color: "var(--text-gold)",
+        border: "1px solid rgba(207, 172, 108, 0.32)",
+        background: "rgba(207, 172, 108, 0.12)",
+        color: "var(--color-primary)",
       };
 
   return (

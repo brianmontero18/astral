@@ -61,7 +61,7 @@ function MicButton({ onTranscription }: { onTranscription: (text: string) => voi
           display: "flex", alignItems: "center", justifyContent: "center",
           fontSize: 16, transition: "all 0.2s ease",
           background: isRecording ? "rgba(201,107,122,0.2)" : "var(--color-primary-faint)",
-          color: isRecording ? "#f0a0b0" : "var(--text-gold)",
+          color: isRecording ? "#f3c2c2" : "var(--text-gold)",
           animation: isRecording ? "pulse 1.5s ease-in-out infinite" : "none",
         }}
       >
@@ -72,7 +72,7 @@ function MicButton({ onTranscription }: { onTranscription: (text: string) => voi
           type="button"
           onClick={cancelRecording}
           style={{
-            background: "transparent", border: "none", color: "#f0a0b0",
+            background: "transparent", border: "none", color: "#f3c2c2",
             fontSize: 11, cursor: "pointer", padding: "2px 4px",
           }}
         >
@@ -80,7 +80,7 @@ function MicButton({ onTranscription }: { onTranscription: (text: string) => voi
         </button>
       )}
       {error && (
-        <span style={{ color: "#f0a0b0", fontSize: 10, maxWidth: 120, lineHeight: 1.3 }}>
+        <span style={{ color: "#f3c2c2", fontSize: 10, maxWidth: 120, lineHeight: 1.3 }}>
           {error}
         </span>
       )}
@@ -107,70 +107,80 @@ export function IntakeView({ initialIntake, hasExistingReport, onSubmit, onSkip 
     }}>
       <div style={{ maxWidth: 760, width: "100%" }}>
         <div style={{
-          color: "var(--color-primary)", fontSize: 10, letterSpacing: "0.2em",
-          fontWeight: 600, marginBottom: 8, fontFamily: "var(--font-sans)",
+          color: "var(--color-gold-deep)", fontSize: 10, letterSpacing: "0.22em",
+          fontWeight: 700, marginBottom: 8, fontFamily: "var(--font-sans)", textTransform: "uppercase",
         }}>
-          ✦ CONTEXTO PERSONAL
+          Contexto personal
         </div>
         <h2 style={{
-          fontFamily: "var(--font-serif)", color: "var(--text-main)",
-          fontSize: 24, fontWeight: 400, margin: "0 0 8px",
+          fontFamily: "var(--font-serif)", color: "var(--text-on-light)",
+          fontSize: 26, fontWeight: 500, margin: "0 0 8px",
         }}>
           Personalizá tu informe
         </h2>
         <p style={{
-          color: "var(--text-muted)", fontSize: 13, lineHeight: 1.6,
-          margin: "0 0 28px", fontWeight: 300,
+          color: "var(--text-on-light-muted)", fontSize: 14, lineHeight: 1.65,
+          margin: "0 0 28px", fontWeight: 400,
         }}>
           Completá estos campos para que tu informe incluya interpretaciones conectadas
           con tu vida real. Podés escribir o usar el micrófono.
         </p>
 
-        {FIELDS.map(({ key, label, placeholder }) => (
-          <div key={key} style={{ marginBottom: 20 }}>
-            <div style={{
-              display: "flex", justifyContent: "space-between", alignItems: "center",
-              marginBottom: 8,
-            }}>
-              <label htmlFor={`intake-${key}`} style={{
-                color: "var(--text-main)", fontSize: 13, fontWeight: 500,
-                fontFamily: "var(--font-sans)",
+        <div style={{
+          background: "var(--surface-dark)",
+          border: "1px solid rgba(33, 41, 30, 0.32)",
+          borderRadius: 18,
+          padding: "22px 22px 18px",
+          marginBottom: 20,
+          color: "var(--text-main)",
+        }}>
+          {FIELDS.map(({ key, label, placeholder }, idx) => (
+            <div key={key} style={{ marginBottom: idx === FIELDS.length - 1 ? 0 : 18 }}>
+              <div style={{
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                marginBottom: 8,
               }}>
-                {label}
-              </label>
-              <MicButton
-                onTranscription={(text) => handleChange(key, (values[key] ?? "") + (values[key] ? " " : "") + text)}
+                <label htmlFor={`intake-${key}`} style={{
+                  color: "var(--text-main)", fontSize: 13, fontWeight: 600,
+                  fontFamily: "var(--font-sans)",
+                }}>
+                  {label}
+                </label>
+                <MicButton
+                  onTranscription={(text) => handleChange(key, (values[key] ?? "") + (values[key] ? " " : "") + text)}
+                />
+              </div>
+              <textarea
+                id={`intake-${key}`}
+                value={values[key] ?? ""}
+                onChange={(e) => handleChange(key, e.target.value)}
+                placeholder={placeholder}
+                rows={3}
+                style={{
+                  width: "100%", background: "rgba(248, 244, 232, 0.06)",
+                  border: "1px solid rgba(248, 244, 232, 0.18)", borderRadius: 10,
+                  color: "var(--text-main)", padding: "12px 14px", fontSize: 13,
+                  fontFamily: "var(--font-sans)", resize: "vertical", lineHeight: 1.6,
+                  outline: "none", transition: "border-color 0.2s ease",
+                  boxSizing: "border-box",
+                }}
+                onFocus={(e) => { e.target.style.borderColor = "var(--color-primary)" }}
+                onBlur={(e) => { e.target.style.borderColor = "rgba(248, 244, 232, 0.18)" }}
               />
             </div>
-            <textarea
-              id={`intake-${key}`}
-              value={values[key] ?? ""}
-              onChange={(e) => handleChange(key, e.target.value)}
-              placeholder={placeholder}
-              rows={3}
-              style={{
-                width: "100%", background: "rgba(124,111,205,0.06)",
-                border: "1px solid rgba(124,111,205,0.2)", borderRadius: 10,
-                color: "var(--text-main)", padding: "12px 14px", fontSize: 13,
-                fontFamily: "var(--font-sans)", resize: "vertical", lineHeight: 1.6,
-                outline: "none", transition: "border-color 0.2s ease",
-                boxSizing: "border-box",
-              }}
-              onFocus={(e) => { e.target.style.borderColor = "rgba(124,111,205,0.5)" }}
-              onBlur={(e) => { e.target.style.borderColor = "rgba(124,111,205,0.2)" }}
-            />
-          </div>
-        ))}
+          ))}
+        </div>
 
-        <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
+        <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
           <button
             onClick={() => { if (!submitting) { if (hasExistingReport) { onSkip(); } else { setSubmitting(true); onSkip(); } } }}
             disabled={submitting}
             style={{
-              flex: 1, padding: "14px 20px", borderRadius: 30,
-              background: "transparent", border: "1px solid rgba(124,111,205,0.3)",
-              color: "var(--text-muted)", fontSize: 13, fontWeight: 500,
-              cursor: submitting ? "default" : "pointer", fontFamily: "var(--font-sans)", letterSpacing: "0.03em",
+              flex: 1, padding: "14px 20px", borderRadius: 8,
+              background: "transparent", border: "1px solid var(--surface-deeper)",
+              color: "var(--text-on-light)", fontSize: 12, fontWeight: 600,
+              cursor: submitting ? "default" : "pointer", fontFamily: "var(--font-sans)",
+              letterSpacing: "0.14em", textTransform: "uppercase",
               transition: "all 0.3s ease", opacity: submitting ? 0.5 : 1,
             }}
           >
@@ -180,14 +190,16 @@ export function IntakeView({ initialIntake, hasExistingReport, onSubmit, onSkip 
             onClick={() => { if (!submitting) { setSubmitting(true); onSubmit(values); } }}
             disabled={submitting}
             style={{
-              flex: 2, padding: "14px 20px", borderRadius: 30,
-              background: "var(--color-primary-dim)", border: "none",
-              color: "var(--text-main)", fontSize: 13, fontWeight: 600,
-              cursor: submitting ? "default" : "pointer", fontFamily: "var(--font-sans)", letterSpacing: "0.03em",
+              flex: 2, padding: "14px 20px", borderRadius: 8,
+              background: "linear-gradient(135deg, #e0c081 0%, #9d7f4d 100%)",
+              border: "1px solid var(--color-primary)",
+              color: "var(--surface-deeper)", fontSize: 12, fontWeight: 700,
+              cursor: submitting ? "default" : "pointer", fontFamily: "var(--font-sans)",
+              letterSpacing: "0.14em", textTransform: "uppercase",
               transition: "all 0.3s ease", opacity: submitting ? 0.6 : 1,
             }}
           >
-            {submitting ? "Generando..." : hasExistingReport ? "✦ Regenerar mi informe" : "✦ Generar mi informe"}
+            {submitting ? "Generando..." : hasExistingReport ? "Regenerar mi informe" : "Generar mi informe"}
           </button>
         </div>
       </div>
