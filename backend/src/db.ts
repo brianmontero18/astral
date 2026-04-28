@@ -34,6 +34,13 @@ export interface AppUserRecord {
   email: string | null;
   profile: object;
   intake: object | null;
+  /**
+   * Sprint 2 persistent memory layer (Living Document). Plain markdown,
+   * merged in-place by the memory writer — never overwritten blind. Empty
+   * string when the user has no memory yet (column nullable in SQL but
+   * normalised here so callers can interpolate without null checks).
+   */
+  memory_md: string;
   plan: AppUserPlan;
   role: AppUserRole;
   status: AppUserStatus;
@@ -69,6 +76,7 @@ function mapUserRow(row: Record<string, unknown>): AppUserRecord {
     email: typeof row.email === "string" ? row.email : null,
     profile: JSON.parse(row.profile as string),
     intake: row.intake ? JSON.parse(row.intake as string) : null,
+    memory_md: typeof row.memory_md === "string" ? row.memory_md : "",
     plan: (row.plan as AppUserPlan | null) ?? DEFAULT_USER_PLAN,
     role: (row.role as AppUserRole | null) ?? DEFAULT_USER_ROLE,
     status: (row.status as AppUserStatus | null) ?? DEFAULT_USER_STATUS,
@@ -256,6 +264,7 @@ export async function initDb(): Promise<void> {
     "ALTER TABLE chat_messages ADD COLUMN feedback_thumb TEXT DEFAULT NULL",
     "ALTER TABLE chat_messages ADD COLUMN feedback_note TEXT DEFAULT NULL",
     "ALTER TABLE chat_messages ADD COLUMN feedback_at TEXT DEFAULT NULL",
+    "ALTER TABLE users ADD COLUMN memory_md TEXT DEFAULT NULL",
   ];
 
   for (const sql of idempotentAlters) {
@@ -386,6 +395,7 @@ export async function findUserByIdentity(
         users.email,
         users.profile,
         users.intake,
+        users.memory_md,
         users.plan,
         users.role,
         users.status,
@@ -581,6 +591,28 @@ export async function deleteUser(id: string): Promise<boolean> {
   return result.rowsAffected > 0;
 }
 
+/**
+ * Sprint 2 — persistent memory layer.
+ *
+ * Replaces the markdown atomically and bumps `updated_at`. The writer is the
+ * only intended caller: it has already merged old + new facts in one LLM call
+ * (no overwrite blind), so this function purposefully takes a full string
+ * rather than a diff/op list.
+ *
+ * Empty string is allowed (e.g. user requested a memory wipe). Returns true
+ * iff the user exists.
+ */
+export async function updateUserMemory(
+  id: string,
+  memoryMd: string,
+): Promise<boolean> {
+  const result = await client.execute({
+    sql: "UPDATE users SET memory_md = ?, updated_at = datetime('now') WHERE id = ?",
+    args: [memoryMd, id],
+  });
+  return result.rowsAffected > 0;
+}
+
 // ─── Assets ──────────────────────────────────────────────────────────────────
 
 export async function createAsset(
@@ -761,6 +793,50 @@ export async function getUserMessageCount(
   return (result.rows[0]?.count as number) ?? 0;
 }
 
+/**
+ * All-time count of user-role messages. Distinct from `getUserMessageCount`,
+ * which is windowed for billing. The memory writer (Sprint 2) uses this to
+ * decide trigger cadence — it cares about lifetime turn count, not the
+ * current month's quota.
+ */
+export async function getTotalUserMessageCount(userId: string): Promise<number> {
+  const result = await client.execute({
+    sql: `SELECT COUNT(*) as count
+          FROM chat_messages
+          WHERE user_id = ? AND role = 'user'`,
+    args: [userId],
+  });
+  return (result.rows[0]?.count as number) ?? 0;
+}
+
+/**
+ * Last N chat messages for a user, ordered oldest-first, restricted to the
+ * roles the agent recognises ("user" | "assistant"). Used by the memory
+ * writer (Sprint 2) to feed the LLM a rolling window of recent context. The
+ * route picks N — the writer treats whatever it gets as "the conversation so
+ * far for this update", so a small N (~6: 3 user + 3 assistant) keeps the
+ * writer prompt cheap.
+ */
+export async function getRecentChatMessages(
+  userId: string,
+  limit: number,
+): Promise<Array<{ role: "user" | "assistant"; content: string }>> {
+  const result = await client.execute({
+    sql: `SELECT role, content
+          FROM chat_messages
+          WHERE user_id = ? AND role IN ('user', 'assistant')
+          ORDER BY id DESC
+          LIMIT ?`,
+    args: [userId, limit],
+  });
+  return result.rows
+    .map(row => ({
+      role: row.role as "user" | "assistant",
+      content: row.content as string,
+    }))
+    .reverse();
+}
+
 // ─── HD Reports ──────────────────────────────────────────────────────────────
 
 export async function getReport(
@@ -898,7 +974,12 @@ export async function cleanupExpiredShares(): Promise<number> {
 
 // ─── LLM Calls (telemetry) ───────────────────────────────────────────────────
 
-export type LlmCallRoute = "chat" | "chat_stream" | "report" | "extraction";
+export type LlmCallRoute =
+  | "chat"
+  | "chat_stream"
+  | "report"
+  | "extraction"
+  | "memory_writer";
 
 export interface LlmCallInput {
   userId: string;

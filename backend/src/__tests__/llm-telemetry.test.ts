@@ -136,6 +136,7 @@ describe("POST /api/chat/stream — telemetry write", () => {
       _key,
       _impact,
       _intake,
+      _memory,
       onComplete,
     ) {
       yield "primero ";

@@ -79,6 +79,26 @@ function buildBusinessContextBlock(intake?: Intake): string {
   return `\n<business_context>\n${parts.join("\n")}\n</business_context>`;
 }
 
+/**
+ * Sprint 2 — Living Document memory injection.
+ *
+ * Wraps the persisted markdown verbatim inside `<user_memory>` so the LLM can
+ * treat it as a stable, append-only source of facts. Returns "" on empty input
+ * so callers can interpolate unconditionally without producing an empty tag.
+ *
+ * Cache-friendly: this block must NOT contain timestamps or anything that
+ * mutates without a real fact change. Sprint 4 will reorder buildSystemPrompt
+ * to put cacheable prefix-only sections together; placing memory between the
+ * (stable) `<business_context>` and the (volatile) `<transits>` block already
+ * anticipates that reorder.
+ */
+function buildUserMemoryBlock(memory?: string): string {
+  if (!memory) return "";
+  const trimmed = memory.trim();
+  if (!trimmed) return "";
+  return `\n<user_memory>\n${trimmed}\n</user_memory>`;
+}
+
 export function hashSystemPrompt(systemPrompt: string): string {
   return createHash("sha256").update(systemPrompt).digest("hex").slice(0, 16);
 }
@@ -88,6 +108,7 @@ export function buildSystemPrompt(
   transits: WeeklyTransits,
   impact?: TransitImpact,
   intake?: Intake,
+  memory?: string,
 ): string {
   const { humanDesign: hd } = profile;
 
@@ -103,6 +124,9 @@ export function buildSystemPrompt(
 
   const businessContextBlock = buildBusinessContextBlock(intake);
   const hasBusinessContext = businessContextBlock.length > 0;
+
+  const userMemoryBlock = buildUserMemoryBlock(memory);
+  const hasUserMemory = userMemoryBlock.length > 0;
 
   return `# Rol y objetivo
 
@@ -127,7 +151,7 @@ Tu función: leer la energía disponible en los tránsitos, cruzarla con el body
 
 ## Reglas de datos
 
-- Usá ÚNICAMENTE los tránsitos reales provistos en <transits>. No inventes ni asumas posiciones planetarias.${impact ? `\n- Usá los datos de IMPACTO provistos en <impact>. Son pre-calculados — no los recalcules ni contradigas.` : ""}${hasBusinessContext ? `\n- Si hay <business_context>, integrá la actividad, objetivos y desafíos del usuario en cada respuesta concreta. El consejo aterriza en su negocio; no es decoración.` : ""}
+- Usá ÚNICAMENTE los tránsitos reales provistos en <transits>. No inventes ni asumas posiciones planetarias.${impact ? `\n- Usá los datos de IMPACTO provistos en <impact>. Son pre-calculados — no los recalcules ni contradigas.` : ""}${hasBusinessContext ? `\n- Si hay <business_context>, integrá la actividad, objetivos y desafíos del usuario en cada respuesta concreta. El consejo aterriza en su negocio; no es decoración.` : ""}${hasUserMemory ? `\n- Si hay <user_memory>, considéralo como hechos verificados sobre la persona que aprendiste en sesiones anteriores. Referenciá estos hechos cuando sea relevante (sin re-preguntar lo que ya sabés). Si un hecho del memory contradice lo que la persona acaba de decir, priorizá el mensaje actual y notalo en tu próxima oportunidad.` : ""}
 - Cuando un tránsito active una puerta del usuario o complete un canal, destacalo y conectá con qué significa para su comunicación, su oferta o su energía de marca.
 - Cuando un tránsito toque un centro indefinido, mencioná el condicionamiento potencial y cómo evitar decisiones de negocio desde el no-self.
 - Integrá la Cruz de Encarnación, la estrategia y el tema del No-Self cuando sean relevantes para el propósito y posicionamiento.
@@ -156,7 +180,7 @@ ${profile.birthData ? `<birth>${profile.birthData.date}, ${profile.birthData.tim
   <defined_centers>${hd.definedCenters.join(", ") || "—"}</defined_centers>
   <undefined_centers>${hd.undefinedCenters.join(", ") || "—"}</undefined_centers>
 </human_design>
-</user_profile>${businessContextBlock}
+</user_profile>${businessContextBlock}${userMemoryBlock}
 
 <transits week="${transits.weekRange}" calculated="${transits.fetchedAt}" source="Swiss Ephemeris">
 ${transits.planets.map(p => `<planet name="${p.name}" sign="${p.sign}" degree="${p.degree}" retrograde="${p.isRetrograde}" hd_gate="${p.hdGate}" hd_line="${p.hdLine}" />`).join("\n")}
@@ -265,8 +289,9 @@ export async function runAstralAgent(
   openaiKey: string,
   impact?: TransitImpact,
   intake?: Intake,
+  memory?: string,
 ): Promise<AgentResult> {
-  const systemPrompt = buildSystemPrompt(profile, transits, impact, intake);
+  const systemPrompt = buildSystemPrompt(profile, transits, impact, intake, memory);
   const start = Date.now();
   const { content, usage } = await callOpenAI(messages, systemPrompt, openaiKey);
   const latencyMs = Date.now() - start;
@@ -284,9 +309,10 @@ export async function* runAstralAgentStream(
   openaiKey: string,
   impact?: TransitImpact,
   intake?: Intake,
+  memory?: string,
   onComplete?: AgentStreamCompleteHandler,
 ): AsyncGenerator<string> {
-  const systemPrompt = buildSystemPrompt(profile, transits, impact, intake);
+  const systemPrompt = buildSystemPrompt(profile, transits, impact, intake, memory);
   const start = Date.now();
 
   const response = await fetch(OPENAI_API_URL, {

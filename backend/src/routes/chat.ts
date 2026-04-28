@@ -12,11 +12,14 @@ import {
 import {
   deleteChatMessagesFrom,
   getChatMessages,
+  getRecentChatMessages,
+  getTotalUserMessageCount,
   getUser,
   getUserMessageCount,
   insertLlmCall,
   saveChatMessage,
   setMessageFeedback,
+  updateUserMemory,
   type FeedbackThumb,
   type LlmCallRoute,
 } from "../db.js";
@@ -33,9 +36,72 @@ import {
 } from "../chat-limits.js";
 import { FLAGS } from "../config/flags.js";
 import { calculateCost } from "../llm/pricing.js";
+import {
+  MEMORY_WRITER_MODEL,
+  runMemoryWriter,
+  shouldTriggerMemoryWriter,
+} from "../memory-writer.js";
+import { hashSystemPrompt as hashWriterPrompt } from "../agent-service.js";
 import type { Intake } from "../report/types.js";
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
+
+/**
+ * Fire-and-forget memory writer trigger (Sprint 2).
+ *
+ * Called AFTER the chat response is sent + persisted. Awaits nothing — the
+ * user already has their reply. Failures are logged at warn level but never
+ * propagate. Uses `void` so the linter doesn't complain about the promise.
+ *
+ * The trigger gate (FLAGS check + turn-count cadence) is evaluated here so
+ * each call site (sync chat + streaming chat) stays a one-liner.
+ */
+function triggerMemoryWriterAsync(
+  app: FastifyInstance,
+  userId: string,
+  currentMemory: string,
+): void {
+  if (!FLAGS.MEMORY_LIVING_DOCUMENT) return;
+
+  void (async () => {
+    try {
+      const total = await getTotalUserMessageCount(userId);
+      if (!shouldTriggerMemoryWriter(total)) return;
+
+      const recent = await getRecentChatMessages(userId, 6);
+      if (recent.length === 0) return;
+
+      const result = await runMemoryWriter(currentMemory, recent, OPENAI_KEY);
+
+      if (FLAGS.LLM_TELEMETRY) {
+        try {
+          await insertLlmCall({
+            userId,
+            route: "memory_writer",
+            model: MEMORY_WRITER_MODEL,
+            tokensIn: result.meta.usage.promptTokens,
+            tokensOut: result.meta.usage.completionTokens,
+            costUsd: calculateCost(
+              MEMORY_WRITER_MODEL,
+              result.meta.usage.promptTokens,
+              result.meta.usage.completionTokens,
+            ),
+            latencyMs: result.meta.latencyMs,
+            promptHash: hashWriterPrompt(result.meta.systemPrompt),
+          });
+        } catch (err) {
+          app.log.warn({ err, userId }, "memory writer telemetry insert failed");
+        }
+      }
+
+      if (!result.noop) {
+        await updateUserMemory(userId, result.memory);
+      }
+    } catch (err) {
+      app.log.warn({ err, userId }, "memory writer run failed");
+    }
+  })();
+}
 
 async function persistLlmCall(
   app: FastifyInstance,
@@ -106,6 +172,7 @@ export async function chatRoutes(app: FastifyInstance) {
     let userPlan: "free" | "basic" | "premium" | undefined;
     let messageLimit: number | null = null;
     let userIntake: Intake | null = null;
+    let userMemory: string = "";
 
     if (currentUser.kind === "linked") {
       const user = await getUser(currentUser.user.id);
@@ -121,6 +188,7 @@ export async function chatRoutes(app: FastifyInstance) {
       userPlan = user.plan;
       messageLimit = getMessageLimitForPlan(user.plan);
       userIntake = (user.intake as Intake | null) ?? null;
+      userMemory = user.memory_md;
     } else if (userId) {
       return sendCurrentUserError(reply, currentUser);
     } else if (directProfile) {
@@ -146,6 +214,7 @@ export async function chatRoutes(app: FastifyInstance) {
         definedCenters: profile.humanDesign?.definedCenters ?? [],
       });
       const intakeForChat = FLAGS.CHAT_INTAKE_CONTEXT && userIntake ? userIntake : undefined;
+      const memoryForChat = FLAGS.MEMORY_LIVING_DOCUMENT && userMemory ? userMemory : undefined;
       const result = await runAstralAgent(
         profile,
         transits,
@@ -153,6 +222,7 @@ export async function chatRoutes(app: FastifyInstance) {
         OPENAI_KEY,
         impact,
         intakeForChat,
+        memoryForChat,
       );
       const replyText = result.content;
 
@@ -169,6 +239,10 @@ export async function chatRoutes(app: FastifyInstance) {
           userMsgId = await saveChatMessage(persistedUserId, lastUserMsg.role, lastUserMsg.content);
         }
         assistantMsgId = await saveChatMessage(persistedUserId, "assistant", replyText);
+
+        // Sprint 2 — kick the writer once the user has their reply persisted.
+        // Fire-and-forget by design; never awaits.
+        triggerMemoryWriterAsync(app, persistedUserId, userMemory);
       }
 
       return reply.send({ reply: replyText, transits_used: transits.fetchedAt, userMsgId, assistantMsgId });
@@ -202,6 +276,7 @@ export async function chatRoutes(app: FastifyInstance) {
     let userPlan: "free" | "basic" | "premium" | undefined;
     let messageLimit: number | null = null;
     let userIntake: Intake | null = null;
+    let userMemory: string = "";
 
     if (currentUser.kind === "linked") {
       const user = await getUser(currentUser.user.id);
@@ -217,6 +292,7 @@ export async function chatRoutes(app: FastifyInstance) {
       userPlan = user.plan;
       messageLimit = getMessageLimitForPlan(user.plan);
       userIntake = (user.intake as Intake | null) ?? null;
+      userMemory = user.memory_md;
     } else if (userId) {
       return sendCurrentUserError(reply, currentUser);
     } else if (directProfile) {
@@ -248,6 +324,7 @@ export async function chatRoutes(app: FastifyInstance) {
         definedCenters: profile.humanDesign?.definedCenters ?? [],
       });
       const intakeForChat = FLAGS.CHAT_INTAKE_CONTEXT && userIntake ? userIntake : undefined;
+      const memoryForChat = FLAGS.MEMORY_LIVING_DOCUMENT && userMemory ? userMemory : undefined;
       let fullText = "";
       let captured: AgentCallMeta | null = null;
 
@@ -258,6 +335,7 @@ export async function chatRoutes(app: FastifyInstance) {
         OPENAI_KEY,
         impact,
         intakeForChat,
+        memoryForChat,
         (meta) => { captured = meta; },
       )) {
         fullText += chunk;
@@ -277,6 +355,9 @@ export async function chatRoutes(app: FastifyInstance) {
           userMsgId = await saveChatMessage(persistedUserId, lastUserMsg.role, lastUserMsg.content);
         }
         assistantMsgId = await saveChatMessage(persistedUserId, "assistant", fullText);
+
+        // Sprint 2 — kick the writer once the user has their reply persisted.
+        triggerMemoryWriterAsync(app, persistedUserId, userMemory);
       }
 
       // Send done event with transits info and persisted message ids

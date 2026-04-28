@@ -473,7 +473,8 @@ describe("Freemium message limit", () => {
       [{ role: "user", content: "¿Qué necesito ver hoy?" }],
       expect.any(String),
       expect.any(Object),
-      undefined,
+      undefined, // intake (test user has none)
+      undefined, // memory (test user has none)
     );
     expect(userId).toEqual(expect.any(String));
   });
