@@ -11,7 +11,7 @@ Astral guarda los bodygraphs y demás assets de usuario en **Cloudflare R2** (ob
 
 ## El código en producción
 
-`backend/src/storage/r2.ts` expone `putObject`, `getObject`, `deleteObject`. La función `isR2Configured()` chequea las 4 env vars al vuelo. Si **no** están seteadas, `createAsset`/`getAsset`/`deleteAsset` en `db.ts` siguen usando la columna BLOB legada — el deploy no se rompe si todavía no configuraste R2.
+`backend/src/storage/r2.ts` expone `putObject`, `getObject`, `deleteObject`. La función `isR2Configured()` chequea las 4 env vars al vuelo. En producción, `server.ts` exige R2 al boot. En desarrollo local, si **no** están seteadas, los assets se guardan en disco bajo `ASSET_STORAGE_DIR` (default: `.local-assets`) y la tabla conserva solo `storage_key`.
 
 ## Setup paso a paso
 

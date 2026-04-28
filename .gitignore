@@ -11,6 +11,10 @@ build/
 .env
 .env.local
 
+# Local asset storage
+.local-assets/
+**/.local-assets/
+
 # Screenshots & test files
 *.png
 *.jpg
