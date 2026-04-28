@@ -78,12 +78,16 @@ describe("buildSystemPrompt — business_context injection", () => {
   it("places <business_context> between </user_profile> and <transits>", () => {
     const intake: Intake = { actividad: "X" };
     const prompt = buildSystemPrompt(PROFILE, TRANSITS, undefined, intake);
+    // The "Reglas de datos" section mentions `<business_context>` and
+    // `<transits>` as plain text references. Anchor on tag forms that appear
+    // ONLY in the actual emitted blocks: the `</…>` closing tag and the
+    // `<transits week=` opening with attribute.
     const profileEnd = prompt.indexOf("</user_profile>");
-    const businessStart = prompt.indexOf("<business_context>");
-    const transitsStart = prompt.indexOf("<transits");
+    const businessEnd = prompt.indexOf("</business_context>");
+    const transitsStart = prompt.indexOf("<transits week=");
     expect(profileEnd).toBeGreaterThan(0);
-    expect(businessStart).toBeGreaterThan(profileEnd);
-    expect(transitsStart).toBeGreaterThan(businessStart);
+    expect(businessEnd).toBeGreaterThan(profileEnd);
+    expect(transitsStart).toBeGreaterThan(businessEnd);
   });
 });
 
