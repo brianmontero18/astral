@@ -6,6 +6,7 @@ build/
 *.db
 *.db-shm
 *.db-wal
+*.db.bak
 
 # Environment
 .env
@@ -22,6 +23,8 @@ build/
 dummy.txt
 
 # IDE & tools
+.codex
+.codex/
 .playwright-mcp/
 **/.claude/settings.local.json
 AGENTS.md
