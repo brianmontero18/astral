@@ -73,18 +73,18 @@ test.describe("Report — First Generation", () => {
     await openFreshReportIntake(page);
   });
 
-  test("User can type in the intake fields", async ({ page }) => {
+  test("User can type in all 3 intake fields", async ({ page }) => {
     await mockGetUser(page, TEST_USER_NO_INTAKE);
     await mockGetReport(page, null);
     await openFreshReportIntake(page);
 
     await page.getByLabel("¿A qué te dedicás?").fill("Soy diseñadora");
-    await page.getByLabel("¿Qué desafío tenés ahora?").fill("Decir que no");
-    await page.getByLabel("¿Qué querés concretar en los próximos 12 meses? (opcional)").fill("Entender mi energía");
+    await page.getByLabel("¿Qué buscás en este momento?").fill("Entender mi energía");
+    await page.getByLabel("¿Cuál es tu mayor desafío?").fill("Decir que no");
 
     await expect(page.getByLabel("¿A qué te dedicás?")).toHaveValue("Soy diseñadora");
-    await expect(page.getByLabel("¿Qué desafío tenés ahora?")).toHaveValue("Decir que no");
-    await expect(page.getByLabel("¿Qué querés concretar en los próximos 12 meses? (opcional)")).toHaveValue("Entender mi energía");
+    await expect(page.getByLabel("¿Qué buscás en este momento?")).toHaveValue("Entender mi energía");
+    await expect(page.getByLabel("¿Cuál es tu mayor desafío?")).toHaveValue("Decir que no");
   });
 
   test('Clicking "Generar mi informe" shows loading then report', async ({ page }) => {
@@ -94,9 +94,7 @@ test.describe("Report — First Generation", () => {
     await mockGenerateReport(page, FREE_REPORT);
     await openFreshReportIntake(page);
 
-    // Both required fields must be filled now (schema 5-fields, 2 obligatorios).
     await page.getByLabel("¿A qué te dedicás?").fill("Soy diseñadora");
-    await page.getByLabel("¿Qué desafío tenés ahora?").fill("Decir que no");
     await page.getByRole("button", { name: /Generar mi informe/ }).click();
 
     // Report should appear

@@ -15,10 +15,8 @@ export const AGENT_RESPONSE_CHUNKS = [
 
 export const TEST_INTAKE = {
   actividad: "Soy diseñadora freelance",
-  desafio_actual: "Me cuesta decir que no",
-  tipo_de_negocio: "marca_personal" as const,
-  objetivo_12m: "Quiero entender mi energía",
-  voz_marca: "Cálido pero directo",
+  objetivos: "Quiero entender mi energía",
+  desafios: "Me cuesta decir que no",
 };
 
 export const FREE_REPORT: DesignReport = {

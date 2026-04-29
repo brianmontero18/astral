@@ -25,7 +25,6 @@ test.describe("Report — Intake Persistence", () => {
     await openFreshReportIntake(page);
 
     await page.getByLabel("¿A qué te dedicás?").fill("Soy dev");
-    await page.getByLabel("¿Qué desafío tenés ahora?").fill("Definir mi nicho");
     await page.getByRole("button", { name: /Generar mi informe/ }).click();
 
     await expect(page.getByText("Informe Personal")).toBeVisible();
@@ -39,8 +38,8 @@ test.describe("Report — Intake Persistence", () => {
     await openFreshReportIntake(page);
 
     await expect(page.getByLabel("¿A qué te dedicás?")).toHaveValue("");
-    await expect(page.getByLabel("¿Qué desafío tenés ahora?")).toHaveValue("");
-    await expect(page.getByLabel("¿Qué querés concretar en los próximos 12 meses? (opcional)")).toHaveValue("");
+    await expect(page.getByLabel("¿Qué buscás en este momento?")).toHaveValue("");
+    await expect(page.getByLabel("¿Cuál es tu mayor desafío?")).toHaveValue("");
   });
 
   test("User reset clears intake state", async ({ page }) => {

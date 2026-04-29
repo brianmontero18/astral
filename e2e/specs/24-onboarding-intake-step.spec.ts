@@ -1,12 +1,9 @@
 /**
- * Onboarding — Intake step (post-bodygraph)
+ * Onboarding — final embark step (post-bodygraph)
  *
- * Cubre el step "intake" agregado al final del flujo de onboarding (después
- * de la review del bodygraph extraído). Verifica:
- * - Que el step aparece después de "CONTINUAR" desde la review.
- * - Que los 2 obligatorios bloquean el submit con un hint visible.
- * - Que un submit con obligatorios completos persiste el intake correctamente
- *   (PUT /api/me con shape nuevo) y deja al usuario en el chat.
+ * Cubre el CTA final del flujo de onboarding después de la review del
+ * bodygraph extraído. El intake vive en la superficie de informes; desde la
+ * review el usuario confirma con "EMBARCAR" y entra al chat.
  *
  * El flow completo del onboarding ya está cubierto por el spec 18 hasta
  * "Tu Identidad Cósmica" — este spec extiende a partir de ahí.
@@ -118,63 +115,13 @@ async function walkOnboardingToReview(page: import("@playwright/test").Page) {
   return { getPutBody: () => lastPutBody };
 }
 
-test.describe("Onboarding — Intake step", () => {
-  test("Continuar from review opens the intake step with required + optional fields", async ({ page }) => {
+test.describe("Onboarding — final embark step", () => {
+  test("Embarcar from review completes onboarding and opens chat", async ({ page }) => {
     await walkOnboardingToReview(page);
 
-    await page.getByRole("button", { name: "CONTINUAR" }).click();
-
-    // Required fields
-    await expect(page.getByLabel("¿A qué te dedicás?")).toBeVisible();
-    await expect(page.getByLabel("¿Qué desafío tenés ahora?")).toBeVisible();
-
-    // Optional fields
-    await expect(page.getByLabel("Tipo de negocio (opcional)")).toBeVisible();
-    await expect(page.getByLabel("¿Qué querés concretar en los próximos 12 meses? (opcional)")).toBeVisible();
-    await expect(page.getByLabel("¿Cómo describirías el tono de tu marca? (opcional)")).toBeVisible();
-
-    // Primary CTA
-    await expect(page.getByRole("button", { name: /Embarcar al chat/ })).toBeVisible();
-  });
-
-  test("Submitting with empty required fields blocks navigation and shows hint", async ({ page }) => {
-    await walkOnboardingToReview(page);
-    await page.getByRole("button", { name: "CONTINUAR" }).click();
-
-    await page.getByRole("button", { name: /Embarcar al chat/ }).click();
-
-    await expect(
-      page.getByText("Necesitamos al menos los dos campos marcados con *", { exact: false }),
-    ).toBeVisible();
-    // We didn't navigate — the intake form is still mounted.
-    await expect(page.getByLabel("¿A qué te dedicás?")).toBeVisible();
-  });
-
-  test("Submitting with required fields persists the intake and navigates to chat", async ({ page }) => {
-    const { getPutBody } = await walkOnboardingToReview(page);
-    await page.getByRole("button", { name: "CONTINUAR" }).click();
-
-    await page.getByLabel("¿A qué te dedicás?").fill("Mentora de coaches en Latam");
-    await page.getByLabel("¿Qué desafío tenés ahora?").fill("Lanzar mi programa premium en mayo");
-    await page.getByLabel("Tipo de negocio (opcional)").selectOption("mentora");
-    await page
-      .getByLabel("¿Qué querés concretar en los próximos 12 meses? (opcional)")
-      .fill("50 alumnas pagas en programa anual");
-
-    await page.getByRole("button", { name: /Embarcar al chat/ }).click();
+    await page.getByRole("button", { name: "EMBARCAR" }).click();
 
     // The chat surface uses the empty-state header rendered for new users.
     await expect(page.getByText("Hola, Test Intake User")).toBeVisible();
-
-    const body = getPutBody() as { intake?: Record<string, unknown> } | null;
-    expect(body).not.toBeNull();
-    expect(body?.intake).toMatchObject({
-      actividad: "Mentora de coaches en Latam",
-      desafio_actual: "Lanzar mi programa premium en mayo",
-      tipo_de_negocio: "mentora",
-      objetivo_12m: "50 alumnas pagas en programa anual",
-    });
-    // voz_marca was left blank → the form strips it before persisting.
-    expect(body?.intake?.voz_marca).toBeUndefined();
   });
 });
