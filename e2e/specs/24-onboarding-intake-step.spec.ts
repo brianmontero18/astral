@@ -1,9 +1,9 @@
 /**
  * Onboarding — final embark step (post-bodygraph)
  *
- * Cubre el CTA final del flujo de onboarding después de la review del
- * bodygraph extraído. El intake vive en la superficie de informes; desde la
- * review el usuario confirma con "EMBARCAR" y entra al chat.
+ * Cubre el step de intake del flujo de onboarding después de la review del
+ * bodygraph extraído. Verifica que la pantalla pueda scrollear completa y que
+ * el usuario llegue al chat con el contexto persistido.
  *
  * El flow completo del onboarding ya está cubierto por el spec 18 hasta
  * "Tu Identidad Cósmica" — este spec extiende a partir de ahí.
@@ -115,13 +115,28 @@ async function walkOnboardingToReview(page: import("@playwright/test").Page) {
   return { getPutBody: () => lastPutBody };
 }
 
-test.describe("Onboarding — final embark step", () => {
-  test("Embarcar from review completes onboarding and opens chat", async ({ page }) => {
-    await walkOnboardingToReview(page);
+test.describe("Onboarding — Intake step", () => {
+  test("Embarcar from review opens scrollable intake, persists it, and completes onboarding", async ({ page }) => {
+    const { getPutBody } = await walkOnboardingToReview(page);
 
-    await page.getByRole("button", { name: "EMBARCAR" }).click();
+    await page.getByRole("button", { name: "CONTINUAR" }).click();
+
+    await expect(page.getByText("Contame de tu negocio")).toBeVisible();
+    await page.getByLabel("¿A qué te dedicás?").fill("Mentora de coaches en Latam");
+    await page.getByLabel("¿Qué desafío tenés ahora?").fill("Lanzar mi programa premium en mayo");
+
+    const submit = page.getByRole("button", { name: /Embarcar al chat/ });
+    await submit.scrollIntoViewIfNeeded();
+    await expect(submit).toBeVisible();
+    await submit.click();
 
     // The chat surface uses the empty-state header rendered for new users.
     await expect(page.getByText("Hola, Test Intake User")).toBeVisible();
+
+    const body = getPutBody() as { intake?: Record<string, unknown> } | null;
+    expect(body?.intake).toMatchObject({
+      actividad: "Mentora de coaches en Latam",
+      desafio_actual: "Lanzar mi programa premium en mayo",
+    });
   });
 });

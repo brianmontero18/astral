@@ -129,12 +129,18 @@ export function OnboardingFlow({ onComplete }: Props) {
         alignItems: "center",
         justifyContent: "center",
         padding: 20,
+        minHeight: 0,
+        overflow: "hidden",
       }}
     >
       <div
         style={{
-          maxWidth: 520,
+          maxWidth: step === "intake" ? 760 : 520,
           width: "100%",
+          height: step === "intake" ? "100%" : "auto",
+          minHeight: 0,
+          display: step === "intake" ? "flex" : "block",
+          flexDirection: "column",
           animation: "fadeIn 0.5s ease",
         }}
       >
@@ -449,7 +455,7 @@ export function OnboardingFlow({ onComplete }: Props) {
 
         {/* Step: Intake (business context) */}
         {step === "intake" && (
-          <div className="animate-fade-in" style={{ width: "100%" }}>
+          <div className="animate-fade-in" style={{ width: "100%", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
             {error && (
               <div
                 style={{
