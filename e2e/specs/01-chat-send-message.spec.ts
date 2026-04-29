@@ -68,8 +68,11 @@ test.describe("Chat — Send Message", () => {
 
     // User message appears immediately (optimistic)
     await expect(page.getByText("Mi pregunta")).toBeVisible();
+    await expect(page.getByLabel("Astral Guide está preparando la respuesta")).toBeVisible();
+    await expect(page.getByText("Canalizando tu lectura...")).toBeVisible();
     // Then the assistant response appears
     await expect(page.getByText("34-57...")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByLabel("Astral Guide está preparando la respuesta")).not.toBeVisible();
   });
 
   test("Fallback works when streaming fails", async ({ page }) => {

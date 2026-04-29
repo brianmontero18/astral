@@ -406,6 +406,22 @@ textarea { outline: none !important; }
   text-transform: uppercase;
 }
 
+.chat-assistant-pending {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 34px;
+  color: var(--text-muted);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}
+
+.chat-assistant-pending-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .chat-message-actions {
   display: flex;
   align-items: center;

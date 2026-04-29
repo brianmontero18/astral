@@ -19,6 +19,7 @@ import { FLAGS } from "../config/flags";
 
 interface ChatMsg extends ChatMessage {
   dbId?: number;
+  pending?: boolean;
 }
 
 const hasMicSupport = typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
@@ -228,7 +229,7 @@ export function ChatView({ userName }: Props) {
     bumpMessageUsage();
 
     try {
-      const withPlaceholder: ChatMsg[] = [...updated, { role: "assistant", content: "" }];
+      const withPlaceholder: ChatMsg[] = [...updated, { role: "assistant", content: "", pending: true }];
       setMessages(withPlaceholder);
       setStreaming(true);
       setLoading(false);
@@ -236,7 +237,7 @@ export function ChatView({ userName }: Props) {
       const result = await sendChatStream(updated, (accumulated) => {
         setMessages((prev) => {
           const copy = [...prev];
-          copy[copy.length - 1] = { role: "assistant", content: accumulated };
+          copy[copy.length - 1] = { role: "assistant", content: accumulated, pending: false };
           return copy;
         });
       });
@@ -517,7 +518,22 @@ export function ChatView({ userName }: Props) {
                 <div className="chat-assistant-header">
                   Astral Guide
                 </div>
-                <ReportRenderer text={msg.content} />
+          {msg.pending && !msg.content ? (
+            <div className="chat-assistant-pending" aria-label="Astral Guide está preparando la respuesta">
+              <div className="chat-assistant-pending-dots">
+                {[0, 1, 2].map((dot) => (
+                  <span
+                    key={dot}
+                    className="chat-loading-dot"
+                    style={{ animationDelay: `${dot * 0.2}s` }}
+                  />
+                ))}
+              </div>
+              <span>Canalizando tu lectura...</span>
+            </div>
+          ) : (
+            <ReportRenderer text={msg.content} />
+          )}
                 {/* Copy + feedback */}
                 {msg.content && (
                   <div className="chat-assistant-actions">
