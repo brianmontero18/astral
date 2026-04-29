@@ -313,8 +313,8 @@ export function AuthScreen() {
       setStep(getStepForFlowType(nextAttempt.flowType));
       setNotice(
         nextAttempt.flowType === "MAGIC_LINK"
-          ? `Te enviamos un enlace mágico a ${normalizedEmail}.`
-          : `Te enviamos un código y un enlace mágico a ${normalizedEmail}.`,
+          ? "Revisá tu bandeja. El enlace está en camino."
+          : "Revisá tu bandeja. El código tiene 6 dígitos y vence en 10 minutos.",
       );
     } catch {
       setError("No pudimos enviarte el acceso. Volvé a intentar.");
@@ -323,10 +323,8 @@ export function AuthScreen() {
     }
   }
 
-  async function handleCodeSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const normalizedCode = code.trim();
+  async function submitCode(rawCode: string) {
+    const normalizedCode = rawCode.trim();
 
     if (!normalizedCode) {
       setError("Ingresa el código que recibiste por email.");
@@ -352,6 +350,7 @@ export function AuthScreen() {
         result.status === "EXPIRED_USER_INPUT_CODE_ERROR"
       ) {
         setError(getCodeConsumeErrorMessage(result));
+        setCode("");
         return;
       }
 
@@ -371,6 +370,19 @@ export function AuthScreen() {
       setError("No pudimos validar el código. Volvé a intentar.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleCodeSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await submitCode(code);
+  }
+
+  function handleCodeChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const next = event.target.value.replace(/\D/g, "").slice(0, 6);
+    setCode(next);
+    if (next.length === 6 && !busy) {
+      void submitCode(next);
     }
   }
 
@@ -402,7 +414,7 @@ export function AuthScreen() {
         setAttempt(nextAttempt);
       }
 
-      setNotice(`Reenviamos el acceso a ${email.trim() || "tu email"}.`);
+      setNotice("Acabamos de reenviarte el acceso. Revisá tu bandeja.");
     } catch {
       setError("No pudimos reenviar el acceso. Volvé a intentar.");
     } finally {
@@ -501,30 +513,36 @@ export function AuthScreen() {
                       className="astral-auth-input astral-auth-code-input"
                       autoComplete="one-time-code"
                       autoFocus
-                      placeholder="123 456"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={6}
+                      placeholder="123456"
                       value={code}
-                      onChange={(event) => setCode(event.target.value)}
+                      onChange={handleCodeChange}
                     />
                   </label>
                   <button
                     className="astral-auth-primary"
-                    disabled={busy || code.trim().length === 0}
+                    disabled={busy}
                     type="submit"
                   >
                     {busy ? "Validando..." : "Entrar a mi espacio"}
                   </button>
                 </form>
-                <div className="astral-auth-actions">
+                <div className="astral-auth-secondary-row">
                   <button
-                    className="astral-auth-secondary"
+                    className="astral-auth-text-link"
                     disabled={busy}
                     onClick={() => void handleResend()}
                     type="button"
                   >
-                    Reenviar acceso
+                    Reenviar código
                   </button>
+                  <span aria-hidden="true" className="astral-auth-text-divider">
+                    ·
+                  </span>
                   <button
-                    className="astral-auth-secondary"
+                    className="astral-auth-text-link"
                     disabled={busy}
                     onClick={() => void handleUseAnotherEmail()}
                     type="button"
@@ -537,36 +555,35 @@ export function AuthScreen() {
 
             {step === "link-sent" ? (
               <>
-                <div className="astral-auth-actions">
+                <button
+                  className="astral-auth-primary"
+                  disabled={busy}
+                  onClick={() => void handleResend()}
+                  type="button"
+                >
+                  {busy ? "Reenviando..." : "Reenviar enlace"}
+                </button>
+
+                <div className="astral-auth-secondary-row">
                   <button
-                    className="astral-auth-primary"
+                    className="astral-auth-text-link"
                     disabled={busy}
-                    onClick={() => void handleResend()}
+                    onClick={() => setStep("code")}
                     type="button"
                   >
-                    {busy ? "Reenviando..." : "Reenviar enlace"}
+                    Entrar con código
                   </button>
+                  <span aria-hidden="true" className="astral-auth-text-divider">
+                    ·
+                  </span>
                   <button
-                    className="astral-auth-secondary"
+                    className="astral-auth-text-link"
                     disabled={busy}
                     onClick={() => void handleUseAnotherEmail()}
                     type="button"
                   >
                     Usar otro correo
                   </button>
-                </div>
-
-                <div className="astral-auth-switch">
-                  <span className="astral-auth-switch-divider" />
-                  <button
-                    className="astral-auth-switch-action"
-                    disabled={busy}
-                    onClick={() => setStep("code")}
-                    type="button"
-                  >
-                    o entrar con código
-                  </button>
-                  <span className="astral-auth-switch-divider" />
                 </div>
               </>
             ) : null}

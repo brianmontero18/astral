@@ -1257,6 +1257,46 @@ textarea { outline: none !important; }
   text-align: center;
 }
 
+.astral-auth-secondary-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.astral-auth-text-link {
+  border: none;
+  background: transparent;
+  color: rgba(248, 244, 232, 0.6);
+  padding: 6px 4px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.25s ease;
+}
+
+.astral-auth-text-link:hover:not(:disabled),
+.astral-auth-text-link:focus-visible {
+  color: var(--color-gold);
+  outline: none;
+}
+
+.astral-auth-text-link:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.astral-auth-text-divider {
+  color: rgba(248, 244, 232, 0.25);
+  font-size: 14px;
+  user-select: none;
+}
+
 .astral-auth-footer {
   display: flex;
   align-items: center;
