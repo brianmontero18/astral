@@ -133,58 +133,95 @@ export function OnboardingFlow({ onComplete }: Props) {
     >
       <div
         style={{
-          maxWidth: 480,
+          maxWidth: 520,
           width: "100%",
           animation: "fadeIn 0.5s ease",
         }}
       >
         {/* Step: Welcome */}
         {step === "welcome" && (
-          <div style={{ textAlign: "center" }} className="animate-fade-in">
-            <div style={{ 
-              width: 80, height: 80, margin: "0 auto 32px",
-              background: "radial-gradient(circle at 30% 30%, #D4AF37, #C5A059, transparent)",
-              borderRadius: "50%",
-              boxShadow: "0 0 30px rgba(212,175,55,0.2)",
-              animation: "spin 20s linear infinite",
-            }} />
-            <h1 style={{ 
-              color: "var(--text-main)", 
-              fontSize: "42px", 
-              marginBottom: "16px", 
+          <div
+            style={{
+              textAlign: "center",
+              background: "var(--surface-dark)",
+              border: "1px solid rgba(33, 41, 30, 0.4)",
+              borderRadius: 24,
+              padding: "44px 36px",
+              boxShadow: "0 24px 56px rgba(33, 41, 30, 0.22)",
+              color: "var(--text-main)",
+            }}
+            className="animate-fade-in"
+          >
+            <div
+              style={{
+                width: 64,
+                height: 64,
+                margin: "0 auto 28px",
+                borderRadius: "50%",
+                background: "var(--surface-deeper)",
+                border: "1px solid var(--color-gold)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "var(--color-gold)",
+                fontFamily: "var(--font-serif)",
+                fontSize: 26,
+                fontWeight: 500,
+              }}
+            >
+              A
+            </div>
+            <h1 style={{
+              color: "var(--text-main)",
+              fontSize: "40px",
+              marginBottom: "16px",
               fontFamily: "var(--font-serif)",
-              fontWeight: 400,
-              letterSpacing: "0.05em"
+              fontWeight: 500,
+              letterSpacing: "0.04em",
+              lineHeight: 1.05,
             }}>
               Astral Guide
             </h1>
-            <p style={{ 
-              color: "var(--text-muted)", 
-              fontSize: "15px", 
-              lineHeight: 1.8, 
-              marginBottom: "48px",
-              fontWeight: 300
+            <p style={{
+              color: "var(--text-muted)",
+              fontSize: "15px",
+              lineHeight: 1.7,
+              marginBottom: "40px",
+              fontWeight: 400,
             }}>
               Tu brújula de Diseño Humano.
               <br />
               Sincroniza tus tránsitos reales con tu esencia.
             </p>
-            <button onClick={() => setStep("name")} className="btn-primary" style={{width: "100%"}}>
-              DESCUBRIR MI CARTA
+            <button onClick={() => setStep("name")} className="astral-auth-primary" style={{ width: "100%" }}>
+              Descubrir mi carta
             </button>
           </div>
         )}
 
         {/* Step: Name */}
         {step === "name" && (
-          <div style={{ textAlign: "center" }} className="animate-fade-in">
-            <div style={{ color: "var(--color-primary)", fontSize: "24px", marginBottom: "24px" }}>✦</div>
-            <h2 style={{ 
-              color: "var(--text-main)", 
-              fontSize: "28px", 
-              marginBottom: "40px", 
+          <div
+            style={{
+              textAlign: "center",
+              background: "var(--surface-dark)",
+              border: "1px solid rgba(33, 41, 30, 0.4)",
+              borderRadius: 24,
+              padding: "44px 36px",
+              boxShadow: "0 24px 56px rgba(33, 41, 30, 0.22)",
+              color: "var(--text-main)",
+            }}
+            className="animate-fade-in"
+          >
+            <div style={{ color: "var(--color-primary)", fontSize: 11, letterSpacing: "0.24em", fontFamily: "var(--font-sans)", fontWeight: 700, marginBottom: 16, textTransform: "uppercase" }}>
+              Bienvenida
+            </div>
+            <h2 style={{
+              color: "var(--text-main)",
+              fontSize: "28px",
+              marginBottom: "40px",
               fontFamily: "var(--font-serif)",
-              fontWeight: 400
+              fontWeight: 500,
             }}>
               ¿Cómo debemos llamarte?
             </h2>
@@ -199,65 +236,80 @@ export function OnboardingFlow({ onComplete }: Props) {
                 boxSizing: "border-box",
                 background: "transparent",
                 border: "none",
-                borderBottom: "1px solid var(--glass-border)",
+                borderBottom: "1px solid rgba(248, 244, 232, 0.18)",
                 padding: "16px 0",
-                color: "var(--color-primary)",
+                color: "var(--text-main)",
                 fontSize: "24px",
                 fontFamily: "var(--font-serif)",
                 textAlign: "center",
                 outline: "none",
-                marginBottom: "48px",
-                transition: "border-color 0.3s ease"
+                marginBottom: "40px",
+                transition: "border-color 0.3s ease",
               }}
-              onFocus={(e) => e.target.style.borderBottom = "1px solid var(--color-primary-dim)"}
-              onBlur={(e) => e.target.style.borderBottom = "1px solid var(--glass-border)"}
+              onFocus={(e) => (e.target.style.borderBottom = "1px solid var(--color-primary)")}
+              onBlur={(e) => (e.target.style.borderBottom = "1px solid rgba(248, 244, 232, 0.18)")}
             />
             <button
               onClick={() => setStep("upload")}
               disabled={!name.trim()}
-              className="btn-primary"
+              className="astral-auth-primary"
               style={{ width: "100%" }}
             >
-              CONTINUAR
+              Continuar
             </button>
           </div>
         )}
 
         {/* Step: Upload */}
         {step === "upload" && (
-          <div className="animate-fade-in">
-            <h2 style={{ color: "var(--text-main)", fontSize: "26px", marginBottom: "12px", textAlign: "center", fontFamily: "var(--font-serif)", fontWeight: 400 }}>
+          <div
+            className="animate-fade-in"
+            style={{
+              background: "var(--surface-dark)",
+              border: "1px solid rgba(33, 41, 30, 0.4)",
+              borderRadius: 24,
+              padding: "36px 32px",
+              boxShadow: "0 24px 56px rgba(33, 41, 30, 0.22)",
+              color: "var(--text-main)",
+            }}
+          >
+            <h2 style={{ color: "var(--text-main)", fontSize: "26px", marginBottom: "12px", textAlign: "center", fontFamily: "var(--font-serif)", fontWeight: 500 }}>
               Sincroniza tu energía
             </h2>
-            <p style={{ color: "var(--text-muted)", fontSize: "14px", textAlign: "center", marginBottom: "32px", fontWeight: 300 }}>
-              Sube tu gráfico de Diseño Humano para sintonizar el reporte a tu esencia.<br/>
+            <p style={{ color: "var(--text-muted)", fontSize: "14px", textAlign: "center", marginBottom: "28px", fontWeight: 400, lineHeight: 1.6 }}>
+              Subí tu gráfico de Diseño Humano para sintonizar el reporte a tu esencia.<br />
               Solo PDF exportado desde MyHumanDesign o Genetic Matrix.
             </p>
 
             {error && (
-              <div className="glass-panel" style={{
-                borderColor: "rgba(201,107,122,0.3)", padding: "14px 18px",
-                color: "#f0a0b0", fontSize: "13px", marginBottom: "24px", textAlign: "center"
+              <div style={{
+                background: "rgba(196, 96, 96, 0.14)",
+                border: "1px solid rgba(196, 96, 96, 0.42)",
+                borderRadius: 10,
+                padding: "14px 18px",
+                color: "#f3c2c2", fontSize: "13px", marginBottom: "24px", textAlign: "center"
               }}>
                 {error}
               </div>
             )}
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "20px", marginBottom: "40px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px", marginBottom: "32px" }}>
               <div
                 onClick={() => fileRef.current?.click()}
-                className={slot.file ? "glass-panel-gold" : "glass-panel"}
                 style={{
                   padding: "32px 24px",
                   textAlign: "center",
                   cursor: "pointer",
                   transition: "all 0.3s ease",
+                  background: slot.file ? "rgba(207, 172, 108, 0.08)" : "rgba(248, 244, 232, 0.04)",
+                  border: `1px dashed ${slot.file ? "var(--color-primary)" : "rgba(248, 244, 232, 0.22)"}`,
+                  borderRadius: 16,
                 }}
                 onMouseOver={(e) => {
-                  if (!slot.file) e.currentTarget.style.borderColor = "var(--color-primary-dim)";
+                  if (!slot.file) e.currentTarget.style.borderColor = "var(--color-primary)";
                 }}
                 onMouseOut={(e) => {
-                  if (!slot.file) e.currentTarget.style.borderColor = "var(--glass-border)";
+                  if (!slot.file) e.currentTarget.style.borderColor = "rgba(248, 244, 232, 0.22)";
                 }}
               >
                 <input
@@ -268,24 +320,17 @@ export function OnboardingFlow({ onComplete }: Props) {
                   onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
                 />
                 <div style={{
-                  fontSize: "24px",
-                  marginBottom: "16px",
                   color: slot.file ? "var(--color-primary)" : "var(--text-muted)",
-                  opacity: slot.file ? 1 : 0.5
-                }}>
-                  {slot.file ? "✦" : "⚝"}
-                </div>
-                <div style={{
-                  color: slot.file ? "var(--text-gold)" : "var(--text-main)",
-                  fontSize: "14px",
-                  fontWeight: 500,
-                  letterSpacing: "0.05em",
-                  textTransform: "uppercase"
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  fontFamily: "var(--font-sans)",
                 }}>
                   {slot.label}
                 </div>
-                <div style={{ color: "var(--text-faint)", fontSize: "12px", marginTop: "8px" }}>
-                  {slot.file ? slot.file.name : "Tap para transferir archivo"}
+                <div style={{ color: slot.file ? "var(--text-main)" : "var(--text-faint)", fontSize: "13px", marginTop: "10px" }}>
+                  {slot.file ? slot.file.name : "Hacé clic para subir tu archivo"}
                 </div>
               </div>
             </div>
@@ -293,7 +338,7 @@ export function OnboardingFlow({ onComplete }: Props) {
             <button
               onClick={handleExtract}
               disabled={!hasFile}
-              className="btn-primary"
+              className="astral-auth-primary"
               style={{ width: "100%" }}
             >
               CANALIZAR ENERGÍA
@@ -303,24 +348,34 @@ export function OnboardingFlow({ onComplete }: Props) {
 
         {/* Step: Extracting */}
         {step === "extracting" && (
-          <div style={{ textAlign: "center" }} className="animate-fade-in-slow">
+          <div
+            style={{
+              textAlign: "center",
+              background: "var(--surface-dark)",
+              border: "1px solid rgba(33, 41, 30, 0.4)",
+              borderRadius: 24,
+              padding: "48px 32px",
+              boxShadow: "0 24px 56px rgba(33, 41, 30, 0.22)",
+              color: "var(--text-main)",
+            }}
+            className="animate-fade-in-slow"
+          >
             <div
               style={{
-                width: 60,
-                height: 60,
+                width: 56,
+                height: 56,
                 borderRadius: "50%",
-                border: "2px solid var(--color-primary-faint)",
-                borderTopColor: "var(--color-primary)",
-                borderRightColor: "var(--color-primary-dim)",
-                animation: "spin 1.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite",
-                margin: "0 auto 32px",
+                border: "2px solid rgba(207, 172, 108, 0.18)",
+                borderTopColor: "var(--color-gold)",
+                animation: "spin 1.2s linear infinite",
+                margin: "0 auto 28px",
               }}
             />
-            <h2 style={{ color: "var(--text-main)", fontSize: "24px", marginBottom: "12px", fontFamily: "var(--font-serif)" }}>
-              Descifrando tu código estelar...
+            <h2 style={{ color: "var(--text-main)", fontSize: "22px", marginBottom: "12px", fontFamily: "var(--font-serif)", fontWeight: 500 }}>
+              Leyendo tu carta...
             </h2>
-            <p style={{ color: "var(--text-muted)", fontSize: "14px", fontWeight: 300 }}>
-              Nuestra IA está leyendo tus mapas en profundidad.
+            <p style={{ color: "var(--text-muted)", fontSize: "14px", fontWeight: 400, lineHeight: 1.6 }}>
+              Nuestro motor está extrayendo tu Diseño Humano.
             </p>
           </div>
         )}
@@ -328,17 +383,21 @@ export function OnboardingFlow({ onComplete }: Props) {
         {/* Step: Review */}
         {step === "review" && extractedProfile && (
           <div className="animate-fade-in">
-            <h2 style={{ color: "var(--text-main)", fontSize: "26px", marginBottom: "32px", textAlign: "center", fontFamily: "var(--font-serif)", fontWeight: 400 }}>
+            <h2 style={{ color: "var(--text-on-light)", fontSize: "28px", marginBottom: "28px", textAlign: "center", fontFamily: "var(--font-serif)", fontWeight: 500 }}>
               Tu Identidad Cósmica
             </h2>
 
             <div
-              className="glass-panel"
               style={{
                 padding: "24px",
-                marginBottom: "32px",
+                marginBottom: "28px",
                 maxHeight: "45vh",
                 overflowY: "auto",
+                background: "var(--surface-dark)",
+                border: "1px solid rgba(33, 41, 30, 0.4)",
+                borderRadius: 18,
+                boxShadow: "0 18px 44px rgba(33, 41, 30, 0.18)",
+                color: "var(--text-main)",
               }}
             >
               <ProfileField label="Nombre" value={extractedProfile.name} />
@@ -358,9 +417,9 @@ export function OnboardingFlow({ onComplete }: Props) {
                 display: "flex",
                 justifyContent: "space-between",
                 padding: "10px 0",
-                borderBottom: "1px solid rgba(255,255,255,0.03)"
+                borderBottom: "1px solid rgba(248, 244, 232, 0.06)",
               }}>
-                <span style={{ color: "var(--text-faint)", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                <span style={{ color: "var(--text-faint)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.14em", fontWeight: 600 }}>
                   Canales
                 </span>
                 {extractedProfile.humanDesign.channels.length > 0 ? (
@@ -379,9 +438,9 @@ export function OnboardingFlow({ onComplete }: Props) {
 
             <div style={{ display: "flex", gap: "16px" }}>
               <button onClick={handleRetry} className="btn-secondary" style={{ flex: 1 }}>
-                REVERTIR
+                Volver
               </button>
-              <button onClick={handleConfirm} className="btn-primary" style={{ flex: 2 }}>
+              <button onClick={handleConfirm} className="astral-auth-primary" style={{ flex: 2 }}>
                 CONTINUAR
               </button>
             </div>
@@ -420,13 +479,13 @@ export function OnboardingFlow({ onComplete }: Props) {
 
 function ProfileField({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ 
-      display: "flex", 
+    <div style={{
+      display: "flex",
       justifyContent: "space-between",
       padding: "10px 0",
-      borderBottom: "1px solid rgba(255,255,255,0.03)"
+      borderBottom: "1px solid rgba(248, 244, 232, 0.06)",
     }}>
-      <span style={{ color: "var(--text-faint)", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.1em" }}>{label}</span>
+      <span style={{ color: "var(--text-faint)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.14em", fontWeight: 600 }}>{label}</span>
       <span style={{ color: "var(--text-main)", fontSize: "14px", fontFamily: "var(--font-serif)" }}>{value || "—"}</span>
     </div>
   );

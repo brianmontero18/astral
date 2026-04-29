@@ -149,15 +149,15 @@ export function VoiceRecorder({ onTranscription, onCancel }: Props) {
   if (error) {
     return (
       <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
-        <span style={{ color: "#f0a0b0", fontSize: 12, fontWeight: 300, lineHeight: 1.4, flex: 1 }}>
+        <span style={{ color: "#f3c2c2", fontSize: 12, fontWeight: 400, lineHeight: 1.4, flex: 1 }}>
           {error}
         </span>
         <button
           onClick={onCancel}
           style={{
             background: "transparent",
-            border: "1px solid rgba(201,107,122,0.3)",
-            color: "#f0a0b0",
+            border: "1px solid rgba(248, 244, 232, 0.18)",
+            color: "var(--text-muted)",
             borderRadius: 8,
             padding: "5px 12px",
             fontSize: 11,
@@ -199,9 +199,9 @@ export function VoiceRecorder({ onTranscription, onCancel }: Props) {
           width: 36,
           height: 36,
           borderRadius: "50%",
-          border: "1px solid rgba(201,107,122,0.4)",
-          background: "rgba(201,107,122,0.08)",
-          color: "#f0a0b0",
+          border: "1px solid rgba(248, 244, 232, 0.2)",
+          background: "transparent",
+          color: "var(--text-muted)",
           fontSize: 14,
           cursor: "pointer",
           display: "flex",
@@ -250,9 +250,10 @@ export function VoiceRecorder({ onTranscription, onCancel }: Props) {
           height: 36,
           borderRadius: "50%",
           border: "none",
-          background: "var(--color-primary-dim)",
-          color: "var(--text-main)",
+          background: "linear-gradient(135deg, #e0c081 0%, #9d7f4d 100%)",
+          color: "var(--surface-deeper)",
           fontSize: 16,
+          fontWeight: 700,
           cursor: "pointer",
           display: "flex",
           alignItems: "center",

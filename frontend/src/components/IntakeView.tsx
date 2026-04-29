@@ -132,7 +132,7 @@ function MicButton({ onTranscription }: { onTranscription: (text: string) => voi
           display: "flex", alignItems: "center", justifyContent: "center",
           fontSize: 16, transition: "all 0.2s ease",
           background: isRecording ? "rgba(201,107,122,0.2)" : "var(--color-primary-faint)",
-          color: isRecording ? "#f0a0b0" : "var(--text-gold)",
+          color: isRecording ? "#f3c2c2" : "var(--text-gold)",
           animation: isRecording ? "pulse 1.5s ease-in-out infinite" : "none",
         }}
       >
@@ -143,7 +143,7 @@ function MicButton({ onTranscription }: { onTranscription: (text: string) => voi
           type="button"
           onClick={cancelRecording}
           style={{
-            background: "transparent", border: "none", color: "#f0a0b0",
+            background: "transparent", border: "none", color: "#f3c2c2",
             fontSize: 11, cursor: "pointer", padding: "2px 4px",
           }}
         >
@@ -151,7 +151,7 @@ function MicButton({ onTranscription }: { onTranscription: (text: string) => voi
         </button>
       )}
       {error && (
-        <span style={{ color: "#f0a0b0", fontSize: 10, maxWidth: 120, lineHeight: 1.3 }}>
+        <span style={{ color: "#f3c2c2", fontSize: 10, maxWidth: 120, lineHeight: 1.3 }}>
           {error}
         </span>
       )}
@@ -239,135 +239,102 @@ export function IntakeView({
       }}
     >
       <div style={{ maxWidth: 760, width: "100%" }}>
-        <div
-          style={{
-            color: "var(--color-primary)",
-            fontSize: 10,
-            letterSpacing: "0.2em",
-            fontWeight: 600,
-            marginBottom: 8,
-            fontFamily: "var(--font-sans)",
-          }}
-        >
-          ✦ TU NEGOCIO
+        <div style={{
+          color: "var(--color-gold-deep)", fontSize: 10, letterSpacing: "0.22em",
+          fontWeight: 700, marginBottom: 8, fontFamily: "var(--font-sans)", textTransform: "uppercase",
+        }}>
+          Tu negocio
         </div>
-        <h2
-          style={{
-            fontFamily: "var(--font-serif)",
-            color: "var(--text-main)",
-            fontSize: 24,
-            fontWeight: 400,
-            margin: "0 0 8px",
-          }}
-        >
+        <h2 style={{
+          fontFamily: "var(--font-serif)", color: "var(--text-on-light)",
+          fontSize: 26, fontWeight: 500, margin: "0 0 8px",
+        }}>
           Contame de tu negocio
         </h2>
-        <p
-          style={{
-            color: "var(--text-muted)",
-            fontSize: 13,
-            lineHeight: 1.6,
-            margin: "0 0 28px",
-            fontWeight: 300,
-          }}
-        >
+        <p style={{
+          color: "var(--text-on-light-muted)", fontSize: 14, lineHeight: 1.65,
+          margin: "0 0 28px", fontWeight: 400,
+        }}>
           {description}
         </p>
 
-        {FIELDS.map((field) => (
-          <div key={field.key} style={{ marginBottom: 20 }}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
+        <div style={{
+          background: "var(--surface-dark)",
+          border: "1px solid rgba(33, 41, 30, 0.32)",
+          borderRadius: 18,
+          padding: "22px 22px 18px",
+          marginBottom: 20,
+          color: "var(--text-main)",
+        }}>
+          {FIELDS.map((field, idx) => (
+            <div key={field.key} style={{ marginBottom: idx === FIELDS.length - 1 ? 0 : 18 }}>
+              <div style={{
+                display: "flex", justifyContent: "space-between", alignItems: "center",
                 marginBottom: 8,
-              }}
-            >
-              <label
-                htmlFor={`intake-${field.key}`}
-                style={{
-                  color: "var(--text-main)",
-                  fontSize: 13,
-                  fontWeight: 500,
+              }}>
+                <label htmlFor={`intake-${field.key}`} style={{
+                  color: "var(--text-main)", fontSize: 13, fontWeight: 600,
                   fontFamily: "var(--font-sans)",
-                }}
-              >
-                {field.label}
-                {field.kind === "textarea" && field.required && (
-                  <span style={{ color: "var(--color-primary)", marginLeft: 4 }}>*</span>
+                }}>
+                  {field.label}
+                  {field.kind === "textarea" && field.required && (
+                    <span style={{ color: "var(--color-primary)", marginLeft: 4 }}>*</span>
+                  )}
+                </label>
+                {field.kind === "textarea" && (
+                  <MicButton
+                    onTranscription={(text) =>
+                      handleTextChange(
+                        field.key,
+                        (values[field.key] ?? "") + (values[field.key] ? " " : "") + text,
+                      )
+                    }
+                  />
                 )}
-              </label>
-              {field.kind === "textarea" && (
-                <MicButton
-                  onTranscription={(text) =>
-                    handleTextChange(
-                      field.key,
-                      (values[field.key] ?? "") + (values[field.key] ? " " : "") + text,
-                    )
-                  }
+              </div>
+
+              {field.kind === "textarea" ? (
+                <textarea
+                  id={`intake-${field.key}`}
+                  value={values[field.key] ?? ""}
+                  onChange={(e) => handleTextChange(field.key, e.target.value)}
+                  placeholder={field.placeholder}
+                  rows={3}
+                  style={{
+                    width: "100%", background: "rgba(248, 244, 232, 0.06)",
+                    border: "1px solid rgba(248, 244, 232, 0.18)", borderRadius: 10,
+                    color: "var(--text-main)", padding: "12px 14px", fontSize: 13,
+                    fontFamily: "var(--font-sans)", resize: "vertical", lineHeight: 1.6,
+                    outline: "none", transition: "border-color 0.2s ease",
+                    boxSizing: "border-box",
+                  }}
+                  onFocus={(e) => { e.target.style.borderColor = "var(--color-primary)" }}
+                  onBlur={(e) => { e.target.style.borderColor = "rgba(248, 244, 232, 0.18)" }}
                 />
+              ) : (
+                <select
+                  id={`intake-${field.key}`}
+                  value={values[field.key] ?? ""}
+                  onChange={(e) => handleSelectChange(field.key, e.target.value)}
+                  style={{
+                    width: "100%", background: "rgba(248, 244, 232, 0.06)",
+                    border: "1px solid rgba(248, 244, 232, 0.18)", borderRadius: 10,
+                    color: "var(--text-main)", padding: "12px 14px", fontSize: 13,
+                    fontFamily: "var(--font-sans)", outline: "none", cursor: "pointer",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  <option value="">Sin elegir</option>
+                  {field.options.map((opt) => (
+                    <option key={opt.value} value={opt.value} style={{ background: "var(--surface-dark)" }}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
               )}
             </div>
-
-            {field.kind === "textarea" ? (
-              <textarea
-                id={`intake-${field.key}`}
-                value={values[field.key] ?? ""}
-                onChange={(e) => handleTextChange(field.key, e.target.value)}
-                placeholder={field.placeholder}
-                rows={3}
-                style={{
-                  width: "100%",
-                  background: "rgba(124,111,205,0.06)",
-                  border: "1px solid rgba(124,111,205,0.2)",
-                  borderRadius: 10,
-                  color: "var(--text-main)",
-                  padding: "12px 14px",
-                  fontSize: 13,
-                  fontFamily: "var(--font-sans)",
-                  resize: "vertical",
-                  lineHeight: 1.6,
-                  outline: "none",
-                  transition: "border-color 0.2s ease",
-                  boxSizing: "border-box",
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = "rgba(124,111,205,0.5)";
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = "rgba(124,111,205,0.2)";
-                }}
-              />
-            ) : (
-              <select
-                id={`intake-${field.key}`}
-                value={values[field.key] ?? ""}
-                onChange={(e) => handleSelectChange(field.key, e.target.value)}
-                style={{
-                  width: "100%",
-                  background: "rgba(124,111,205,0.06)",
-                  border: "1px solid rgba(124,111,205,0.2)",
-                  borderRadius: 10,
-                  color: "var(--text-main)",
-                  padding: "12px 14px",
-                  fontSize: 13,
-                  fontFamily: "var(--font-sans)",
-                  outline: "none",
-                  cursor: "pointer",
-                  boxSizing: "border-box",
-                }}
-              >
-                <option value="">Sin elegir</option>
-                {field.options.map((opt) => (
-                  <option key={opt.value} value={opt.value} style={{ background: "var(--bg-dark)" }}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-        ))}
+          ))}
+        </div>
 
         {showRequiredHint && (
           <div
@@ -377,7 +344,7 @@ export function IntakeView({
               marginBottom: 14,
               background: "rgba(201,107,122,0.08)",
               border: "1px solid rgba(201,107,122,0.35)",
-              color: "#f0a0b0",
+              color: "#f3c2c2",
               fontSize: 12,
               lineHeight: 1.5,
             }}
@@ -386,7 +353,7 @@ export function IntakeView({
           </div>
         )}
 
-        <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
+        <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
           {secondaryAction && (
             <button
               onClick={() => {
@@ -394,19 +361,12 @@ export function IntakeView({
               }}
               disabled={submitting}
               style={{
-                flex: 1,
-                padding: "14px 20px",
-                borderRadius: 30,
-                background: "transparent",
-                border: "1px solid rgba(124,111,205,0.3)",
-                color: "var(--text-muted)",
-                fontSize: 13,
-                fontWeight: 500,
-                cursor: submitting ? "default" : "pointer",
-                fontFamily: "var(--font-sans)",
-                letterSpacing: "0.03em",
-                transition: "all 0.3s ease",
-                opacity: submitting ? 0.5 : 1,
+                flex: 1, padding: "14px 20px", borderRadius: 8,
+                background: "transparent", border: "1px solid var(--surface-deeper)",
+                color: "var(--text-on-light)", fontSize: 12, fontWeight: 600,
+                cursor: submitting ? "default" : "pointer", fontFamily: "var(--font-sans)",
+                letterSpacing: "0.14em", textTransform: "uppercase",
+                transition: "all 0.3s ease", opacity: submitting ? 0.5 : 1,
               }}
             >
               {secondaryAction.label}
@@ -416,22 +376,16 @@ export function IntakeView({
             onClick={handleSubmit}
             disabled={submitting}
             style={{
-              flex: secondaryAction ? 2 : 1,
-              padding: "14px 20px",
-              borderRadius: 30,
-              background: "var(--color-primary-dim)",
-              border: "none",
-              color: "var(--text-main)",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: submitting ? "default" : "pointer",
-              fontFamily: "var(--font-sans)",
-              letterSpacing: "0.03em",
-              transition: "all 0.3s ease",
-              opacity: submitting ? 0.6 : 1,
+              flex: secondaryAction ? 2 : 1, padding: "14px 20px", borderRadius: 8,
+              background: "linear-gradient(135deg, #e0c081 0%, #9d7f4d 100%)",
+              border: "1px solid var(--color-primary)",
+              color: "var(--surface-deeper)", fontSize: 12, fontWeight: 700,
+              cursor: submitting ? "default" : "pointer", fontFamily: "var(--font-sans)",
+              letterSpacing: "0.14em", textTransform: "uppercase",
+              transition: "all 0.3s ease", opacity: submitting ? 0.6 : 1,
             }}
           >
-            {submitting ? "Procesando..." : `✦ ${submitLabel}`}
+            {submitting ? "Procesando..." : submitLabel}
           </button>
         </div>
       </div>

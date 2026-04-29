@@ -8,8 +8,8 @@ export function ChannelChips({ channels, size = "md", align = "end" }: Props) {
   if (channels.length === 0) return null;
 
   const chipStyle = {
-    background: "var(--glass-bg)",
-    border: "1px solid var(--glass-border)",
+    background: "rgba(248, 244, 232, 0.08)",
+    border: "1px solid rgba(248, 244, 232, 0.16)",
     borderRadius: 999,
     padding: size === "sm" ? "4px 8px" : "6px 10px",
     fontSize: size === "sm" ? "10px" : "12px",

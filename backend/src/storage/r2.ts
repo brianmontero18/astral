@@ -1,14 +1,15 @@
 /**
- * Cloudflare R2 storage adapter.
+ * Asset storage adapter.
  *
- * R2 is S3-compatible, so we drive it with @aws-sdk/client-s3 pointed at the
- * R2 endpoint. Credentials and bucket are R2-only — AWS is never contacted.
+ * Production uses Cloudflare R2. Local development can run without R2
+ * credentials by writing objects to disk under ASSET_STORAGE_DIR.
  *
- * Initialization is lazy: the S3 client is built on the first put/get/delete
- * call. server.ts asserts isR2Configured() in production at boot, so a
- * misconfigured prod deploy fails loudly before any request is served.
+ * R2 initialization is lazy: the S3 client is built on the first put/get/delete
+ * call. server.ts asserts isR2Configured() in production at boot.
  */
 
+import fs from "node:fs/promises";
+import path from "node:path";
 import {
   DeleteObjectCommand,
   GetObjectCommand,
@@ -29,6 +30,22 @@ interface R2Handle {
 }
 
 let cachedHandle: R2Handle | null = null;
+
+function getLocalStorageRoot(): string {
+  return path.resolve(process.env.ASSET_STORAGE_DIR?.trim() || ".local-assets");
+}
+
+function resolveLocalObjectPath(key: string): string {
+  const root = getLocalStorageRoot();
+  const objectPath = path.resolve(root, key);
+  const rootWithSeparator = root.endsWith(path.sep) ? root : `${root}${path.sep}`;
+
+  if (objectPath !== root && !objectPath.startsWith(rootWithSeparator)) {
+    throw new Error(`Invalid asset storage key: ${key}`);
+  }
+
+  return objectPath;
+}
 
 function readR2Config(): R2Config | null {
   const accountId = process.env.R2_ACCOUNT_ID?.trim();
@@ -79,6 +96,13 @@ export interface PutObjectInput {
 }
 
 export async function putObject(input: PutObjectInput): Promise<void> {
+  if (!cachedHandle && !isR2Configured()) {
+    const objectPath = resolveLocalObjectPath(input.key);
+    await fs.mkdir(path.dirname(objectPath), { recursive: true });
+    await fs.writeFile(objectPath, input.body);
+    return;
+  }
+
   const handle = getHandle();
   await handle.client.send(
     new PutObjectCommand({
@@ -91,6 +115,10 @@ export async function putObject(input: PutObjectInput): Promise<void> {
 }
 
 export async function getObject(key: string): Promise<Buffer> {
+  if (!cachedHandle && !isR2Configured()) {
+    return fs.readFile(resolveLocalObjectPath(key));
+  }
+
   const handle = getHandle();
   const result = await handle.client.send(
     new GetObjectCommand({
@@ -111,6 +139,11 @@ export async function getObject(key: string): Promise<Buffer> {
 }
 
 export async function deleteObject(key: string): Promise<void> {
+  if (!cachedHandle && !isR2Configured()) {
+    await fs.rm(resolveLocalObjectPath(key), { force: true });
+    return;
+  }
+
   const handle = getHandle();
   await handle.client.send(
     new DeleteObjectCommand({

@@ -14,15 +14,6 @@ import {
   type StoredPasswordlessAttempt,
 } from "./helpers";
 
-const DUST_PARTICLES = Array.from({ length: 28 }, (_value, index) => ({
-  left: `${((index * 17) % 100) + 1}%`,
-  top: `${((index * 23) % 100) + 1}%`,
-  size: 1 + (index % 3),
-  opacity: 0.08 + (index % 4) * 0.05,
-  duration: 4 + (index % 5),
-  delay: (index % 6) * 0.7,
-}));
-
 function readCurrentAuthLocation() {
   return {
     hash: window.location.hash,
@@ -36,26 +27,6 @@ function AuthShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="astral-auth-shell animate-fade-in-slow">
-      <div className="astral-auth-orb astral-auth-orb-left" />
-      <div className="astral-auth-orb astral-auth-orb-right" />
-      {DUST_PARTICLES.map((particle, index) => (
-        <div
-          key={index}
-          style={{
-            position: "absolute",
-            left: particle.left,
-            top: particle.top,
-            width: particle.size,
-            height: particle.size,
-            borderRadius: "50%",
-            background: "#C5A059",
-            opacity: particle.opacity,
-            pointerEvents: "none",
-            animation: `pulse ${particle.duration}s ease-in-out infinite ${particle.delay}s`,
-            boxShadow: `0 0 ${particle.size * 3}px rgba(212,175,55,0.35)`,
-          }}
-        />
-      ))}
       <header className="astral-auth-topbar">
         <div className="astral-auth-wordmark">Astral Guide</div>
         <div className="astral-auth-topnav">

@@ -24,21 +24,20 @@ function ProfileField({
     <div
       style={{
         padding: "10px 12px",
-        borderRadius: 12,
-        background: "rgba(255,255,255,0.03)",
-        border: "1px solid rgba(255,255,255,0.05)",
+        borderRadius: 10,
+        background: "rgba(248, 244, 232, 0.06)",
+        border: "1px solid rgba(248, 244, 232, 0.08)",
       }}
     >
       <div
         style={{
           color: "var(--color-primary)",
           fontSize: 9,
-          letterSpacing: "0.14em",
+          letterSpacing: "0.16em",
           textTransform: "uppercase",
           fontFamily: "var(--font-sans)",
           fontWeight: 600,
           marginBottom: 6,
-          opacity: 0.85,
         }}
       >
         {label}
@@ -48,7 +47,7 @@ function ProfileField({
           color: "var(--text-main)",
           fontSize: 13,
           lineHeight: 1.4,
-          fontFamily: "var(--font-serif)",
+          fontFamily: "var(--font-sans)",
         }}
       >
         {value}
@@ -95,30 +94,28 @@ export function ProfilePanel({ profile, userPlan, onGenerateReport }: Props) {
         maxWidth: "calc(100vw - 32px)",
         zIndex: 200,
         padding: 18,
-        borderRadius: 18,
-        background:
-          "linear-gradient(180deg, rgba(20, 16, 34, 0.98) 0%, rgba(14, 11, 24, 0.98) 100%)",
-        border: "1px solid rgba(212, 175, 55, 0.16)",
-        boxShadow: "0 18px 48px rgba(0,0,0,0.45)",
-        backdropFilter: "blur(18px)",
-        WebkitBackdropFilter: "blur(18px)",
+        borderRadius: 16,
+        background: "var(--surface-dark)",
+        border: "1px solid rgba(207, 172, 108, 0.24)",
+        boxShadow: "0 18px 44px rgba(33, 41, 30, 0.28)",
         animation: "fadeIn 0.2s ease",
         maxHeight: "70vh",
         overflowY: "auto",
+        color: "var(--text-main)",
       }}
     >
       <div
         style={{
           paddingBottom: 14,
           marginBottom: 14,
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
+          borderBottom: "1px solid rgba(248, 244, 232, 0.1)",
         }}
       >
         <div
           style={{
             color: "var(--color-primary)",
             fontSize: 9,
-            letterSpacing: "0.18em",
+            letterSpacing: "0.2em",
             textTransform: "uppercase",
             fontFamily: "var(--font-sans)",
             fontWeight: 700,
@@ -210,16 +207,16 @@ export function ProfilePanel({ profile, userPlan, onGenerateReport }: Props) {
       <div
         style={{
           padding: "12px 14px",
-          borderRadius: 14,
-          background: "rgba(212, 175, 55, 0.06)",
-          border: "1px solid rgba(212, 175, 55, 0.12)",
+          borderRadius: 12,
+          background: "rgba(207, 172, 108, 0.08)",
+          border: "1px solid rgba(207, 172, 108, 0.22)",
         }}
       >
         <div
           style={{
             color: "var(--color-primary)",
             fontSize: 9,
-            letterSpacing: "0.14em",
+            letterSpacing: "0.16em",
             textTransform: "uppercase",
             fontFamily: "var(--font-sans)",
             fontWeight: 700,
@@ -247,20 +244,20 @@ export function ProfilePanel({ profile, userPlan, onGenerateReport }: Props) {
             marginTop: 16,
             width: "100%",
             padding: "12px 16px",
-            borderRadius: 12,
-            background: "var(--color-primary-dim)",
-            border: "1px solid rgba(212, 175, 55, 0.24)",
-            color: "var(--text-main)",
+            borderRadius: 10,
+            background: "linear-gradient(135deg, #e0c081 0%, #9d7f4d 100%)",
+            border: "1px solid var(--color-primary)",
+            color: "var(--surface-deeper)",
             fontSize: 11,
-            fontWeight: 600,
+            fontWeight: 700,
             cursor: "pointer",
             fontFamily: "var(--font-sans)",
-            letterSpacing: "0.08em",
+            letterSpacing: "0.12em",
             textTransform: "uppercase",
             transition: "all 0.3s ease",
           }}
         >
-          ✦ Generar mi informe
+          Generar mi informe
         </button>
       )}
     </div>

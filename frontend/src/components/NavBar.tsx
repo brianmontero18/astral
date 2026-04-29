@@ -50,126 +50,36 @@ export function NavBar({
   }, [showProfile]);
 
   return (
-    <header
-      style={{
-        padding: "20px 24px 0",
-        display: "flex",
-        flexDirection: "column",
-        borderBottom: "1px solid var(--glass-border)",
-        background: "rgba(10, 9, 16, 0.4)",
-        backdropFilter: "blur(24px)",
-        WebkitBackdropFilter: "blur(24px)",
-        flexShrink: 0,
-        position: "relative",
-        zIndex: 50,
-      }}
-    >
-      {/* Top row */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0, flexShrink: 1 }}>
-          <div
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: "50%",
-              flexShrink: 0,
-              background: "radial-gradient(circle at 30% 30%, #D4AF37, #C5A059, #1c153a)",
-              boxShadow: "0 0 15px rgba(212,175,55,0.2)",
-              animation: "spin 20s linear infinite",
-            }}
-          />
-          <div style={{ minWidth: 0 }}>
-            <div style={{
-              color: "var(--text-main)",
-              fontSize: "18px",
-              fontFamily: "var(--font-serif)",
-              fontWeight: 500,
-              letterSpacing: "0.06em",
-              whiteSpace: "nowrap",
-            }}>
-              Astral Guide
-            </div>
-            <div style={{
-              color: "var(--color-primary)",
-              fontSize: "9px",
-              letterSpacing: "0.2em",
-              fontFamily: "var(--font-sans)",
-              fontWeight: 600,
-              opacity: 0.8,
-              whiteSpace: "nowrap",
-            }}>
-              DISEÑO HUMANO
-            </div>
+    <header className="app-shell-header">
+      <div className="app-shell-header-row">
+        <div className="app-brand">
+          <div aria-hidden className="app-brand-mark">A</div>
+          <div className="app-brand-copy">
+            <div className="app-brand-title">Astral Guide</div>
+            <div className="app-brand-kicker">DISEÑO HUMANO</div>
           </div>
         </div>
 
-        <div ref={profileRef} style={{ position: "relative", flexShrink: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div ref={profileRef} className="app-profile-menu">
+          <div className="app-profile-actions">
             {userRole === "admin" ? (
               <a
                 href="/auth/dashboard"
-                style={{
-                  background: "transparent",
-                  border: "1px solid rgba(212, 175, 55, 0.35)",
-                  color: "var(--text-gold)",
-                  padding: "6px 14px",
-                  borderRadius: 30,
-                  fontSize: "10px",
-                  fontFamily: "var(--font-sans)",
-                  fontWeight: 600,
-                  letterSpacing: "0.05em",
-                  textTransform: "uppercase",
-                  textDecoration: "none",
-                  whiteSpace: "nowrap",
-                }}
+                className="admin-link-button"
               >
                 Dashboard Auth
               </a>
             ) : null}
             <button
               onClick={() => setShowProfile((v) => !v)}
-              style={{
-                background: "var(--color-primary-faint)",
-                border: "1px solid var(--glass-gold-border)",
-                color: "var(--text-gold)",
-                padding: "6px 14px",
-                borderRadius: 30,
-                cursor: "pointer",
-                fontSize: "11px",
-                fontFamily: "var(--font-sans)",
-                fontWeight: 500,
-                letterSpacing: "0.05em",
-                transition: "all 0.3s ease",
-                maxWidth: 160,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-              onMouseOver={(e) => { e.currentTarget.style.background = "var(--color-primary-dim)" }}
-              onMouseOut={(e) => { e.currentTarget.style.background = "var(--color-primary-faint)" }}
+              className="user-pill"
             >
               {userName}
             </button>
             <button
               onClick={onReset}
-              title="Desconectar y Empezar de Nuevo"
-              style={{
-                background: "transparent",
-                border: "1px solid rgba(201,107,122,0.3)",
-                color: "#f0a0b0",
-                padding: "6px 14px",
-                borderRadius: 30,
-                cursor: "pointer",
-                fontSize: "10px",
-                fontFamily: "var(--font-sans)",
-                fontWeight: 600,
-                letterSpacing: "0.05em",
-                textTransform: "uppercase",
-                transition: "all 0.3s ease",
-                whiteSpace: "nowrap",
-              }}
-              onMouseOver={(e) => { e.currentTarget.style.background = "rgba(201,107,122,0.1)" }}
-              onMouseOut={(e) => { e.currentTarget.style.background = "transparent" }}
+              title="Cerrar sesión"
+              className="logout-button"
             >
               Salir
             </button>
@@ -184,63 +94,32 @@ export function NavBar({
         </div>
       </div>
 
-      {/* Tab bar */}
-      <div style={{ display: "flex", gap: "24px", paddingLeft: "4px" }}>
+      <div className="app-nav">
         {!supportRoute && (currentView === "intake" || currentView === "report") ? (
           <button
             onClick={() => onNavigate(previousView ?? "chat")}
-            style={{
-              background: "transparent", border: "none",
-              borderBottom: "1px solid transparent",
-              color: "var(--text-muted)", padding: "10px 4px",
-              cursor: "pointer", fontSize: "12px", fontWeight: 400,
-              letterSpacing: "0.15em", fontFamily: "var(--font-sans)",
-              textTransform: "uppercase", transition: "all 0.3s ease",
-            }}
+            className="app-nav-item"
           >
             ← Volver
           </button>
         ) : (
           <>
-            {TABS.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => onNavigate(tab.key)}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  borderBottom: !supportRoute && currentView === tab.key ? "1px solid var(--color-primary)" : "1px solid transparent",
-                  color: !supportRoute && currentView === tab.key ? "var(--text-main)" : "var(--text-muted)",
-                  padding: "10px 4px",
-                  cursor: "pointer",
-                  fontSize: "12px",
-                  fontWeight: !supportRoute && currentView === tab.key ? 600 : 400,
-                  letterSpacing: "0.15em",
-                  fontFamily: "var(--font-sans)",
-                  textTransform: "uppercase",
-                  transition: "all 0.3s ease",
-                }}
-              >
-                {tab.label}
-              </button>
-            ))}
+            {TABS.map((tab) => {
+              const active = !supportRoute && currentView === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => onNavigate(tab.key)}
+                  className={`app-nav-item${active ? " app-nav-item--active" : ""}`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
             {userRole === "admin" ? (
               <button
                 onClick={onOpenSupportPanel}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  borderBottom: supportRoute ? "1px solid var(--color-primary)" : "1px solid transparent",
-                  color: supportRoute ? "var(--text-main)" : "var(--text-muted)",
-                  padding: "10px 4px",
-                  cursor: "pointer",
-                  fontSize: "12px",
-                  fontWeight: supportRoute ? 600 : 400,
-                  letterSpacing: "0.15em",
-                  fontFamily: "var(--font-sans)",
-                  textTransform: "uppercase",
-                  transition: "all 0.3s ease",
-                }}
+                className={`app-nav-item${supportRoute ? " app-nav-item--active" : ""}`}
               >
                 Usuarios
               </button>

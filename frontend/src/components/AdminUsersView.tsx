@@ -321,8 +321,8 @@ export function AdminUsersView({ onOpenUser }: Props) {
             style={{
               width: "100%",
               borderRadius: 14,
-              border: "1px solid rgba(255,255,255,0.08)",
-              background: "rgba(255,255,255,0.02)",
+              border: "1px solid rgba(248, 244, 232, 0.12)",
+              background: "rgba(248, 244, 232, 0.04)",
               color: "var(--text-main)",
               padding: "14px 16px",
               outline: "none",

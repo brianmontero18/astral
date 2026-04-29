@@ -5,10 +5,10 @@ import { parseReport, SECTION_META } from "../utils";
 
 const TEXT_STYLE: React.CSSProperties = {
   color: "var(--text-main)",
-  lineHeight: 1.8,
+  lineHeight: 1.85,
   fontSize: "15px",
   fontFamily: "var(--font-serif)",
-  fontWeight: 300,
+  fontWeight: 400,
 };
 
 /** Render **bold** inline within text */
@@ -33,14 +33,14 @@ function renderLine(line: string, key: number): React.ReactNode {
   const headerMatch = trimmed.match(/^(#{1,4})\s+(.+)/);
   if (headerMatch) {
     const level = headerMatch[1].length;
-    const sizes = ["16px", "14px", "13px", "12px"];
+    const sizes = ["18px", "16px", "14px", "13px"];
     return (
       <div key={key} style={{
         ...TEXT_STYLE,
         fontSize: sizes[level - 1] ?? "13px",
-        fontWeight: 500,
-        color: "var(--color-accent)",
-        margin: "10px 0 4px",
+        fontWeight: 600,
+        color: "var(--color-primary)",
+        margin: "12px 0 6px",
       }}>
         {renderInline(headerMatch[2])}
       </div>
@@ -138,7 +138,7 @@ export function ReportRenderer({ text }: Props) {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {sections.map((s, i) => {
         if (!s.icon) {
           return <div key={i}>{renderBody(s.body)}</div>;
@@ -149,21 +149,22 @@ export function ReportRenderer({ text }: Props) {
         return (
           <div
             key={i}
-            className="glass-panel"
             style={{
-              borderLeft: `2px solid ${meta.color}`,
-              padding: "16px 20px",
+              background: "rgba(248, 244, 232, 0.04)",
+              border: "1px solid rgba(248, 244, 232, 0.08)",
+              borderLeft: `3px solid ${meta.color}`,
+              padding: "18px 22px",
               animation: `fadeInSlow 0.6s ease ${i * 0.1}s both`,
-              borderRadius: "4px 16px 16px 4px",
+              borderRadius: "4px 14px 14px 4px",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px", paddingBottom: 10, borderBottom: `1px solid ${meta.color}33` }}>
               <span style={{ fontSize: "16px" }}>{s.icon}</span>
               <span style={{
                 color: meta.color,
-                fontWeight: 500,
-                fontSize: "11px",
-                letterSpacing: "0.15em",
+                fontWeight: 700,
+                fontSize: "10px",
+                letterSpacing: "0.2em",
                 textTransform: "uppercase",
                 fontFamily: "var(--font-sans)",
               }}>

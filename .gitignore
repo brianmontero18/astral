@@ -6,10 +6,15 @@ build/
 *.db
 *.db-shm
 *.db-wal
+*.db.bak
 
 # Environment
 .env
 .env.local
+
+# Local asset storage
+.local-assets/
+**/.local-assets/
 
 # Screenshots & test files
 *.png
@@ -18,6 +23,8 @@ build/
 dummy.txt
 
 # IDE & tools
+.codex
+.codex/
 .playwright-mcp/
 **/.claude/settings.local.json
 AGENTS.md
@@ -26,6 +33,7 @@ AGENTS.md
 .DS_Store
 .beads/
 test-results/
+playwright-report/
 
 # Beads / Dolt files (added by bd init)
 .dolt/
