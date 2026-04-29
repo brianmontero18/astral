@@ -37,8 +37,8 @@ test.describe("Report — Cache-First Loading", () => {
     await openReportEditor(page);
 
     await expect(page.getByLabel("¿A qué te dedicás?")).toHaveValue("Soy diseñadora freelance");
-    await expect(page.getByLabel("¿Qué buscás en este momento?")).toHaveValue("Quiero entender mi energía");
-    await expect(page.getByLabel("¿Cuál es tu mayor desafío?")).toHaveValue("Me cuesta decir que no");
+    await expect(page.getByLabel("¿Qué desafío tenés ahora?")).toHaveValue("Me cuesta decir que no");
+    await expect(page.getByLabel("¿Qué querés concretar en los próximos 12 meses? (opcional)")).toHaveValue("Quiero entender mi energía");
   });
 
   test('IntakeView shows "Volver al informe" instead of "Omitir"', async ({ page }) => {
