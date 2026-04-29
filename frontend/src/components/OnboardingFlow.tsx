@@ -102,14 +102,15 @@ export function OnboardingFlow({ onComplete }: Props) {
 
   const handleIntakeSubmit = async (intake: Intake) => {
     if (!bootstrappedUser || !extractedProfile) return;
-    setLoading(true);
     setError(null);
     try {
       await updateCurrentUser(extractedProfile.name, extractedProfile, intake);
       onComplete(bootstrappedUser, extractedProfile);
     } catch (e) {
+      // Re-throw so IntakeView re-enables the form for retry; the error UI
+      // above the form is hydrated from `error` state.
       setError(getOnboardingFailureMessage(e));
-      setLoading(false);
+      throw e;
     }
   };
 

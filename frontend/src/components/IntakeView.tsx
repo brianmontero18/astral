@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useVoiceRecorder } from "../hooks/useVoiceRecorder";
 import type { Intake, TipoNegocio } from "../types";
 
@@ -15,7 +15,12 @@ interface Props {
   description?: string;
   /** Opcional: botón secundario (ej: "Volver al informe", "Cancelar"). */
   secondaryAction?: SecondaryAction;
-  onSubmit: (intake: Intake) => void;
+  /**
+   * Callback al confirmar. Puede retornar Promise — si rechaza, el form
+   * se reactiva para reintentar. Si resuelve, lo normal es que el caller
+   * navegue a otra view y este componente se desmonte.
+   */
+  onSubmit: (intake: Intake) => Promise<void> | void;
 }
 
 type TextField = {
@@ -174,6 +179,13 @@ export function IntakeView({
   const [submitting, setSubmitting] = useState(false);
   const [showRequiredHint, setShowRequiredHint] = useState(false);
 
+  // Tracks mount status so we can safely reset submitting after onSubmit
+  // resolves/rejects: in the happy path the parent navigates away and the
+  // setState would target an unmounted component (React warning); the ref
+  // lets us skip that no-op cleanly.
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
+
   const handleTextChange = (key: TextField["key"], value: string) => {
     setValues((prev) => ({ ...prev, [key]: value }));
     if (showRequiredHint) setShowRequiredHint(false);
@@ -184,13 +196,14 @@ export function IntakeView({
       ...prev,
       [key]: value === "" ? undefined : (value as TipoNegocio),
     }));
+    if (showRequiredHint) setShowRequiredHint(false);
   };
 
   const requiredOk =
     (values.actividad ?? "").trim().length > 0 &&
     (values.desafio_actual ?? "").trim().length > 0;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (submitting) return;
     if (!requiredOk) {
       setShowRequiredHint(true);
@@ -205,7 +218,13 @@ export function IntakeView({
       objetivo_12m: values.objetivo_12m?.trim() || undefined,
       voz_marca: values.voz_marca?.trim() || undefined,
     };
-    onSubmit(cleaned);
+    try {
+      await onSubmit(cleaned);
+    } finally {
+      // Re-enable the form on failure (or on success without nav). Skip when
+      // unmounted to avoid React's "setState on unmounted" warning.
+      if (mountedRef.current) setSubmitting(false);
+    }
   };
 
   return (

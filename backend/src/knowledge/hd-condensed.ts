@@ -99,19 +99,19 @@ Cada centro indefinido tiene un Not-self pattern (trampa) y una sabiduría posib
 
 ### CANALES (las 36 conexiones definidas) — VISTA POR CIRCUITO
 
-**Circuito Individual (11 canales)** — sub-circuitos Knowing y Centering. Mutación, empoderamiento personal, voz única. Energía solitaria que rompe patrones colectivos.
-- Sub-circuito Knowing: 1-8, 2-14, 3-60, 14-2, 22-12, 25-51, 28-38, 39-55, 43-23, 57-10, 57-20.
-- Sub-circuito Centering: gates de Integración (10, 20, 34, 57) — la persona como puente del Self.
+Convención de IDs: \`puerta_menor-puerta_mayor\` (ej: 12-22, no 22-12).
 
-**Circuito Colectivo (14 canales)** — sub-circuitos Logic (Understanding) y Abstract (Sensing). Compartir, lecciones, aprender de la experiencia.
+**Circuito Individual** — sub-circuito Knowing + las interconexiones entre los 4 gates de Self (10, 20, 34, 57) que algunas fuentes llaman Integration / Centering. Mutación, voz única, ruptura de patrones colectivos.
+- Knowing: 1-8, 2-14, 3-60, 12-22, 23-43, 24-61, 25-51, 28-38, 39-55.
+- Integration / Centering (los 4 gates de Self con sus 6 interconexiones): 10-20, 10-34, 10-57, 20-34, 20-57, 34-57. La persona se sostiene a sí misma; auténtica radicalmente.
+
+**Circuito Colectivo** — sub-circuitos Logic (7) y Abstract (7). Compartir, lecciones, aprender de la experiencia.
 - Logic: 4-63, 5-15, 7-31, 9-52, 16-48, 17-62, 18-58.
-- Abstract: 11-56, 13-33, 29-46, 30-41, 35-36, 53-42, 64-47.
+- Abstract: 11-56, 13-33, 29-46, 30-41, 35-36, 42-53, 47-64.
 
-**Circuito Tribal (7 canales)** — sub-circuitos Ego y Defense. Soporte, comunidad, transacciones, tribu.
+**Circuito Tribal** — sub-circuitos Ego (4) y Defense (3). Soporte, comunidad, transacciones, tribu.
 - Ego: 19-49, 21-45, 26-44, 37-40.
 - Defense: 6-59, 27-50, 32-54.
-
-**Circuito de Integración (4 canales)** — los gates 10, 20, 34, 57. Self-empoderamiento. La persona se sostiene a sí misma. Auténtica radicalmente.
 
 ### CRUZ DE ENCARNACIÓN (Incarnation Cross)
 

@@ -79,7 +79,7 @@ Sección 1 — TIPO: Explicá cómo su tipo, estrategia y autoridad operan junto
 
 Sección 2 — AUTORIDAD: Explicá cómo decide mejor esta persona, qué pasa cuando se apura o decide desde la mente, y qué señales le muestran claridad real. Si hay intake, conectá con su situación.
 
-Sección 3 — PERFIL: Interpretación completa y aplicada del perfil. Mostrá cómo sus líneas afectan trabajo, vínculos profesionales y forma de mostrarse. Si hay intake, conectá con desafíos y objetivos.
+Sección 3 — PERFIL: Interpretación completa y aplicada del perfil. Mostrá cómo sus líneas afectan trabajo, vínculos profesionales y forma de mostrarse. Si hay intake, conectá con su desafío actual y su objetivo a 12 meses.
 
 Sección 4 — CÓMO TRABAJÁS MEJOR: Diagnóstico aplicado sobre ritmo, sostenibilidad, sobreesfuerzo y condiciones de trabajo más alineadas. Integrá definición, canales o variables solo si ayudan a la conclusión. Debe leerse como mentoría, no como glosario.
 
@@ -97,7 +97,7 @@ export function buildCall2Prompt(profile: UserProfile, intake?: Intake): {
 
 Tu tarea: generar 3 secciones premium para la continuación del informe. El foco es negocio, oferta, clientes y toma de decisiones. No hagas teoría separada.
 
-Sección 1 — CÓMO DECIDIR SIN FORZARTE: Explicá timing, claridad, presión mal interpretada y el patrón más común que lleva a decisiones equivocadas. Si hay intake, conectá con sus desafíos.
+Sección 1 — CÓMO DECIDIR SIN FORZARTE: Explicá timing, claridad, presión mal interpretada y el patrón más común que lleva a decisiones equivocadas. Si hay intake, conectá con su desafío actual.
 
 Sección 2 — DÓNDE ESTÁ TU MAYOR VALOR: Identificá dónde se expresa mejor su valor natural, qué tipo de problema u oferta le calza más, y cómo se debería posicionar. Podés usar perfil, canales o cruz si suman valor, pero aterrizado a negocio.
 

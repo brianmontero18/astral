@@ -42,7 +42,7 @@ describe("buildSystemPrompt — business_context injection", () => {
   it("does not inject <business_context> when intake is undefined", () => {
     const prompt = buildSystemPrompt(PROFILE, TRANSITS);
     expect(prompt).not.toContain("</business_context>");
-    expect(prompt).not.toContain("integrá la actividad");
+    expect(prompt).not.toContain("Si hay <business_context>");
   });
 
   it("does not inject <business_context> when intake has no populated fields", () => {
@@ -54,7 +54,7 @@ describe("buildSystemPrompt — business_context injection", () => {
     };
     const prompt = buildSystemPrompt(PROFILE, TRANSITS, undefined, intake);
     expect(prompt).not.toContain("</business_context>");
-    expect(prompt).not.toContain("integrá la actividad");
+    expect(prompt).not.toContain("Si hay <business_context>");
   });
 
   it("injects all fields when the intake is fully populated", () => {
@@ -72,7 +72,7 @@ describe("buildSystemPrompt — business_context injection", () => {
     expect(prompt).toContain("<desafio_actual>Crear contenido sin sentirme drenada</desafio_actual>");
     expect(prompt).toContain("<objetivo_12m>Lanzar curso premium en mayo</objetivo_12m>");
     expect(prompt).toContain("<voz_marca>Cálida pero directa</voz_marca>");
-    expect(prompt).toContain("integrá la actividad");
+    expect(prompt).toContain("Si hay <business_context>");
   });
 
   it("injects only the populated fields when the intake is partial", () => {
