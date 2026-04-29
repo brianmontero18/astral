@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "node --env-file=.env --import tsx/esm src/server.ts",
     "start": "node --env-file=.env dist/server.js",
+    "seed:local": "node --env-file=.env --import tsx/esm scripts/seed-local.ts",
     "build": "tsc",
+    "check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -30,6 +32,6 @@
     "@libsql/darwin-arm64": "^0.5.22"
   },
   "devDependencies": {
-    "vitest": "^4.1.2"
+    "vitest": "^3.2.4"
   }
 }

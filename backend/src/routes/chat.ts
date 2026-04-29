@@ -1,6 +1,28 @@
 import type { FastifyInstance } from "fastify";
-import { runAstralAgent, runAstralAgentStream, type UserProfile, type ChatMessage } from "../agent-service.js";
-import { getUser, saveChatMessage, getChatMessages, getUserMessageCount, deleteChatMessagesFrom } from "../db.js";
+import {
+  CHAT_MODEL,
+  hashSystemPrompt,
+  runAstralAgent,
+  runAstralAgentStream,
+  type AgentCallMeta,
+  type ChatMessage,
+  type LlmUsage,
+  type UserProfile,
+} from "../agent-service.js";
+import {
+  deleteChatMessagesFrom,
+  getChatMessages,
+  getRecentChatMessages,
+  getTotalUserMessageCount,
+  getUser,
+  getUserMessageCount,
+  insertLlmCall,
+  saveChatMessage,
+  setMessageFeedback,
+  updateUserMemory,
+  type FeedbackThumb,
+  type LlmCallRoute,
+} from "../db.js";
 import { getTransitsCached } from "./transits.js";
 import { analyzeTransitImpact } from "../transit-service.js";
 import { type AuthenticatedRequest } from "../auth/session.js";
@@ -12,8 +34,105 @@ import {
   buildChatUsageSnapshot,
   getMessageLimitForPlan,
 } from "../chat-limits.js";
+import { FLAGS } from "../config/flags.js";
+import { calculateCost } from "../llm/pricing.js";
+import {
+  MEMORY_WRITER_MODEL,
+  MEMORY_WRITER_RECENT_MESSAGES_WINDOW,
+  runMemoryWriter,
+  shouldTriggerMemoryWriter,
+} from "../memory-writer.js";
+import type { Intake } from "../report/types.js";
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
+
+/**
+ * Fire-and-forget memory writer trigger.
+ *
+ * Called after the chat response is sent + persisted. Awaits nothing — the
+ * user already has their reply. Failures are logged at warn level but never
+ * propagate.
+ *
+ * Memory is re-read inside the closure (not captured at the call site) so a
+ * fast follow-up turn can't feed the writer a snapshot that pre-dates the
+ * previous writer's commit.
+ */
+function triggerMemoryWriterAsync(
+  app: FastifyInstance,
+  userId: string,
+): void {
+  if (!FLAGS.MEMORY_LIVING_DOCUMENT) return;
+
+  void (async () => {
+    try {
+      const total = await getTotalUserMessageCount(userId);
+      if (!shouldTriggerMemoryWriter(total)) return;
+
+      const user = await getUser(userId);
+      if (!user) return;
+
+      const recent = await getRecentChatMessages(userId, MEMORY_WRITER_RECENT_MESSAGES_WINDOW);
+      if (recent.length === 0) return;
+
+      const result = await runMemoryWriter(user.memory_md, recent, OPENAI_KEY);
+
+      if (FLAGS.LLM_TELEMETRY) {
+        try {
+          await insertLlmCall({
+            userId,
+            route: "memory_writer",
+            model: MEMORY_WRITER_MODEL,
+            tokensIn: result.meta.usage.promptTokens,
+            tokensOut: result.meta.usage.completionTokens,
+            costUsd: calculateCost(
+              MEMORY_WRITER_MODEL,
+              result.meta.usage.promptTokens,
+              result.meta.usage.completionTokens,
+            ),
+            latencyMs: result.meta.latencyMs,
+            promptHash: hashSystemPrompt(result.meta.systemPrompt),
+          });
+        } catch (err) {
+          app.log.warn({ err, userId }, "memory writer telemetry insert failed");
+        }
+      }
+
+      if (!result.noop) {
+        await updateUserMemory(userId, result.memory);
+      }
+    } catch (err) {
+      app.log.warn({ err, userId }, "memory writer run failed");
+    }
+  })();
+}
+
+async function persistLlmCall(
+  app: FastifyInstance,
+  userId: string,
+  route: LlmCallRoute,
+  meta: { usage: LlmUsage; latencyMs: number; systemPrompt: string },
+): Promise<void> {
+  if (!FLAGS.LLM_TELEMETRY) return;
+  try {
+    await insertLlmCall({
+      userId,
+      route,
+      model: CHAT_MODEL,
+      tokensIn: meta.usage.promptTokens,
+      tokensOut: meta.usage.completionTokens,
+      costUsd: calculateCost(
+        CHAT_MODEL,
+        meta.usage.promptTokens,
+        meta.usage.completionTokens,
+      ),
+      latencyMs: meta.latencyMs,
+      promptHash: hashSystemPrompt(meta.systemPrompt),
+    });
+  } catch (err) {
+    // Telemetry must never break the user-facing response. Log and move on.
+    app.log.warn({ err, route, userId }, "llm_calls insert failed");
+  }
+}
 
 export async function chatRoutes(app: FastifyInstance) {
   // Transitional contract:
@@ -55,6 +174,8 @@ export async function chatRoutes(app: FastifyInstance) {
     let persistedUserId: string | undefined;
     let userPlan: "free" | "basic" | "premium" | undefined;
     let messageLimit: number | null = null;
+    let userIntake: Intake | null = null;
+    let userMemory = "";
 
     if (currentUser.kind === "linked") {
       const user = await getUser(currentUser.user.id);
@@ -69,6 +190,8 @@ export async function chatRoutes(app: FastifyInstance) {
       persistedUserId = user.id;
       userPlan = user.plan;
       messageLimit = getMessageLimitForPlan(user.plan);
+      userIntake = (user.intake as Intake | null) ?? null;
+      userMemory = user.memory_md;
     } else if (userId) {
       return sendCurrentUserError(reply, currentUser);
     } else if (directProfile) {
@@ -93,7 +216,22 @@ export async function chatRoutes(app: FastifyInstance) {
         activatedGates: profile.humanDesign?.activatedGates ?? [],
         definedCenters: profile.humanDesign?.definedCenters ?? [],
       });
-      const replyText = await runAstralAgent(profile, transits, messages, OPENAI_KEY, impact);
+      const intakeForChat = FLAGS.CHAT_INTAKE_CONTEXT && userIntake ? userIntake : undefined;
+      const memoryForChat = FLAGS.MEMORY_LIVING_DOCUMENT && userMemory ? userMemory : undefined;
+      const result = await runAstralAgent(
+        profile,
+        transits,
+        messages,
+        OPENAI_KEY,
+        impact,
+        intakeForChat,
+        memoryForChat,
+      );
+      const replyText = result.content;
+
+      if (persistedUserId) {
+        await persistLlmCall(app, persistedUserId, "chat", result);
+      }
 
       // Persist messages if we have a userId
       let userMsgId: number | undefined;
@@ -104,6 +242,8 @@ export async function chatRoutes(app: FastifyInstance) {
           userMsgId = await saveChatMessage(persistedUserId, lastUserMsg.role, lastUserMsg.content);
         }
         assistantMsgId = await saveChatMessage(persistedUserId, "assistant", replyText);
+
+        triggerMemoryWriterAsync(app, persistedUserId);
       }
 
       return reply.send({ reply: replyText, transits_used: transits.fetchedAt, userMsgId, assistantMsgId });
@@ -136,6 +276,8 @@ export async function chatRoutes(app: FastifyInstance) {
     let persistedUserId: string | undefined;
     let userPlan: "free" | "basic" | "premium" | undefined;
     let messageLimit: number | null = null;
+    let userIntake: Intake | null = null;
+    let userMemory = "";
 
     if (currentUser.kind === "linked") {
       const user = await getUser(currentUser.user.id);
@@ -150,6 +292,8 @@ export async function chatRoutes(app: FastifyInstance) {
       persistedUserId = user.id;
       userPlan = user.plan;
       messageLimit = getMessageLimitForPlan(user.plan);
+      userIntake = (user.intake as Intake | null) ?? null;
+      userMemory = user.memory_md;
     } else if (userId) {
       return sendCurrentUserError(reply, currentUser);
     } else if (directProfile) {
@@ -180,11 +324,27 @@ export async function chatRoutes(app: FastifyInstance) {
         activatedGates: profile.humanDesign?.activatedGates ?? [],
         definedCenters: profile.humanDesign?.definedCenters ?? [],
       });
+      const intakeForChat = FLAGS.CHAT_INTAKE_CONTEXT && userIntake ? userIntake : undefined;
+      const memoryForChat = FLAGS.MEMORY_LIVING_DOCUMENT && userMemory ? userMemory : undefined;
       let fullText = "";
+      let captured: AgentCallMeta | null = null;
 
-      for await (const chunk of runAstralAgentStream(profile, transits, messages, OPENAI_KEY, impact)) {
+      for await (const chunk of runAstralAgentStream(
+        profile,
+        transits,
+        messages,
+        OPENAI_KEY,
+        impact,
+        intakeForChat,
+        memoryForChat,
+        (meta) => { captured = meta; },
+      )) {
         fullText += chunk;
         reply.raw.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
+      }
+
+      if (persistedUserId && captured) {
+        await persistLlmCall(app, persistedUserId, "chat_stream", captured);
       }
 
       // Persist messages
@@ -196,6 +356,8 @@ export async function chatRoutes(app: FastifyInstance) {
           userMsgId = await saveChatMessage(persistedUserId, lastUserMsg.role, lastUserMsg.content);
         }
         assistantMsgId = await saveChatMessage(persistedUserId, "assistant", fullText);
+
+        triggerMemoryWriterAsync(app, persistedUserId);
       }
 
       // Send done event with transits info and persisted message ids
@@ -299,4 +461,53 @@ export async function chatRoutes(app: FastifyInstance) {
       req.params.userId,
     );
   });
+
+  // Per-message feedback. Only assistant messages owned by the current user
+  // can be voted on; non-existent / non-owned / user-role messages return 404
+  // because `setMessageFeedback` filters on (id, user_id, role='assistant').
+  app.post<{ Params: { id: string }; Body: { thumb?: string; note?: string } }>(
+    "/messages/:id/feedback",
+    async (req, reply) => {
+      const messageId = Number.parseInt(req.params.id, 10);
+      if (!Number.isFinite(messageId) || messageId < 1) {
+        return reply.status(400).send({ error: "Invalid message id" });
+      }
+
+      const thumb = req.body?.thumb;
+      if (thumb !== "up" && thumb !== "down") {
+        return reply
+          .status(400)
+          .send({ error: "Invalid thumb (expected \"up\" or \"down\")" });
+      }
+
+      const rawNote = typeof req.body?.note === "string" ? req.body.note : null;
+      const note = rawNote ? rawNote.slice(0, 2000) : null;
+
+      const currentUser = await resolveRequestCurrentUser(
+        req as AuthenticatedRequest,
+        reply,
+      );
+
+      if (reply.sent) {
+        return;
+      }
+
+      if (currentUser.kind !== "linked") {
+        return sendCurrentUserError(reply, currentUser);
+      }
+
+      const updated = await setMessageFeedback(
+        messageId,
+        currentUser.user.id,
+        thumb as FeedbackThumb,
+        note,
+      );
+
+      if (!updated) {
+        return reply.status(404).send({ error: "Message not found" });
+      }
+
+      return reply.send({ ok: true });
+    },
+  );
 }

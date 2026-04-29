@@ -10,6 +10,7 @@ import type {
   AdminUserAccessPatch,
   AdminUserDetail,
   AdminUserListResponse,
+  AdminUserLlmUsage,
   AppUserStatus,
   ChatMessage,
   ChatResponse,
@@ -196,6 +197,22 @@ export async function truncateChatHistory(
   });
   if (!res.ok) throw new Error(`Truncate error ${res.status}`);
   return res.json();
+}
+
+export async function submitMessageFeedback(
+  messageId: number,
+  thumb: "up" | "down",
+  note?: string,
+): Promise<void> {
+  const res = await fetch(`${BASE}/messages/${messageId}/feedback`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ thumb, ...(note !== undefined && { note }) }),
+  });
+  if (!res.ok) {
+    const err = await readErrorMessage(res);
+    throw new Error(`Feedback error ${res.status}: ${err}`);
+  }
 }
 
 // ─── Transits ────────────────────────────────────────────────────────────────
@@ -401,6 +418,27 @@ export async function getAdminUserDetail(
   }
 
   return await res.json() as AdminUserDetail;
+}
+
+export async function getAdminUserLlmUsage(
+  userId: string,
+  days = 7,
+): Promise<AdminUserLlmUsage> {
+  const search = new URLSearchParams();
+  if (Number.isFinite(days) && days > 0) {
+    search.set("days", String(days));
+  }
+  const params = search.toString() ? `?${search.toString()}` : "";
+  const res = await fetch(
+    `${BASE}/admin/users/${encodeURIComponent(userId)}/llm-usage${params}`,
+  );
+
+  if (!res.ok) {
+    const err = await readErrorMessage(res);
+    throw new Error(`Admin LLM usage error ${res.status}: ${err}`);
+  }
+
+  return await res.json() as AdminUserLlmUsage;
 }
 
 export async function updateAdminUserAccess(

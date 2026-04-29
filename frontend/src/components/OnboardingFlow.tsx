@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import type { UserProfile, LocalUser } from "../types";
+import type { UserProfile, LocalUser, Intake } from "../types";
 import {
   uploadAsset,
   extractProfile,
@@ -9,12 +9,13 @@ import {
 } from "../api";
 import { getOnboardingFailureMessage } from "../onboarding-errors";
 import { ChannelChips } from "./ChannelChips";
+import { IntakeView } from "./IntakeView";
 
 interface Props {
   onComplete: (user: LocalUser, profile: UserProfile) => void;
 }
 
-type Step = "welcome" | "name" | "upload" | "extracting" | "review";
+type Step = "welcome" | "name" | "upload" | "extracting" | "review" | "intake";
 
 interface FileSlot {
   file: File | null;
@@ -92,7 +93,24 @@ export function OnboardingFlow({ onComplete }: Props) {
 
   const handleConfirm = () => {
     if (bootstrappedUser && extractedProfile) {
+      // Bridge to the intake step before handing off to the chat. The bodygraph
+      // is the cold/technical artifact; the intake is where the user tells us
+      // about their business so chat answers stop being generic from turn 1.
+      setStep("intake");
+    }
+  };
+
+  const handleIntakeSubmit = async (intake: Intake) => {
+    if (!bootstrappedUser || !extractedProfile) return;
+    setError(null);
+    try {
+      await updateCurrentUser(extractedProfile.name, extractedProfile, intake);
       onComplete(bootstrappedUser, extractedProfile);
+    } catch (e) {
+      // Re-throw so IntakeView re-enables the form for retry; the error UI
+      // above the form is hydrated from `error` state.
+      setError(getOnboardingFailureMessage(e));
+      throw e;
     }
   };
 
@@ -111,12 +129,18 @@ export function OnboardingFlow({ onComplete }: Props) {
         alignItems: "center",
         justifyContent: "center",
         padding: 20,
+        minHeight: 0,
+        overflow: "hidden",
       }}
     >
       <div
         style={{
-          maxWidth: 520,
+          maxWidth: step === "intake" ? 760 : 520,
           width: "100%",
+          height: step === "intake" ? "100%" : "auto",
+          minHeight: 0,
+          display: step === "intake" ? "flex" : "block",
+          flexDirection: "column",
           animation: "fadeIn 0.5s ease",
         }}
       >
@@ -423,9 +447,37 @@ export function OnboardingFlow({ onComplete }: Props) {
                 Volver
               </button>
               <button onClick={handleConfirm} className="astral-auth-primary" style={{ flex: 2 }}>
-                EMBARCAR
+                CONTINUAR
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Step: Intake (business context) */}
+        {step === "intake" && (
+          <div className="animate-fade-in" style={{ width: "100%", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+            {error && (
+              <div
+                style={{
+                  borderRadius: 10,
+                  padding: "12px 16px",
+                  marginBottom: 20,
+                  background: "rgba(196, 96, 96, 0.14)",
+                  border: "1px solid rgba(196, 96, 96, 0.4)",
+                  color: "#9a3737",
+                  fontSize: 13,
+                  lineHeight: 1.55,
+                  textAlign: "center",
+                }}
+              >
+                {error}
+              </div>
+            )}
+            <IntakeView
+              submitLabel="Embarcar al chat"
+              description="Antes de cruzar tu diseño con los tránsitos de la semana, necesitamos un poco de contexto sobre tu negocio. Lo mínimo (los dos campos con *) hace que las respuestas sean específicas desde el primer mensaje."
+              onSubmit={handleIntakeSubmit}
+            />
           </div>
         )}
       </div>

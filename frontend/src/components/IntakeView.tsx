@@ -1,18 +1,89 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useVoiceRecorder } from "../hooks/useVoiceRecorder";
-import type { Intake } from "../types";
+import type { Intake, TipoNegocio } from "../types";
+
+interface SecondaryAction {
+  label: string;
+  onClick: () => void;
+}
 
 interface Props {
   initialIntake?: Intake;
-  hasExistingReport?: boolean;
-  onSubmit: (intake: Intake) => void;
-  onSkip: () => void;
+  /** Texto del botón primario. Default: "Continuar". */
+  submitLabel?: string;
+  /** Subtítulo bajo el header (descripción del paso). Default: copy genérico. */
+  description?: string;
+  /** Opcional: botón secundario (ej: "Volver al informe", "Cancelar"). */
+  secondaryAction?: SecondaryAction;
+  /**
+   * Callback al confirmar. Puede retornar Promise — si rechaza, el form
+   * se reactiva para reintentar. Si resuelve, lo normal es que el caller
+   * navegue a otra view y este componente se desmonte.
+   */
+  onSubmit: (intake: Intake) => Promise<void> | void;
 }
 
-const FIELDS: { key: keyof Intake; label: string; placeholder: string }[] = [
-  { key: "actividad", label: "¿A qué te dedicás?", placeholder: "Ej: Soy diseñadora freelance..." },
-  { key: "objetivos", label: "¿Qué buscás en este momento?", placeholder: "Ej: Quiero entender por qué me agoto..." },
-  { key: "desafios", label: "¿Cuál es tu mayor desafío?", placeholder: "Ej: Me cuesta decir que no a proyectos..." },
+type TextField = {
+  kind: "textarea";
+  key: "actividad" | "desafio_actual" | "objetivo_12m" | "voz_marca";
+  label: string;
+  placeholder: string;
+  required: boolean;
+};
+
+type SelectField = {
+  kind: "select";
+  key: "tipo_de_negocio";
+  label: string;
+  options: { value: TipoNegocio; label: string }[];
+};
+
+type FieldDef = TextField | SelectField;
+
+const TIPO_NEGOCIO_OPTIONS: { value: TipoNegocio; label: string }[] = [
+  { value: "mentora", label: "Mentora" },
+  { value: "coach", label: "Coach" },
+  { value: "marca_personal", label: "Marca personal" },
+  { value: "servicios_premium", label: "Servicios premium / high-ticket" },
+  { value: "branding", label: "Branding" },
+  { value: "otro", label: "Otro" },
+];
+
+const FIELDS: FieldDef[] = [
+  {
+    kind: "textarea",
+    key: "actividad",
+    label: "¿A qué te dedicás?",
+    placeholder: "Ej: Mentora de mujeres que están armando su negocio holístico",
+    required: true,
+  },
+  {
+    kind: "textarea",
+    key: "desafio_actual",
+    label: "¿Qué desafío tenés ahora?",
+    placeholder: "Ej: Me cuesta sostener el ritmo de contenido sin sentirme drenada",
+    required: true,
+  },
+  {
+    kind: "select",
+    key: "tipo_de_negocio",
+    label: "Tipo de negocio (opcional)",
+    options: TIPO_NEGOCIO_OPTIONS,
+  },
+  {
+    kind: "textarea",
+    key: "objetivo_12m",
+    label: "¿Qué querés concretar en los próximos 12 meses? (opcional)",
+    placeholder: "Ej: Lanzar mi programa grupal con 15 mujeres y dejar de hacer 1:1",
+    required: false,
+  },
+  {
+    kind: "textarea",
+    key: "voz_marca",
+    label: "¿Cómo describirías el tono de tu marca? (opcional)",
+    placeholder: "Ej: Cálido pero directo, con humor seco",
+    required: false,
+  },
 ];
 
 function MicButton({ onTranscription }: { onTranscription: (text: string) => void }) {
@@ -88,42 +159,103 @@ function MicButton({ onTranscription }: { onTranscription: (text: string) => voi
   );
 }
 
-export function IntakeView({ initialIntake, hasExistingReport, onSubmit, onSkip }: Props) {
+const DEFAULT_DESCRIPTION =
+  "Completá estos campos para que las respuestas y reportes lleguen específicas a tu negocio. Los dos primeros son obligatorios — los demás te ayudan a profundizar pero podés saltarlos.";
+
+export function IntakeView({
+  initialIntake,
+  submitLabel = "Continuar",
+  description = DEFAULT_DESCRIPTION,
+  secondaryAction,
+  onSubmit,
+}: Props) {
   const [values, setValues] = useState<Intake>({
     actividad: initialIntake?.actividad ?? "",
-    objetivos: initialIntake?.objetivos ?? "",
-    desafios: initialIntake?.desafios ?? "",
+    desafio_actual: initialIntake?.desafio_actual ?? "",
+    tipo_de_negocio: initialIntake?.tipo_de_negocio,
+    objetivo_12m: initialIntake?.objetivo_12m ?? "",
+    voz_marca: initialIntake?.voz_marca ?? "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [showRequiredHint, setShowRequiredHint] = useState(false);
 
-  const handleChange = (key: keyof Intake, value: string) => {
+  // Tracks mount status so we can safely reset submitting after onSubmit
+  // resolves/rejects: in the happy path the parent navigates away and the
+  // setState would target an unmounted component (React warning); the ref
+  // lets us skip that no-op cleanly.
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
+
+  const handleTextChange = (key: TextField["key"], value: string) => {
     setValues((prev) => ({ ...prev, [key]: value }));
+    if (showRequiredHint) setShowRequiredHint(false);
+  };
+
+  const handleSelectChange = (key: SelectField["key"], value: string) => {
+    setValues((prev) => ({
+      ...prev,
+      [key]: value === "" ? undefined : (value as TipoNegocio),
+    }));
+    if (showRequiredHint) setShowRequiredHint(false);
+  };
+
+  const requiredOk =
+    (values.actividad ?? "").trim().length > 0 &&
+    (values.desafio_actual ?? "").trim().length > 0;
+
+  const handleSubmit = async () => {
+    if (submitting) return;
+    if (!requiredOk) {
+      setShowRequiredHint(true);
+      return;
+    }
+    setSubmitting(true);
+    // Strip empty optionals so the persisted JSON stays clean.
+    const cleaned: Intake = {
+      actividad: values.actividad?.trim(),
+      desafio_actual: values.desafio_actual?.trim(),
+      tipo_de_negocio: values.tipo_de_negocio,
+      objetivo_12m: values.objetivo_12m?.trim() || undefined,
+      voz_marca: values.voz_marca?.trim() || undefined,
+    };
+    try {
+      await onSubmit(cleaned);
+    } finally {
+      // Re-enable the form on failure (or on success without nav). Skip when
+      // unmounted to avoid React's "setState on unmounted" warning.
+      if (mountedRef.current) setSubmitting(false);
+    }
   };
 
   return (
-    <div style={{
-      flex: 1, overflowY: "auto", display: "flex", flexDirection: "column",
-      alignItems: "center", padding: "32px 16px",
-    }}>
+    <div
+      style={{
+        flex: 1,
+        overflowY: "auto",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        padding: "32px 16px",
+      }}
+    >
       <div style={{ maxWidth: 760, width: "100%" }}>
         <div style={{
-          color: "var(--color-gold-deep)", fontSize: 10, letterSpacing: "0.22em",
-          fontWeight: 700, marginBottom: 8, fontFamily: "var(--font-sans)", textTransform: "uppercase",
+          color: "var(--color-gold)", fontSize: 11, letterSpacing: "0.24em",
+          fontWeight: 600, marginBottom: 8, fontFamily: "var(--font-sans)", textTransform: "uppercase",
         }}>
-          Contexto personal
+          Tu negocio
         </div>
         <h2 style={{
           fontFamily: "var(--font-serif)", color: "var(--text-on-light)",
           fontSize: 26, fontWeight: 500, margin: "0 0 8px",
         }}>
-          Personalizá tu informe
+          Contame de tu negocio
         </h2>
         <p style={{
           color: "var(--text-on-light-muted)", fontSize: 14, lineHeight: 1.65,
           margin: "0 0 28px", fontWeight: 400,
         }}>
-          Completá estos campos para que tu informe incluya interpretaciones conectadas
-          con tu vida real. Podés escribir o usar el micrófono.
+          {description}
         </p>
 
         <div style={{
@@ -134,72 +266,113 @@ export function IntakeView({ initialIntake, hasExistingReport, onSubmit, onSkip 
           marginBottom: 20,
           color: "var(--text-main)",
         }}>
-          {FIELDS.map(({ key, label, placeholder }, idx) => (
-            <div key={key} style={{ marginBottom: idx === FIELDS.length - 1 ? 0 : 18 }}>
+          {FIELDS.map((field, idx) => (
+            <div key={field.key} style={{ marginBottom: idx === FIELDS.length - 1 ? 0 : 18 }}>
               <div style={{
                 display: "flex", justifyContent: "space-between", alignItems: "center",
                 marginBottom: 8,
               }}>
-                <label htmlFor={`intake-${key}`} style={{
+                <label htmlFor={`intake-${field.key}`} style={{
                   color: "var(--text-main)", fontSize: 13, fontWeight: 600,
                   fontFamily: "var(--font-sans)",
                 }}>
-                  {label}
+                  {field.label}
+                  {field.kind === "textarea" && field.required && (
+                    <span style={{ color: "var(--color-primary)", marginLeft: 4 }}>*</span>
+                  )}
                 </label>
-                <MicButton
-                  onTranscription={(text) => handleChange(key, (values[key] ?? "") + (values[key] ? " " : "") + text)}
-                />
+                {field.kind === "textarea" && (
+                  <MicButton
+                    onTranscription={(text) =>
+                      handleTextChange(
+                        field.key,
+                        (values[field.key] ?? "") + (values[field.key] ? " " : "") + text,
+                      )
+                    }
+                  />
+                )}
               </div>
-              <textarea
-                id={`intake-${key}`}
-                value={values[key] ?? ""}
-                onChange={(e) => handleChange(key, e.target.value)}
-                placeholder={placeholder}
-                rows={3}
-                style={{
-                  width: "100%", background: "rgba(248, 244, 232, 0.06)",
-                  border: "1px solid rgba(248, 244, 232, 0.18)", borderRadius: 10,
-                  color: "var(--text-main)", padding: "12px 14px", fontSize: 13,
-                  fontFamily: "var(--font-sans)", resize: "vertical", lineHeight: 1.6,
-                  outline: "none", transition: "border-color 0.2s ease",
-                  boxSizing: "border-box",
-                }}
-                onFocus={(e) => { e.target.style.borderColor = "var(--color-primary)" }}
-                onBlur={(e) => { e.target.style.borderColor = "rgba(248, 244, 232, 0.18)" }}
-              />
+
+              {field.kind === "textarea" ? (
+                <textarea
+                  id={`intake-${field.key}`}
+                  value={values[field.key] ?? ""}
+                  onChange={(e) => handleTextChange(field.key, e.target.value)}
+                  placeholder={field.placeholder}
+                  rows={3}
+                  style={{
+                    width: "100%", background: "rgba(248, 244, 232, 0.06)",
+                    border: "1px solid rgba(248, 244, 232, 0.18)", borderRadius: 10,
+                    color: "var(--text-main)", padding: "12px 14px", fontSize: 13,
+                    fontFamily: "var(--font-sans)", resize: "vertical", lineHeight: 1.6,
+                    outline: "none", transition: "border-color 0.2s ease",
+                    boxSizing: "border-box",
+                  }}
+                  onFocus={(e) => { e.target.style.borderColor = "var(--color-primary)" }}
+                  onBlur={(e) => { e.target.style.borderColor = "rgba(248, 244, 232, 0.18)" }}
+                />
+              ) : (
+                <select
+                  id={`intake-${field.key}`}
+                  value={values[field.key] ?? ""}
+                  onChange={(e) => handleSelectChange(field.key, e.target.value)}
+                  style={{
+                    width: "100%", background: "rgba(248, 244, 232, 0.06)",
+                    border: "1px solid rgba(248, 244, 232, 0.18)", borderRadius: 10,
+                    color: "var(--text-main)", padding: "12px 14px", fontSize: 13,
+                    fontFamily: "var(--font-sans)", outline: "none", cursor: "pointer",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  <option value="">Sin elegir</option>
+                  {field.options.map((opt) => (
+                    <option key={opt.value} value={opt.value} style={{ background: "var(--surface-dark)" }}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           ))}
         </div>
 
+        {showRequiredHint && (
+          <div
+            style={{
+              borderRadius: 10,
+              padding: "10px 14px",
+              marginBottom: 14,
+              background: "rgba(196, 96, 96, 0.14)",
+              border: "1px solid rgba(196, 96, 96, 0.4)",
+              color: "#9a3737",
+              fontSize: 13,
+              lineHeight: 1.5,
+            }}
+          >
+            Necesitamos al menos los dos campos marcados con * para que tu agente arranque con contexto real.
+          </div>
+        )}
+
         <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
+          {secondaryAction && (
+            <button
+              onClick={() => {
+                if (!submitting) secondaryAction.onClick();
+              }}
+              disabled={submitting}
+              className="btn-secondary"
+              style={{ flex: 1 }}
+            >
+              {secondaryAction.label}
+            </button>
+          )}
           <button
-            onClick={() => { if (!submitting) { if (hasExistingReport) { onSkip(); } else { setSubmitting(true); onSkip(); } } }}
+            onClick={handleSubmit}
             disabled={submitting}
-            style={{
-              flex: 1, padding: "14px 20px", borderRadius: 8,
-              background: "transparent", border: "1px solid var(--surface-deeper)",
-              color: "var(--text-on-light)", fontSize: 12, fontWeight: 600,
-              cursor: submitting ? "default" : "pointer", fontFamily: "var(--font-sans)",
-              letterSpacing: "0.14em", textTransform: "uppercase",
-              transition: "all 0.3s ease", opacity: submitting ? 0.5 : 1,
-            }}
+            className="astral-auth-primary"
+            style={{ flex: secondaryAction ? 2 : 1 }}
           >
-            {hasExistingReport ? "Volver al informe" : "Omitir"}
-          </button>
-          <button
-            onClick={() => { if (!submitting) { setSubmitting(true); onSubmit(values); } }}
-            disabled={submitting}
-            style={{
-              flex: 2, padding: "14px 20px", borderRadius: 8,
-              background: "linear-gradient(135deg, #e0c081 0%, #9d7f4d 100%)",
-              border: "1px solid var(--color-primary)",
-              color: "var(--surface-deeper)", fontSize: 12, fontWeight: 700,
-              cursor: submitting ? "default" : "pointer", fontFamily: "var(--font-sans)",
-              letterSpacing: "0.14em", textTransform: "uppercase",
-              transition: "all 0.3s ease", opacity: submitting ? 0.6 : 1,
-            }}
-          >
-            {submitting ? "Generando..." : hasExistingReport ? "Regenerar mi informe" : "Generar mi informe"}
+            {submitting ? "Procesando..." : submitLabel}
           </button>
         </div>
       </div>

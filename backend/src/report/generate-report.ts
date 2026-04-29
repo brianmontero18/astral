@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { UserProfile } from "../agent-service.js";
+import { calculateCost } from "../llm/pricing.js";
 import {
   TYPE_DESCRIPTIONS,
   AUTHORITY_DESCRIPTIONS,
@@ -165,8 +166,7 @@ export async function generateReport(
   totalCompletionTokens = call1Result.completionTokens + call2Result.completionTokens + call3Result.completionTokens;
   const tokensUsed = totalPromptTokens + totalCompletionTokens;
 
-  // gpt-4o-mini pricing: $0.15/1M input, $0.60/1M output
-  const costUsd = (totalPromptTokens * 0.00000015) + (totalCompletionTokens * 0.0000006);
+  const costUsd = calculateCost(MODEL, totalPromptTokens, totalCompletionTokens);
 
   // Parse LLM outputs by [SECTION] marker (fallback to double-newline / --- for robustness)
   const splitSections = (text: string): string[] => {

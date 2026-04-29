@@ -15,11 +15,22 @@ const runAstralAgentStreamMock = vi.fn();
 const getTransitsCachedMock = vi.fn();
 const analyzeTransitImpactMock = vi.fn();
 
+function mockAgentResult(content: string) {
+  return {
+    content,
+    usage: { promptTokens: 0, completionTokens: 0 },
+    latencyMs: 0,
+    systemPrompt: "",
+  };
+}
+
 vi.mock("../auth/session.js", () => mockSessionModule());
 
 vi.mock("../agent-service.js", () => ({
   runAstralAgent: runAstralAgentMock,
   runAstralAgentStream: runAstralAgentStreamMock,
+  hashSystemPrompt: (s: string) => s.slice(0, 16),
+  CHAT_MODEL: "gpt-4o-mini",
 }));
 
 vi.mock("../routes/transits.js", async () => {
@@ -378,7 +389,7 @@ describe("Chat history routes", () => {
       });
       expect(JSON.parse(afterUpgradeRes.body).messages).toHaveLength(usedBeforeUpgrade * 2);
 
-      runAstralAgentMock.mockResolvedValueOnce("Seguimos sin perder contexto");
+      runAstralAgentMock.mockResolvedValueOnce(mockAgentResult("Seguimos sin perder contexto"));
 
       const sendRes = await app.inject({
         method: "POST",
@@ -420,7 +431,7 @@ describe("Chat history routes", () => {
 describe("Freemium message limit", () => {
   it("POST /api/chat returns a persisted reply for the linked current user", async () => {
     const userId = await createLinkedTestUser(app, "st-chat-happy");
-    runAstralAgentMock.mockResolvedValueOnce("Respuesta persistida");
+    runAstralAgentMock.mockResolvedValueOnce(mockAgentResult("Respuesta persistida"));
 
     const res = await app.inject({
       method: "POST",
@@ -462,6 +473,8 @@ describe("Freemium message limit", () => {
       [{ role: "user", content: "¿Qué necesito ver hoy?" }],
       expect.any(String),
       expect.any(Object),
+      undefined, // intake (test user has none)
+      undefined, // memory (test user has none)
     );
     expect(userId).toEqual(expect.any(String));
   });
@@ -757,7 +770,7 @@ describe("Chat history truncation semantics", () => {
       ]);
 
       const regeneratedReply = `branch regenerated for ${plan}`;
-      runAstralAgentMock.mockResolvedValueOnce(regeneratedReply);
+      runAstralAgentMock.mockResolvedValueOnce(mockAgentResult(regeneratedReply));
 
       const sendRes = await app.inject({
         method: "POST",

@@ -406,6 +406,22 @@ textarea { outline: none !important; }
   text-transform: uppercase;
 }
 
+.chat-assistant-pending {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 34px;
+  color: var(--text-muted);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}
+
+.chat-assistant-pending-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .chat-message-actions {
   display: flex;
   align-items: center;
@@ -809,48 +825,43 @@ textarea { outline: none !important; }
 .astral-auth-topnav {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 10px 8px 16px;
+  padding: 4px;
   border: 1px solid rgba(33, 41, 30, 0.14);
   border-radius: 999px;
   background: rgba(248, 244, 232, 0.5);
 }
 
 .astral-auth-topnav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 16px 4px 4px;
+  border-radius: 999px;
   text-decoration: none;
-}
-
-.astral-auth-topnav-muted,
-.astral-auth-topnav-active {
+  color: var(--text-on-light);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
+  transition: background 0.25s ease, color 0.25s ease;
 }
 
-.astral-auth-topnav-muted {
-  color: var(--text-on-light-muted);
-}
-
-.astral-auth-topnav-link.astral-auth-topnav-muted:hover {
-  color: var(--text-on-light);
-}
-
-.astral-auth-topnav-active {
-  color: var(--color-gold-deep);
+.astral-auth-topnav-link:hover,
+.astral-auth-topnav-link:focus-visible {
+  background: rgba(33, 41, 30, 0.08);
+  outline: none;
 }
 
 .astral-auth-topnav-mark {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-cream);
-  background: var(--surface-deeper);
-  font-size: 13px;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  text-decoration: none;
+  background: var(--surface-deeper);
+  color: var(--color-cream);
+  font-size: 12px;
 }
 
 .astral-auth-stage {
@@ -898,7 +909,8 @@ textarea { outline: none !important; }
   display: inline-block;
   margin: 0 0.04em;
   font-style: italic;
-  color: var(--color-gold);
+  color: #e8c984;
+  text-shadow: 0 0 32px rgba(232, 201, 132, 0.28);
 }
 
 .astral-auth-hero-copy,
@@ -924,10 +936,12 @@ textarea { outline: none !important; }
   padding: clamp(28px, 4vw, 42px) clamp(28px, 5vw, 60px);
   border-radius: 24px;
   border: 1px solid rgba(33, 41, 30, 0.4);
-  background: var(--surface-dark);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(232, 201, 132, 0.08) 0%, transparent 60%),
+    linear-gradient(180deg, #2c5040 0%, #294c38 55%, #213f2f 100%);
   box-shadow:
-    0 24px 56px rgba(33, 41, 30, 0.22),
-    inset 0 1px 0 rgba(248, 244, 232, 0.05);
+    0 28px 64px rgba(33, 41, 30, 0.28),
+    inset 0 1px 0 rgba(248, 244, 232, 0.06);
   color: var(--text-main);
 }
 
@@ -1012,7 +1026,7 @@ textarea { outline: none !important; }
   width: 100%;
   min-height: 52px;
   border: none;
-  border-bottom: 1px solid rgba(248, 244, 232, 0.18);
+  border-bottom: 1px solid rgba(248, 244, 232, 0.3);
   border-radius: 0;
   background: transparent;
   color: var(--text-main);
@@ -1021,7 +1035,7 @@ textarea { outline: none !important; }
   font-family: var(--font-serif);
   outline: none;
   text-align: center;
-  transition: border-color 0.25s ease, opacity 0.25s ease;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, opacity 0.25s ease;
 }
 
 .astral-auth-input-email {
@@ -1030,11 +1044,18 @@ textarea { outline: none !important; }
 }
 
 .astral-auth-input::placeholder {
-  color: rgba(248, 244, 232, 0.42);
+  color: rgba(248, 244, 232, 0.5);
+  font-style: italic;
 }
 
-.astral-auth-input:focus {
-  border-bottom-color: var(--color-gold);
+.astral-auth-input:hover {
+  border-bottom-color: rgba(232, 201, 132, 0.55);
+}
+
+.astral-auth-input:focus,
+.astral-auth-input:focus-visible {
+  border-bottom-color: #e8c984;
+  box-shadow: 0 1px 0 0 #e8c984;
 }
 
 .astral-auth-code-input {
@@ -1058,13 +1079,21 @@ textarea { outline: none !important; }
 }
 
 .astral-auth-primary {
-  border: 1px solid var(--color-gold);
-  background: linear-gradient(135deg, #e0c081 0%, #9d7f4d 100%);
+  border: 1px solid #e8c984;
+  background: linear-gradient(135deg, #f1d59a 0%, #c19b5b 100%);
   color: var(--surface-deeper);
-  box-shadow: 0 10px 24px rgba(157, 127, 77, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 12px 28px rgba(157, 127, 77, 0.38);
 }
 
-.astral-auth-primary:hover:not(:disabled),
+.astral-auth-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 16px 36px rgba(157, 127, 77, 0.5);
+}
+
 .astral-auth-secondary:hover:not(:disabled) {
   transform: translateY(-1px);
 }
@@ -1210,12 +1239,62 @@ textarea { outline: none !important; }
 }
 
 .astral-auth-support-copy {
-  color: var(--text-on-light-muted);
+  color: rgba(248, 244, 232, 0.7);
   font-size: 12px;
   line-height: 1.7;
   text-align: center;
   width: 100%;
   max-width: 42ch;
+}
+
+.astral-auth-form-hint {
+  margin: 4px 0 0;
+  color: rgba(248, 244, 232, 0.6);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.astral-auth-secondary-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.astral-auth-text-link {
+  border: none;
+  background: transparent;
+  color: rgba(248, 244, 232, 0.6);
+  padding: 6px 4px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.25s ease;
+}
+
+.astral-auth-text-link:hover:not(:disabled),
+.astral-auth-text-link:focus-visible {
+  color: var(--color-gold);
+  outline: none;
+}
+
+.astral-auth-text-link:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.astral-auth-text-divider {
+  color: rgba(248, 244, 232, 0.25);
+  font-size: 14px;
+  user-select: none;
 }
 
 .astral-auth-footer {
@@ -1227,7 +1306,7 @@ textarea { outline: none !important; }
 }
 
 .astral-auth-footer-copy {
-  color: rgba(33, 41, 30, 0.42);
+  color: rgba(33, 41, 30, 0.58);
   font-size: 11px;
   letter-spacing: 0.28em;
   text-transform: uppercase;

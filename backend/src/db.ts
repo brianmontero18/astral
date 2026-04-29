@@ -34,6 +34,13 @@ export interface AppUserRecord {
   email: string | null;
   profile: object;
   intake: object | null;
+  /**
+   * Living Document memory. Plain markdown, merged in-place by the memory
+   * writer — never overwritten blind. Empty string when the user has no
+   * memory yet (column nullable in SQL but normalised here so callers can
+   * interpolate without null checks).
+   */
+  memory_md: string;
   plan: AppUserPlan;
   role: AppUserRole;
   status: AppUserStatus;
@@ -69,6 +76,7 @@ function mapUserRow(row: Record<string, unknown>): AppUserRecord {
     email: typeof row.email === "string" ? row.email : null,
     profile: JSON.parse(row.profile as string),
     intake: row.intake ? JSON.parse(row.intake as string) : null,
+    memory_md: typeof row.memory_md === "string" ? row.memory_md : "",
     plan: (row.plan as AppUserPlan | null) ?? DEFAULT_USER_PLAN,
     role: (row.role as AppUserRole | null) ?? DEFAULT_USER_ROLE,
     status: (row.status as AppUserStatus | null) ?? DEFAULT_USER_STATUS,
@@ -149,6 +157,48 @@ export async function rebuildLegacyAssetsTableIfNeeded(c: Client): Promise<void>
   );
 }
 
+/**
+ * Detects an `llm_calls` table whose CHECK constraint pre-dates the
+ * `memory_writer` route value and rebuilds it with the widened constraint.
+ * Idempotent: returns immediately when the constraint already includes the
+ * new value or when the table doesn't exist yet (fresh installs use the
+ * widened CHECK from `CREATE TABLE` directly).
+ *
+ * Exported for direct testing.
+ */
+export async function widenLlmCallsRouteCheckIfNeeded(c: Client): Promise<void> {
+  const schemaResult = await c.execute({
+    sql: "SELECT sql FROM sqlite_master WHERE type='table' AND name='llm_calls'",
+    args: [],
+  });
+  const tableSql = schemaResult.rows[0]?.sql as string | undefined;
+  if (!tableSql) return;
+  if (tableSql.includes("'memory_writer'")) return;
+
+  await c.batch(
+    [
+      `CREATE TABLE llm_calls_new (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        route       TEXT NOT NULL CHECK(route IN ('chat','chat_stream','report','extraction','memory_writer')),
+        model       TEXT NOT NULL,
+        tokens_in   INTEGER NOT NULL DEFAULT 0,
+        tokens_out  INTEGER NOT NULL DEFAULT 0,
+        cost_usd    REAL    NOT NULL DEFAULT 0,
+        latency_ms  INTEGER NOT NULL DEFAULT 0,
+        prompt_hash TEXT NOT NULL,
+        created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `INSERT INTO llm_calls_new (id, user_id, route, model, tokens_in, tokens_out, cost_usd, latency_ms, prompt_hash, created_at)
+       SELECT id, user_id, route, model, tokens_in, tokens_out, cost_usd, latency_ms, prompt_hash, created_at
+       FROM llm_calls`,
+      "DROP TABLE llm_calls",
+      "ALTER TABLE llm_calls_new RENAME TO llm_calls",
+    ],
+    "write",
+  );
+}
+
 // ─── Init ────────────────────────────────────────────────────────────────────
 
 export async function initDb(): Promise<void> {
@@ -189,11 +239,26 @@ export async function initDb(): Promise<void> {
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       )`,
       `CREATE TABLE IF NOT EXISTS chat_messages (
-        id         INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        role       TEXT NOT NULL,
-        content    TEXT NOT NULL,
-        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id        TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        role           TEXT NOT NULL,
+        content        TEXT NOT NULL,
+        feedback_thumb TEXT DEFAULT NULL CHECK(feedback_thumb IS NULL OR feedback_thumb IN ('up','down')),
+        feedback_note  TEXT DEFAULT NULL,
+        feedback_at    TEXT DEFAULT NULL,
+        created_at     TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE TABLE IF NOT EXISTS llm_calls (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        route       TEXT NOT NULL CHECK(route IN ('chat','chat_stream','report','extraction','memory_writer')),
+        model       TEXT NOT NULL,
+        tokens_in   INTEGER NOT NULL DEFAULT 0,
+        tokens_out  INTEGER NOT NULL DEFAULT 0,
+        cost_usd    REAL    NOT NULL DEFAULT 0,
+        latency_ms  INTEGER NOT NULL DEFAULT 0,
+        prompt_hash TEXT NOT NULL,
+        created_at  TEXT NOT NULL DEFAULT (datetime('now'))
       )`,
       `CREATE TABLE IF NOT EXISTS hd_reports (
         id           TEXT PRIMARY KEY,
@@ -238,6 +303,10 @@ export async function initDb(): Promise<void> {
     "ALTER TABLE assets ADD COLUMN updated_at TEXT",
     "ALTER TABLE hd_reports ADD COLUMN updated_at TEXT",
     "ALTER TABLE assets ADD COLUMN storage_key TEXT DEFAULT NULL",
+    "ALTER TABLE chat_messages ADD COLUMN feedback_thumb TEXT DEFAULT NULL",
+    "ALTER TABLE chat_messages ADD COLUMN feedback_note TEXT DEFAULT NULL",
+    "ALTER TABLE chat_messages ADD COLUMN feedback_at TEXT DEFAULT NULL",
+    "ALTER TABLE users ADD COLUMN memory_md TEXT DEFAULT NULL",
   ];
 
   for (const sql of idempotentAlters) {
@@ -270,6 +339,11 @@ export async function initDb(): Promise<void> {
   // for the detail (extracted so it is directly testable).
   await rebuildLegacyAssetsTableIfNeeded(client);
 
+  // SQLite cements CHECK constraints at CREATE TABLE time, so adding a new
+  // route value (memory_writer) requires rebuilding the table on existing
+  // databases. Fresh installs already get the widened CHECK above.
+  await widenLlmCallsRouteCheckIfNeeded(client);
+
   // ─── Indexes ───────────────────────────────────────────────────────────────
   // SQLite does not auto-index foreign keys. These cover the hot-path queries
   // that filter or order by user_id and shared-token expiry.
@@ -280,6 +354,7 @@ export async function initDb(): Promise<void> {
       "CREATE INDEX IF NOT EXISTS idx_identities_user ON user_identities(user_id)",
       "CREATE INDEX IF NOT EXISTS idx_shares_user ON report_shares(user_id)",
       "CREATE INDEX IF NOT EXISTS idx_shares_expires ON report_shares(expires_at)",
+      "CREATE INDEX IF NOT EXISTS idx_llm_calls_user_created ON llm_calls(user_id, created_at)",
     ],
     "write",
   );
@@ -367,6 +442,7 @@ export async function findUserByIdentity(
         users.email,
         users.profile,
         users.intake,
+        users.memory_md,
         users.plan,
         users.role,
         users.status,
@@ -562,6 +638,25 @@ export async function deleteUser(id: string): Promise<boolean> {
   return result.rowsAffected > 0;
 }
 
+/**
+ * Replaces the markdown atomically and bumps `updated_at`. The memory writer
+ * is the only intended caller: it has already merged old + new facts in one
+ * LLM call (no overwrite blind), so this function purposefully takes a full
+ * string rather than a diff/op list.
+ *
+ * Empty string is allowed. Returns true iff the user exists.
+ */
+export async function updateUserMemory(
+  id: string,
+  memoryMd: string,
+): Promise<boolean> {
+  const result = await client.execute({
+    sql: "UPDATE users SET memory_md = ?, updated_at = datetime('now') WHERE id = ?",
+    args: [memoryMd, id],
+  });
+  return result.rowsAffected > 0;
+}
+
 // ─── Assets ──────────────────────────────────────────────────────────────────
 
 export async function createAsset(
@@ -742,6 +837,48 @@ export async function getUserMessageCount(
   return (result.rows[0]?.count as number) ?? 0;
 }
 
+/**
+ * All-time count of user-role messages. Distinct from `getUserMessageCount`,
+ * which is windowed for billing. The memory writer uses this to decide
+ * trigger cadence — it cares about lifetime turn count, not the current
+ * month's quota.
+ */
+export async function getTotalUserMessageCount(userId: string): Promise<number> {
+  const result = await client.execute({
+    sql: `SELECT COUNT(*) as count
+          FROM chat_messages
+          WHERE user_id = ? AND role = 'user'`,
+    args: [userId],
+  });
+  return (result.rows[0]?.count as number) ?? 0;
+}
+
+/**
+ * Last N chat messages for a user, ordered oldest-first, restricted to the
+ * roles the agent recognises ("user" | "assistant"). Used by the memory
+ * writer to feed the LLM a rolling window of recent context. Caller picks N
+ * (see `MEMORY_WRITER_RECENT_MESSAGES_WINDOW`).
+ */
+export async function getRecentChatMessages(
+  userId: string,
+  limit: number,
+): Promise<Array<{ role: "user" | "assistant"; content: string }>> {
+  const result = await client.execute({
+    sql: `SELECT role, content
+          FROM chat_messages
+          WHERE user_id = ? AND role IN ('user', 'assistant')
+          ORDER BY id DESC
+          LIMIT ?`,
+    args: [userId, limit],
+  });
+  return result.rows
+    .map(row => ({
+      role: row.role as "user" | "assistant",
+      content: row.content as string,
+    }))
+    .reverse();
+}
+
 // ─── HD Reports ──────────────────────────────────────────────────────────────
 
 export async function getReport(
@@ -875,6 +1012,150 @@ export async function cleanupExpiredShares(): Promise<number> {
     args: [],
   });
   return result.rowsAffected;
+}
+
+// ─── LLM Calls (telemetry) ───────────────────────────────────────────────────
+
+export type LlmCallRoute =
+  | "chat"
+  | "chat_stream"
+  | "report"
+  | "extraction"
+  | "memory_writer";
+
+export interface LlmCallInput {
+  userId: string;
+  route: LlmCallRoute;
+  model: string;
+  tokensIn: number;
+  tokensOut: number;
+  costUsd: number;
+  latencyMs: number;
+  promptHash: string;
+}
+
+export async function insertLlmCall(input: LlmCallInput): Promise<void> {
+  await client.execute({
+    sql: `INSERT INTO llm_calls (user_id, route, model, tokens_in, tokens_out, cost_usd, latency_ms, prompt_hash)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [
+      input.userId,
+      input.route,
+      input.model,
+      input.tokensIn,
+      input.tokensOut,
+      input.costUsd,
+      input.latencyMs,
+      input.promptHash,
+    ],
+  });
+}
+
+export interface LlmUsageBreakdownEntry {
+  callCount: number;
+  tokensIn: number;
+  tokensOut: number;
+  costUsd: number;
+}
+
+export interface LlmUsageSummary {
+  totalCallCount: number;
+  totalTokensIn: number;
+  totalTokensOut: number;
+  totalCostUsd: number;
+  byRoute: Array<{ route: LlmCallRoute } & LlmUsageBreakdownEntry>;
+  byModel: Array<{ model: string } & LlmUsageBreakdownEntry>;
+}
+
+export async function getLlmUsageForUser(
+  userId: string,
+  sinceIso: string,
+): Promise<LlmUsageSummary> {
+  const totalsResult = await client.execute({
+    sql: `SELECT
+            COUNT(*)                  AS call_count,
+            COALESCE(SUM(tokens_in),  0) AS tokens_in,
+            COALESCE(SUM(tokens_out), 0) AS tokens_out,
+            COALESCE(SUM(cost_usd),   0) AS cost_usd
+          FROM llm_calls
+          WHERE user_id = ? AND datetime(created_at) >= datetime(?)`,
+    args: [userId, sinceIso],
+  });
+
+  const totalsRow = totalsResult.rows[0] ?? {};
+  const totalCallCount = Number(totalsRow.call_count ?? 0);
+  const totalTokensIn = Number(totalsRow.tokens_in ?? 0);
+  const totalTokensOut = Number(totalsRow.tokens_out ?? 0);
+  const totalCostUsd = Number(totalsRow.cost_usd ?? 0);
+
+  const byRouteResult = await client.execute({
+    sql: `SELECT
+            route,
+            COUNT(*)                  AS call_count,
+            COALESCE(SUM(tokens_in),  0) AS tokens_in,
+            COALESCE(SUM(tokens_out), 0) AS tokens_out,
+            COALESCE(SUM(cost_usd),   0) AS cost_usd
+          FROM llm_calls
+          WHERE user_id = ? AND datetime(created_at) >= datetime(?)
+          GROUP BY route
+          ORDER BY route ASC`,
+    args: [userId, sinceIso],
+  });
+
+  const byRoute = byRouteResult.rows.map((row) => ({
+    route: row.route as LlmCallRoute,
+    callCount: Number(row.call_count ?? 0),
+    tokensIn: Number(row.tokens_in ?? 0),
+    tokensOut: Number(row.tokens_out ?? 0),
+    costUsd: Number(row.cost_usd ?? 0),
+  }));
+
+  const byModelResult = await client.execute({
+    sql: `SELECT
+            model,
+            COUNT(*)                  AS call_count,
+            COALESCE(SUM(tokens_in),  0) AS tokens_in,
+            COALESCE(SUM(tokens_out), 0) AS tokens_out,
+            COALESCE(SUM(cost_usd),   0) AS cost_usd
+          FROM llm_calls
+          WHERE user_id = ? AND datetime(created_at) >= datetime(?)
+          GROUP BY model
+          ORDER BY model ASC`,
+    args: [userId, sinceIso],
+  });
+
+  const byModel = byModelResult.rows.map((row) => ({
+    model: row.model as string,
+    callCount: Number(row.call_count ?? 0),
+    tokensIn: Number(row.tokens_in ?? 0),
+    tokensOut: Number(row.tokens_out ?? 0),
+    costUsd: Number(row.cost_usd ?? 0),
+  }));
+
+  return { totalCallCount, totalTokensIn, totalTokensOut, totalCostUsd, byRoute, byModel };
+}
+
+// ─── Message Feedback ────────────────────────────────────────────────────────
+
+export type FeedbackThumb = "up" | "down";
+
+export async function setMessageFeedback(
+  messageId: number,
+  userId: string,
+  thumb: FeedbackThumb,
+  note?: string | null,
+): Promise<boolean> {
+  const result = await client.execute({
+    sql: `UPDATE chat_messages
+            SET feedback_thumb = ?,
+                feedback_note  = ?,
+                feedback_at    = datetime('now')
+          WHERE id      = ?
+            AND user_id = ?
+            AND role    = 'assistant'`,
+    args: [thumb, note ?? null, messageId, userId],
+  });
+  return result.rowsAffected > 0;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

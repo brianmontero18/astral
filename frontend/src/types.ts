@@ -48,10 +48,24 @@ export interface UserProfile {
 
 // ─── Intake ───────────────────────────────────────────────────────────────────
 
+export type TipoNegocio =
+  | "mentora"
+  | "coach"
+  | "marca_personal"
+  | "servicios_premium"
+  | "branding"
+  | "otro";
+
+/**
+ * Intake del negocio. Schema espejo del backend.
+ * Premium (8 campos extra) llega en bead astral-y3c.11.
+ */
 export interface Intake {
   actividad?: string;
-  objetivos?: string;
-  desafios?: string;
+  desafio_actual?: string;
+  tipo_de_negocio?: TipoNegocio;
+  objetivo_12m?: string;
+  voz_marca?: string;
 }
 
 // ─── Report ───────────────────────────────────────────────────────────────────
@@ -205,6 +219,26 @@ export interface AdminUserDetail {
   };
   createdAt: string;
   updatedAt: string;
+}
+
+export type LlmCallRoute = "chat" | "chat_stream" | "report" | "extraction";
+
+export interface AdminUserLlmUsageBreakdownEntry {
+  callCount: number;
+  tokensIn: number;
+  tokensOut: number;
+  costUsd: number;
+}
+
+export interface AdminUserLlmUsage {
+  days: number;
+  since: string;
+  totalCallCount: number;
+  totalTokensIn: number;
+  totalTokensOut: number;
+  totalCostUsd: number;
+  byRoute: Array<{ route: LlmCallRoute } & AdminUserLlmUsageBreakdownEntry>;
+  byModel: Array<{ model: string } & AdminUserLlmUsageBreakdownEntry>;
 }
 
 export interface AssetMeta {
