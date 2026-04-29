@@ -31,22 +31,15 @@ function AuthShell({ children }: { children: ReactNode }) {
         <div className="astral-auth-wordmark">Astral Guide</div>
         <div className="astral-auth-topnav">
           <a
-            className="astral-auth-topnav-link astral-auth-topnav-muted"
+            className="astral-auth-topnav-link"
             href={supportHref}
             rel="noreferrer"
             target={supportHref.startsWith("mailto:") ? undefined : "_blank"}
           >
-            Support
-          </a>
-          <span className="astral-auth-topnav-active">Sign In</span>
-          <a
-            aria-label="Support"
-            className="astral-auth-topnav-mark"
-            href={supportHref}
-            rel="noreferrer"
-            target={supportHref.startsWith("mailto:") ? undefined : "_blank"}
-          >
-            ✦
+            <span aria-hidden="true" className="astral-auth-topnav-mark">
+              ✦
+            </span>
+            <span>Support</span>
           </a>
         </div>
       </header>
@@ -474,9 +467,9 @@ export function AuthScreen() {
                   htmlFor="astral-auth-email"
                 >
                   <input
-                  id="astral-auth-email"
-                  className="astral-auth-input astral-auth-input-email"
-                  type="email"
+                    id="astral-auth-email"
+                    className="astral-auth-input astral-auth-input-email"
+                    type="email"
                     autoComplete="email"
                     autoFocus
                     aria-label="Email"
@@ -487,11 +480,14 @@ export function AuthScreen() {
                 </label>
                 <button
                   className="astral-auth-primary"
-                  disabled={busy || email.trim().length === 0}
+                  disabled={busy}
                   type="submit"
                 >
                   {busy ? "Enviando..." : "Enviar enlace mágico"}
                 </button>
+                <p className="astral-auth-form-hint">
+                  Sin contraseñas. Te enviamos un enlace de un solo uso.
+                </p>
               </form>
             ) : null}
 
@@ -604,11 +600,13 @@ export function AuthScreen() {
             ) : null}
           </div>
 
-          <div className="astral-auth-card-footer">
-            <div className="astral-auth-support-copy">
-              Si algo no llega, revisa spam o vuelve a pedir el acceso desde aquí.
+          {step !== "email" ? (
+            <div className="astral-auth-card-footer">
+              <div className="astral-auth-support-copy">
+                Si algo no llega, revisá spam o pedí un nuevo enlace.
+              </div>
             </div>
-          </div>
+          ) : null}
         </div>
       </section>
     );
