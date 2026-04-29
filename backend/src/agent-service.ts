@@ -9,6 +9,9 @@ import { createHash } from "node:crypto";
 
 import type { WeeklyTransits, TransitImpact } from "./transit-service.js";
 import type { Intake } from "./report/types.js";
+import { HD_CONDENSED } from "./knowledge/hd-condensed.js";
+import { BUSINESS_PACK_V1 } from "./knowledge/business-pack-v1.js";
+import { HD_DETECTION_RULES } from "./knowledge/detection-rules.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -60,6 +63,15 @@ export interface ChatMessage {
 
 // ─── Prompt builder ───────────────────────────────────────────────────────────
 
+const TIPO_NEGOCIO_PROMPT_LABELS: Record<NonNullable<Intake["tipo_de_negocio"]>, string> = {
+  mentora: "mentora",
+  coach: "coach",
+  marca_personal: "marca personal",
+  servicios_premium: "servicios premium / high-ticket",
+  branding: "branding",
+  otro: "otro",
+};
+
 /**
  * Builds the optional `<business_context>` block injected into the system
  * prompt when the user has filled the intake. Returns an empty string when
@@ -72,9 +84,11 @@ export interface ChatMessage {
 function buildBusinessContextBlock(intake?: Intake): string {
   if (!intake) return "";
   const parts: string[] = [];
-  if (intake.actividad) parts.push(`  <actividad>${intake.actividad}</actividad>`);
-  if (intake.objetivos) parts.push(`  <objetivos>${intake.objetivos}</objetivos>`);
-  if (intake.desafios)  parts.push(`  <desafios>${intake.desafios}</desafios>`);
+  if (intake.actividad)        parts.push(`  <actividad>${intake.actividad}</actividad>`);
+  if (intake.tipo_de_negocio)  parts.push(`  <tipo_de_negocio>${TIPO_NEGOCIO_PROMPT_LABELS[intake.tipo_de_negocio]}</tipo_de_negocio>`);
+  if (intake.desafio_actual)   parts.push(`  <desafio_actual>${intake.desafio_actual}</desafio_actual>`);
+  if (intake.objetivo_12m)     parts.push(`  <objetivo_12m>${intake.objetivo_12m}</objetivo_12m>`);
+  if (intake.voz_marca)        parts.push(`  <voz_marca>${intake.voz_marca}</voz_marca>`);
   if (parts.length === 0) return "";
   return `\n<business_context>\n${parts.join("\n")}\n</business_context>`;
 }
@@ -165,6 +179,16 @@ Tu función: leer la energía disponible en los tránsitos, cruzarla con el body
 
 - NO uses asteriscos, markdown ni símbolos de formato. Solo texto plano.
 - No escribas texto introductorio antes del primer emoji en reportes.
+
+# Marco de Conocimiento
+
+Esta sección te da el knowledge canónico para anclar tus respuestas. NO la cites textualmente — usala como referencia interna y traduciendo a la situación específica del usuario.
+
+${HD_CONDENSED}
+
+${BUSINESS_PACK_V1}
+
+${HD_DETECTION_RULES}
 
 # Contexto
 

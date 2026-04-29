@@ -450,9 +450,14 @@ export default function App() {
                 {currentView === "intake" && (
                   <IntakeView
                     initialIntake={intake}
-                    hasExistingReport={!!report}
+                    submitLabel={report ? "Regenerar mi informe" : "Generar mi informe"}
+                    description="Completá lo que necesites para que tu informe llegue específico. Los dos campos con * son obligatorios — ya los completaste en tu onboarding, podés ajustarlos si querés."
+                    secondaryAction={
+                      report
+                        ? { label: "Volver al informe", onClick: () => handleNavigate("report") }
+                        : undefined
+                    }
                     onSubmit={(data) => handleGenerateReport(data)}
-                    onSkip={() => report ? handleNavigate("report") : handleGenerateReport()}
                   />
                 )}
                 {currentView === "report" && (

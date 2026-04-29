@@ -1,7 +1,28 @@
+export type TipoNegocio =
+  | "mentora"
+  | "coach"
+  | "marca_personal"
+  | "servicios_premium"
+  | "branding"
+  | "otro";
+
+/**
+ * Intake del negocio del usuario (esquema mínimo, 5 campos).
+ *
+ * Los 2 primeros (actividad, desafio_actual) son obligatorios en los forms
+ * del frontend pero opcionales en el TYPE para tolerar JSON parcial cargado
+ * desde DB (ej: rows antiguas con alguno vacío).
+ *
+ * El form premium con 8 campos extendidos (etapa_negocio, oferta_principal,
+ * cliente_ideal, ritmo_actual, que_te_drena, que_te_enciende, mayor_bloqueo,
+ * decision_pendiente) llega en bead astral-y3c.11 — follow-up.
+ */
 export interface Intake {
   actividad?: string;
-  objetivos?: string;
-  desafios?: string;
+  desafio_actual?: string;
+  tipo_de_negocio?: TipoNegocio;
+  objetivo_12m?: string;
+  voz_marca?: string;
 }
 
 export type ReportTier = "free" | "premium";

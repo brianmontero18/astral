@@ -1,18 +1,84 @@
 import { useState, useEffect } from "react";
 import { useVoiceRecorder } from "../hooks/useVoiceRecorder";
-import type { Intake } from "../types";
+import type { Intake, TipoNegocio } from "../types";
+
+interface SecondaryAction {
+  label: string;
+  onClick: () => void;
+}
 
 interface Props {
   initialIntake?: Intake;
-  hasExistingReport?: boolean;
+  /** Texto del botón primario. Default: "Continuar". */
+  submitLabel?: string;
+  /** Subtítulo bajo el header (descripción del paso). Default: copy genérico. */
+  description?: string;
+  /** Opcional: botón secundario (ej: "Volver al informe", "Cancelar"). */
+  secondaryAction?: SecondaryAction;
   onSubmit: (intake: Intake) => void;
-  onSkip: () => void;
 }
 
-const FIELDS: { key: keyof Intake; label: string; placeholder: string }[] = [
-  { key: "actividad", label: "¿A qué te dedicás?", placeholder: "Ej: Soy diseñadora freelance..." },
-  { key: "objetivos", label: "¿Qué buscás en este momento?", placeholder: "Ej: Quiero entender por qué me agoto..." },
-  { key: "desafios", label: "¿Cuál es tu mayor desafío?", placeholder: "Ej: Me cuesta decir que no a proyectos..." },
+type TextField = {
+  kind: "textarea";
+  key: "actividad" | "desafio_actual" | "objetivo_12m" | "voz_marca";
+  label: string;
+  placeholder: string;
+  required: boolean;
+};
+
+type SelectField = {
+  kind: "select";
+  key: "tipo_de_negocio";
+  label: string;
+  options: { value: TipoNegocio; label: string }[];
+};
+
+type FieldDef = TextField | SelectField;
+
+const TIPO_NEGOCIO_OPTIONS: { value: TipoNegocio; label: string }[] = [
+  { value: "mentora", label: "Mentora" },
+  { value: "coach", label: "Coach" },
+  { value: "marca_personal", label: "Marca personal" },
+  { value: "servicios_premium", label: "Servicios premium / high-ticket" },
+  { value: "branding", label: "Branding" },
+  { value: "otro", label: "Otro" },
+];
+
+const FIELDS: FieldDef[] = [
+  {
+    kind: "textarea",
+    key: "actividad",
+    label: "¿A qué te dedicás?",
+    placeholder: "Ej: Mentora de mujeres que están armando su negocio holístico",
+    required: true,
+  },
+  {
+    kind: "textarea",
+    key: "desafio_actual",
+    label: "¿Qué desafío tenés ahora?",
+    placeholder: "Ej: Me cuesta sostener el ritmo de contenido sin sentirme drenada",
+    required: true,
+  },
+  {
+    kind: "select",
+    key: "tipo_de_negocio",
+    label: "Tipo de negocio (opcional)",
+    options: TIPO_NEGOCIO_OPTIONS,
+  },
+  {
+    kind: "textarea",
+    key: "objetivo_12m",
+    label: "¿Qué querés concretar en los próximos 12 meses? (opcional)",
+    placeholder: "Ej: Lanzar mi programa grupal con 15 mujeres y dejar de hacer 1:1",
+    required: false,
+  },
+  {
+    kind: "textarea",
+    key: "voz_marca",
+    label: "¿Cómo describirías el tono de tu marca? (opcional)",
+    placeholder: "Ej: Cálido pero directo, con humor seco",
+    required: false,
+  },
 ];
 
 function MicButton({ onTranscription }: { onTranscription: (text: string) => void }) {
@@ -88,106 +154,265 @@ function MicButton({ onTranscription }: { onTranscription: (text: string) => voi
   );
 }
 
-export function IntakeView({ initialIntake, hasExistingReport, onSubmit, onSkip }: Props) {
+const DEFAULT_DESCRIPTION =
+  "Completá estos campos para que las respuestas y reportes lleguen específicas a tu negocio. Los dos primeros son obligatorios — los demás te ayudan a profundizar pero podés saltarlos.";
+
+export function IntakeView({
+  initialIntake,
+  submitLabel = "Continuar",
+  description = DEFAULT_DESCRIPTION,
+  secondaryAction,
+  onSubmit,
+}: Props) {
   const [values, setValues] = useState<Intake>({
     actividad: initialIntake?.actividad ?? "",
-    objetivos: initialIntake?.objetivos ?? "",
-    desafios: initialIntake?.desafios ?? "",
+    desafio_actual: initialIntake?.desafio_actual ?? "",
+    tipo_de_negocio: initialIntake?.tipo_de_negocio,
+    objetivo_12m: initialIntake?.objetivo_12m ?? "",
+    voz_marca: initialIntake?.voz_marca ?? "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [showRequiredHint, setShowRequiredHint] = useState(false);
 
-  const handleChange = (key: keyof Intake, value: string) => {
+  const handleTextChange = (key: TextField["key"], value: string) => {
     setValues((prev) => ({ ...prev, [key]: value }));
+    if (showRequiredHint) setShowRequiredHint(false);
+  };
+
+  const handleSelectChange = (key: SelectField["key"], value: string) => {
+    setValues((prev) => ({
+      ...prev,
+      [key]: value === "" ? undefined : (value as TipoNegocio),
+    }));
+  };
+
+  const requiredOk =
+    (values.actividad ?? "").trim().length > 0 &&
+    (values.desafio_actual ?? "").trim().length > 0;
+
+  const handleSubmit = () => {
+    if (submitting) return;
+    if (!requiredOk) {
+      setShowRequiredHint(true);
+      return;
+    }
+    setSubmitting(true);
+    // Strip empty optionals so the persisted JSON stays clean.
+    const cleaned: Intake = {
+      actividad: values.actividad?.trim(),
+      desafio_actual: values.desafio_actual?.trim(),
+      tipo_de_negocio: values.tipo_de_negocio,
+      objetivo_12m: values.objetivo_12m?.trim() || undefined,
+      voz_marca: values.voz_marca?.trim() || undefined,
+    };
+    onSubmit(cleaned);
   };
 
   return (
-    <div style={{
-      flex: 1, overflowY: "auto", display: "flex", flexDirection: "column",
-      alignItems: "center", padding: "32px 16px",
-    }}>
+    <div
+      style={{
+        flex: 1,
+        overflowY: "auto",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        padding: "32px 16px",
+      }}
+    >
       <div style={{ maxWidth: 760, width: "100%" }}>
-        <div style={{
-          color: "var(--color-primary)", fontSize: 10, letterSpacing: "0.2em",
-          fontWeight: 600, marginBottom: 8, fontFamily: "var(--font-sans)",
-        }}>
-          ✦ CONTEXTO PERSONAL
+        <div
+          style={{
+            color: "var(--color-primary)",
+            fontSize: 10,
+            letterSpacing: "0.2em",
+            fontWeight: 600,
+            marginBottom: 8,
+            fontFamily: "var(--font-sans)",
+          }}
+        >
+          ✦ TU NEGOCIO
         </div>
-        <h2 style={{
-          fontFamily: "var(--font-serif)", color: "var(--text-main)",
-          fontSize: 24, fontWeight: 400, margin: "0 0 8px",
-        }}>
-          Personalizá tu informe
+        <h2
+          style={{
+            fontFamily: "var(--font-serif)",
+            color: "var(--text-main)",
+            fontSize: 24,
+            fontWeight: 400,
+            margin: "0 0 8px",
+          }}
+        >
+          Contame de tu negocio
         </h2>
-        <p style={{
-          color: "var(--text-muted)", fontSize: 13, lineHeight: 1.6,
-          margin: "0 0 28px", fontWeight: 300,
-        }}>
-          Completá estos campos para que tu informe incluya interpretaciones conectadas
-          con tu vida real. Podés escribir o usar el micrófono.
+        <p
+          style={{
+            color: "var(--text-muted)",
+            fontSize: 13,
+            lineHeight: 1.6,
+            margin: "0 0 28px",
+            fontWeight: 300,
+          }}
+        >
+          {description}
         </p>
 
-        {FIELDS.map(({ key, label, placeholder }) => (
-          <div key={key} style={{ marginBottom: 20 }}>
-            <div style={{
-              display: "flex", justifyContent: "space-between", alignItems: "center",
-              marginBottom: 8,
-            }}>
-              <label htmlFor={`intake-${key}`} style={{
-                color: "var(--text-main)", fontSize: 13, fontWeight: 500,
-                fontFamily: "var(--font-sans)",
-              }}>
-                {label}
-              </label>
-              <MicButton
-                onTranscription={(text) => handleChange(key, (values[key] ?? "") + (values[key] ? " " : "") + text)}
-              />
-            </div>
-            <textarea
-              id={`intake-${key}`}
-              value={values[key] ?? ""}
-              onChange={(e) => handleChange(key, e.target.value)}
-              placeholder={placeholder}
-              rows={3}
+        {FIELDS.map((field) => (
+          <div key={field.key} style={{ marginBottom: 20 }}>
+            <div
               style={{
-                width: "100%", background: "rgba(124,111,205,0.06)",
-                border: "1px solid rgba(124,111,205,0.2)", borderRadius: 10,
-                color: "var(--text-main)", padding: "12px 14px", fontSize: 13,
-                fontFamily: "var(--font-sans)", resize: "vertical", lineHeight: 1.6,
-                outline: "none", transition: "border-color 0.2s ease",
-                boxSizing: "border-box",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 8,
               }}
-              onFocus={(e) => { e.target.style.borderColor = "rgba(124,111,205,0.5)" }}
-              onBlur={(e) => { e.target.style.borderColor = "rgba(124,111,205,0.2)" }}
-            />
+            >
+              <label
+                htmlFor={`intake-${field.key}`}
+                style={{
+                  color: "var(--text-main)",
+                  fontSize: 13,
+                  fontWeight: 500,
+                  fontFamily: "var(--font-sans)",
+                }}
+              >
+                {field.label}
+                {field.kind === "textarea" && field.required && (
+                  <span style={{ color: "var(--color-primary)", marginLeft: 4 }}>*</span>
+                )}
+              </label>
+              {field.kind === "textarea" && (
+                <MicButton
+                  onTranscription={(text) =>
+                    handleTextChange(
+                      field.key,
+                      (values[field.key] ?? "") + (values[field.key] ? " " : "") + text,
+                    )
+                  }
+                />
+              )}
+            </div>
+
+            {field.kind === "textarea" ? (
+              <textarea
+                id={`intake-${field.key}`}
+                value={values[field.key] ?? ""}
+                onChange={(e) => handleTextChange(field.key, e.target.value)}
+                placeholder={field.placeholder}
+                rows={3}
+                style={{
+                  width: "100%",
+                  background: "rgba(124,111,205,0.06)",
+                  border: "1px solid rgba(124,111,205,0.2)",
+                  borderRadius: 10,
+                  color: "var(--text-main)",
+                  padding: "12px 14px",
+                  fontSize: 13,
+                  fontFamily: "var(--font-sans)",
+                  resize: "vertical",
+                  lineHeight: 1.6,
+                  outline: "none",
+                  transition: "border-color 0.2s ease",
+                  boxSizing: "border-box",
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "rgba(124,111,205,0.5)";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "rgba(124,111,205,0.2)";
+                }}
+              />
+            ) : (
+              <select
+                id={`intake-${field.key}`}
+                value={values[field.key] ?? ""}
+                onChange={(e) => handleSelectChange(field.key, e.target.value)}
+                style={{
+                  width: "100%",
+                  background: "rgba(124,111,205,0.06)",
+                  border: "1px solid rgba(124,111,205,0.2)",
+                  borderRadius: 10,
+                  color: "var(--text-main)",
+                  padding: "12px 14px",
+                  fontSize: 13,
+                  fontFamily: "var(--font-sans)",
+                  outline: "none",
+                  cursor: "pointer",
+                  boxSizing: "border-box",
+                }}
+              >
+                <option value="">Sin elegir</option>
+                {field.options.map((opt) => (
+                  <option key={opt.value} value={opt.value} style={{ background: "var(--bg-dark)" }}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         ))}
 
+        {showRequiredHint && (
+          <div
+            style={{
+              borderRadius: 12,
+              padding: "10px 14px",
+              marginBottom: 14,
+              background: "rgba(201,107,122,0.08)",
+              border: "1px solid rgba(201,107,122,0.35)",
+              color: "#f0a0b0",
+              fontSize: 12,
+              lineHeight: 1.5,
+            }}
+          >
+            Necesitamos al menos los dos campos marcados con * para que tu agente arranque con contexto real.
+          </div>
+        )}
+
         <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
+          {secondaryAction && (
+            <button
+              onClick={() => {
+                if (!submitting) secondaryAction.onClick();
+              }}
+              disabled={submitting}
+              style={{
+                flex: 1,
+                padding: "14px 20px",
+                borderRadius: 30,
+                background: "transparent",
+                border: "1px solid rgba(124,111,205,0.3)",
+                color: "var(--text-muted)",
+                fontSize: 13,
+                fontWeight: 500,
+                cursor: submitting ? "default" : "pointer",
+                fontFamily: "var(--font-sans)",
+                letterSpacing: "0.03em",
+                transition: "all 0.3s ease",
+                opacity: submitting ? 0.5 : 1,
+              }}
+            >
+              {secondaryAction.label}
+            </button>
+          )}
           <button
-            onClick={() => { if (!submitting) { if (hasExistingReport) { onSkip(); } else { setSubmitting(true); onSkip(); } } }}
+            onClick={handleSubmit}
             disabled={submitting}
             style={{
-              flex: 1, padding: "14px 20px", borderRadius: 30,
-              background: "transparent", border: "1px solid rgba(124,111,205,0.3)",
-              color: "var(--text-muted)", fontSize: 13, fontWeight: 500,
-              cursor: submitting ? "default" : "pointer", fontFamily: "var(--font-sans)", letterSpacing: "0.03em",
-              transition: "all 0.3s ease", opacity: submitting ? 0.5 : 1,
+              flex: secondaryAction ? 2 : 1,
+              padding: "14px 20px",
+              borderRadius: 30,
+              background: "var(--color-primary-dim)",
+              border: "none",
+              color: "var(--text-main)",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: submitting ? "default" : "pointer",
+              fontFamily: "var(--font-sans)",
+              letterSpacing: "0.03em",
+              transition: "all 0.3s ease",
+              opacity: submitting ? 0.6 : 1,
             }}
           >
-            {hasExistingReport ? "Volver al informe" : "Omitir"}
-          </button>
-          <button
-            onClick={() => { if (!submitting) { setSubmitting(true); onSubmit(values); } }}
-            disabled={submitting}
-            style={{
-              flex: 2, padding: "14px 20px", borderRadius: 30,
-              background: "var(--color-primary-dim)", border: "none",
-              color: "var(--text-main)", fontSize: 13, fontWeight: 600,
-              cursor: submitting ? "default" : "pointer", fontFamily: "var(--font-sans)", letterSpacing: "0.03em",
-              transition: "all 0.3s ease", opacity: submitting ? 0.6 : 1,
-            }}
-          >
-            {submitting ? "Generando..." : hasExistingReport ? "✦ Regenerar mi informe" : "✦ Generar mi informe"}
+            {submitting ? "Procesando..." : `✦ ${submitLabel}`}
           </button>
         </div>
       </div>

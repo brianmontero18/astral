@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import type { UserProfile, LocalUser } from "../types";
+import type { UserProfile, LocalUser, Intake } from "../types";
 import {
   uploadAsset,
   extractProfile,
@@ -9,12 +9,13 @@ import {
 } from "../api";
 import { getOnboardingFailureMessage } from "../onboarding-errors";
 import { ChannelChips } from "./ChannelChips";
+import { IntakeView } from "./IntakeView";
 
 interface Props {
   onComplete: (user: LocalUser, profile: UserProfile) => void;
 }
 
-type Step = "welcome" | "name" | "upload" | "extracting" | "review";
+type Step = "welcome" | "name" | "upload" | "extracting" | "review" | "intake";
 
 interface FileSlot {
   file: File | null;
@@ -92,7 +93,23 @@ export function OnboardingFlow({ onComplete }: Props) {
 
   const handleConfirm = () => {
     if (bootstrappedUser && extractedProfile) {
+      // Bridge to the intake step before handing off to the chat. The bodygraph
+      // is the cold/technical artifact; the intake is where the user tells us
+      // about their business so chat answers stop being generic from turn 1.
+      setStep("intake");
+    }
+  };
+
+  const handleIntakeSubmit = async (intake: Intake) => {
+    if (!bootstrappedUser || !extractedProfile) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await updateCurrentUser(extractedProfile.name, extractedProfile, intake);
       onComplete(bootstrappedUser, extractedProfile);
+    } catch (e) {
+      setError(getOnboardingFailureMessage(e));
+      setLoading(false);
     }
   };
 
@@ -364,9 +381,35 @@ export function OnboardingFlow({ onComplete }: Props) {
                 REVERTIR
               </button>
               <button onClick={handleConfirm} className="btn-primary" style={{ flex: 2 }}>
-                EMBARCAR
+                CONTINUAR
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Step: Intake (business context) */}
+        {step === "intake" && (
+          <div className="animate-fade-in" style={{ width: "100%" }}>
+            {error && (
+              <div
+                className="glass-panel"
+                style={{
+                  borderColor: "rgba(201,107,122,0.3)",
+                  padding: "14px 18px",
+                  color: "#f0a0b0",
+                  fontSize: "13px",
+                  marginBottom: "20px",
+                  textAlign: "center",
+                }}
+              >
+                {error}
+              </div>
+            )}
+            <IntakeView
+              submitLabel="Embarcar al chat"
+              description="Antes de cruzar tu diseño con los tránsitos de la semana, necesitamos un poco de contexto sobre tu negocio. Lo mínimo (los dos campos con *) hace que las respuestas sean específicas desde el primer mensaje."
+              onSubmit={handleIntakeSubmit}
+            />
           </div>
         )}
       </div>

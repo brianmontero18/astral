@@ -41,53 +41,89 @@ const TRANSITS: WeeklyTransits = {
 describe("buildSystemPrompt — business_context injection", () => {
   it("does not inject <business_context> when intake is undefined", () => {
     const prompt = buildSystemPrompt(PROFILE, TRANSITS);
-    expect(prompt).not.toContain("<business_context>");
+    expect(prompt).not.toContain("</business_context>");
     expect(prompt).not.toContain("integrá la actividad");
   });
 
   it("does not inject <business_context> when intake has no populated fields", () => {
-    const intake: Intake = { actividad: "", objetivos: "", desafios: "" };
+    const intake: Intake = {
+      actividad: "",
+      desafio_actual: "",
+      objetivo_12m: "",
+      voz_marca: "",
+    };
     const prompt = buildSystemPrompt(PROFILE, TRANSITS, undefined, intake);
-    expect(prompt).not.toContain("<business_context>");
+    expect(prompt).not.toContain("</business_context>");
     expect(prompt).not.toContain("integrá la actividad");
   });
 
   it("injects all fields when the intake is fully populated", () => {
     const intake: Intake = {
       actividad: "Coach de mujeres emprendedoras",
-      objetivos: "Lanzar curso premium en mayo",
-      desafios: "Crear contenido sin sentirme drenada",
+      desafio_actual: "Crear contenido sin sentirme drenada",
+      tipo_de_negocio: "coach",
+      objetivo_12m: "Lanzar curso premium en mayo",
+      voz_marca: "Cálida pero directa",
     };
     const prompt = buildSystemPrompt(PROFILE, TRANSITS, undefined, intake);
-    expect(prompt).toContain("<business_context>");
+    expect(prompt).toContain("</business_context>");
     expect(prompt).toContain("<actividad>Coach de mujeres emprendedoras</actividad>");
-    expect(prompt).toContain("<objetivos>Lanzar curso premium en mayo</objetivos>");
-    expect(prompt).toContain("<desafios>Crear contenido sin sentirme drenada</desafios>");
+    expect(prompt).toContain("<tipo_de_negocio>coach</tipo_de_negocio>");
+    expect(prompt).toContain("<desafio_actual>Crear contenido sin sentirme drenada</desafio_actual>");
+    expect(prompt).toContain("<objetivo_12m>Lanzar curso premium en mayo</objetivo_12m>");
+    expect(prompt).toContain("<voz_marca>Cálida pero directa</voz_marca>");
     expect(prompt).toContain("integrá la actividad");
   });
 
   it("injects only the populated fields when the intake is partial", () => {
-    const intake: Intake = { actividad: "Doula", objetivos: "" };
+    const intake: Intake = { actividad: "Doula", desafio_actual: "Equilibrio" };
     const prompt = buildSystemPrompt(PROFILE, TRANSITS, undefined, intake);
-    expect(prompt).toContain("<business_context>");
+    expect(prompt).toContain("</business_context>");
     expect(prompt).toContain("<actividad>Doula</actividad>");
-    expect(prompt).not.toContain("<objetivos>");
-    expect(prompt).not.toContain("<desafios>");
+    expect(prompt).toContain("<desafio_actual>Equilibrio</desafio_actual>");
+    expect(prompt).not.toContain("<tipo_de_negocio>");
+    expect(prompt).not.toContain("<objetivo_12m>");
+    expect(prompt).not.toContain("<voz_marca>");
   });
 
   it("places <business_context> between </user_profile> and <transits>", () => {
     const intake: Intake = { actividad: "X" };
     const prompt = buildSystemPrompt(PROFILE, TRANSITS, undefined, intake);
-    // The "Reglas de datos" section mentions `<business_context>` and
-    // `<transits>` as plain text references. Anchor on tag forms that appear
-    // ONLY in the actual emitted blocks: the `</…>` closing tag and the
-    // `<transits week=` opening with attribute.
+    // Anchor on tag forms that appear ONLY in the actual emitted blocks:
+    // the `</…>` closing tag and the `<transits week=` opening with attribute.
     const profileEnd = prompt.indexOf("</user_profile>");
     const businessEnd = prompt.indexOf("</business_context>");
     const transitsStart = prompt.indexOf("<transits week=");
     expect(profileEnd).toBeGreaterThan(0);
     expect(businessEnd).toBeGreaterThan(profileEnd);
     expect(transitsStart).toBeGreaterThan(businessEnd);
+  });
+});
+
+describe("buildSystemPrompt — knowledge anchor", () => {
+  it("includes the HD condensed manual section header", () => {
+    const prompt = buildSystemPrompt(PROFILE, TRANSITS);
+    expect(prompt).toContain("# Marco de Conocimiento");
+    expect(prompt).toContain("CONOCIMIENTO BASE DE DISEÑO HUMANO");
+  });
+
+  it("includes the business pack v1", () => {
+    const prompt = buildSystemPrompt(PROFILE, TRANSITS);
+    expect(prompt).toContain("CONOCIMIENTO BASE DE NEGOCIO HOLÍSTICO");
+  });
+
+  it("includes the HD detection rules", () => {
+    const prompt = buildSystemPrompt(PROFILE, TRANSITS);
+    expect(prompt).toContain("REGLAS CRÍTICAS DE DISEÑO HUMANO");
+    expect(prompt).toContain("AUTORIDAD JERÁRQUICA");
+  });
+
+  it("places knowledge block before <user_profile>", () => {
+    const prompt = buildSystemPrompt(PROFILE, TRANSITS);
+    const knowledge = prompt.indexOf("# Marco de Conocimiento");
+    const profile = prompt.indexOf("<user_profile name=");
+    expect(knowledge).toBeGreaterThan(0);
+    expect(profile).toBeGreaterThan(knowledge);
   });
 });
 

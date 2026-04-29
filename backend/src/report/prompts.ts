@@ -3,12 +3,24 @@ import type { Intake } from "./types.js";
 
 const SPANISH_RULE = "Responde EXCLUSIVAMENTE en español. No uses terminología en inglés para conceptos de Diseño Humano.";
 
+const TIPO_NEGOCIO_LABELS: Record<NonNullable<Intake["tipo_de_negocio"]>, string> = {
+  mentora: "Mentora",
+  coach: "Coach",
+  marca_personal: "Marca personal",
+  servicios_premium: "Servicios premium / high-ticket",
+  branding: "Branding",
+  otro: "Otro",
+};
+
 function intakeBlock(intake?: Intake): string {
-  if (!intake?.actividad && !intake?.objetivos && !intake?.desafios) return "";
+  if (!intake) return "";
   const parts: string[] = [];
   if (intake.actividad) parts.push(`Actividad: ${intake.actividad}`);
-  if (intake.objetivos) parts.push(`Objetivos: ${intake.objetivos}`);
-  if (intake.desafios) parts.push(`Desafíos: ${intake.desafios}`);
+  if (intake.tipo_de_negocio) parts.push(`Tipo de negocio: ${TIPO_NEGOCIO_LABELS[intake.tipo_de_negocio]}`);
+  if (intake.desafio_actual) parts.push(`Desafío actual: ${intake.desafio_actual}`);
+  if (intake.objetivo_12m) parts.push(`Objetivo a 12 meses: ${intake.objetivo_12m}`);
+  if (intake.voz_marca) parts.push(`Voz de su marca: ${intake.voz_marca}`);
+  if (parts.length === 0) return "";
   return `\n\nContexto personal del usuario:\n${parts.join("\n")}`;
 }
 
