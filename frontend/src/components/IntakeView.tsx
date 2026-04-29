@@ -240,8 +240,8 @@ export function IntakeView({
     >
       <div style={{ maxWidth: 760, width: "100%" }}>
         <div style={{
-          color: "var(--color-gold-deep)", fontSize: 10, letterSpacing: "0.22em",
-          fontWeight: 700, marginBottom: 8, fontFamily: "var(--font-sans)", textTransform: "uppercase",
+          color: "var(--color-gold)", fontSize: 11, letterSpacing: "0.24em",
+          fontWeight: 600, marginBottom: 8, fontFamily: "var(--font-sans)", textTransform: "uppercase",
         }}>
           Tu negocio
         </div>
@@ -339,13 +339,13 @@ export function IntakeView({
         {showRequiredHint && (
           <div
             style={{
-              borderRadius: 12,
+              borderRadius: 10,
               padding: "10px 14px",
               marginBottom: 14,
-              background: "rgba(201,107,122,0.08)",
-              border: "1px solid rgba(201,107,122,0.35)",
-              color: "#f3c2c2",
-              fontSize: 12,
+              background: "rgba(196, 96, 96, 0.14)",
+              border: "1px solid rgba(196, 96, 96, 0.4)",
+              color: "#9a3737",
+              fontSize: 13,
               lineHeight: 1.5,
             }}
           >
@@ -360,14 +360,8 @@ export function IntakeView({
                 if (!submitting) secondaryAction.onClick();
               }}
               disabled={submitting}
-              style={{
-                flex: 1, padding: "14px 20px", borderRadius: 8,
-                background: "transparent", border: "1px solid var(--surface-deeper)",
-                color: "var(--text-on-light)", fontSize: 12, fontWeight: 600,
-                cursor: submitting ? "default" : "pointer", fontFamily: "var(--font-sans)",
-                letterSpacing: "0.14em", textTransform: "uppercase",
-                transition: "all 0.3s ease", opacity: submitting ? 0.5 : 1,
-              }}
+              className="btn-secondary"
+              style={{ flex: 1 }}
             >
               {secondaryAction.label}
             </button>
@@ -375,15 +369,8 @@ export function IntakeView({
           <button
             onClick={handleSubmit}
             disabled={submitting}
-            style={{
-              flex: secondaryAction ? 2 : 1, padding: "14px 20px", borderRadius: 8,
-              background: "linear-gradient(135deg, #e0c081 0%, #9d7f4d 100%)",
-              border: "1px solid var(--color-primary)",
-              color: "var(--surface-deeper)", fontSize: 12, fontWeight: 700,
-              cursor: submitting ? "default" : "pointer", fontFamily: "var(--font-sans)",
-              letterSpacing: "0.14em", textTransform: "uppercase",
-              transition: "all 0.3s ease", opacity: submitting ? 0.6 : 1,
-            }}
+            className="astral-auth-primary"
+            style={{ flex: secondaryAction ? 2 : 1 }}
           >
             {submitting ? "Procesando..." : submitLabel}
           </button>

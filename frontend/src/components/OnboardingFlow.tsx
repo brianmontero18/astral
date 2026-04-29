@@ -452,13 +452,15 @@ export function OnboardingFlow({ onComplete }: Props) {
           <div className="animate-fade-in" style={{ width: "100%" }}>
             {error && (
               <div
-                className="glass-panel"
                 style={{
-                  borderColor: "rgba(201,107,122,0.3)",
-                  padding: "14px 18px",
-                  color: "#f0a0b0",
-                  fontSize: "13px",
-                  marginBottom: "20px",
+                  borderRadius: 10,
+                  padding: "12px 16px",
+                  marginBottom: 20,
+                  background: "rgba(196, 96, 96, 0.14)",
+                  border: "1px solid rgba(196, 96, 96, 0.4)",
+                  color: "#9a3737",
+                  fontSize: 13,
+                  lineHeight: 1.55,
                   textAlign: "center",
                 }}
               >
