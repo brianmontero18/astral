@@ -38,28 +38,28 @@ import { FLAGS } from "../config/flags.js";
 import { calculateCost } from "../llm/pricing.js";
 import {
   MEMORY_WRITER_MODEL,
+  MEMORY_WRITER_RECENT_MESSAGES_WINDOW,
   runMemoryWriter,
   shouldTriggerMemoryWriter,
 } from "../memory-writer.js";
-import { hashSystemPrompt as hashWriterPrompt } from "../agent-service.js";
 import type { Intake } from "../report/types.js";
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
 
 /**
- * Fire-and-forget memory writer trigger (Sprint 2).
+ * Fire-and-forget memory writer trigger.
  *
- * Called AFTER the chat response is sent + persisted. Awaits nothing — the
+ * Called after the chat response is sent + persisted. Awaits nothing — the
  * user already has their reply. Failures are logged at warn level but never
- * propagate. Uses `void` so the linter doesn't complain about the promise.
+ * propagate.
  *
- * The trigger gate (FLAGS check + turn-count cadence) is evaluated here so
- * each call site (sync chat + streaming chat) stays a one-liner.
+ * Memory is re-read inside the closure (not captured at the call site) so a
+ * fast follow-up turn can't feed the writer a snapshot that pre-dates the
+ * previous writer's commit.
  */
 function triggerMemoryWriterAsync(
   app: FastifyInstance,
   userId: string,
-  currentMemory: string,
 ): void {
   if (!FLAGS.MEMORY_LIVING_DOCUMENT) return;
 
@@ -68,10 +68,13 @@ function triggerMemoryWriterAsync(
       const total = await getTotalUserMessageCount(userId);
       if (!shouldTriggerMemoryWriter(total)) return;
 
-      const recent = await getRecentChatMessages(userId, 6);
+      const user = await getUser(userId);
+      if (!user) return;
+
+      const recent = await getRecentChatMessages(userId, MEMORY_WRITER_RECENT_MESSAGES_WINDOW);
       if (recent.length === 0) return;
 
-      const result = await runMemoryWriter(currentMemory, recent, OPENAI_KEY);
+      const result = await runMemoryWriter(user.memory_md, recent, OPENAI_KEY);
 
       if (FLAGS.LLM_TELEMETRY) {
         try {
@@ -87,7 +90,7 @@ function triggerMemoryWriterAsync(
               result.meta.usage.completionTokens,
             ),
             latencyMs: result.meta.latencyMs,
-            promptHash: hashWriterPrompt(result.meta.systemPrompt),
+            promptHash: hashSystemPrompt(result.meta.systemPrompt),
           });
         } catch (err) {
           app.log.warn({ err, userId }, "memory writer telemetry insert failed");
@@ -172,7 +175,7 @@ export async function chatRoutes(app: FastifyInstance) {
     let userPlan: "free" | "basic" | "premium" | undefined;
     let messageLimit: number | null = null;
     let userIntake: Intake | null = null;
-    let userMemory: string = "";
+    let userMemory = "";
 
     if (currentUser.kind === "linked") {
       const user = await getUser(currentUser.user.id);
@@ -240,9 +243,7 @@ export async function chatRoutes(app: FastifyInstance) {
         }
         assistantMsgId = await saveChatMessage(persistedUserId, "assistant", replyText);
 
-        // Sprint 2 — kick the writer once the user has their reply persisted.
-        // Fire-and-forget by design; never awaits.
-        triggerMemoryWriterAsync(app, persistedUserId, userMemory);
+        triggerMemoryWriterAsync(app, persistedUserId);
       }
 
       return reply.send({ reply: replyText, transits_used: transits.fetchedAt, userMsgId, assistantMsgId });
@@ -276,7 +277,7 @@ export async function chatRoutes(app: FastifyInstance) {
     let userPlan: "free" | "basic" | "premium" | undefined;
     let messageLimit: number | null = null;
     let userIntake: Intake | null = null;
-    let userMemory: string = "";
+    let userMemory = "";
 
     if (currentUser.kind === "linked") {
       const user = await getUser(currentUser.user.id);
@@ -356,8 +357,7 @@ export async function chatRoutes(app: FastifyInstance) {
         }
         assistantMsgId = await saveChatMessage(persistedUserId, "assistant", fullText);
 
-        // Sprint 2 — kick the writer once the user has their reply persisted.
-        triggerMemoryWriterAsync(app, persistedUserId, userMemory);
+        triggerMemoryWriterAsync(app, persistedUserId);
       }
 
       // Send done event with transits info and persisted message ids

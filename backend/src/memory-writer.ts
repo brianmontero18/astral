@@ -1,5 +1,5 @@
 /**
- * Memory Writer (Sprint 2 — Living Document pattern)
+ * Memory Writer (Living Document pattern, à la Mem0).
  *
  * Reads the user's current `memory_md` and the last few chat turns, asks a
  * cheap LLM to merge them, and returns either the updated markdown or a
@@ -7,24 +7,19 @@
  *
  * Design notes — read before changing:
  *
- * 1. We deliberately avoid the "structured ops JSON" variant of the Mem0
- *    pattern. Returning a full markdown is harder to corrupt than a list of
- *    ADD/UPDATE/DELETE that the code then has to apply. The LLM still
- *    *thinks* in those operations (the system prompt forces it) — it just
- *    emits the merged result instead of describing the steps.
+ * 1. The LLM is told to think in ADD/UPDATE/DELETE/NOOP operations but emit
+ *    the merged markdown directly, not a JSON ops list. Returning a full
+ *    document is harder to corrupt than a parser-and-apply step.
  *
- * 2. The writer is the ONLY caller of `updateUserMemory` in the chat path.
- *    No other code path mutates `memory_md`. This keeps the no-overwrite-
- *    blind invariant trivially auditable.
+ * 2. This module is the only caller of `updateUserMemory` in the chat path.
+ *    No other code mutates `memory_md`. That keeps the no-overwrite-blind
+ *    invariant trivially auditable.
  *
- * 3. NOOP is a first-class output. The LLM is told to emit literally `NOOP`
- *    when nothing changed. Saving a no-op markdown would still bump
- *    `updated_at` and waste a write — instead the caller skips the DB
- *    update entirely. Tests assert this.
+ * 3. NOOP is a first-class output. The caller skips the DB write entirely
+ *    on NOOP so `updated_at` stays stable across no-op runs.
  *
  * 4. The system prompt is intentionally cache-friendly: zero timestamps,
- *    zero per-call data. The only volatile input is the user-message block.
- *    OpenAI auto-cache hits the system prompt across all writer calls.
+ *    zero per-call data. Only the user-message block varies between calls.
  */
 
 import type { AgentCallMeta, ChatMessage, LlmUsage } from "./agent-service.js";
@@ -146,7 +141,9 @@ export async function runMemoryWriter(
     .replace(/\n```\s*$/, "")
     .trim();
 
-  // Defence-in-depth on rule 9.
+  // The system prompt asks the LLM to self-cap; this slice is the safety
+  // net against a runaway response that would otherwise blow up every
+  // subsequent chat's system prompt.
   const capped = cleaned.length > MEMORY_MAX_CHARS
     ? cleaned.slice(0, MEMORY_MAX_CHARS)
     : cleaned;
@@ -162,10 +159,22 @@ export async function runMemoryWriter(
 }
 
 /**
- * Trigger policy: how many user messages between writer runs. The first run
- * happens at message #1 (so memory starts populating immediately); after that
- * every Nth user message kicks a refresh. Keeps the writer's average cost
- * bounded relative to the chat cost.
+ * How many of the most recent chat messages to feed the writer per run. Six
+ * (~3 user + 3 assistant) keeps the writer prompt cheap while still giving
+ * enough context to extract facts from the latest exchange.
+ */
+export const MEMORY_WRITER_RECENT_MESSAGES_WINDOW = 6;
+
+/**
+ * Cadence: counts at which the writer runs.
+ *
+ * Fires on the very first user message so memory starts populating from
+ * turn one; after that, fires whenever the lifetime user-message count is a
+ * multiple of N (N=3 by default → counts 3, 6, 9, …).
+ *
+ * Stateless by design: no per-user "last fired at" needs to be tracked.
+ * The trade-off is one short interval (1 → 3) before the cadence becomes
+ * regular. Acceptable because the early refresh is desirable.
  */
 export const MEMORY_WRITER_TRIGGER_EVERY_N_USER_TURNS = 3;
 

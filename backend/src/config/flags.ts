@@ -24,10 +24,11 @@ export const FLAGS = {
   LLM_TELEMETRY: envBool("FEATURE_LLM_TELEMETRY", true),
 
   /**
-   * Persistent memory layer (Sprint 2). When ON: chat reads `users.memory_md`
-   * and injects it as `<user_memory>`; after every Nth user turn the writer
-   * extracts/merges facts into the markdown asynchronously. When OFF the
-   * column is ignored on both sides — feature is fully reversible by config.
+   * Persistent memory layer (Living Document). When ON: chat reads
+   * `users.memory_md` and injects it as `<user_memory>`; after every Nth
+   * user turn the writer extracts/merges facts into the markdown
+   * asynchronously. When OFF the column is ignored on both sides — feature
+   * is fully reversible by config.
    */
   MEMORY_LIVING_DOCUMENT: envBool("FEATURE_MEMORY_LIVING_DOCUMENT", true),
 } as const;

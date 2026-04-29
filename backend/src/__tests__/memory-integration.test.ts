@@ -1,18 +1,19 @@
 /**
  * Memory Integration — Two-turn end-to-end test for the Living Document.
  *
- * Bead astral-y3c.2 DoD: "dos turns separados — la respuesta del segundo usa
- * fact mencionado en el primero". This file is the contract test for that.
+ * Contract: a fact persisted by the writer after turn 1 must reach the chat
+ * system prompt on turn 2.
  *
  * Strategy: mock the LLM call sites (chat agent + memory writer) so the test
  * never touches OpenAI, but DO exercise the real route handlers, the real
  * trigger-cadence policy, the real DB column, and the real wiring between
- * `triggerMemoryWriterAsync` and `runAstralAgent`. That is the surface
- * Sprint 2 actually owns; mocking deeper would erase the integration value.
+ * `triggerMemoryWriterAsync` and `runAstralAgent`. Mocking deeper would
+ * erase the integration value.
  *
  * Fire-and-forget timing is handled with `vi.waitFor` against the spy on
- * `runMemoryWriter` and the persisted `users.memory_md` column. No artificial
- * sleeps — the wait is bounded by what the system actually produced.
+ * `runMemoryWriter` and the persisted `users.memory_md` column. No
+ * artificial sleeps — the wait is bounded by what the system actually
+ * produced.
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
@@ -55,7 +56,9 @@ vi.mock("../transit-service.js", async () => {
 });
 
 const { createLinkedTestUser, createTestApp, sessionHeaders } = await import("./helpers.js");
-const { getUser } = await import("../db.js");
+const { getLlmUsageForUser, getUser } = await import("../db.js");
+
+const SINCE_BEGINNING = "1970-01-01T00:00:00.000Z";
 
 let app: FastifyInstance;
 
@@ -157,11 +160,23 @@ describe("Memory layer — two-turn integration", () => {
       expect(persisted?.memory_md).toBe(SAMPLE_WRITER_NEW_FACT.memory);
     });
 
+    // Telemetry: the writer run must land in `llm_calls` with the dedicated
+    // route so cost/latency dashboards can break it out from the chat call.
+    const usage = await getLlmUsageForUser(userId, SINCE_BEGINNING);
+    expect(usage.byRoute).toContainEqual(
+      expect.objectContaining({
+        route: "memory_writer",
+        callCount: 1,
+        tokensIn: SAMPLE_WRITER_NEW_FACT.meta.usage.promptTokens,
+        tokensOut: SAMPLE_WRITER_NEW_FACT.meta.usage.completionTokens,
+      }),
+    );
+
     // ── Turn 2 ───────────────────────────────────────────────────────────
     runAstralAgentMock.mockClear();
-    // Count is 2 → shouldTriggerMemoryWriter(2) === false. We don't bother
-    // queueing a writer mock for turn 2 — if it fires unexpectedly we want
-    // the test to fail loudly via the unmatched call.
+    // Count is 2 → shouldTriggerMemoryWriter(2) === false. We don't queue a
+    // writer mock for turn 2 — if it fires unexpectedly the test fails
+    // loudly via the unmatched call.
 
     const res2 = await app.inject({
       method: "POST",
@@ -173,9 +188,8 @@ describe("Memory layer — two-turn integration", () => {
     });
     expect(res2.statusCode).toBe(200);
 
-    // The DoD assertion: turn 2's prompt MUST contain the fact persisted
-    // by turn 1's writer. The route reads `users.memory_md` (now populated)
-    // and threads it as the 7th positional arg of runAstralAgent.
+    // Turn 2's prompt MUST contain the fact the writer persisted on turn 1.
+    // The route reads `users.memory_md` and threads it through to the agent.
     expect(runAstralAgentMock).toHaveBeenLastCalledWith(
       expect.any(Object),
       MOCK_TRANSITS,
@@ -186,16 +200,14 @@ describe("Memory layer — two-turn integration", () => {
       SAMPLE_WRITER_NEW_FACT.memory,
     );
 
-    // And the writer should NOT have fired again (count=2 is below cadence).
+    // And the writer must NOT have fired again (count=2 is below cadence).
     expect(runMemoryWriterMock).toHaveBeenCalledTimes(1);
   });
 
-  it("does NOT trigger the writer when FEATURE_MEMORY_LIVING_DOCUMENT is false", async () => {
-    // The flag is read at module-load time, so we can't toggle it inside a
-    // single test. Instead, we verify the OTHER half of the contract: even
-    // with the flag ON (default), if the persisted memory is empty AND the
-    // writer hasn't run yet, the agent receives `undefined` (not "") so the
-    // reader's "no <user_memory>" branch kicks in.
+  it("after a NOOP writer run, the column stays empty and subsequent turns pass undefined memory", async () => {
+    // The other half of the contract: when the writer judges nothing worth
+    // saving, the DB column stays "" and the route's flag-and-truthiness
+    // gate emits `undefined` (not "") to keep the prompt minimal.
     const userId = await createLinkedTestUser(app, "mem-int-empty");
 
     runAstralAgentMock.mockResolvedValue(SAMPLE_AGENT_REPLY);

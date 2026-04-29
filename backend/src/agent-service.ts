@@ -80,17 +80,16 @@ function buildBusinessContextBlock(intake?: Intake): string {
 }
 
 /**
- * Sprint 2 — Living Document memory injection.
- *
- * Wraps the persisted markdown verbatim inside `<user_memory>` so the LLM can
- * treat it as a stable, append-only source of facts. Returns "" on empty input
- * so callers can interpolate unconditionally without producing an empty tag.
+ * Wraps the persisted Living Document markdown verbatim inside `<user_memory>`
+ * so the LLM treats it as a stable, append-only source of facts. Returns ""
+ * on empty input so callers can interpolate unconditionally without producing
+ * an empty tag.
  *
  * Cache-friendly: this block must NOT contain timestamps or anything that
- * mutates without a real fact change. Sprint 4 will reorder buildSystemPrompt
- * to put cacheable prefix-only sections together; placing memory between the
- * (stable) `<business_context>` and the (volatile) `<transits>` block already
- * anticipates that reorder.
+ * mutates without a real fact change. Position is also chosen for caching —
+ * the block sits between the stable `<business_context>` and the volatile
+ * `<transits>` so a future cache-discipline pass that splits prefix from
+ * suffix needs no rework here.
  */
 function buildUserMemoryBlock(memory?: string): string {
   if (!memory) return "";

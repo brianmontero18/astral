@@ -7,7 +7,7 @@
  * shape) lives in the module — mocking it would test nothing.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import {
   MEMORY_WRITER_MODEL,
   runMemoryWriter,
@@ -34,12 +34,7 @@ const SAMPLE_MESSAGES: ChatMessage[] = [
   { role: "user", content: "Lanzo un programa premium en mayo y me siento drenada creando contenido." },
 ];
 
-beforeEach(() => {
-  vi.useFakeTimers();
-});
-
 afterEach(() => {
-  vi.useRealTimers();
   globalThis.fetch = realFetch;
 });
 
@@ -132,7 +127,6 @@ describe("runMemoryWriter — telemetry meta", () => {
 
   it("captures latencyMs as a non-negative number", async () => {
     globalThis.fetch = mockOpenAIChat("NOOP");
-    vi.useRealTimers();
     const result = await runMemoryWriter("", SAMPLE_MESSAGES, "fake-key");
     expect(result.meta.latencyMs).toBeGreaterThanOrEqual(0);
   });

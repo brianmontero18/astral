@@ -35,10 +35,10 @@ export interface AppUserRecord {
   profile: object;
   intake: object | null;
   /**
-   * Sprint 2 persistent memory layer (Living Document). Plain markdown,
-   * merged in-place by the memory writer — never overwritten blind. Empty
-   * string when the user has no memory yet (column nullable in SQL but
-   * normalised here so callers can interpolate without null checks).
+   * Living Document memory. Plain markdown, merged in-place by the memory
+   * writer — never overwritten blind. Empty string when the user has no
+   * memory yet (column nullable in SQL but normalised here so callers can
+   * interpolate without null checks).
    */
   memory_md: string;
   plan: AppUserPlan;
@@ -157,6 +157,48 @@ export async function rebuildLegacyAssetsTableIfNeeded(c: Client): Promise<void>
   );
 }
 
+/**
+ * Detects an `llm_calls` table whose CHECK constraint pre-dates the
+ * `memory_writer` route value and rebuilds it with the widened constraint.
+ * Idempotent: returns immediately when the constraint already includes the
+ * new value or when the table doesn't exist yet (fresh installs use the
+ * widened CHECK from `CREATE TABLE` directly).
+ *
+ * Exported for direct testing.
+ */
+export async function widenLlmCallsRouteCheckIfNeeded(c: Client): Promise<void> {
+  const schemaResult = await c.execute({
+    sql: "SELECT sql FROM sqlite_master WHERE type='table' AND name='llm_calls'",
+    args: [],
+  });
+  const tableSql = schemaResult.rows[0]?.sql as string | undefined;
+  if (!tableSql) return;
+  if (tableSql.includes("'memory_writer'")) return;
+
+  await c.batch(
+    [
+      `CREATE TABLE llm_calls_new (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        route       TEXT NOT NULL CHECK(route IN ('chat','chat_stream','report','extraction','memory_writer')),
+        model       TEXT NOT NULL,
+        tokens_in   INTEGER NOT NULL DEFAULT 0,
+        tokens_out  INTEGER NOT NULL DEFAULT 0,
+        cost_usd    REAL    NOT NULL DEFAULT 0,
+        latency_ms  INTEGER NOT NULL DEFAULT 0,
+        prompt_hash TEXT NOT NULL,
+        created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `INSERT INTO llm_calls_new (id, user_id, route, model, tokens_in, tokens_out, cost_usd, latency_ms, prompt_hash, created_at)
+       SELECT id, user_id, route, model, tokens_in, tokens_out, cost_usd, latency_ms, prompt_hash, created_at
+       FROM llm_calls`,
+      "DROP TABLE llm_calls",
+      "ALTER TABLE llm_calls_new RENAME TO llm_calls",
+    ],
+    "write",
+  );
+}
+
 // ─── Init ────────────────────────────────────────────────────────────────────
 
 export async function initDb(): Promise<void> {
@@ -209,7 +251,7 @@ export async function initDb(): Promise<void> {
       `CREATE TABLE IF NOT EXISTS llm_calls (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        route       TEXT NOT NULL CHECK(route IN ('chat','chat_stream','report','extraction')),
+        route       TEXT NOT NULL CHECK(route IN ('chat','chat_stream','report','extraction','memory_writer')),
         model       TEXT NOT NULL,
         tokens_in   INTEGER NOT NULL DEFAULT 0,
         tokens_out  INTEGER NOT NULL DEFAULT 0,
@@ -296,6 +338,11 @@ export async function initDb(): Promise<void> {
   // shape and rebuild the table when present. See rebuildLegacyAssetsTableIfNeeded
   // for the detail (extracted so it is directly testable).
   await rebuildLegacyAssetsTableIfNeeded(client);
+
+  // SQLite cements CHECK constraints at CREATE TABLE time, so adding a new
+  // route value (memory_writer) requires rebuilding the table on existing
+  // databases. Fresh installs already get the widened CHECK above.
+  await widenLlmCallsRouteCheckIfNeeded(client);
 
   // ─── Indexes ───────────────────────────────────────────────────────────────
   // SQLite does not auto-index foreign keys. These cover the hot-path queries
@@ -592,15 +639,12 @@ export async function deleteUser(id: string): Promise<boolean> {
 }
 
 /**
- * Sprint 2 — persistent memory layer.
+ * Replaces the markdown atomically and bumps `updated_at`. The memory writer
+ * is the only intended caller: it has already merged old + new facts in one
+ * LLM call (no overwrite blind), so this function purposefully takes a full
+ * string rather than a diff/op list.
  *
- * Replaces the markdown atomically and bumps `updated_at`. The writer is the
- * only intended caller: it has already merged old + new facts in one LLM call
- * (no overwrite blind), so this function purposefully takes a full string
- * rather than a diff/op list.
- *
- * Empty string is allowed (e.g. user requested a memory wipe). Returns true
- * iff the user exists.
+ * Empty string is allowed. Returns true iff the user exists.
  */
 export async function updateUserMemory(
   id: string,
@@ -795,9 +839,9 @@ export async function getUserMessageCount(
 
 /**
  * All-time count of user-role messages. Distinct from `getUserMessageCount`,
- * which is windowed for billing. The memory writer (Sprint 2) uses this to
- * decide trigger cadence — it cares about lifetime turn count, not the
- * current month's quota.
+ * which is windowed for billing. The memory writer uses this to decide
+ * trigger cadence — it cares about lifetime turn count, not the current
+ * month's quota.
  */
 export async function getTotalUserMessageCount(userId: string): Promise<number> {
   const result = await client.execute({
@@ -812,10 +856,8 @@ export async function getTotalUserMessageCount(userId: string): Promise<number> 
 /**
  * Last N chat messages for a user, ordered oldest-first, restricted to the
  * roles the agent recognises ("user" | "assistant"). Used by the memory
- * writer (Sprint 2) to feed the LLM a rolling window of recent context. The
- * route picks N — the writer treats whatever it gets as "the conversation so
- * far for this update", so a small N (~6: 3 user + 3 assistant) keeps the
- * writer prompt cheap.
+ * writer to feed the LLM a rolling window of recent context. Caller picks N
+ * (see `MEMORY_WRITER_RECENT_MESSAGES_WINDOW`).
  */
 export async function getRecentChatMessages(
   userId: string,

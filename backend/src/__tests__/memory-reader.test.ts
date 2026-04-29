@@ -81,9 +81,9 @@ describe("buildSystemPrompt — user_memory injection", () => {
 
   it("places </user_memory> after </user_profile> and before <transits week=", () => {
     const prompt = buildSystemPrompt(PROFILE, TRANSITS, undefined, undefined, SAMPLE_MEMORY);
-    // Anchor on tag forms that ONLY appear in the emitted block — the rule
-    // text mentions `<user_memory>` literally too, same caveat as the
-    // intake-in-chat test (see commit c2b9583).
+    // The rule text in "## Reglas de datos" mentions `<user_memory>` as a
+    // literal string too; anchor on tag forms that ONLY appear in the
+    // emitted block (closing tag and attributed transits opening).
     const profileEnd = prompt.indexOf("</user_profile>");
     const memoryEnd = prompt.indexOf("</user_memory>");
     const transitsStart = prompt.indexOf("<transits week=");
@@ -128,9 +128,8 @@ describe("buildSystemPrompt + hashSystemPrompt — memory cache discipline", () 
   });
 
   it("produces the SAME hash for byte-identical memory inputs (no hidden timestamps)", () => {
-    // Sprint 4 will lock the cache discipline — but the cache-friendly
-    // promise of the memory block is already enforceable: identical inputs
-    // must yield identical prompts, otherwise we'd be silently cache-busting
+    // The cache-friendly promise of the memory block: identical inputs must
+    // yield identical prompts, otherwise we'd be silently cache-busting on
     // every chat turn.
     const promptA = buildSystemPrompt(PROFILE, TRANSITS, undefined, undefined, SAMPLE_MEMORY);
     const promptB = buildSystemPrompt(PROFILE, TRANSITS, undefined, undefined, SAMPLE_MEMORY);
