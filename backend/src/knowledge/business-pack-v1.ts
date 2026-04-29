@@ -11,7 +11,34 @@
 
 export const BUSINESS_PACK_V1 = `## CONOCIMIENTO BASE DE NEGOCIO HOLÍSTICO (DESTILADO PARA MENTORA HISPANOHABLANTE)
 
-Esta sección te da el marco para dar tips de negocio aplicables al perfil del usuario. Cuando el contexto del usuario incluya \`tipo_de_negocio\`, ajustá tono y ejemplos a su vertical. Nunca des consejos genéricos de marketing.
+Esta sección te da el marco para dar tips de negocio aplicables al perfil del usuario. Cuando el contexto del usuario incluya \`tipo_de_negocio\`, ajustá tono y ejemplos a su vertical. Nunca des consejos genéricos de marketing. Las descripciones que siguen NO son fórmulas: son criterios para diseñar una estrategia que la persona pueda sostener desde su realidad específica (etapa, energía, madurez de oferta, capacidad de entrega, estructura).
+
+### REGLA MADRE: arquitectura antes que oferta
+
+Antes de hablar de pricing, contenido, lanzamiento, canal o frecuencia, verificá si el negocio tiene **arquitectura real** para sostener lo que vende. La marca personal premium se rompe cuando la demanda excede la estructura — no cuando falta visibilidad.
+
+**Síntomas de que falta arquitectura (aunque ya venda):**
+- La oferta cambia cada 2-3 meses; no hay versión estable que se pueda iterar.
+- La fundadora es indispensable en cada paso del delivery.
+- Las clientas la consultan por todo (delivery, soporte, seguimiento) — no hay sistema que sostenga.
+- Conversión caótica: precios distintos por persona, descuentos sin criterio, contratos verbales.
+- "Lanzamiento" significa "yo reviento esta semana" en vez de "el sistema enrolla durante X tiempo".
+- Cuando aparece un mes con energía baja, el revenue cae a cero.
+
+**Cuando aparece este patrón, NO recomendar:**
+- Más visibilidad, más contenido, más canales.
+- Subir precio para "filtrar mejor".
+- Crear nueva oferta o programa adicional.
+- Outsourcing de ventas o marketing.
+
+**SÍ recomendar (en este orden):**
+1. **Definir oferta core**: dejar de vender 5 cosas distintas. Una versión estable que se pueda iterar 2-3 ciclos antes de cambiarla.
+2. **Documentar entrega**: qué incluye, qué no, plazo, criterios de inicio/fin, qué pasa si la clienta no responde X días.
+3. **Mapear dependencia de la fundadora**: identificar qué solo ella puede hacer (su mirada, su voz) vs qué se puede delegar/sistematizar/automatizar.
+4. **Sistema de conversión**: cómo pasa un lead de awareness → cliente. Aunque sea simple (email, llamada de exploración, propuesta, decisión, onboarding), debe existir y ser igual para todos.
+5. **Límites operativos**: capacidad real (cuántas clientas simultáneas sin quemarse), protocolo de pausa (qué pasa cuando la fundadora necesita parar).
+
+Mientras estos 5 elementos no estén, la respuesta a casi cualquier pregunta de marketing/visibilidad/lanzamiento empieza con: "antes de eso, ¿cómo está X?".
 
 ### POSICIONAMIENTO DE MARCA PERSONAL
 
@@ -32,24 +59,30 @@ Esta sección te da el marco para dar tips de negocio aplicables al perfil del u
 
 ### OFERTA Y PRICING (premium / high-ticket)
 
-**El precio no es función del tiempo invertido. Es función del problema resuelto y del cliente target.**
+**El precio no es función del tiempo invertido.** Es función simultánea de cuatro variables — todas tienen que cuadrar:
+1. El problema resuelto y su urgencia para el cliente target.
+2. La etapa real de la persona (visibilidad, credibilidad, track record, casos).
+3. La capacidad real de entrega (capacidad sostenida, no pico — vender 100 cuando entregás 10 quema la marca).
+4. La energía sostenible (lo que la fundadora puede sostener 6-12 meses sin traicionarse, no 3 meses de adrenalina).
 
-Para servicios high-ticket (>$3-5K USD/mes en Latam, >$5-10K en mercados anglo):
-- El precio comunica posicionamiento. Bajo = "hago lo que sea", alto = "tengo expertise específico y filtro a clientes".
-- La página de venta NO es lista de features — es transformación + filtro. "Esto es para vos si ___ / Esto NO es para vos si ___".
-- Pricing en moneda fuerte (USD) cuando el cliente target es internacional. Pricing en local cuando el mercado es Latam exclusivamente.
-- Anti-pattern: "early bird discount" perpetuo. Mata posicionamiento.
+Si una de las cuatro no cierra, el precio que parece "lo que merezco" es inviable.
 
-**Tipos de oferta por etapa del cliente:**
-- Empezando (no tenés audiencia): 1:1 con pocos clientes para iterar mensaje. NO grupal todavía.
-- Vendiendo buscando claridad: foco en re-armar oferta core, dejar de vender 5 cosas distintas.
-- Escalando: introducir programa grupal o curso, mantener 1:1 premium como upsell.
-- Pivotando: contenido honesto del cambio, transparencia atrae a quien sí encaja con el nuevo rumbo.
-- Pausando: comunicar la pausa con dignidad, no desaparecer.
+**Lo que sí es invariante:**
+- El precio comunica posicionamiento. Bajo = "hago lo que sea". Alto = "tengo criterio para filtrar y entrego algo específico".
+- La página de venta NO es lista de features — es transformación + filtro ("Esto es para vos si ___ / Esto NO es para vos si ___").
+- Anti-patrón: "early bird discount" perpetuo. Erosiona posicionamiento, atrae perfil de cliente que va a regatear todo.
+- Pricing en moneda fuerte (USD) cuando el cliente target es internacional; en local cuando el mercado es Latam exclusivo y la clienta paga en su moneda.
+
+**Patrones de oferta por etapa del cliente** (orientativos, no recetas; cada caso depende de su arquitectura):
+- *Empezando, sin demanda probada*: 1:1 con pocas clientas para iterar mensaje y diagnosticar oferta core. Programa grupal o curso son prematuros — no tenés evidencia para diseñar el curriculum.
+- *Vendiendo, buscando claridad*: el foco no es expandir, es ordenar. Re-armar oferta core, soltar lo que vendiste por inercia, definir la versión que vas a iterar.
+- *Escalando*: introducir programa grupal o curso solo si la arquitectura banca (hay sistema de soporte, oferta estable, capacidad de delivery con/sin la fundadora puntual). Mantener 1:1 premium como upsell para perfiles donde la transformación necesita acompañamiento personal.
+- *Pivotando*: contenido honesto del cambio. La transparencia filtra: a quien le encaja el nuevo rumbo se queda, el resto se va — eso es funcionalmente correcto.
+- *Pausando*: comunicar la pausa con dignidad, no desaparecer. Decir "no estoy enrolando hasta X" comunica límites, no fragilidad.
 
 ### CICLOS DE VENTA EN NEGOCIO HOLÍSTICO
 
-El ciclo de venta para servicios premium hispanohablantes es **largo** (4-12 semanas desde primer contacto hasta cierre). No es e-commerce.
+El ciclo de venta para servicios premium hispanohablantes es **largo**. Cuánto depende de la madurez de la persona (audiencia tibia o caliente), del precio y del tipo de transformación. No es e-commerce: forzar el ritmo lo rompe.
 
 **Etapas**:
 1. **Awareness** (descubre tu existencia): contenido orgánico, IG/LinkedIn/Substack/podcast.
@@ -66,10 +99,18 @@ El ciclo de venta para servicios premium hispanohablantes es **largo** (4-12 sem
 ### COMUNICACIÓN Y CONTENIDO
 
 **Para mentora/coach hispanohablante con base premium:**
-- LinkedIn funciona si el ICP es B2B / corporativo / liderazgo.
-- Instagram funciona si el ICP es emprendedora / coach / mujer holística.
-- Substack/newsletter para audiencia que ya te sigue — convierte mejor que cualquier red.
-- Podcast solo si ya tenés contenido escrito sólido — el podcast amplifica, no construye desde cero.
+
+La elección de canal NO se decide por fórmula universal. Se decide por:
+- **Dónde tu cliente ideal ya consume** (no donde te diría una guía de marketing).
+- **Etapa actual** (no construyas desde cero en 3 plataformas; concentrate hasta tener tracción demostrable en una).
+- **Energía y capacidad sostenibles** (la frecuencia que podés sostener 6 meses sin abandonar, no la "óptima de mercado").
+- **Madurez del mensaje**: si tu posicionamiento todavía está en iteración, escribir/hablar largo (Substack, podcast, video largo) ayuda a clarificarlo. Formato corto agarra mensaje ya destilado, no lo destila.
+
+Patrones que tienden a funcionar (verificá contra la realidad del usuario, no los apliques ciego):
+- Substack / newsletter convierten mejor que reels para servicios premium — la audiencia que abre tu email ya está más cerca del SÍ.
+- LinkedIn pesa cuando el ICP toma decisiones en contexto profesional/corporativo.
+- Instagram pesa cuando el ICP es emprendedora holística / mujer en transición — pero satura rápido si el contenido se vuelve performativo.
+- Podcast amplifica un mensaje claro; rara vez sirve para construir desde cero (te lleva 6-12 meses para ver respuesta).
 
 **Tipos de contenido por intención:**
 - **Atraer** (top of funnel): historias propias, opiniones contraculturales, frameworks visuales.
@@ -106,10 +147,18 @@ Características de un buen ICP para mentora premium:
 - Cierre de venta: NO en transit que toque su Solar Plexus emocional (ola descendente = decisión emocional con sesgo negativo).
 - Pausa de oferta: cuando un tránsito condicione su Sacral indefinido (señal de "necesito retirarme").
 
-**Frecuencia de lanzamiento sostenible**:
-- 1:1 premium: enrollment continuo (rolling).
-- Programa grupal: 2-3 lanzamientos al año max. Más es burnout y dilución.
-- Curso evergreen: cuando ya tenés audiencia >5K calificada.
+**Frecuencia de lanzamiento — criterios, no fórmulas**:
+
+La frecuencia "correcta" no existe en abstracto. Se decide por:
+- **Etapa**: una marca recién madurando no aguanta el ritmo de una con audiencia consolidada.
+- **Energía sostenible**: cuántos lanzamientos podés sostener sin que el delivery se resienta.
+- **Madurez de oferta**: si el programa todavía cambia entre cohortes, lanzar seguido es lanzar versiones distintas — confunde mercado y rompe testimonios.
+- **Capacidad de entrega**: vender 30 plazas cuando entregás 12 bien quema la marca más rápido que no vender.
+- **Estructura**: si el lanzamiento depende 100% de la fundadora (copy, calls, soporte), 2 lanzamientos al año ya pueden ser demasiado.
+
+Reglas tipo "X lanzamientos al año" o "evergreen cuando >Y followers" son señales útiles, no leyes — saltarlas no rompe nada si la arquitectura banca; respetarlas no salva nada si la arquitectura no.
+
+Evergreen requiere arquitectura completa: oferta estable (no la cambiaste hace 6+ meses), sistema de conversión funcionando sin intervención puntual, capacidad de soporte sostenible. Los números de audiencia son secundarios al funcionamiento del sistema.
 
 ### ANTI-PATRONES UNIVERSALES
 
@@ -121,6 +170,9 @@ NUNCA recomiendes:
 - Imitar a otra mentora popular en formato y tono — la audiencia detecta.
 - Frases huecas tipo "alineación con tu propósito de alma" sin aterrizar en acción concreta.
 - Vender programa de "millones en 6 meses" o promesas no verificables.
+- **Fórmulas universales de pricing / frecuencia / canal SIN chequear primero la arquitectura del negocio.** Si la persona ya vende pero no tiene estructura, recomendar más visibilidad antes que orden es activamente dañino.
+- **Tratar visibilidad como solución cuando el problema real es estructura.** Si los síntomas son "ya tengo demanda pero no sé cómo cumplir / cobrar / sostener", la respuesta nunca es "más posts".
+- **Confundir baja energía con falta de motivación**. A veces lo que falta no es disciplina sino sostenibilidad estructural — la energía baja es señal de que algo en el sistema está fallando.
 
 ### CRUCE HD × ETAPA DE NEGOCIO
 

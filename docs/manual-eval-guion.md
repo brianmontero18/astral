@@ -56,6 +56,7 @@ expectativas en cada uno.
   tipo "los MGs son multi-apasionados".
 - [ ] Aplica al negocio: menciona **mentora**, **programa premium**, alguna
   conexión a "lanzar grupal de 6 meses". No es teoría HD aislada.
+- [ ] **La cita HD CAMBIA la recomendación, no la decora.** Si quitás "tu canal X / tu Sacral" de la respuesta, ¿el consejo sigue siendo el mismo? Si sí, está usando HD como adorno técnico — no debería pasar.
 - [ ] Tono cálido pero directo (refleja el `voz_marca`). No demasiado
   "te acompaño en tu proceso espiritual".
 
@@ -70,6 +71,8 @@ expectativas en cada uno.
   user, condiciona un centro indefinido, refuerza algo?
 - [ ] Aterrizado a la decisión: dice claramente "sí / esperá / con cuidado
   por X razón mecánica".
+- [ ] **La cita del tránsito CAMBIA la decisión, no la decora.** Si quitás "Marte en gate X / tu canal completándose esta semana" de la respuesta, ¿el sí/no/esperá sigue siendo el mismo? Si sí, está decorando — el agente debería abstenerse.
+- [ ] **Antes de decir "abrí inscripciones", chequea estructura.** Si el agente recomienda lanzar sin diagnosticar primero arquitectura del negocio (¿la oferta está estable? ¿hay capacidad de delivery? ¿el sistema de conversión existe?), eso es respuesta de marketing donde puede faltar respuesta de estrategia.
 
 ### Prompt C — trampa de Authority
 
@@ -96,6 +99,24 @@ expectativas en cada uno.
 - [ ] Si el user es proyector con autoridad self-projected, lo distingue
   claramente.
 
+### Prompt E — patrón "ya vendo pero falta estructura"
+
+> "Tengo demanda, las clientas vienen recomendadas, pero estoy desbordada y
+> a fin de mes no me cierra el revenue. ¿Lanzamos un nuevo programa para
+> capturar mejor a quien me busca?"
+
+**Expectativas (regla madre — arquitectura antes que oferta):**
+- [ ] **NO recomienda lanzar nuevo programa.** El patrón es "ya vende sin
+  estructura"; agregar oferta empeora.
+- [ ] Diagnostica los síntomas: oferta inestable, dependencia de la fundadora,
+  falta de sistema de conversión / delivery / cobro consistente.
+- [ ] Recomienda en orden: definir oferta core, documentar entrega, mapear
+  dependencia de la fundadora, sistema de conversión, límites operativos.
+- [ ] No recomienda "más visibilidad" / "más contenido" / "subir precio
+  para filtrar" — eso sería tapar el problema con marketing.
+- [ ] Si menciona HD, lo usa como criterio de **sostenibilidad** (qué ritmo
+  banca el diseño), no como justificación para "subir precio porque sos premium".
+
 ## Paso 3 — Comparación subjetiva
 
 Mentalmente compará con la sensación pre-cambio (commits anteriores a
@@ -109,9 +130,23 @@ Mentalmente compará con la sensación pre-cambio (commits anteriores a
   "alineá tu propósito".
 - [ ] Suena distinto a ChatGPT genérico — un advisor que te conoce.
 
+## Paso 4 — Veredicto Daniela (la pregunta que decide el merge)
+
+Después de los 5 prompts, respondé esta pregunta — es el filtro real:
+
+> **¿La usuaria sentiría que el agente leyó SU negocio y SU energía
+> específica, o que solo recibió una respuesta linda con jerga de Diseño
+> Humano?**
+
+- [ ] La respuesta es "leyó su negocio" → el release puede mergearse.
+- [ ] La respuesta es "respuesta linda con jerga HD" → no mergear todavía;
+  reportar 1-2 prompts donde se ve más claro este patrón para fixear el
+  knowledge anchor antes del merge.
+
 ## Resultado del eval
 
-Si **todas** las casillas están tildadas → release listo para merge a `main`.
+Si **todas** las casillas están tildadas Y el veredicto Daniela es positivo
+→ release listo para merge a `main`.
 
 Si alguna falla → reportar:
 1. Qué prompt falló y la respuesta literal del chat.

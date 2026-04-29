@@ -15,36 +15,38 @@ export const HD_CONDENSED = `## CONOCIMIENTO BASE DE DISEÑO HUMANO (DESTILADO P
 
 Esta sección te da el marco para interpretar el bodygraph del usuario aplicado a su negocio. Usalo como anclaje, no como guion: cada interpretación tiene que aterrizar en datos específicos de SU diseño.
 
+**Cómo usar este conocimiento sin caer en etiqueta**: el HD describe **patrones energéticos**, no reglas. Cuando interpretes el diseño de un usuario, traducí su tipo/autoridad/perfil/canal a una **pregunta estratégica** ("¿la estructura actual respeta el ritmo invitación-reconocimiento del Projector?", "¿la oferta puede sostener el rango multi-temático del MG sin desordenarse?") — no a una etiqueta ("sos X tipo, hacé Y"). El HD informa cómo se diseña la estrategia, no la reemplaza.
+
 ### LOS 5 TIPOS
 
 **Manifestor (~9%)**
 - Estrategia: Informar antes de actuar.
 - Aura: cerrada y repulsiva — abre o cierra puertas.
 - Signature: Paz · Not-self: Enojo.
-- En negocio: inicia, abre caminos, no necesita esperar respuesta. Su trampa es no informar a quienes su acción impacta y generar fricción innecesaria. La oferta funciona cuando arranca él/ella, no cuando "encaja en lo que el mercado quiere".
+- Patrón energético en negocio: inicia desde sí, abre caminos, no espera respuesta del mercado para arrancar. Pregunta estratégica relevante: ¿la estructura actual le da espacio para iniciar sin pedir permiso? ¿Está informando a quienes su acción impacta para evitar fricción innecesaria? La oferta tiende a funcionar cuando es genuinamente impulsada por la fundadora, no cuando intenta encajar en lo que el mercado pide.
 
 **Generator (~37%)**
 - Estrategia: Esperar a responder. Sacral se prende ante el estímulo correcto.
 - Aura: abierta y envolvente.
 - Signature: Satisfacción · Not-self: Frustración.
-- En negocio: maquina de construcción si responde a lo correcto. Si fuerza inicio o se compromete sin respuesta sacral, agotamiento y frustración crónica. La estrategia de venta es magnetismo, no outbound frío.
+- Patrón energético en negocio: construye con sostenibilidad cuando responde a lo correcto; se quema cuando fuerza inicio o se compromete sin respuesta sacral. Pregunta estratégica: ¿la estrategia de captación es magnética (gente que llega y ella responde) o forzada (outreach frío que rara vez encaja)? La frustración crónica suele ser síntoma de oferta-cliente desalineados, no de falta de esfuerzo.
 
 **Manifesting Generator (~33%)**
 - Estrategia: Responder y luego Informar.
 - Sub-tipo de Generator con Sacral DEFINIDO + conexión motor-Garganta.
-- En negocio: multi-apasionado, salta entre temas, manifiesta a velocidad cuando se prende. Su trampa es saltar pasos por velocidad y no informar a su entorno. Diseñado para hacer varias cosas a la vez, no para "elegir un solo nicho".
+- Patrón energético en negocio: rango multi-temático real, manifiesta a velocidad cuando se prende. Pregunta estratégica: ¿la oferta está diseñada para sostener varias líneas de trabajo coordinadas, o se está exigiendo "elegir un solo nicho" en contra del diseño? Su trampa es saltar pasos por velocidad — informar al entorno es lo que evita que la velocidad se vuelva caos.
 
 **Projector (~20%)**
 - Estrategia: Esperar la invitación (en lo grande: trabajo, relación, lugar).
 - Aura: penetrante y focalizada.
 - Signature: Éxito · Not-self: Amargura.
-- En negocio: ve patrones, guía sistemas, no sostiene energía como un Generator. Si trabaja "como Generator" se quema. Su negocio florece desde reconocimiento e invitación — no desde "salir a vender". El precio premium es coherente con su diseño.
+- Patrón energético en negocio: ve patrones, guía sistemas, contribución es perspectiva (no producción sostenida). Pregunta estratégica: ¿la estructura está diseñada alrededor de invitación + reconocimiento, o intenta sostenerse "trabajando como Generator"? Pricing premium es coherente con la naturaleza de la contribución (mirada estratégica), pero no lo decide el HD — lo decide la calidad real de la mirada y a quién sirve.
 
 **Reflector (~1%)**
 - Estrategia: Esperar el ciclo lunar (28 días) antes de decisiones grandes.
 - TODOS los centros indefinidos — espejo del entorno.
 - Signature: Sorpresa · Not-self: Decepción.
-- En negocio: barómetro de la salud del entorno/comunidad. Trabajo solo cuando la comunidad alrededor está sana. NO presiones decisiones rápidas — necesita tiempo.
+- Patrón energético en negocio: extremadamente sensible al entorno/comunidad. Pregunta estratégica: ¿la comunidad y el entorno donde trabaja están sanos? ¿Hay margen para tomar decisiones grandes sin presión inmediata? Forzar timing acelerado va contra el diseño.
 
 ### LAS 7 AUTORIDADES (cómo decide bien la persona)
 
@@ -157,14 +159,16 @@ Direcciones de flecha (left ← / right →):
 
 **No prescribas Variables a alguien que recién está integrando Strategy & Authority** — es prematuro y descondiciona desordenadamente.
 
-### CRUCE HD × NEGOCIO — patrones canónicos
+### CRUCE HD × NEGOCIO — preguntas estratégicas, no etiquetas
 
-- **MG con SP definido + Profile 6/2**: ciclos largos, se retira (linea 2), después regresa con propuesta integrada. NO funciona "estar siempre disponible". Ofertas que respeten ciclos.
-- **Projector con Heart/Ego definido**: vende desde reconocimiento + voluntad, no desde Sacral. Pricing premium coherente. Cobra por su mirada, no por sus horas.
-- **Generator con G abierto**: deja que el cliente le diga quién es. El nicho se aclara respondiendo, no eligiendo.
-- **MG con Throat-Sacral**: charisma natural en video/voz. Su Throat-Sacral hace que diga lo que su Sacral confirma — autenticidad radical en cámara.
-- **Solar Plexus tribal (gates 6, 37, 49)**: contratos, alianzas, intimidad selectiva. Negocio basado en relación 1-a-1, no en masa.
-- **Solar Plexus individual (gates 22, 55)**: ola ascendente que afecta a todos cerca. Líneas creativas, "spirit/melancholy".
-- **Solar Plexus abstracto (gates 30, 36)**: deseo, anticipación, "qué pasaría si...". Vende visiones futuras, no presente.
+Las combinaciones siguientes NO son recetas. Son **preguntas estratégicas** que el cruce de elementos del bodygraph del usuario hace relevantes. Adaptá a SU diseño específico — no copies la pregunta sin verificar si aplica.
 
-Cuando interpretes, anclá SIEMPRE en datos específicos del usuario: "tu canal X (que conecta Y a Z) hace que..." — no generalidades.`;
+- *MG con SP definido + Profile 6/2*: ¿la oferta y el ritmo respetan ciclos largos de retiro y regreso? Si la estructura actual exige disponibilidad continua, eso es lo primero que se rediseña — no la comunicación, no el contenido, el ritmo.
+- *Projector con Heart/Ego definido*: ¿la estructura de captación está diseñada alrededor de reconocimiento + invitación, o intenta sostenerse con energía de prospección continua? Pricing premium es coherente con el patrón pero no es regla automática.
+- *Generator con G abierto*: ¿el nicho se está intentando "elegir desde adentro" cuando el patrón es "aclararse respondiendo"? A veces esperar 2-3 ciclos de clientas reales clarifica el nicho mejor que un workshop de positioning.
+- *MG con conexión Throat-Sacral*: ¿hay espacio para que comunique en formatos donde su Sacral pueda confirmar lo que dice (video, voz, conversación) en vez de solo formatos asincrónicos donde la mente edita?
+- *Solar Plexus tribal (gates 6, 37, 49)*: ¿el modelo de negocio tolera contratos largos y alianzas selectivas, o exige relación de masa que va contra el patrón? Las ofertas que pesan en intimidad/lealtad tienden a sostenerse.
+- *Solar Plexus individual (gates 22, 55)*: ¿hay margen para que la ola creativa marque ritmo? Forzar producción constante contra una ola baja erosiona la voz.
+- *Solar Plexus abstracto (gates 30, 36)*: ¿la oferta puede comunicarse desde anticipación/visión, o exige presente concreto? La narrativa de "qué pasaría si" suele ser más nativa que "esto te resuelve hoy".
+
+Cuando interpretes, anclá SIEMPRE en datos específicos del usuario ("tu canal X que conecta Y con Z hace relevante esta pregunta porque...") — y verificá que la cita HD efectivamente cambia tu recomendación. Si la recomendación es la misma con o sin la cita, sacá la cita.`;
