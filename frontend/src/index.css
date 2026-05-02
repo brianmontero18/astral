@@ -1512,6 +1512,51 @@ textarea { outline: none !important; }
   margin-top: 14px;
 }
 
+.onboarding-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 24px;
+  row-gap: 4px;
+  margin-bottom: 6px;
+}
+
+.onboarding-profile-wide {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.onboarding-profile-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(248, 244, 232, 0.06);
+}
+
+.onboarding-profile-label {
+  color: var(--text-faint);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.onboarding-profile-value {
+  color: var(--text-main);
+  font-family: var(--font-serif);
+  font-size: 15px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+@media (max-width: 540px) {
+  .onboarding-profile-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 640px) {
   .onboarding-shell {
     padding: 16px 18px 22px;

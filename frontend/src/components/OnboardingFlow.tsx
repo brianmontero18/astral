@@ -208,7 +208,7 @@ export function OnboardingFlow({ onComplete }: Props) {
         <div
           className="onboarding-shell-portal"
           style={{
-            maxWidth: step === "intake" ? 760 : 520,
+            maxWidth: step === "intake" ? 760 : step === "review" ? 600 : 520,
             width: "100%",
             height: step === "intake" ? "100%" : "auto",
             minHeight: 0,
@@ -491,66 +491,66 @@ export function OnboardingFlow({ onComplete }: Props) {
 
         {/* Step: Review */}
         {step === "review" && extractedProfile && (
-          <div className="animate-fade-in">
-            <h2 style={{ color: "var(--text-on-light)", fontSize: "28px", marginBottom: "28px", textAlign: "center", fontFamily: "var(--font-serif)", fontWeight: 500 }}>
-              Tu Identidad Cósmica
+          <div
+            className="animate-fade-in"
+            style={{
+              background: "var(--surface-dark)",
+              border: "1px solid rgba(33, 41, 30, 0.4)",
+              borderRadius: 24,
+              padding: "36px 32px",
+              boxShadow: "0 24px 56px rgba(33, 41, 30, 0.22)",
+              color: "var(--text-main)",
+            }}
+          >
+            <div style={{ color: "var(--color-primary)", fontSize: 11, letterSpacing: "0.24em", fontFamily: "var(--font-sans)", fontWeight: 700, marginBottom: 14, textTransform: "uppercase", textAlign: "center" }}>
+              Tu identidad
+            </div>
+            <h2 style={{ color: "var(--text-main)", fontSize: "26px", marginBottom: "12px", textAlign: "center", fontFamily: "var(--font-serif)", fontWeight: 500 }}>
+              Esto es lo que leímos
             </h2>
+            <p style={{ color: "var(--text-muted)", fontSize: "14px", textAlign: "center", marginBottom: "28px", fontWeight: 400, lineHeight: 1.6 }}>
+              Revisá los datos extraídos. Si algo no cierra, volvé y subí otra carta.
+            </p>
 
-            <div
-              style={{
-                padding: "24px",
-                marginBottom: "28px",
-                maxHeight: "45vh",
-                overflowY: "auto",
-                background: "var(--surface-dark)",
-                border: "1px solid rgba(33, 41, 30, 0.4)",
-                borderRadius: 18,
-                boxShadow: "0 18px 44px rgba(33, 41, 30, 0.18)",
-                color: "var(--text-main)",
-              }}
-            >
+            <div className="onboarding-profile-grid">
               <ProfileField label="Nombre" value={extractedProfile.name} />
-              {extractedProfile.birthData?.date && (
-                <ProfileField label="Encarnación" value={`${extractedProfile.birthData.date}, ${extractedProfile.birthData.time || ""} — ${extractedProfile.birthData.location || ""}`} />
-              )}
               <ProfileField label="Tipo HD" value={extractedProfile.humanDesign.type} />
               <ProfileField label="Estrategia" value={extractedProfile.humanDesign.strategy} />
               <ProfileField label="Autoridad" value={extractedProfile.humanDesign.authority} />
               <ProfileField label="Perfil" value={extractedProfile.humanDesign.profile} />
               <ProfileField label="Definición" value={extractedProfile.humanDesign.definition} />
-              <ProfileField label="Cruz" value={extractedProfile.humanDesign.incarnationCross} />
               {extractedProfile.humanDesign.digestion && (
                 <ProfileField label="Digestión" value={extractedProfile.humanDesign.digestion} />
               )}
-              <div style={{
-                display: "flex",
-                justifyContent: "space-between",
-                padding: "10px 0",
-                borderBottom: "1px solid rgba(248, 244, 232, 0.06)",
-              }}>
-                <span style={{ color: "var(--text-faint)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.14em", fontWeight: 600 }}>
-                  Canales
-                </span>
+            </div>
+
+            <div className="onboarding-profile-wide">
+              {extractedProfile.birthData?.date && (
+                <ProfileField
+                  label="Encarnación"
+                  value={`${extractedProfile.birthData.date}, ${extractedProfile.birthData.time || ""} — ${extractedProfile.birthData.location || ""}`}
+                />
+              )}
+              <ProfileField label="Cruz" value={extractedProfile.humanDesign.incarnationCross} />
+              <div className="onboarding-profile-field">
+                <span className="onboarding-profile-label">Canales</span>
                 {extractedProfile.humanDesign.channels.length > 0 ? (
-                  <div style={{ maxWidth: "65%" }}>
-                    <ChannelChips
-                      channels={extractedProfile.humanDesign.channels.map((c) => c.name)}
-                      size="sm"
-                      align="end"
-                    />
-                  </div>
+                  <ChannelChips
+                    channels={extractedProfile.humanDesign.channels.map((c) => c.name)}
+                    size="sm"
+                  />
                 ) : (
-                  <span style={{ color: "var(--text-main)", fontSize: "14px", fontFamily: "var(--font-serif)" }}>—</span>
+                  <span className="onboarding-profile-value">—</span>
                 )}
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: "16px" }}>
-              <button onClick={handleRetry} className="btn-secondary" style={{ flex: 1 }}>
+            <div style={{ display: "flex", gap: "12px", marginTop: 28 }}>
+              <button onClick={handleRetry} className="astral-auth-secondary" style={{ flex: 1 }}>
                 Volver
               </button>
               <button onClick={handleConfirm} className="astral-auth-primary" style={{ flex: 2 }}>
-                CONTINUAR
+                Continuar
               </button>
             </div>
           </div>
@@ -591,14 +591,9 @@ export function OnboardingFlow({ onComplete }: Props) {
 
 function ProfileField({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{
-      display: "flex",
-      justifyContent: "space-between",
-      padding: "10px 0",
-      borderBottom: "1px solid rgba(248, 244, 232, 0.06)",
-    }}>
-      <span style={{ color: "var(--text-faint)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.14em", fontWeight: 600 }}>{label}</span>
-      <span style={{ color: "var(--text-main)", fontSize: "14px", fontFamily: "var(--font-serif)" }}>{value || "—"}</span>
+    <div className="onboarding-profile-field">
+      <span className="onboarding-profile-label">{label}</span>
+      <span className="onboarding-profile-value">{value || "—"}</span>
     </div>
   );
 }
