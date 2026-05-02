@@ -23,20 +23,77 @@ interface FileSlot {
   type: string;
 }
 
+const STEP_ORDER: Step[] = ["name", "upload", "review", "intake"];
+const STEP_LABEL: Record<Step, string> = {
+  welcome: "",
+  name: "Empecemos",
+  upload: "Tu carta",
+  extracting: "Tu carta",
+  review: "Tu identidad",
+  intake: "Tu contexto",
+};
+
 export function OnboardingFlow({ onComplete }: Props) {
   const [step, setStep] = useState<Step>("welcome");
   const [name, setName] = useState("");
+  const [nameError, setNameError] = useState<string | null>(null);
   const [slot, setSlot] = useState<FileSlot>({ file: null, label: "Carta de Diseño Humano", type: "hd" });
   const [bootstrappedUser, setBootstrappedUser] = useState<LocalUser | null>(null);
   const [extractedProfile, setExtractedProfile] = useState<UserProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const hasFile = !!slot.file;
+  const currentStepIndex = step === "extracting" ? STEP_ORDER.indexOf("review") : STEP_ORDER.indexOf(step);
+  const showStepIndicator = step !== "welcome";
 
   const handleFileChange = (file: File | null) => {
+    setError(null);
     setSlot((prev) => ({ ...prev, file }));
+  };
+
+  const handleNameContinue = () => {
+    if (!name.trim()) {
+      setNameError("Necesitamos saber cómo llamarte para empezar.");
+      return;
+    }
+    setNameError(null);
+    setStep("upload");
+  };
+
+  const handleNameChange = (value: string) => {
+    setName(value);
+    if (nameError) setNameError(null);
+  };
+
+  const handleSubmitUpload = () => {
+    if (!hasFile) {
+      setError("Subí tu PDF para canalizar tu energía.");
+      return;
+    }
+    handleExtract();
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (!isDragging) setIsDragging(true);
+  };
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    if (file.type !== "application/pdf") {
+      setError("Solo aceptamos PDF exportado desde MyHumanDesign o Genetic Matrix.");
+      return;
+    }
+    handleFileChange(file);
   };
 
   const handleExtract = async () => {
@@ -122,28 +179,44 @@ export function OnboardingFlow({ onComplete }: Props) {
   };
 
   return (
-    <div
-      style={{
-        flex: 1,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 20,
-        minHeight: 0,
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: step === "intake" ? 760 : 520,
-          width: "100%",
-          height: step === "intake" ? "100%" : "auto",
-          minHeight: 0,
-          display: step === "intake" ? "flex" : "block",
-          flexDirection: "column",
-          animation: "fadeIn 0.5s ease",
-        }}
-      >
+    <div className="onboarding-shell">
+      <header className="onboarding-shell-header">
+        <span className="onboarding-shell-wordmark">Astral Guide</span>
+        {showStepIndicator && (
+          <div
+            className="onboarding-step-indicator"
+            role="progressbar"
+            aria-valuemin={1}
+            aria-valuemax={STEP_ORDER.length}
+            aria-valuenow={Math.max(currentStepIndex + 1, 1)}
+            aria-label={`${STEP_LABEL[step]} — paso ${Math.max(currentStepIndex + 1, 1)} de ${STEP_ORDER.length}`}
+          >
+            {STEP_ORDER.map((_, i) => (
+              <span
+                key={i}
+                className={
+                  "onboarding-step-dot" +
+                  (i === currentStepIndex ? " is-active" : "") +
+                  (i < currentStepIndex ? " is-done" : "")
+                }
+              />
+            ))}
+          </div>
+        )}
+      </header>
+      <div className="onboarding-shell-stage">
+        <div
+          className="onboarding-shell-portal"
+          style={{
+            maxWidth: step === "intake" ? 760 : 520,
+            width: "100%",
+            height: step === "intake" ? "100%" : "auto",
+            minHeight: 0,
+            display: step === "intake" ? "flex" : "block",
+            flexDirection: "column",
+            animation: "fadeIn 0.5s ease",
+          }}
+        >
         {/* Step: Welcome */}
         {step === "welcome" && (
           <div
@@ -159,6 +232,7 @@ export function OnboardingFlow({ onComplete }: Props) {
             className="animate-fade-in"
           >
             <div
+              aria-hidden="true"
               style={{
                 width: 64,
                 height: 64,
@@ -173,9 +247,10 @@ export function OnboardingFlow({ onComplete }: Props) {
                 fontFamily: "var(--font-serif)",
                 fontSize: 26,
                 fontWeight: 500,
+                lineHeight: 1,
               }}
             >
-              A
+              ✦
             </div>
             <h1 style={{
               color: "var(--text-main)",
@@ -220,44 +295,59 @@ export function OnboardingFlow({ onComplete }: Props) {
             className="animate-fade-in"
           >
             <div style={{ color: "var(--color-primary)", fontSize: 11, letterSpacing: "0.24em", fontFamily: "var(--font-sans)", fontWeight: 700, marginBottom: 16, textTransform: "uppercase" }}>
-              Bienvenida
+              Empecemos
             </div>
             <h2 style={{
               color: "var(--text-main)",
               fontSize: "28px",
-              marginBottom: "40px",
+              marginBottom: "32px",
               fontFamily: "var(--font-serif)",
               fontWeight: 500,
             }}>
-              ¿Cómo debemos llamarte?
+              ¿Cómo querés que te llamemos?
             </h2>
             <input
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && name.trim() && setStep("upload")}
+              onChange={(e) => handleNameChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleNameContinue();
+                }
+              }}
               placeholder="Tu nombre"
               autoFocus
+              aria-invalid={!!nameError}
+              aria-describedby={nameError ? "onboarding-name-error" : undefined}
               style={{
                 width: "100%",
                 boxSizing: "border-box",
                 background: "transparent",
                 border: "none",
-                borderBottom: "1px solid rgba(248, 244, 232, 0.18)",
+                borderBottom: `1px solid ${nameError ? "rgba(196, 96, 96, 0.55)" : "rgba(248, 244, 232, 0.3)"}`,
                 padding: "16px 0",
                 color: "var(--text-main)",
                 fontSize: "24px",
                 fontFamily: "var(--font-serif)",
                 textAlign: "center",
                 outline: "none",
-                marginBottom: "40px",
+                marginBottom: nameError ? "12px" : "40px",
                 transition: "border-color 0.3s ease",
               }}
-              onFocus={(e) => (e.target.style.borderBottom = "1px solid var(--color-primary)")}
-              onBlur={(e) => (e.target.style.borderBottom = "1px solid rgba(248, 244, 232, 0.18)")}
+              onFocus={(e) => {
+                if (!nameError) e.target.style.borderBottom = "1px solid var(--color-primary)";
+              }}
+              onBlur={(e) => {
+                if (!nameError) e.target.style.borderBottom = "1px solid rgba(248, 244, 232, 0.3)";
+              }}
             />
+            {nameError && (
+              <div id="onboarding-name-error" role="alert" className="onboarding-inline-error">
+                {nameError}
+              </div>
+            )}
             <button
-              onClick={() => setStep("upload")}
-              disabled={!name.trim()}
+              onClick={handleNameContinue}
               className="astral-auth-primary"
               style={{ width: "100%" }}
             >
@@ -279,76 +369,89 @@ export function OnboardingFlow({ onComplete }: Props) {
               color: "var(--text-main)",
             }}
           >
+            <div style={{ color: "var(--color-primary)", fontSize: 11, letterSpacing: "0.24em", fontFamily: "var(--font-sans)", fontWeight: 700, marginBottom: 14, textTransform: "uppercase", textAlign: "center" }}>
+              Tu carta
+            </div>
             <h2 style={{ color: "var(--text-main)", fontSize: "26px", marginBottom: "12px", textAlign: "center", fontFamily: "var(--font-serif)", fontWeight: 500 }}>
-              Sincroniza tu energía
+              Sincronizá tu energía
             </h2>
             <p style={{ color: "var(--text-muted)", fontSize: "14px", textAlign: "center", marginBottom: "28px", fontWeight: 400, lineHeight: 1.6 }}>
-              Subí tu gráfico de Diseño Humano para sintonizar el reporte a tu esencia.<br />
-              Solo PDF exportado desde MyHumanDesign o Genetic Matrix.
+              Subí el gráfico de Diseño Humano para sintonizar el reporte a tu esencia.
             </p>
 
             {error && (
-              <div style={{
-                background: "rgba(196, 96, 96, 0.14)",
-                border: "1px solid rgba(196, 96, 96, 0.42)",
-                borderRadius: 10,
-                padding: "14px 18px",
-                color: "#f3c2c2", fontSize: "13px", marginBottom: "24px", textAlign: "center"
-              }}>
+              <div className="onboarding-inline-error" style={{ marginBottom: "20px" }}>
                 {error}
               </div>
             )}
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "20px", marginBottom: "32px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "28px" }}>
               <div
                 onClick={() => fileRef.current?.click()}
-                style={{
-                  padding: "32px 24px",
-                  textAlign: "center",
-                  cursor: "pointer",
-                  transition: "all 0.3s ease",
-                  background: slot.file ? "rgba(207, 172, 108, 0.08)" : "rgba(248, 244, 232, 0.04)",
-                  border: `1px dashed ${slot.file ? "var(--color-primary)" : "rgba(248, 244, 232, 0.22)"}`,
-                  borderRadius: 16,
+                onDragOver={handleDragOver}
+                onDragEnter={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                role="button"
+                tabIndex={0}
+                aria-label={slot.file ? `Archivo seleccionado: ${slot.file.name}. Hacé clic para reemplazar.` : "Subí tu PDF de Diseño Humano"}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    fileRef.current?.click();
+                  }
                 }}
-                onMouseOver={(e) => {
-                  if (!slot.file) e.currentTarget.style.borderColor = "var(--color-primary)";
-                }}
-                onMouseOut={(e) => {
-                  if (!slot.file) e.currentTarget.style.borderColor = "rgba(248, 244, 232, 0.22)";
-                }}
+                className={
+                  "onboarding-dropzone" +
+                  (slot.file ? " has-file" : "") +
+                  (isDragging ? " is-dragging" : "")
+                }
               >
                 <input
                   ref={fileRef}
                   type="file"
-                  accept=".pdf"
+                  accept="application/pdf,.pdf"
                   style={{ display: "none" }}
                   onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
                 />
-                <div style={{
-                  color: slot.file ? "var(--color-primary)" : "var(--text-muted)",
-                  fontSize: "12px",
-                  fontWeight: 700,
-                  letterSpacing: "0.18em",
-                  textTransform: "uppercase",
-                  fontFamily: "var(--font-sans)",
-                }}>
-                  {slot.label}
+                <div className="onboarding-dropzone-icon" aria-hidden="true">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 16V4" />
+                    <path d="M6 10l6-6 6 6" />
+                    <path d="M4 20h16" />
+                  </svg>
                 </div>
-                <div style={{ color: slot.file ? "var(--text-main)" : "var(--text-faint)", fontSize: "13px", marginTop: "10px" }}>
-                  {slot.file ? slot.file.name : "Hacé clic para subir tu archivo"}
+                <div className="onboarding-dropzone-label">{slot.label}</div>
+                <div className="onboarding-dropzone-hint">
+                  {slot.file
+                    ? slot.file.name
+                    : isDragging
+                      ? "Soltá tu archivo aquí"
+                      : "Arrastrá tu PDF o hacé clic para elegirlo"}
                 </div>
               </div>
+              <div className="onboarding-dropzone-meta">PDF de MyHumanDesign o Genetic Matrix · Hasta 10 MB</div>
             </div>
 
             <button
-              onClick={handleExtract}
-              disabled={!hasFile}
+              onClick={handleSubmitUpload}
               className="astral-auth-primary"
               style={{ width: "100%" }}
             >
-              CANALIZAR ENERGÍA
+              Canalizar energía
             </button>
+            <div className="onboarding-secondary-row">
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setStep("name");
+                }}
+                className="astral-auth-text-link"
+              >
+                ← Volver
+              </button>
+            </div>
           </div>
         )}
 
@@ -480,6 +583,7 @@ export function OnboardingFlow({ onComplete }: Props) {
             />
           </div>
         )}
+        </div>
       </div>
     </div>
   );
