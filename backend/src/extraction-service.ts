@@ -285,6 +285,47 @@ const HD_NOT_SELF_MAP: Record<string, string> = {
   "Disappointment": "Decepción",
 };
 
+// Strategy + Not-Self theme están determinados por el Type. Cuando la fuente
+// (e.g. Genetic Matrix Foundation Chart) no los imprime, los derivamos para
+// no dejar el bodygraph con campos vacíos en review ni privar al agente del
+// dato al cruzar tránsitos.
+const HD_TYPE_IMPLIED: Record<string, { strategy: string; notSelfTheme: string }> = {
+  "Generador": {
+    strategy: "Esperar para responder",
+    notSelfTheme: "Frustración",
+  },
+  "Generador Manifestante": {
+    strategy: "Esperar para responder y luego informar",
+    notSelfTheme: "Frustración",
+  },
+  "Manifestador": {
+    strategy: "Informar antes de actuar",
+    notSelfTheme: "Ira",
+  },
+  "Proyector": {
+    strategy: "Esperar la invitación",
+    notSelfTheme: "Amargura",
+  },
+  "Reflector": {
+    strategy: "Esperar un ciclo lunar",
+    notSelfTheme: "Decepción",
+  },
+};
+
+function deriveImpliedFields(profile: UserProfile): UserProfile {
+  const type = profile.humanDesign.type?.trim();
+  if (!type) return profile;
+  const implied = HD_TYPE_IMPLIED[type];
+  if (!implied) return profile;
+  if (!profile.humanDesign.strategy?.trim()) {
+    profile.humanDesign.strategy = implied.strategy;
+  }
+  if (!profile.humanDesign.notSelfTheme?.trim()) {
+    profile.humanDesign.notSelfTheme = implied.notSelfTheme;
+  }
+  return profile;
+}
+
 const HD_DIGESTION_MAP: Record<string, string> = {
   "Peace & Quiet": "Paz y Quietud",
   "Hot Thirst": "Sed caliente",
@@ -616,7 +657,7 @@ export async function extractProfileFromAssets(
         provider === "genetic-matrix" ? "Genetic Matrix" : "MyHumanDesign",
       );
       const summary = parseHdSummaryFromText(text);
-      return applyHdSummary(profile, summary);
+      return deriveImpliedFields(applyHdSummary(profile, summary));
     } catch (err) {
       throw new UserFacingError(UNREADABLE_PDF_MESSAGE);
     }
@@ -644,5 +685,5 @@ export async function extractProfileFromAssets(
     { type: "text", text: mergeInput },
   ], openaiKey);
 
-  return parseJSON(mergeRaw) as UserProfile;
+  return deriveImpliedFields(parseJSON(mergeRaw) as UserProfile);
 }
