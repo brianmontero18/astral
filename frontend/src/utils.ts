@@ -7,13 +7,23 @@
 
 // ─── Section config ───────────────────────────────────────────────────────────
 
-export const SECTION_META: Record<string, { label: string; color: string }> = {
-  "🔭": { label: "Panorama General",      color: "#cfac6c" },
-  "⚡": { label: "Energía & Cuerpo",      color: "#e0c081" },
-  "💼": { label: "Trabajo & Creatividad", color: "#8aa897" },
-  "❤️": { label: "Vínculos & Amor",       color: "#d7c7ad" },
-  "🧭": { label: "Estrategia",            color: "#9d7f4d" },
-  "⚠️": { label: "Puntos de Atención",    color: "#c98c5a" },
+export type SectionIconKey =
+  | "telescope"
+  | "lightning"
+  | "briefcase"
+  | "heart"
+  | "megaphone"
+  | "compass"
+  | "alert";
+
+export const SECTION_META: Record<string, { label: string; color: string; iconKey: SectionIconKey }> = {
+  "🔭": { label: "Panorama General",       color: "#cfac6c", iconKey: "telescope" },
+  "⚡": { label: "Energía & Cuerpo",       color: "#e0c081", iconKey: "lightning" },
+  "💼": { label: "Trabajo & Creatividad",  color: "#8aa897", iconKey: "briefcase" },
+  "❤️": { label: "Vínculos & Amor",        color: "#d7c7ad", iconKey: "heart" },
+  "📣": { label: "Comunicación & Marca",   color: "#bfa985", iconKey: "megaphone" },
+  "🧭": { label: "Estrategia",             color: "#9d7f4d", iconKey: "compass" },
+  "⚠️": { label: "Puntos de Atención",     color: "#c98c5a", iconKey: "alert" },
 };
 
 export const SECTION_EMOJIS = Object.keys(SECTION_META);

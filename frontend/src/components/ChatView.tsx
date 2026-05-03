@@ -49,14 +49,32 @@ function CopyButton({ copied, onCopy, tone = "dark" }: { copied: boolean; onCopy
   );
 }
 
+function ThumbUpIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3z" />
+      <line x1="7" y1="22" x2="7" y2="11" />
+    </svg>
+  );
+}
+
+function ThumbDownIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3z" />
+      <line x1="17" y1="2" x2="17" y2="13" />
+    </svg>
+  );
+}
+
 function FeedbackButton({
-  emoji,
+  variant,
   ariaLabel,
   active,
   disabled,
   onClick,
 }: {
-  emoji: string;
+  variant: "up" | "down";
   ariaLabel: string;
   active: boolean;
   disabled: boolean;
@@ -68,23 +86,9 @@ function FeedbackButton({
       aria-label={ariaLabel}
       aria-pressed={active}
       disabled={disabled}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        background: "transparent",
-        border: "none",
-        color: active ? "var(--color-primary)" : "var(--text-faint)",
-        fontSize: 14,
-        cursor: disabled ? "default" : "pointer",
-        padding: "4px 6px",
-        borderRadius: 6,
-        transition: "all 0.2s ease",
-        opacity: disabled && !active ? 0.5 : 1,
-      }}
-      onMouseOver={(e) => { if (!active && !disabled) e.currentTarget.style.color = "var(--text-muted)"; }}
-      onMouseOut={(e) => { if (!active && !disabled) e.currentTarget.style.color = "var(--text-faint)"; }}
+      className={"chat-feedback-button" + (active ? " is-active" : "")}
     >
-      {emoji}
+      {variant === "up" ? <ThumbUpIcon /> : <ThumbDownIcon />}
     </button>
   );
 }
@@ -541,14 +545,14 @@ export function ChatView({ userName }: Props) {
                     {FLAGS.FEEDBACK_BUTTONS && msg.dbId !== undefined && (
                       <>
                         <FeedbackButton
-                          emoji="👍"
+                          variant="up"
                           ariaLabel="Marcar respuesta útil"
                           active={feedback[msg.dbId] === "up"}
                           disabled={!!feedbackPending[msg.dbId]}
                           onClick={() => msg.dbId !== undefined && handleFeedback(msg.dbId, "up")}
                         />
                         <FeedbackButton
-                          emoji="👎"
+                          variant="down"
                           ariaLabel="Marcar respuesta no útil"
                           active={feedback[msg.dbId] === "down"}
                           disabled={!!feedbackPending[msg.dbId]}
