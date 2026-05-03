@@ -59,6 +59,12 @@ async function fetchProviderEmail(
 const ALLOWED_USER_PLANS = new Set<AppUserPlan>(["free", "basic", "premium"]);
 const ALLOWED_USER_ROLES = new Set<AppUserRole>(["user", "admin"]);
 const ALLOWED_USER_STATUSES = new Set<AppUserStatus>(["active", "disabled", "banned"]);
+const ALLOWED_ONBOARDING_STEPS = new Set<AppUserOnboardingStep>([
+  "name",
+  "upload",
+  "review",
+  "intake",
+]);
 
 // Loose RFC 5322-ish check — full validation happens at the SuperTokens layer
 // when the magic link is consumed. This guards against obvious garbage at the
@@ -202,7 +208,64 @@ export async function userRoutes(app: FastifyInstance) {
       deriveImpliedFields(profile);
     }
 
-    return reply.send(user);
+    return reply.send({
+      ...user,
+      // camelCased onboarding signals for the frontend to decide bootstrap
+      // routing (chat vs OnboardingFlow resume) and to lock plan UI.
+      onboardingStatus: user.onboarding_status,
+      onboardingStep: user.onboarding_step,
+      accessSource: user.access_source,
+    });
+  });
+
+  app.patch<{
+    Body: {
+      step?: AppUserOnboardingStep | null;
+      name?: string;
+      profile?: object;
+      intake?: object | null;
+      complete?: boolean;
+    };
+  }>("/me/onboarding", async (req, reply) => {
+    const currentUser = await resolveRequestUser(
+      req as AuthenticatedRequest,
+      reply,
+    );
+
+    if (reply.sent) {
+      return;
+    }
+
+    if (currentUser.kind !== "linked") {
+      return sendCurrentUserError(reply, currentUser);
+    }
+
+    const { step, name, profile, intake, complete } = req.body ?? {};
+
+    if (
+      step !== undefined &&
+      step !== null &&
+      !ALLOWED_ONBOARDING_STEPS.has(step)
+    ) {
+      return reply.status(400).send({ error: "invalid_step" });
+    }
+
+    const { updateUserOnboarding } = await import("../db.js");
+    const updated = await updateUserOnboarding(currentUser.user.id, {
+      ...(name !== undefined ? { name } : {}),
+      ...(profile !== undefined ? { profile } : {}),
+      ...(intake !== undefined ? { intake } : {}),
+      ...(step !== undefined ? { onboardingStep: step } : {}),
+      ...(complete === true
+        ? { onboardingStatus: "complete" as const, onboardingStep: null }
+        : {}),
+    });
+
+    if (!updated) {
+      return reply.status(404).send({ error: "User not found" });
+    }
+
+    return reply.send({ ok: true });
   });
 
   app.put<{ Body: { name: string; profile: object; intake?: object } }>(

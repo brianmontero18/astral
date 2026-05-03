@@ -170,6 +170,16 @@ export async function chatRoutes(app: FastifyInstance) {
       return;
     }
 
+    // Pending users (admin-invited, onboarding incomplete) have a
+    // placeholder profile — chat would generate generic content. Block
+    // explicitly so the frontend can route them back into onboarding.
+    if (
+      currentUser.kind === "linked" &&
+      currentUser.user.onboarding_status === "pending"
+    ) {
+      return reply.status(403).send({ error: "onboarding_required" });
+    }
+
     let profile: UserProfile;
     let persistedUserId: string | undefined;
     let userPlan: "free" | "basic" | "premium" | undefined;
@@ -270,6 +280,13 @@ export async function chatRoutes(app: FastifyInstance) {
 
     if (reply.sent) {
       return;
+    }
+
+    if (
+      currentUser.kind === "linked" &&
+      currentUser.user.onboarding_status === "pending"
+    ) {
+      return reply.status(403).send({ error: "onboarding_required" });
     }
 
     let profile: UserProfile;

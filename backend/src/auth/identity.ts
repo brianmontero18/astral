@@ -14,10 +14,30 @@ export interface AuthenticatedAppUser {
   name: string;
   role: "user" | "admin";
   status: "active" | "disabled" | "banned";
+  /**
+   * Onboarding state propagated from `users.onboarding_status` so route
+   * handlers can gate behaviour without a second DB round-trip. `pending`
+   * means the user has not finished onboarding (admin-invited but not yet
+   * uploaded their bodygraph, or self-signup mid-flow); `complete` is the
+   * normal post-onboarding state.
+   */
+  onboarding_status: "pending" | "complete";
 }
 
 export interface ResolveCurrentUserDeps {
   findUserByIdentity(
+    provider: AuthSessionPrincipal["provider"],
+    subject: string,
+  ): Promise<AuthenticatedAppUser | null>;
+  /**
+   * Optional. When the session subject is not yet linked to any users row,
+   * the resolver consults this dep to attempt an auto-link by matching the
+   * provider's email against a pending admin-provisioned user. Returning
+   * null means "no candidate, leave as unlinked"; returning a user means
+   * the link was just created and the resolver should treat the session as
+   * linked from now on.
+   */
+  autoLinkPendingUserByEmail?(
     provider: AuthSessionPrincipal["provider"],
     subject: string,
   ): Promise<AuthenticatedAppUser | null>;
@@ -78,10 +98,21 @@ export async function resolveCurrentUser(
     };
   }
 
-  const user = await deps.findUserByIdentity(
+  let user = await deps.findUserByIdentity(
     input.session.provider,
     input.session.subject,
   );
+
+  // Admin-provisioning auto-link: when the SuperTokens subject has no
+  // identity row yet, try to attach it to a pending admin-invited user
+  // by matching the email. Falls through to 'unlinked' when there is no
+  // candidate, preserving the legacy POST /users bootstrap path.
+  if (!user && deps.autoLinkPendingUserByEmail) {
+    user = await deps.autoLinkPendingUserByEmail(
+      input.session.provider,
+      input.session.subject,
+    );
+  }
 
   if (!user) {
     return {

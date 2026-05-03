@@ -56,6 +56,7 @@ export async function reportRoutes(app: FastifyInstance) {
     request: AuthenticatedRequest,
     reply: import("fastify").FastifyReply,
     requestedUserId?: string,
+    options: { requireCompleteOnboarding?: boolean } = {},
   ) {
     const currentUser = await resolveRequestCurrentUser(
       request,
@@ -69,6 +70,14 @@ export async function reportRoutes(app: FastifyInstance) {
 
     if (currentUser.kind !== "linked") {
       sendCurrentUserError(reply, currentUser);
+      return null;
+    }
+
+    if (
+      options.requireCompleteOnboarding &&
+      currentUser.user.onboarding_status === "pending"
+    ) {
+      reply.status(403).send({ error: "onboarding_required" });
       return null;
     }
 
@@ -192,6 +201,7 @@ export async function reportRoutes(app: FastifyInstance) {
         req as AuthenticatedRequest,
         reply,
         req.params.id,
+        { requireCompleteOnboarding: true },
       );
 
       if (!userId) {
@@ -208,6 +218,8 @@ export async function reportRoutes(app: FastifyInstance) {
       const userId = await resolveOwnedReportUser(
         req as AuthenticatedRequest,
         reply,
+        undefined,
+        { requireCompleteOnboarding: true },
       );
 
       if (!userId) {

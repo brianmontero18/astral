@@ -19,7 +19,13 @@ export async function transitRoutes(app: FastifyInstance) {
         return;
       }
 
-      if (currentUser.kind === "linked") {
+      // Personal impact requires a populated bodygraph. Pending users
+      // (admin-invited, onboarding incomplete) silently fall back to the
+      // collective view — degraded UX rather than a 403.
+      if (
+        currentUser.kind === "linked" &&
+        currentUser.user.onboarding_status === "complete"
+      ) {
         const user = await getUser(currentUser.user.id);
         if (user) {
           const profile = user.profile as { humanDesign?: { activatedGates?: Array<{ number: number }>; definedCenters?: string[] } };

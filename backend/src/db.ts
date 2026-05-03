@@ -611,6 +611,17 @@ export async function listUsers({
   };
 }
 
+export async function linkIdentity(
+  provider: string,
+  providerUserId: string,
+  userId: string,
+): Promise<void> {
+  await client.execute({
+    sql: "INSERT INTO user_identities (id, user_id, provider, provider_user_id) VALUES (?, ?, ?, ?)",
+    args: [randomUUID(), userId, provider, providerUserId],
+  });
+}
+
 export async function getUserIdentity(
   userId: string,
 ): Promise<AppUserIdentityRecord | null> {
