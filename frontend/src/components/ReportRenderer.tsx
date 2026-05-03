@@ -94,68 +94,52 @@ function renderInline(text: string): React.ReactNode {
 
 // ─── Block rendering ─────────────────────────────────────────────────────────
 
-/** Render a single line, detecting headers, list items, or plain text */
-function renderLine(line: string, key: number): React.ReactNode {
-  const trimmed = line.trim();
-  if (!trimmed) return null;
-
-  // Markdown header: ### Heading
-  const headerMatch = trimmed.match(/^(#{1,4})\s+(.+)/);
-  if (headerMatch) {
-    const level = headerMatch[1].length;
-    const sizes = ["18px", "16px", "14px", "13px"];
-    return (
-      <div key={key} style={{
-        ...TEXT_STYLE,
-        fontSize: sizes[level - 1] ?? "13px",
-        fontWeight: 600,
-        color: "var(--color-primary)",
-        margin: "12px 0 6px",
-      }}>
-        {renderInline(headerMatch[2])}
-      </div>
-    );
-  }
-
-  // Unordered list item: - text or • text
-  if (/^[-•]\s/.test(trimmed)) {
-    return (
-      <li key={key} style={TEXT_STYLE}>
-        {renderInline(trimmed.replace(/^[-•]\s*/, ""))}
-      </li>
-    );
-  }
-
-  // Ordered list item: 1. text or 2) text
-  if (/^\d+[.)]\s/.test(trimmed)) {
-    return (
-      <li key={key} style={TEXT_STYLE}>
-        {renderInline(trimmed.replace(/^\d+[.)]\s*/, ""))}
-      </li>
-    );
-  }
-
-  // Regular paragraph
+/** Render a list item line (already detected as ul/ol) */
+function renderListItem(trimmed: string, key: number, kind: "ul" | "ol"): React.ReactNode {
+  const stripped = kind === "ul"
+    ? trimmed.replace(/^[-•]\s*/, "")
+    : trimmed.replace(/^\d+[.)]\s*/, "");
   return (
-    <p key={key} style={{ ...TEXT_STYLE, margin: "4px 0" }}>
-      {renderInline(trimmed)}
-    </p>
+    <li key={key} style={{ ...TEXT_STYLE, marginBottom: 4 }}>
+      {renderInline(stripped)}
+    </li>
   );
 }
 
-/** Render a body string as paragraphs, lists, headers, etc. */
+/** Render a markdown header line */
+function renderHeader(trimmed: string, key: number): React.ReactNode {
+  const m = trimmed.match(/^(#{1,4})\s+(.+)/);
+  if (!m) return null;
+  const level = m[1].length;
+  const sizes = ["18px", "16px", "14px", "13px"];
+  return (
+    <div key={key} style={{
+      ...TEXT_STYLE,
+      fontSize: sizes[level - 1] ?? "13px",
+      fontWeight: 600,
+      color: "var(--color-primary)",
+      margin: "12px 0 6px",
+    }}>
+      {renderInline(m[2])}
+    </div>
+  );
+}
+
+/** Render a body string. Consecutive non-empty lines collapse into a single paragraph;
+ *  blank lines, list items and headers act as paragraph delimiters. */
 function renderBody(body: string) {
   const lines = body.split("\n");
   const elements: React.ReactNode[] = [];
   let listBuffer: React.ReactNode[] = [];
   let listType: "ul" | "ol" | null = null;
+  let paragraphBuffer: string[] = [];
   let key = 0;
 
   function flushList() {
     if (listBuffer.length > 0 && listType) {
       const Tag = listType;
       elements.push(
-        <Tag key={`list-${key++}`} style={{ margin: "4px 0", paddingLeft: 20 }}>
+        <Tag key={`list-${key++}`} style={{ margin: "6px 0 10px", paddingLeft: 22 }}>
           {listBuffer}
         </Tag>
       );
@@ -164,12 +148,31 @@ function renderBody(body: string) {
     }
   }
 
+  function flushParagraph() {
+    if (paragraphBuffer.length > 0) {
+      elements.push(
+        <p key={`p-${key++}`} style={{ ...TEXT_STYLE, margin: "0 0 10px" }}>
+          {renderInline(paragraphBuffer.join(" "))}
+        </p>
+      );
+      paragraphBuffer = [];
+    }
+  }
+
   for (const line of lines) {
     const trimmed = line.trim();
 
-    // Empty line = paragraph break, flush any pending list
     if (!trimmed) {
+      flushParagraph();
       flushList();
+      continue;
+    }
+
+    if (/^#{1,4}\s+/.test(trimmed)) {
+      flushParagraph();
+      flushList();
+      const node = renderHeader(trimmed, key++);
+      if (node) elements.push(node);
       continue;
     }
 
@@ -177,19 +180,22 @@ function renderBody(body: string) {
     const isOl = /^\d+[.)]\s/.test(trimmed);
 
     if (isUl) {
+      flushParagraph();
       if (listType !== "ul") flushList();
       listType = "ul";
-      listBuffer.push(renderLine(trimmed, key++));
+      listBuffer.push(renderListItem(trimmed, key++, "ul"));
     } else if (isOl) {
+      flushParagraph();
       if (listType !== "ol") flushList();
       listType = "ol";
-      listBuffer.push(renderLine(trimmed, key++));
+      listBuffer.push(renderListItem(trimmed, key++, "ol"));
     } else {
       flushList();
-      elements.push(renderLine(trimmed, key++));
+      paragraphBuffer.push(trimmed);
     }
   }
 
+  flushParagraph();
   flushList();
   return elements;
 }

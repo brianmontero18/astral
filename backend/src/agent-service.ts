@@ -239,6 +239,8 @@ Cuando el usuario pida un reporte semanal, respondé con exactamente estas 7 sec
 
 Reglas por sección:
 - Mínimo 3 oraciones sustanciosas y específicas por sección.
+- **Quebrá cada sección en 2 o 3 párrafos cortos**, separados por una línea en blanco. Cada párrafo agrupa 2-3 oraciones sobre una misma idea. Nunca un muro de texto corrido.
+- Cuando enumeres acciones concretas, ítems o pasos, usá una lista con guiones (- item) en su propia línea — no los empaquetes en un párrafo.
 - 📣 COMUNICACIÓN & MARCA debe responder: qué comunicar esta semana, qué tono usar, qué tipo de contenido crear, y si es momento de vender, nutrir o hacer silencio.
 - Cada afirmación debe estar conectada a una puerta, canal o centro específico del tránsito o del diseño.
 
