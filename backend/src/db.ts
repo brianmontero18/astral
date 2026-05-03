@@ -16,6 +16,9 @@ let client: Client;
 export type AppUserPlan = "free" | "basic" | "premium";
 export type AppUserRole = "user" | "admin";
 export type AppUserStatus = "active" | "disabled" | "banned";
+export type AppUserOnboardingStatus = "pending" | "complete";
+export type AppUserOnboardingStep = "name" | "upload" | "review" | "intake";
+export type AppUserAccessSource = "self" | "manual" | "payment";
 
 interface AppUserAccessInput {
   plan?: AppUserPlan;
@@ -44,6 +47,9 @@ export interface AppUserRecord {
   plan: AppUserPlan;
   role: AppUserRole;
   status: AppUserStatus;
+  onboarding_status: AppUserOnboardingStatus;
+  onboarding_step: AppUserOnboardingStep | null;
+  access_source: AppUserAccessSource;
   created_at: string;
   updated_at: string;
 }
@@ -60,6 +66,22 @@ export interface AppUserIdentityRecord {
 const DEFAULT_USER_PLAN: AppUserPlan = "free";
 const DEFAULT_USER_ROLE: AppUserRole = "user";
 const DEFAULT_USER_STATUS: AppUserStatus = "active";
+const DEFAULT_ONBOARDING_STATUS: AppUserOnboardingStatus = "complete";
+const DEFAULT_ACCESS_SOURCE: AppUserAccessSource = "self";
+
+const VALID_ONBOARDING_STEPS = new Set<AppUserOnboardingStep>([
+  "name",
+  "upload",
+  "review",
+  "intake",
+]);
+
+function normalizeOnboardingStep(value: unknown): AppUserOnboardingStep | null {
+  if (typeof value !== "string") return null;
+  return VALID_ONBOARDING_STEPS.has(value as AppUserOnboardingStep)
+    ? (value as AppUserOnboardingStep)
+    : null;
+}
 
 function resolveUserAccess(access: AppUserAccessInput = {}) {
   return {
@@ -80,6 +102,12 @@ function mapUserRow(row: Record<string, unknown>): AppUserRecord {
     plan: (row.plan as AppUserPlan | null) ?? DEFAULT_USER_PLAN,
     role: (row.role as AppUserRole | null) ?? DEFAULT_USER_ROLE,
     status: (row.status as AppUserStatus | null) ?? DEFAULT_USER_STATUS,
+    onboarding_status:
+      (row.onboarding_status as AppUserOnboardingStatus | null) ??
+      DEFAULT_ONBOARDING_STATUS,
+    onboarding_step: normalizeOnboardingStep(row.onboarding_step),
+    access_source:
+      (row.access_source as AppUserAccessSource | null) ?? DEFAULT_ACCESS_SOURCE,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
   };
@@ -211,16 +239,19 @@ export async function initDb(): Promise<void> {
   await client.batch(
     [
       `CREATE TABLE IF NOT EXISTS users (
-        id         TEXT PRIMARY KEY,
-        name       TEXT NOT NULL,
-        email      TEXT DEFAULT NULL,
-        profile    TEXT NOT NULL CHECK(json_valid(profile)),
-        intake     TEXT DEFAULT NULL CHECK(intake IS NULL OR json_valid(intake)),
-        plan       TEXT NOT NULL DEFAULT 'free' CHECK(plan IN ('free', 'basic', 'premium')),
-        role       TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('user', 'admin')),
-        status     TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'disabled', 'banned')),
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        id                 TEXT PRIMARY KEY,
+        name               TEXT NOT NULL,
+        email              TEXT DEFAULT NULL,
+        profile            TEXT NOT NULL CHECK(json_valid(profile)),
+        intake             TEXT DEFAULT NULL CHECK(intake IS NULL OR json_valid(intake)),
+        plan               TEXT NOT NULL DEFAULT 'free' CHECK(plan IN ('free', 'basic', 'premium')),
+        role               TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('user', 'admin')),
+        status             TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'disabled', 'banned')),
+        onboarding_status  TEXT NOT NULL DEFAULT 'complete' CHECK(onboarding_status IN ('pending','complete')),
+        onboarding_step    TEXT DEFAULT NULL CHECK(onboarding_step IS NULL OR onboarding_step IN ('name','upload','review','intake')),
+        access_source      TEXT NOT NULL DEFAULT 'self' CHECK(access_source IN ('self','manual','payment')),
+        created_at         TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at         TEXT NOT NULL DEFAULT (datetime('now'))
       )`,
       `CREATE TABLE IF NOT EXISTS assets (
         id          TEXT PRIMARY KEY,
@@ -307,6 +338,13 @@ export async function initDb(): Promise<void> {
     "ALTER TABLE chat_messages ADD COLUMN feedback_note TEXT DEFAULT NULL",
     "ALTER TABLE chat_messages ADD COLUMN feedback_at TEXT DEFAULT NULL",
     "ALTER TABLE users ADD COLUMN memory_md TEXT DEFAULT NULL",
+    // ── astral-w72: onboarding state for admin-provisioned users ──
+    // ALTERs land without CHECK to follow the pre-existing pattern (CHECK
+    // lives in CREATE TABLE for fresh installs). Existing rows pick up
+    // the DEFAULT, which is the backfill: 'complete' / 'self'.
+    "ALTER TABLE users ADD COLUMN onboarding_status TEXT NOT NULL DEFAULT 'complete'",
+    "ALTER TABLE users ADD COLUMN onboarding_step TEXT DEFAULT NULL",
+    "ALTER TABLE users ADD COLUMN access_source TEXT NOT NULL DEFAULT 'self'",
   ];
 
   for (const sql of idempotentAlters) {
@@ -355,6 +393,9 @@ export async function initDb(): Promise<void> {
       "CREATE INDEX IF NOT EXISTS idx_shares_user ON report_shares(user_id)",
       "CREATE INDEX IF NOT EXISTS idx_shares_expires ON report_shares(expires_at)",
       "CREATE INDEX IF NOT EXISTS idx_llm_calls_user_created ON llm_calls(user_id, created_at)",
+      // Partial UNIQUE: prevents two users from sharing an email regardless
+      // of casing, while still allowing many rows where email IS NULL.
+      "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_lower ON users(lower(email)) WHERE email IS NOT NULL",
     ],
     "write",
   );
@@ -436,24 +477,27 @@ export async function findUserByIdentity(
 ): Promise<AppUserRecord | undefined> {
   const result = await client.execute({
     sql: `
-      SELECT
-        users.id,
-        users.name,
-        users.email,
-        users.profile,
-        users.intake,
-        users.memory_md,
-        users.plan,
-        users.role,
-        users.status,
-        users.created_at,
-        users.updated_at
+      SELECT users.*
       FROM user_identities
       INNER JOIN users ON users.id = user_identities.user_id
       WHERE user_identities.provider = ? AND user_identities.provider_user_id = ?
       LIMIT 1
     `,
     args: [provider, providerUserId],
+  });
+  const row = result.rows[0];
+  if (!row) return undefined;
+  return mapUserRow(row);
+}
+
+export async function findUserByEmail(
+  email: string,
+): Promise<AppUserRecord | undefined> {
+  const trimmed = email.trim();
+  if (!trimmed) return undefined;
+  const result = await client.execute({
+    sql: "SELECT * FROM users WHERE lower(email) = lower(?) LIMIT 1",
+    args: [trimmed],
   });
   const row = result.rows[0];
   if (!row) return undefined;
