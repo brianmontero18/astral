@@ -36,24 +36,29 @@ async function fetchProviderEmail(
 async function autoLinkPendingUserByEmail(
   provider: AuthSessionPrincipal["provider"],
   subject: string,
-): Promise<AuthenticatedAppUser | null> {
-  const email = await fetchProviderEmail(provider, subject);
-  if (!email) return null;
+): Promise<{
+  user: AuthenticatedAppUser | null;
+  providerEmail: string | null;
+}> {
+  const providerEmail = await fetchProviderEmail(provider, subject);
+  if (!providerEmail) return { user: null, providerEmail: null };
 
-  const candidate = await findUserByEmail(email);
-  if (!candidate) return null;
+  const candidate = await findUserByEmail(providerEmail);
+  if (!candidate) return { user: null, providerEmail };
 
   // Only admin-provisioned rows participate in auto-link. A self-signup
   // user that ended up with the same email but never finished POST /users
   // would have no row at all; if a row exists with access_source='self',
   // it belongs to a different identity already linked elsewhere.
-  if (candidate.access_source !== "manual") return null;
+  if (candidate.access_source !== "manual") {
+    return { user: null, providerEmail };
+  }
 
   const existingIdentity = await getUserIdentity(candidate.id);
-  if (existingIdentity) return null;
+  if (existingIdentity) return { user: null, providerEmail };
 
   await linkIdentity(provider, subject, candidate.id);
-  return candidate;
+  return { user: candidate, providerEmail };
 }
 
 export async function resolveRequestCurrentUser(

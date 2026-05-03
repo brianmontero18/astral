@@ -1,5 +1,4 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
-import SuperTokens from "supertokens-node";
 import Passwordless from "supertokens-node/recipe/passwordless";
 import {
   createUser,
@@ -34,27 +33,6 @@ import { readSuperTokensConfig } from "../auth/config.js";
 import { getMessageLimitForPlan } from "../chat-limits.js";
 import { deriveImpliedFields } from "../extraction-service.js";
 import type { UserProfile } from "../agent-service.js";
-
-async function fetchProviderEmail(
-  app: FastifyInstance,
-  provider: string,
-  subject: string,
-): Promise<string | null> {
-  if (provider !== "supertokens") {
-    return null;
-  }
-
-  try {
-    const stUser = await SuperTokens.getUser(subject);
-    return stUser?.emails?.[0] ?? null;
-  } catch (error) {
-    app.log.warn(
-      { err: error, provider, subject },
-      "Failed to fetch email from SuperTokens at signup",
-    );
-    return null;
-  }
-}
 
 const ALLOWED_USER_PLANS = new Set<AppUserPlan>(["free", "basic", "premium"]);
 const ALLOWED_USER_ROLES = new Set<AppUserRole>(["user", "admin"]);
@@ -146,11 +124,10 @@ export async function userRoutes(app: FastifyInstance) {
       return sendCurrentUserError(reply, currentUser);
     }
 
-    const email = await fetchProviderEmail(
-      app,
-      currentUser.provider,
-      currentUser.subject,
-    );
+    // The auth resolver already fetched the provider email during the
+    // auto-link attempt (see auth/current-user.ts). Reuse it instead of
+    // hitting SuperTokens.getUser a second time on the legacy bootstrap path.
+    const email = currentUser.providerEmail;
 
     try {
       const id = await createUserWithIdentity(

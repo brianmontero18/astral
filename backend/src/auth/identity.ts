@@ -32,15 +32,21 @@ export interface ResolveCurrentUserDeps {
   /**
    * Optional. When the session subject is not yet linked to any users row,
    * the resolver consults this dep to attempt an auto-link by matching the
-   * provider's email against a pending admin-provisioned user. Returning
-   * null means "no candidate, leave as unlinked"; returning a user means
-   * the link was just created and the resolver should treat the session as
-   * linked from now on.
+   * provider's email against a pending admin-provisioned user. Returns:
+   *  - `user`: the linked user when auto-link succeeded, or null when there
+   *    was no eligible candidate.
+   *  - `providerEmail`: the email looked up at the auth provider during
+   *    the attempt (or null if the lookup failed). Carried forward into
+   *    the `unlinked` result so the legacy POST /users bootstrap path can
+   *    reuse it without a second round-trip.
    */
   autoLinkPendingUserByEmail?(
     provider: AuthSessionPrincipal["provider"],
     subject: string,
-  ): Promise<AuthenticatedAppUser | null>;
+  ): Promise<{
+    user: AuthenticatedAppUser | null;
+    providerEmail: string | null;
+  }>;
 }
 
 export interface ResolveCurrentUserInput {
@@ -60,6 +66,7 @@ export type ResolveCurrentUserResult =
       error: "identity_not_linked";
       provider: AuthSessionPrincipal["provider"];
       subject: string;
+      providerEmail: string | null;
     }
   | {
       kind: "forbidden";
@@ -107,11 +114,14 @@ export async function resolveCurrentUser(
   // identity row yet, try to attach it to a pending admin-invited user
   // by matching the email. Falls through to 'unlinked' when there is no
   // candidate, preserving the legacy POST /users bootstrap path.
+  let providerEmail: string | null = null;
   if (!user && deps.autoLinkPendingUserByEmail) {
-    user = await deps.autoLinkPendingUserByEmail(
+    const linkResult = await deps.autoLinkPendingUserByEmail(
       input.session.provider,
       input.session.subject,
     );
+    user = linkResult.user;
+    providerEmail = linkResult.providerEmail;
   }
 
   if (!user) {
@@ -121,6 +131,7 @@ export async function resolveCurrentUser(
       error: "identity_not_linked",
       provider: input.session.provider,
       subject: input.session.subject,
+      providerEmail,
     };
   }
 

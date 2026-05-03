@@ -443,10 +443,13 @@ export async function createUserWithIdentity(
 ): Promise<string> {
   const userId = randomUUID();
   const resolvedAccess = resolveUserAccess(options);
+  const onboardingStatus = options.onboardingStatus ?? DEFAULT_ONBOARDING_STATUS;
+  const onboardingStep = options.onboardingStep ?? null;
+  const accessSource = options.accessSource ?? DEFAULT_ACCESS_SOURCE;
   await client.batch(
     [
       {
-        sql: "INSERT INTO users (id, name, email, profile, plan, role, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        sql: "INSERT INTO users (id, name, email, profile, plan, role, status, onboarding_status, onboarding_step, access_source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         args: [
           userId,
           name,
@@ -455,6 +458,9 @@ export async function createUserWithIdentity(
           resolvedAccess.plan,
           resolvedAccess.role,
           resolvedAccess.status,
+          onboardingStatus,
+          onboardingStep,
+          accessSource,
         ],
       },
       {

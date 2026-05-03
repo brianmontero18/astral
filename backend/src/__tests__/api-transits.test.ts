@@ -136,7 +136,9 @@ describe("GET /api/transits", () => {
     const body = JSON.parse(res.body);
 
     expect(res.statusCode).toBe(200);
-    expect(body.weekRange).toMatch(/de \w+ de \d{4}/); // Spanish date format
+    // Spanish abbreviated date format, e.g. "27 abr — 3 may · 2026" or
+    // "27 — 30 abr · 2026" depending on whether the week spans months.
+    expect(body.weekRange).toMatch(/(ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic).*\d{4}/);
   });
 
   it("returns 502 on upstream transit failures and recovers on a later request", async () => {
