@@ -15,6 +15,27 @@ function fileTypeLabel(ft: string): string {
   return ft;
 }
 
+const DATE_FORMATTER = new Intl.DateTimeFormat("es-AR", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+
+function formatAssetDate(iso: string): string {
+  return DATE_FORMATTER.format(new Date(iso)).replace(/\.$/, "");
+}
+
+function FileIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="9" y1="13" x2="15" y2="13" />
+      <line x1="9" y1="17" x2="15" y2="17" />
+    </svg>
+  );
+}
+
 interface PreviewContentProps {
   asset: AssetMeta;
 }
@@ -106,12 +127,11 @@ export function AssetViewer() {
 
   return (
     <div style={{ maxWidth: 760, margin: "0 auto", padding: "32px 16px", flex: 1, overflowY: "auto", width: "100%", boxSizing: "border-box" as const }} className="animate-fade-in-slow">
-      <h2 style={{ color: "var(--text-on-light)", fontSize: "26px", marginBottom: "8px", textAlign: "center", fontFamily: "var(--font-serif)", fontWeight: 500 }}>
-        Mis Cartas
-      </h2>
-      <p style={{ color: "var(--text-on-light-muted)", fontSize: "14px", textAlign: "center", marginBottom: "32px", fontWeight: 400, lineHeight: 1.6 }}>
-        Archivos originales sincronizados con tu perfil de Diseño Humano.
-      </p>
+      <div className="page-header">
+        <div className="page-header-kicker">Tus archivos</div>
+        <h2 className="page-header-title">Mis cartas</h2>
+        <p className="page-header-description">Archivos originales sincronizados con tu Diseño Humano.</p>
+      </div>
 
       {error && (
         <div style={{
@@ -158,20 +178,15 @@ export function AssetViewer() {
         {assets.map((asset) => (
           <div
             key={asset.id}
-            className="glass-panel"
-            style={{
-              padding: "20px 24px",
-              display: "flex", justifyContent: "space-between", alignItems: "center",
-              animation: "fadeIn 0.4s ease",
-              gap: 16,
-            }}
+            className="glass-panel asset-row"
           >
-            <div style={{ minWidth: 0 }}>
-              <div style={{ color: "var(--text-main)", fontSize: "15px", fontWeight: 600, marginBottom: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {asset.filename}
-              </div>
-              <div style={{ color: "var(--text-muted)", fontSize: "12px", fontFamily: "var(--font-sans)" }}>
-                {fileTypeLabel(asset.fileType)} · {formatSize(asset.sizeBytes)} · {new Date(asset.createdAt).toLocaleDateString("es-AR")}
+            <div className="asset-row-icon" aria-hidden="true">
+              <FileIcon />
+            </div>
+            <div className="asset-row-meta">
+              <div className="asset-row-filename">{asset.filename}</div>
+              <div className="asset-row-detail">
+                {fileTypeLabel(asset.fileType)} · {formatSize(asset.sizeBytes)} · {formatAssetDate(asset.createdAt)}
               </div>
             </div>
             <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>

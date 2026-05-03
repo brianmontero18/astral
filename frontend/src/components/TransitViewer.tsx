@@ -72,18 +72,10 @@ export function TransitViewer({ profile }: Props) {
   return (
     <div style={{ maxWidth: 760, margin: "0 auto", padding: "28px 16px 20px", overflowY: "auto", flex: 1, width: "100%", boxSizing: "border-box" as const }} className="animate-fade-in-slow">
       {/* Header */}
-      <h2 style={{
-        color: "var(--text-on-light)", fontSize: "26px", marginBottom: "6px",
-        textAlign: "center", fontFamily: "var(--font-serif)", fontWeight: 500,
-      }}>
-        Tránsitos de la Semana
-      </h2>
-      <p style={{
-        color: "var(--color-gold-deep)", fontSize: "11px", textAlign: "center",
-        marginBottom: "24px", letterSpacing: "0.16em", fontFamily: "var(--font-sans)", fontWeight: 600, textTransform: "uppercase",
-      }}>
-        {data.weekRange}
-      </p>
+      <div className="page-header">
+        <div className="page-header-kicker">{data.weekRange}</div>
+        <h2 className="page-header-title">Tránsitos de la semana</h2>
+      </div>
 
       {/* Planet grid — 2 columns */}
       <div style={{

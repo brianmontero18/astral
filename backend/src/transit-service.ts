@@ -306,11 +306,26 @@ function getLocalDateParts(now: Date, timeZone?: string): { year: number; month:
   };
 }
 
-function formatDateEs(dateUtc: Date): string {
-  const day = dateUtc.getUTCDate();
-  const month = MONTHS_ES[dateUtc.getUTCMonth()];
-  const year = dateUtc.getUTCFullYear();
-  return `${day} de ${month} de ${year}`;
+const MONTHS_ES_SHORT = [
+  "ene", "feb", "mar", "abr", "may", "jun",
+  "jul", "ago", "sep", "oct", "nov", "dic",
+];
+
+function formatWeekRangeEs(monday: Date, sunday: Date): string {
+  const dM = monday.getUTCDate();
+  const dS = sunday.getUTCDate();
+  const mM = MONTHS_ES_SHORT[monday.getUTCMonth()];
+  const mS = MONTHS_ES_SHORT[sunday.getUTCMonth()];
+  const yM = monday.getUTCFullYear();
+  const yS = sunday.getUTCFullYear();
+
+  if (yM !== yS) {
+    return `${dM} ${mM} ${yM} — ${dS} ${mS} ${yS}`;
+  }
+  if (mM !== mS) {
+    return `${dM} ${mM} — ${dS} ${mS} · ${yS}`;
+  }
+  return `${dM} — ${dS} ${mS} · ${yS}`;
 }
 
 function getWeekRange(now: Date, timeZone?: string): string {
@@ -320,5 +335,5 @@ function getWeekRange(now: Date, timeZone?: string): string {
   monday.setUTCDate(localDateUtc.getUTCDate() - ((localDateUtc.getUTCDay() + 6) % 7));
   const sunday = new Date(monday);
   sunday.setUTCDate(monday.getUTCDate() + 6);
-  return `${formatDateEs(monday)} al ${formatDateEs(sunday)}`;
+  return formatWeekRangeEs(monday, sunday);
 }
