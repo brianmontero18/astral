@@ -34,6 +34,69 @@ describe("resolveCurrentUser", () => {
       error: "identity_not_linked",
       provider: "supertokens",
       subject: "st-user-123",
+      providerEmail: null,
+    });
+  });
+
+  it("propagates the providerEmail discovered during auto-link into the unlinked result", async () => {
+    const deps: ResolveCurrentUserDeps = {
+      findUserByIdentity: async () => null,
+      autoLinkPendingUserByEmail: async () => ({
+        user: null,
+        providerEmail: "ghost@coach.test",
+      }),
+    };
+
+    await expect(
+      resolveCurrentUser(
+        {
+          session: { provider: "supertokens", subject: "st-user-123" },
+        },
+        deps,
+      ),
+    ).resolves.toEqual({
+      kind: "unlinked",
+      statusCode: 409,
+      error: "identity_not_linked",
+      provider: "supertokens",
+      subject: "st-user-123",
+      providerEmail: "ghost@coach.test",
+    });
+  });
+
+  it("returns linked when auto-link succeeds (no findUserByIdentity match)", async () => {
+    const deps: ResolveCurrentUserDeps = {
+      findUserByIdentity: async () => null,
+      autoLinkPendingUserByEmail: async () => ({
+        user: {
+          id: "user-1",
+          name: "Marina",
+          role: "user",
+          status: "active",
+          onboarding_status: "pending",
+        },
+        providerEmail: "marina@coach.test",
+      }),
+    };
+
+    await expect(
+      resolveCurrentUser(
+        {
+          session: { provider: "supertokens", subject: "st-marina-1" },
+        },
+        deps,
+      ),
+    ).resolves.toEqual({
+      kind: "linked",
+      user: {
+        id: "user-1",
+        name: "Marina",
+        role: "user",
+        status: "active",
+        onboarding_status: "pending",
+      },
+      provider: "supertokens",
+      subject: "st-marina-1",
     });
   });
 
