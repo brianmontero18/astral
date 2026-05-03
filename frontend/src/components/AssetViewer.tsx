@@ -169,9 +169,16 @@ export function AssetViewer() {
 
       {/* Asset list */}
       {assets.length === 0 && (
-        <p style={{ color: "var(--text-on-light-faint)", fontSize: "14px", textAlign: "center", fontStyle: "italic", fontFamily: "var(--font-serif)" }}>
-          Todavía no subiste archivos.
-        </p>
+        <div className="asset-empty">
+          <div className="asset-empty-icon" aria-hidden="true">
+            <FileIcon />
+          </div>
+          <div className="asset-empty-title">Tu biblioteca está vacía</div>
+          <p className="asset-empty-copy">
+            Acá vas a ver los bodygraphs y materiales que sincronices con tu Diseño Humano.
+            Subí tu primera carta para empezar.
+          </p>
+        </div>
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
