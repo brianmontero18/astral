@@ -562,31 +562,13 @@ textarea { outline: none !important; }
   margin-top: 8px;
 }
 
-.button-outline,
-.button-gold {
-  border-radius: 8px;
-  padding: 6px 14px;
-  cursor: pointer;
-  font-family: var(--font-sans);
-  font-size: 12px;
-}
-
-.button-outline {
-  border: 1px solid rgba(248, 244, 232, 0.18);
-  background: transparent;
-  color: var(--text-muted);
-}
-
-.button-gold {
-  border: none;
-  background: linear-gradient(135deg, #e0c081 0%, #9d7f4d 100%);
-  color: var(--surface-deeper);
-  font-weight: 600;
-}
-
-.button-gold:disabled {
-  cursor: default;
-  opacity: 0.4;
+.chat-edit-action {
+  width: auto;
+  min-height: 0;
+  padding: 8px 14px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  white-space: nowrap;
 }
 
 .chat-loading {

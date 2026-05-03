@@ -477,14 +477,14 @@ export function ChatView({ userName }: Props) {
                     <div className="chat-edit-actions">
                       <button
                         onClick={cancelEdit}
-                        className="button-outline"
+                        className="astral-auth-secondary chat-edit-action"
                       >
                         Cancelar
                       </button>
                       <button
                         onClick={() => saveEdit(i)}
                         disabled={!editText.trim() || isBusy}
-                        className="button-gold"
+                        className="astral-auth-primary chat-edit-action"
                       >
                         Guardar y enviar
                       </button>
