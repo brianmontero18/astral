@@ -430,6 +430,14 @@ export function ChatView({ userName }: Props) {
   const limitExperience = messageUsage
     ? getChatLimitExperience(messageUsage, resetDateLabel)
     : null;
+  const remainingMessages = messageUsage && messageUsage.limit !== null
+    ? Math.max(messageUsage.limit - messageUsage.used, 0)
+    : null;
+  const nearLimit = !limitReached
+    && remainingMessages !== null
+    && messageUsage !== null
+    && messageUsage.limit !== null
+    && messageUsage.used >= Math.ceil(messageUsage.limit * 0.9);
 
   return (
     <div className="chat-shell">
@@ -443,17 +451,19 @@ export function ChatView({ userName }: Props) {
             <div className="chat-empty-copy">
               Tu guía de Diseño Humano está lista para acompañarte.
             </div>
-            <div className="chat-quick-actions">
-              {QUICK_ACTIONS.map((q) => (
-                <button
-                  key={q.label}
-                  onClick={() => sendMessage(q.label)}
-                  className={"chat-quick-action" + (q.primary ? " chat-quick-action--primary" : "")}
-                >
-                  {q.label}
-                </button>
-              ))}
-            </div>
+            {!limitReached && (
+              <div className="chat-quick-actions">
+                {QUICK_ACTIONS.map((q) => (
+                  <button
+                    key={q.label}
+                    onClick={() => sendMessage(q.label)}
+                    className={"chat-quick-action" + (q.primary ? " chat-quick-action--primary" : "")}
+                  >
+                    {q.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -586,6 +596,12 @@ export function ChatView({ userName }: Props) {
         {errorMsg && (
           <div className="chat-error">
             {errorMsg}
+          </div>
+        )}
+
+        {nearLimit && remainingMessages !== null && (
+          <div className="chat-near-limit animate-fade-in">
+            Te {remainingMessages === 1 ? "queda 1 mensaje" : `quedan ${remainingMessages} mensajes`} este mes en tu plan {limitPlan === "free" ? "Free" : limitPlan === "basic" ? "Basic" : "Premium"}.
           </div>
         )}
 

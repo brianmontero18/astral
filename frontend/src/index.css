@@ -601,6 +601,20 @@ textarea { outline: none !important; }
   animation: fadeIn 0.2s ease;
 }
 
+.chat-near-limit {
+  margin: 12px 0 4px;
+  border: 1px solid rgba(207, 172, 108, 0.32);
+  border-radius: 10px;
+  background: rgba(207, 172, 108, 0.10);
+  color: var(--color-gold-deep);
+  padding: 10px 14px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
 .chat-limit-footer,
 .chat-composer-footer {
   z-index: 10;
@@ -698,6 +712,19 @@ textarea { outline: none !important; }
 
   .asset-row-detail {
     font-size: 11px;
+  }
+
+  .chat-limit-footer {
+    padding: 20px 14px;
+  }
+
+  .chat-limit-title {
+    font-size: 20px;
+  }
+
+  .chat-limit-copy {
+    font-size: 13px;
+    margin-bottom: 16px;
   }
 }
 
