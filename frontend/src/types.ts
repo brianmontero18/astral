@@ -152,6 +152,9 @@ export type NavView = Exclude<View, "onboarding">;
 export type AppUserRole = "user" | "admin";
 export type AppUserStatus = "active" | "disabled" | "banned";
 export type AppUserPlan = "free" | "basic" | "premium";
+export type AppUserOnboardingStatus = "pending" | "complete";
+export type AppUserOnboardingStep = "name" | "upload" | "review" | "intake";
+export type AppUserAccessSource = "self" | "manual" | "payment";
 
 export interface LocalUser {
   id: string;
@@ -217,8 +220,32 @@ export interface AdminUserDetail {
     authority: string | null;
     profile: string | null;
   };
+  onboardingStatus: AppUserOnboardingStatus;
+  onboardingStep: AppUserOnboardingStep | null;
+  accessSource: AppUserAccessSource;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface AdminInviteRequest {
+  email: string;
+  plan: AppUserPlan;
+  name?: string;
+}
+
+export interface AdminInviteSuccess {
+  userId: string;
+  plan: AppUserPlan;
+  isNewUser: boolean;
+  magicLink: string;
+  expiresAt: string;
+}
+
+export interface AdminInviteSendFailure {
+  error: "invite_send_failed";
+  userId: string;
+  plan: AppUserPlan;
+  isNewUser: boolean;
 }
 
 export type LlmCallRoute = "chat" | "chat_stream" | "report" | "extraction";

@@ -624,6 +624,9 @@ async function buildAdminUserDetail(user: AppUserRecord) {
       reportsAvailable,
     },
     humanDesign: extractHumanDesignSummary(user.profile),
+    onboardingStatus: user.onboarding_status,
+    onboardingStep: user.onboarding_step,
+    accessSource: user.access_source,
     createdAt: user.created_at,
     updatedAt: user.updated_at,
   };

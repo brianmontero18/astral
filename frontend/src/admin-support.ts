@@ -3,6 +3,9 @@ import type {
   AdminUserAccessPatch,
   AdminUserAccessValues,
   AdminUserSummary,
+  AppUserAccessSource,
+  AppUserOnboardingStatus,
+  AppUserOnboardingStep,
   AppUserPlan,
   AppUserRole,
   AppUserStatus,
@@ -132,6 +135,46 @@ export function getAdminRoleLabel(role: AppUserRole): string {
       return "Usuario";
     case "admin":
       return "Admin";
+  }
+}
+
+export function getAdminOnboardingStatusLabel(
+  status: AppUserOnboardingStatus,
+): string {
+  switch (status) {
+    case "pending":
+      return "Pendiente";
+    case "complete":
+      return "Completo";
+  }
+}
+
+export function getAdminOnboardingStepLabel(
+  step: AppUserOnboardingStep | null,
+): string {
+  if (step === null) return "—";
+  switch (step) {
+    case "name":
+      return "Nombre";
+    case "upload":
+      return "Subida de carta";
+    case "review":
+      return "Revisión de perfil";
+    case "intake":
+      return "Contexto de negocio";
+  }
+}
+
+export function getAdminAccessSourceLabel(
+  source: AppUserAccessSource,
+): string {
+  switch (source) {
+    case "self":
+      return "Self-signup";
+    case "manual":
+      return "Invitación admin";
+    case "payment":
+      return "Pasarela de pago";
   }
 }
 

@@ -106,6 +106,9 @@ export function createAdminUserDetail(overrides: {
     authority?: string | null;
     profile?: string | null;
   };
+  onboardingStatus?: "pending" | "complete";
+  onboardingStep?: "name" | "upload" | "review" | "intake" | null;
+  accessSource?: "self" | "manual" | "payment";
   createdAt?: string;
   updatedAt?: string;
 }) {
@@ -132,6 +135,9 @@ export function createAdminUserDetail(overrides: {
       authority: overrides.humanDesign?.authority ?? "Splenic",
       profile: overrides.humanDesign?.profile ?? "5/1",
     },
+    onboardingStatus: overrides.onboardingStatus ?? "complete",
+    onboardingStep: overrides.onboardingStep ?? null,
+    accessSource: overrides.accessSource ?? "self",
     createdAt: overrides.createdAt ?? "2026-04-10T10:00:00.000Z",
     updatedAt: overrides.updatedAt ?? "2026-04-12T18:10:00.000Z",
   };

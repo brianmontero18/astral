@@ -8,6 +8,7 @@ import {
   getAdminUserListDisplay,
 } from "../admin-support";
 import type { AdminUserListResponse, AdminUserSummary } from "../types";
+import { AdminInviteModal } from "./AdminInviteModal";
 
 interface Props {
   onOpenUser: (userId: string) => void;
@@ -189,6 +190,8 @@ export function AdminUsersView({ onOpenUser }: Props) {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -233,7 +236,7 @@ export function AdminUsersView({ onOpenUser }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [page, search]);
+  }, [page, search, refreshTick]);
 
   const users = result?.users ?? [];
   const currentPage = result?.currentPage ?? 1;
@@ -269,6 +272,10 @@ export function AdminUsersView({ onOpenUser }: Props) {
             style={{
               display: "flex",
               marginBottom: 18,
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+              gap: 12,
+              flexWrap: "wrap",
             }}
           >
             <div>
@@ -297,6 +304,13 @@ export function AdminUsersView({ onOpenUser }: Props) {
                 Personas
               </h1>
             </div>
+            <button
+              type="button"
+              onClick={() => setInviteOpen(true)}
+              className="btn-primary"
+            >
+              Invitar usuaria
+            </button>
           </div>
           <p
             style={{
@@ -434,6 +448,12 @@ export function AdminUsersView({ onOpenUser }: Props) {
           </div>
         ) : null}
       </div>
+      <AdminInviteModal
+        open={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+        onInvited={() => setRefreshTick((tick) => tick + 1)}
+        onOpenUserDetail={onOpenUser}
+      />
     </div>
   );
 }

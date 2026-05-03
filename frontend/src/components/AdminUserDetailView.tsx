@@ -7,13 +7,22 @@ import {
   ADMIN_USER_DETAIL_SUPPORT_BODY,
   applyAdminUserAccessValues,
   buildAdminUserAccessPatch,
+  getAdminAccessSourceLabel,
+  getAdminOnboardingStatusLabel,
+  getAdminOnboardingStepLabel,
   getAdminSupportFailureMessage,
   getAdminPlanLabel,
   getAdminRoleLabel,
   getAdminStatusLabel,
   getAdminUserDetailDisplay,
 } from "../admin-support";
-import { getAdminUserDetail, getAdminUserLlmUsage, updateAdminUserAccess } from "../api";
+import {
+  createAdminInvite,
+  getAdminUserDetail,
+  getAdminUserLlmUsage,
+  updateAdminUserAccess,
+  type AdminInviteResult,
+} from "../api";
 import type {
   AdminUserAccessValues,
   AdminUserDetail,
@@ -348,6 +357,15 @@ export function AdminUserDetailView({
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [llmUsage, setLlmUsage] = useState<AdminUserLlmUsage | null>(null);
   const [llmUsageError, setLlmUsageError] = useState<string | null>(null);
+  const [reinviteState, setReinviteState] = useState<
+    | { kind: "idle" }
+    | { kind: "submitting" }
+    | { kind: "ok"; result: AdminInviteResult }
+    | { kind: "error"; message: string }
+  >({ kind: "idle" });
+  const [reinviteCopyFeedback, setReinviteCopyFeedback] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -453,6 +471,36 @@ export function AdminUserDetailView({
     ));
     setSaveError(null);
     setSaveNotice(null);
+  };
+
+  const handleReinvite = async () => {
+    if (!detail || !detail.email) return;
+    setReinviteState({ kind: "submitting" });
+    setReinviteCopyFeedback(null);
+    try {
+      const result = await createAdminInvite({
+        email: detail.email,
+        plan: detail.plan,
+      });
+      setReinviteState({ kind: "ok", result });
+    } catch (err) {
+      setReinviteState({
+        kind: "error",
+        message: getAdminSupportFailureMessage(
+          err,
+          "No pudimos reinvitar a esta usuaria. Reintentá en unos segundos.",
+        ),
+      });
+    }
+  };
+
+  const handleCopyReinviteLink = async (link: string) => {
+    try {
+      await navigator.clipboard.writeText(link);
+      setReinviteCopyFeedback("Link copiado al portapapeles");
+    } catch {
+      setReinviteCopyFeedback("No se pudo copiar — seleccionalo manualmente");
+    }
   };
 
   const handleResetDraft = () => {
@@ -787,6 +835,141 @@ export function AdminUserDetailView({
               </button>
             </div>
           </form>
+
+          <SupportSection
+            title="Onboarding y acceso"
+            body="Estado del flujo inicial y origen del alta. La fuente de origen solo cambia desde la invitación admin."
+          >
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                gap: 16,
+              }}
+            >
+              <SupportValue
+                label="Estado de onboarding"
+                value={getAdminOnboardingStatusLabel(detail.onboardingStatus)}
+              />
+              <SupportValue
+                label="Paso actual"
+                value={getAdminOnboardingStepLabel(detail.onboardingStep)}
+              />
+              <SupportValue
+                label="Origen del alta"
+                value={getAdminAccessSourceLabel(detail.accessSource)}
+              />
+            </div>
+
+            {detail.onboardingStatus === "pending" &&
+            detail.accessSource === "manual" ? (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 12,
+                  paddingTop: 6,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={handleReinvite}
+                  className="btn-primary"
+                  disabled={
+                    !detail.email || reinviteState.kind === "submitting"
+                  }
+                  style={{ alignSelf: "flex-start" }}
+                >
+                  {reinviteState.kind === "submitting"
+                    ? "Reinvitando…"
+                    : "Reinvitar"}
+                </button>
+                {!detail.email ? (
+                  <span style={{ color: "var(--text-faint)", fontSize: 13 }}>
+                    No hay email registrado para esta usuaria — no se puede
+                    reinvitar desde acá.
+                  </span>
+                ) : null}
+
+                {reinviteState.kind === "error" ? (
+                  <InlineNotice tone="error">
+                    {reinviteState.message}
+                  </InlineNotice>
+                ) : null}
+
+                {reinviteState.kind === "ok" &&
+                reinviteState.result.kind === "ok" ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 8,
+                    }}
+                  >
+                    <code
+                      style={{
+                        fontSize: 12,
+                        background: "rgba(0,0,0,0.18)",
+                        padding: "8px 10px",
+                        borderRadius: 8,
+                        wordBreak: "break-all",
+                        color: "var(--text-main)",
+                      }}
+                    >
+                      {reinviteState.result.data.magicLink}
+                    </code>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 8,
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleCopyReinviteLink(
+                            reinviteState.result.kind === "ok"
+                              ? reinviteState.result.data.magicLink
+                              : "",
+                          )
+                        }
+                        className="btn-secondary"
+                        style={{ padding: "8px 14px", fontSize: 13 }}
+                      >
+                        Copiar link
+                      </button>
+                      <span
+                        style={{ color: "var(--text-faint)", fontSize: 12 }}
+                      >
+                        Expira en 48h.
+                      </span>
+                      {reinviteCopyFeedback ? (
+                        <span
+                          aria-live="polite"
+                          style={{
+                            fontSize: 12,
+                            color: "var(--text-main)",
+                          }}
+                        >
+                          {reinviteCopyFeedback}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
+
+                {reinviteState.kind === "ok" &&
+                reinviteState.result.kind === "send-failed" ? (
+                  <InlineNotice tone="error">
+                    Cuenta marcada pero no pudimos enviar el email. Reintentá
+                    en unos segundos.
+                  </InlineNotice>
+                ) : null}
+              </div>
+            ) : null}
+          </SupportSection>
 
           <SupportSection title={activityTitle}>
             <div

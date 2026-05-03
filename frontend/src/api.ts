@@ -7,6 +7,9 @@
  */
 
 import type {
+  AdminInviteRequest,
+  AdminInviteSendFailure,
+  AdminInviteSuccess,
   AdminUserAccessPatch,
   AdminUserDetail,
   AdminUserListResponse,
@@ -439,6 +442,34 @@ export async function getAdminUserLlmUsage(
   }
 
   return await res.json() as AdminUserLlmUsage;
+}
+
+export type AdminInviteResult =
+  | { kind: "ok"; data: AdminInviteSuccess }
+  | { kind: "send-failed"; data: AdminInviteSendFailure };
+
+export async function createAdminInvite(
+  request: AdminInviteRequest,
+): Promise<AdminInviteResult> {
+  const res = await fetch(`${BASE}/admin/users`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+
+  if (res.status === 200) {
+    return { kind: "ok", data: (await res.json()) as AdminInviteSuccess };
+  }
+
+  if (res.status === 502) {
+    const data = (await res.json()) as AdminInviteSendFailure;
+    if (data?.error === "invite_send_failed") {
+      return { kind: "send-failed", data };
+    }
+  }
+
+  const message = await readErrorMessage(res);
+  throw new Error(`Admin invite error ${res.status}: ${message}`);
 }
 
 export async function updateAdminUserAccess(
