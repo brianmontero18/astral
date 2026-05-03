@@ -512,7 +512,7 @@ export function OnboardingFlow({ onComplete }: Props) {
               Revisá los datos extraídos. Si algo no cierra, volvé y subí otra carta.
             </p>
 
-            <div className="onboarding-profile-grid">
+            <div className="profile-grid">
               <ProfileField label="Nombre" value={extractedProfile.name} />
               <ProfileField label="Tipo HD" value={extractedProfile.humanDesign.type} />
               <ProfileField label="Estrategia" value={extractedProfile.humanDesign.strategy} />
@@ -524,7 +524,7 @@ export function OnboardingFlow({ onComplete }: Props) {
               )}
             </div>
 
-            <div className="onboarding-profile-wide">
+            <div className="profile-wide">
               {extractedProfile.birthData?.date && (
                 <ProfileField
                   label="Encarnación"
@@ -532,15 +532,15 @@ export function OnboardingFlow({ onComplete }: Props) {
                 />
               )}
               <ProfileField label="Cruz" value={extractedProfile.humanDesign.incarnationCross} />
-              <div className="onboarding-profile-field">
-                <span className="onboarding-profile-label">Canales</span>
+              <div className="profile-field">
+                <span className="profile-label">Canales</span>
                 {extractedProfile.humanDesign.channels.length > 0 ? (
                   <ChannelChips
                     channels={extractedProfile.humanDesign.channels.map((c) => c.name)}
                     size="sm"
                   />
                 ) : (
-                  <span className="onboarding-profile-value">—</span>
+                  <span className="profile-value">—</span>
                 )}
               </div>
             </div>
@@ -598,9 +598,9 @@ export function OnboardingFlow({ onComplete }: Props) {
 
 function ProfileField({ label, value }: { label: string; value: string }) {
   return (
-    <div className="onboarding-profile-field">
-      <span className="onboarding-profile-label">{label}</span>
-      <span className="onboarding-profile-value">{value || "—"}</span>
+    <div className="profile-field">
+      <span className="profile-label">{label}</span>
+      <span className="profile-value">{value || "—"}</span>
     </div>
   );
 }
