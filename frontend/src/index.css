@@ -147,21 +147,16 @@ textarea { outline: none !important; }
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   flex-shrink: 0;
   border-radius: 50%;
   border: 1px solid var(--color-gold);
   background: var(--surface-dark);
   color: var(--color-gold);
   font-family: var(--font-serif);
-  font-size: 14px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-}
-
-.app-brand-copy {
-  min-width: 0;
+  font-size: 16px;
+  line-height: 1;
 }
 
 .app-brand-title {
@@ -170,17 +165,6 @@ textarea { outline: none !important; }
   font-size: 18px;
   font-weight: 500;
   letter-spacing: 0.06em;
-  white-space: nowrap;
-}
-
-.app-brand-kicker {
-  color: var(--color-primary);
-  font-family: var(--font-sans);
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.22em;
-  opacity: 0.85;
-  text-transform: uppercase;
   white-space: nowrap;
 }
 
@@ -227,7 +211,6 @@ textarea { outline: none !important; }
 }
 
 .user-pill,
-.logout-button,
 .admin-link-button {
   border-radius: 30px;
   font-family: var(--font-sans);
@@ -255,20 +238,24 @@ textarea { outline: none !important; }
 }
 
 .logout-button {
-  border: 1px solid rgba(248, 244, 232, 0.18);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
   background: transparent;
   color: var(--text-muted);
-  padding: 6px 14px;
   cursor: pointer;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  border-radius: 50%;
+  transition: color 0.25s ease, background 0.25s ease;
 }
 
-.logout-button:hover {
-  background: rgba(248, 244, 232, 0.06);
-  color: var(--text-main);
+.logout-button:hover,
+.logout-button:focus-visible {
+  color: var(--color-gold);
+  background: rgba(207, 172, 108, 0.12);
+  outline: none;
 }
 
 .admin-link-button {
