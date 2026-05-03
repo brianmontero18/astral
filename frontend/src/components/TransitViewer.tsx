@@ -77,13 +77,8 @@ export function TransitViewer({ profile }: Props) {
         <h2 className="page-header-title">Tránsitos de la semana</h2>
       </div>
 
-      {/* Planet grid — 2 columns */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(2, 1fr)",
-        gap: "12px",
-        marginBottom: "24px",
-      }}>
+      {/* Planet grid — 2 columns desktop, 1 column mobile */}
+      <div className="transit-planet-grid" style={{ marginBottom: "24px" }}>
         {data.planets.map((p) => (
           <PlanetCard
             key={p.name}

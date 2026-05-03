@@ -655,6 +655,52 @@ textarea { outline: none !important; }
   padding: 16px 24px;
 }
 
+.transit-planet-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .transit-planet-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chat-composer-footer {
+    padding: 12px 14px;
+  }
+
+  .chat-composer {
+    gap: 8px;
+    padding: 6px 12px;
+  }
+
+  .chat-composer-input {
+    font-size: 14px;
+  }
+
+  .chat-icon-button,
+  .chat-send-button {
+    width: 36px;
+    height: 36px;
+  }
+
+  .asset-row {
+    flex-wrap: wrap;
+    padding: 14px 16px;
+  }
+
+  .asset-row .asset-row-actions {
+    width: 100%;
+    justify-content: flex-end;
+    margin-top: 4px;
+  }
+
+  .asset-row-detail {
+    font-size: 11px;
+  }
+}
+
 .chat-composer {
   display: flex;
   align-items: center;
