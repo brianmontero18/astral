@@ -1,18 +1,38 @@
 import { useState, useRef } from "react";
-import type { UserProfile, LocalUser, Intake } from "../types";
+import type {
+  AppUserOnboardingStep,
+  UserProfile,
+  LocalUser,
+  Intake,
+} from "../types";
 import {
   uploadAsset,
   extractProfile,
   bootstrapCurrentUser,
   getCurrentUser,
+  patchOnboarding,
   updateCurrentUser,
 } from "../api";
 import { getOnboardingFailureMessage } from "../onboarding-errors";
 import { ChannelChips } from "./ChannelChips";
 import { IntakeView } from "./IntakeView";
 
+interface ResumeContext {
+  user: LocalUser;
+  profile: UserProfile;
+  intake: Intake | undefined;
+  initialStep: AppUserOnboardingStep;
+}
+
 interface Props {
   onComplete: (user: LocalUser, profile: UserProfile) => void;
+  /**
+   * When provided, the flow runs in "resume" mode: the users row already
+   * exists (admin invite or mid-flow self-signup), so the wizard skips the
+   * legacy bootstrap call and persists each step via PATCH /api/me/onboarding.
+   * When absent, behaviour is the legacy atomic bootstrap (POST /users).
+   */
+  resumeFrom?: ResumeContext;
 }
 
 type Step = "welcome" | "name" | "upload" | "extracting" | "review" | "intake";
@@ -33,13 +53,20 @@ const STEP_LABEL: Record<Step, string> = {
   intake: "Tu contexto",
 };
 
-export function OnboardingFlow({ onComplete }: Props) {
-  const [step, setStep] = useState<Step>("welcome");
-  const [name, setName] = useState("");
+export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
+  const isResume = !!resumeFrom;
+  const [step, setStep] = useState<Step>(
+    resumeFrom ? resumeFrom.initialStep : "welcome",
+  );
+  const [name, setName] = useState(resumeFrom?.user.name ?? "");
   const [nameError, setNameError] = useState<string | null>(null);
   const [slot, setSlot] = useState<FileSlot>({ file: null, label: "Carta de Diseño Humano", type: "hd" });
-  const [bootstrappedUser, setBootstrappedUser] = useState<LocalUser | null>(null);
-  const [extractedProfile, setExtractedProfile] = useState<UserProfile | null>(null);
+  const [bootstrappedUser, setBootstrappedUser] = useState<LocalUser | null>(
+    resumeFrom?.user ?? null,
+  );
+  const [extractedProfile, setExtractedProfile] = useState<UserProfile | null>(
+    resumeFrom?.profile ?? null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -54,12 +81,20 @@ export function OnboardingFlow({ onComplete }: Props) {
     setSlot((prev) => ({ ...prev, file }));
   };
 
-  const handleNameContinue = () => {
+  const handleNameContinue = async () => {
     if (!name.trim()) {
       setNameError("Necesitamos saber cómo llamarte para empezar.");
       return;
     }
     setNameError(null);
+    if (isResume) {
+      try {
+        await patchOnboarding({ name: name.trim(), step: "upload" });
+      } catch (e) {
+        setError(getOnboardingFailureMessage(e));
+        return;
+      }
+    }
     setStep("upload");
   };
 
@@ -102,17 +137,21 @@ export function OnboardingFlow({ onComplete }: Props) {
     setLoading(true);
 
     try {
-      const tempProfile: UserProfile = {
-        name,
-        humanDesign: {
-          type: "", strategy: "", authority: "", profile: "", definition: "",
-          incarnationCross: "", notSelfTheme: "", variable: "",
-          digestion: "", environment: "", strongestSense: "",
-          channels: [], activatedGates: [], definedCenters: [], undefinedCenters: [],
-        },
-      };
-
-      await bootstrapCurrentUser(name, tempProfile);
+      if (!isResume) {
+        // Legacy self-signup path: the users row does not exist yet, so
+        // we have to bootstrap it before uploading and extracting. Resume
+        // mode skips this — the row was created by POST /api/admin/users.
+        const tempProfile: UserProfile = {
+          name,
+          humanDesign: {
+            type: "", strategy: "", authority: "", profile: "", definition: "",
+            incarnationCross: "", notSelfTheme: "", variable: "",
+            digestion: "", environment: "", strongestSense: "",
+            channels: [], activatedGates: [], definedCenters: [], undefinedCenters: [],
+          },
+        };
+        await bootstrapCurrentUser(name, tempProfile);
+      }
       const assetIds: string[] = [];
 
       if (slot.file) {
@@ -123,7 +162,11 @@ export function OnboardingFlow({ onComplete }: Props) {
       const { profile } = await extractProfile(assetIds);
       profile.name = profile.name || name;
 
-      await updateCurrentUser(profile.name, profile);
+      if (isResume) {
+        await patchOnboarding({ profile, step: "review" });
+      } else {
+        await updateCurrentUser(profile.name, profile);
+      }
 
       const currentUser = await getCurrentUser();
       if (currentUser.kind !== "linked") {
@@ -148,20 +191,33 @@ export function OnboardingFlow({ onComplete }: Props) {
     }
   };
 
-  const handleConfirm = () => {
-    if (bootstrappedUser && extractedProfile) {
-      // Bridge to the intake step before handing off to the chat. The bodygraph
-      // is the cold/technical artifact; the intake is where the user tells us
-      // about their business so chat answers stop being generic from turn 1.
-      setStep("intake");
+  const handleConfirm = async () => {
+    if (!bootstrappedUser || !extractedProfile) return;
+    // Bridge to the intake step before handing off to the chat. The bodygraph
+    // is the cold/technical artifact; the intake is where the user tells us
+    // about their business so chat answers stop being generic from turn 1.
+    if (isResume) {
+      try {
+        await patchOnboarding({ step: "intake" });
+      } catch (e) {
+        setError(getOnboardingFailureMessage(e));
+        return;
+      }
     }
+    setStep("intake");
   };
 
   const handleIntakeSubmit = async (intake: Intake) => {
     if (!bootstrappedUser || !extractedProfile) return;
     setError(null);
     try {
-      await updateCurrentUser(extractedProfile.name, extractedProfile, intake);
+      if (isResume) {
+        // Atomic: persist intake + flip onboarding_status to 'complete' so
+        // the next bootstrap routes straight to chat.
+        await patchOnboarding({ intake, complete: true });
+      } else {
+        await updateCurrentUser(extractedProfile.name, extractedProfile, intake);
+      }
       onComplete(bootstrappedUser, extractedProfile);
     } catch (e) {
       // Re-throw so IntakeView re-enables the form for retry; the error UI

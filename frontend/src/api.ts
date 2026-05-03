@@ -49,6 +49,31 @@ export interface CurrentUserResponse {
   plan: "free" | "basic" | "premium";
   role: "user" | "admin";
   status: AppUserStatus;
+  onboardingStatus: "pending" | "complete";
+  onboardingStep: "name" | "upload" | "review" | "intake" | null;
+  accessSource: "self" | "manual" | "payment";
+}
+
+export interface OnboardingPatchInput {
+  step?: "name" | "upload" | "review" | "intake" | null;
+  name?: string;
+  profile?: UserProfile;
+  intake?: Intake;
+  complete?: boolean;
+}
+
+export async function patchOnboarding(
+  input: OnboardingPatchInput,
+): Promise<void> {
+  const res = await fetch(`${BASE}/me/onboarding`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    const message = await readErrorMessage(res);
+    throw new Error(`Onboarding patch error ${res.status}: ${message}`);
+  }
 }
 
 export type CurrentUserBootstrapResult =

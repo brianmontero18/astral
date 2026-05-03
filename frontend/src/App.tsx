@@ -28,7 +28,15 @@ import {
   type BootstrapErrorDisplay,
 } from "./auth/bootstrap-errors";
 import { readFrontendAuthConfig } from "./auth/config";
-import type { AppUserStatus, LocalUser, UserProfile, Intake, DesignReport, View } from "./types";
+import type {
+  AppUserOnboardingStep,
+  AppUserStatus,
+  LocalUser,
+  UserProfile,
+  Intake,
+  DesignReport,
+  View,
+} from "./types";
 
 function readCurrentPathname(): string {
   if (typeof window === "undefined") {
@@ -54,6 +62,9 @@ export default function App() {
   const [reportLoading, setReportLoading] = useState(false);
   const [previousView, setPreviousView] = useState<View>("chat");
   const [intakeError, setIntakeError] = useState(false);
+  const [resumeStep, setResumeStep] = useState<AppUserOnboardingStep | null>(
+    null,
+  );
   const abortRef = useRef<AbortController | null>(null);
   const adminSupportRoute = parseAdminSupportRoute(pathname);
 
@@ -89,7 +100,17 @@ export default function App() {
           });
           setProfile(result.user.profile);
           setIntake(result.user.intake ?? undefined);
-          setCurrentView("chat");
+          if (result.user.onboardingStatus === "pending") {
+            // Admin-invited (or self-signup mid-flow) — resume the onboarding
+            // wizard at the persisted step. The user/profile/intake state
+            // above is populated so OnboardingFlow can hydrate without
+            // re-uploading anything that already exists.
+            setResumeStep(result.user.onboardingStep ?? "name");
+            setCurrentView("onboarding");
+          } else {
+            setResumeStep(null);
+            setCurrentView("chat");
+          }
           setReady(true);
           return;
         }
@@ -140,6 +161,7 @@ export default function App() {
   const handleOnboardingComplete = (u: LocalUser, p: UserProfile) => {
     setUser(u);
     setProfile(p);
+    setResumeStep(null);
     setCurrentView("chat");
   };
 
@@ -321,7 +343,14 @@ export default function App() {
     >
       {/* Onboarding */}
       {currentView === "onboarding" && (
-        <OnboardingFlow onComplete={handleOnboardingComplete} />
+        <OnboardingFlow
+          onComplete={handleOnboardingComplete}
+          resumeFrom={
+            user && profile && resumeStep
+              ? { user, profile, intake, initialStep: resumeStep }
+              : undefined
+          }
+        />
       )}
 
       {/* Main app (after onboarding) */}
