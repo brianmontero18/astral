@@ -26,6 +26,8 @@ import {
 } from "../auth/current-user.js";
 import type { AuthenticatedAppUser } from "../auth/identity.js";
 import { getMessageLimitForPlan } from "../chat-limits.js";
+import { deriveImpliedFields } from "../extraction-service.js";
+import type { UserProfile } from "../agent-service.js";
 
 async function fetchProviderEmail(
   app: FastifyInstance,
@@ -133,6 +135,11 @@ export async function userRoutes(app: FastifyInstance) {
         provider: currentUser.provider,
         subject: currentUser.subject,
       });
+    }
+
+    const profile = user.profile as UserProfile | null | undefined;
+    if (profile?.humanDesign) {
+      deriveImpliedFields(profile);
     }
 
     return reply.send(user);

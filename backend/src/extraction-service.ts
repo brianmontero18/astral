@@ -312,7 +312,7 @@ const HD_TYPE_IMPLIED: Record<string, { strategy: string; notSelfTheme: string }
   },
 };
 
-function deriveImpliedFields(profile: UserProfile): UserProfile {
+export function deriveImpliedFields(profile: UserProfile): UserProfile {
   const type = profile.humanDesign.type?.trim();
   if (!type) return profile;
   const implied = HD_TYPE_IMPLIED[type];
