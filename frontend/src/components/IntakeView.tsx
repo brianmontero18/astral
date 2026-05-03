@@ -86,6 +86,32 @@ const FIELDS: FieldDef[] = [
   },
 ];
 
+function MicIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="9" y="3" width="6" height="11" rx="3" />
+      <path d="M5 11a7 7 0 0 0 14 0" />
+      <path d="M12 18v3" />
+    </svg>
+  );
+}
+
+function StopIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <rect x="6" y="6" width="12" height="12" rx="1.5" />
+    </svg>
+  );
+}
+
+function CancelIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+      <path d="M6 6l12 12M6 18L18 6" />
+    </svg>
+  );
+}
+
 function MicButton({ onTranscription }: { onTranscription: (text: string) => void }) {
   const { isRecording, isTranscribing, error, autoResult, startRecording, stopRecording, cancelRecording, consumeAutoResult } = useVoiceRecorder();
 
@@ -107,60 +133,41 @@ function MicButton({ onTranscription }: { onTranscription: (text: string) => voi
 
   if (isTranscribing) {
     return (
-      <div style={{
-        width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center",
-      }}>
-        <div style={{
-          width: 14, height: 14,
-          border: "2px solid var(--color-primary-dim)",
-          borderTopColor: "var(--color-primary)",
-          borderRadius: "50%",
-          animation: "spin 0.8s linear infinite",
-        }} />
+      <div className="intake-mic-button is-transcribing" aria-label="Transcribiendo audio">
+        <span className="intake-mic-spinner" />
       </div>
     );
   }
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+    <div className="intake-mic-cluster">
       <button
         type="button"
         onClick={handleClick}
         title={isRecording ? "Detener grabación" : "Grabar con voz"}
-        style={{
-          width: 36, height: 36, borderRadius: "50%", border: "none", cursor: "pointer",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 16, transition: "all 0.2s ease",
-          background: isRecording ? "rgba(201,107,122,0.2)" : "var(--color-primary-faint)",
-          color: isRecording ? "#f3c2c2" : "var(--text-gold)",
-          animation: isRecording ? "pulse 1.5s ease-in-out infinite" : "none",
-        }}
+        aria-label={isRecording ? "Detener grabación" : "Grabar con voz"}
+        className={"intake-mic-button" + (isRecording ? " is-recording" : "")}
       >
-        {isRecording ? "⏹" : "🎤"}
+        {isRecording ? <StopIcon /> : <MicIcon />}
       </button>
       {isRecording && (
         <button
           type="button"
           onClick={cancelRecording}
-          style={{
-            background: "transparent", border: "none", color: "#f3c2c2",
-            fontSize: 11, cursor: "pointer", padding: "2px 4px",
-          }}
+          title="Cancelar grabación"
+          aria-label="Cancelar grabación"
+          className="intake-mic-cancel"
         >
-          ✕
+          <CancelIcon />
         </button>
       )}
-      {error && (
-        <span style={{ color: "#f3c2c2", fontSize: 10, maxWidth: 120, lineHeight: 1.3 }}>
-          {error}
-        </span>
-      )}
+      {error && <span className="intake-mic-error">{error}</span>}
     </div>
   );
 }
 
 const DEFAULT_DESCRIPTION =
-  "Completá estos campos para que las respuestas y reportes lleguen específicas a tu negocio. Los dos primeros son obligatorios — los demás te ayudan a profundizar pero podés saltarlos.";
+  "Completá los campos clave para que tu agente arranque con contexto real. Los dos primeros son obligatorios.";
 
 export function IntakeView({
   initialIntake,
@@ -228,57 +235,20 @@ export function IntakeView({
   };
 
   return (
-    <div
-      style={{
-        flex: 1,
-        overflowY: "auto",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        padding: "32px 16px",
-      }}
-    >
-      <div style={{ maxWidth: 760, width: "100%" }}>
-        <div style={{
-          color: "var(--color-gold)", fontSize: 11, letterSpacing: "0.24em",
-          fontWeight: 600, marginBottom: 8, fontFamily: "var(--font-sans)", textTransform: "uppercase",
-        }}>
-          Tu negocio
-        </div>
-        <h2 style={{
-          fontFamily: "var(--font-serif)", color: "var(--text-on-light)",
-          fontSize: 26, fontWeight: 500, margin: "0 0 8px",
-        }}>
-          Contame de tu negocio
-        </h2>
-        <p style={{
-          color: "var(--text-on-light-muted)", fontSize: 14, lineHeight: 1.65,
-          margin: "0 0 28px", fontWeight: 400,
-        }}>
-          {description}
-        </p>
+    <div className="intake-stage">
+      <div className="intake-card">
+        <div className="intake-kicker">Tu negocio</div>
+        <h2 className="intake-title">Contame de tu negocio</h2>
+        <p className="intake-description">{description}</p>
 
-        <div style={{
-          background: "var(--surface-dark)",
-          border: "1px solid rgba(33, 41, 30, 0.32)",
-          borderRadius: 18,
-          padding: "22px 22px 18px",
-          marginBottom: 20,
-          color: "var(--text-main)",
-        }}>
-          {FIELDS.map((field, idx) => (
-            <div key={field.key} style={{ marginBottom: idx === FIELDS.length - 1 ? 0 : 18 }}>
-              <div style={{
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-                marginBottom: 8,
-              }}>
-                <label htmlFor={`intake-${field.key}`} style={{
-                  color: "var(--text-main)", fontSize: 13, fontWeight: 600,
-                  fontFamily: "var(--font-sans)",
-                }}>
+        <div className="intake-fields">
+          {FIELDS.map((field) => (
+            <div key={field.key} className="intake-field">
+              <div className="intake-field-header">
+                <label htmlFor={`intake-${field.key}`} className="intake-field-label">
                   {field.label}
                   {field.kind === "textarea" && field.required && (
-                    <span style={{ color: "var(--color-primary)", marginLeft: 4 }}>*</span>
+                    <span className="intake-field-required" aria-hidden="true">*</span>
                   )}
                 </label>
                 {field.kind === "textarea" && (
@@ -300,73 +270,52 @@ export function IntakeView({
                   onChange={(e) => handleTextChange(field.key, e.target.value)}
                   placeholder={field.placeholder}
                   rows={3}
-                  style={{
-                    width: "100%", background: "rgba(248, 244, 232, 0.06)",
-                    border: "1px solid rgba(248, 244, 232, 0.18)", borderRadius: 10,
-                    color: "var(--text-main)", padding: "12px 14px", fontSize: 13,
-                    fontFamily: "var(--font-sans)", resize: "vertical", lineHeight: 1.6,
-                    outline: "none", transition: "border-color 0.2s ease",
-                    boxSizing: "border-box",
-                  }}
-                  onFocus={(e) => { e.target.style.borderColor = "var(--color-primary)" }}
-                  onBlur={(e) => { e.target.style.borderColor = "rgba(248, 244, 232, 0.18)" }}
+                  className="intake-textarea"
                 />
               ) : (
-                <select
-                  id={`intake-${field.key}`}
-                  value={values[field.key] ?? ""}
-                  onChange={(e) => handleSelectChange(field.key, e.target.value)}
-                  style={{
-                    width: "100%", background: "rgba(248, 244, 232, 0.06)",
-                    border: "1px solid rgba(248, 244, 232, 0.18)", borderRadius: 10,
-                    color: "var(--text-main)", padding: "12px 14px", fontSize: 13,
-                    fontFamily: "var(--font-sans)", outline: "none", cursor: "pointer",
-                    boxSizing: "border-box",
-                  }}
-                >
-                  <option value="">Sin elegir</option>
-                  {field.options.map((opt) => (
-                    <option key={opt.value} value={opt.value} style={{ background: "var(--surface-dark)" }}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+                <div className="intake-select-wrapper">
+                  <select
+                    id={`intake-${field.key}`}
+                    value={values[field.key] ?? ""}
+                    onChange={(e) => handleSelectChange(field.key, e.target.value)}
+                    className="intake-select"
+                  >
+                    <option value="">Sin elegir</option>
+                    {field.options.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="intake-select-chevron" aria-hidden="true">▾</span>
+                </div>
               )}
             </div>
           ))}
         </div>
 
         {showRequiredHint && (
-          <div
-            style={{
-              borderRadius: 10,
-              padding: "10px 14px",
-              marginBottom: 14,
-              background: "rgba(196, 96, 96, 0.14)",
-              border: "1px solid rgba(196, 96, 96, 0.4)",
-              color: "#9a3737",
-              fontSize: 13,
-              lineHeight: 1.5,
-            }}
-          >
-            Necesitamos al menos los dos campos marcados con * para que tu agente arranque con contexto real.
+          <div className="onboarding-inline-error" role="alert">
+            Necesitamos al menos los dos campos marcados con * para arrancar con contexto real.
           </div>
         )}
 
-        <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
+        <div className="intake-actions">
           {secondaryAction && (
             <button
+              type="button"
               onClick={() => {
                 if (!submitting) secondaryAction.onClick();
               }}
               disabled={submitting}
-              className="btn-secondary"
+              className="astral-auth-secondary"
               style={{ flex: 1 }}
             >
               {secondaryAction.label}
             </button>
           )}
           <button
+            type="button"
             onClick={handleSubmit}
             disabled={submitting}
             className="astral-auth-primary"

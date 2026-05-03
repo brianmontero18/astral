@@ -578,7 +578,14 @@ export function OnboardingFlow({ onComplete }: Props) {
             )}
             <IntakeView
               submitLabel="Embarcar al chat"
-              description="Antes de cruzar tu diseño con los tránsitos de la semana, necesitamos un poco de contexto sobre tu negocio. Lo mínimo (los dos campos con *) hace que las respuestas sean específicas desde el primer mensaje."
+              description="Dos campos para que las respuestas lleguen específicas desde el primer mensaje. Los demás te ayudan a profundizar."
+              secondaryAction={{
+                label: "Volver",
+                onClick: () => {
+                  setError(null);
+                  setStep("review");
+                },
+              }}
               onSubmit={handleIntakeSubmit}
             />
           </div>
