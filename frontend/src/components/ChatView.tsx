@@ -89,10 +89,10 @@ function FeedbackButton({
   );
 }
 
-const QUICK_ACTIONS = [
-  "Reporte semanal completo",
-  "¿Cómo está mi energía esta semana?",
-  "¿Qué tránsitos me afectan hoy?",
+const QUICK_ACTIONS: Array<{ label: string; primary?: boolean }> = [
+  { label: "Reporte semanal completo", primary: true },
+  { label: "¿Cómo está mi energía esta semana?" },
+  { label: "¿Qué tránsitos me afectan hoy?" },
 ];
 
 function formatResetDate(value: string | undefined): string | null {
@@ -442,11 +442,11 @@ export function ChatView({ userName }: Props) {
             <div className="chat-quick-actions">
               {QUICK_ACTIONS.map((q) => (
                 <button
-                  key={q}
-                  onClick={() => sendMessage(q)}
-                  className="chat-quick-action"
+                  key={q.label}
+                  onClick={() => sendMessage(q.label)}
+                  className={"chat-quick-action" + (q.primary ? " chat-quick-action--primary" : "")}
                 >
-                  {q}
+                  {q.label}
                 </button>
               ))}
             </div>
