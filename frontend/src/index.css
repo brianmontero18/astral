@@ -1356,11 +1356,7 @@ textarea { outline: none !important; }
   .astral-auth-footer {
     flex-direction: column;
     align-items: center;
-  }
-
-  .astral-auth-topnav {
-    width: 100%;
-    justify-content: space-between;
+    gap: 14px;
   }
 
   .astral-auth-portal,
@@ -1373,6 +1369,15 @@ textarea { outline: none !important; }
 
   .astral-auth-display {
     font-size: clamp(2rem, 11vw, 2.8rem);
+  }
+
+  .astral-auth-secondary-row {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .astral-auth-text-divider {
+    display: none;
   }
 }
 
@@ -1459,6 +1464,47 @@ textarea { outline: none !important; }
   display: flex;
   gap: 8px;
   flex-shrink: 0;
+}
+
+.asset-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 40px 28px;
+  border: 1px dashed rgba(33, 41, 30, 0.18);
+  border-radius: 18px;
+  background: rgba(33, 41, 30, 0.02);
+  animation: fadeIn 0.4s ease;
+}
+
+.asset-empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: rgba(207, 172, 108, 0.1);
+  border: 1px solid rgba(207, 172, 108, 0.28);
+  color: var(--color-gold-deep);
+  margin-bottom: 16px;
+}
+
+.asset-empty-title {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  color: var(--text-on-light);
+  margin-bottom: 6px;
+}
+
+.asset-empty-copy {
+  max-width: 380px;
+  margin: 0;
+  color: var(--text-on-light-muted);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 /* ─── Onboarding Shell ─── */
