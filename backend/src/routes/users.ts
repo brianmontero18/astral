@@ -1,8 +1,11 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import SuperTokens from "supertokens-node";
+import Passwordless from "supertokens-node/recipe/passwordless";
 import {
+  createUser,
   createUserWithIdentity,
   deleteUser,
+  findUserByEmail,
   findUserByIdentity,
   getLlmUsageForUser,
   getUserAssetCount,
@@ -11,8 +14,10 @@ import {
   getUser,
   listUserReportTiers,
   listUsers,
+  markUserAdminProvisioned,
   type AppUserRecord,
   type AppUserListRecord,
+  type AppUserOnboardingStep,
   type AppUserPlan,
   type AppUserRole,
   type AppUserStatus,
@@ -25,6 +30,7 @@ import {
   sendCurrentUserError,
 } from "../auth/current-user.js";
 import type { AuthenticatedAppUser } from "../auth/identity.js";
+import { readSuperTokensConfig } from "../auth/config.js";
 import { getMessageLimitForPlan } from "../chat-limits.js";
 import { deriveImpliedFields } from "../extraction-service.js";
 import type { UserProfile } from "../agent-service.js";
@@ -53,6 +59,60 @@ async function fetchProviderEmail(
 const ALLOWED_USER_PLANS = new Set<AppUserPlan>(["free", "basic", "premium"]);
 const ALLOWED_USER_ROLES = new Set<AppUserRole>(["user", "admin"]);
 const ALLOWED_USER_STATUSES = new Set<AppUserStatus>(["active", "disabled", "banned"]);
+
+// Loose RFC 5322-ish check — full validation happens at the SuperTokens layer
+// when the magic link is consumed. This guards against obvious garbage at the
+// admin endpoint boundary.
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// 48h matches the operational decision in epic astral-0xw. The actual TTL
+// of the magic link is set on the SuperTokens core (cloud dashboard or
+// self-hosted env). This constant is what we surface to admin as
+// `expiresAt` — keeping it in lockstep with the core config is part of
+// the runbook (Slice 7, astral-6o4).
+const INVITE_TTL_MS = 48 * 60 * 60 * 1000;
+
+// SuperTokens default tenant. Multi-tenancy is not configured in Astral.
+const DEFAULT_TENANT_ID = "public";
+
+function buildPlaceholderProfile(name: string): UserProfile {
+  return {
+    name,
+    humanDesign: {
+      type: "",
+      strategy: "",
+      authority: "",
+      profile: "",
+      definition: "",
+      incarnationCross: "",
+      notSelfTheme: "",
+      variable: "",
+      digestion: "",
+      environment: "",
+      strongestSense: "",
+      channels: [],
+      activatedGates: [],
+      definedCenters: [],
+      undefinedCenters: [],
+    },
+  };
+}
+
+function buildMagicLink(input: {
+  preAuthSessionId: string;
+  linkCode: string;
+  tenantId: string;
+}): string {
+  const config = readSuperTokensConfig();
+  const websiteDomain = config.appInfo.websiteDomain.replace(/\/$/, "");
+  const websiteBasePath = config.appInfo.websiteBasePath.startsWith("/")
+    ? config.appInfo.websiteBasePath
+    : `/${config.appInfo.websiteBasePath}`;
+  // SuperTokens places the linkCode in the URL fragment so it never reaches
+  // server logs. Mirrors the format used by `urlWithLinkCode` in the
+  // passwordless email template.
+  return `${websiteDomain}${websiteBasePath}/verify?preAuthSessionId=${encodeURIComponent(input.preAuthSessionId)}&tenantId=${encodeURIComponent(input.tenantId)}#${encodeURIComponent(input.linkCode)}`;
+}
 export async function userRoutes(app: FastifyInstance) {
   app.post<{ Body: { name: string; profile: object } }>("/users", async (req, reply) => {
     const { name, profile } = req.body;
@@ -241,6 +301,100 @@ export async function userRoutes(app: FastifyInstance) {
       return reply.status(404).send({ error: "User not found" });
     }
     return reply.send({ ok: true });
+  });
+
+  app.post<{
+    Body: { email?: string; plan?: AppUserPlan; name?: string };
+  }>("/admin/users", async (req, reply) => {
+    const adminUser = await requireAdminUser(
+      req as AuthenticatedRequest,
+      reply,
+    );
+
+    if (!adminUser) {
+      return;
+    }
+
+    const rawEmail = typeof req.body?.email === "string" ? req.body.email.trim() : "";
+    const plan = req.body?.plan;
+    const rawName = typeof req.body?.name === "string" ? req.body.name.trim() : "";
+
+    if (!rawEmail || !EMAIL_REGEX.test(rawEmail)) {
+      return reply.status(400).send({ error: "invalid_email" });
+    }
+    if (!plan || !ALLOWED_USER_PLANS.has(plan)) {
+      return reply.status(400).send({ error: "invalid_plan" });
+    }
+
+    const existingUser = await findUserByEmail(rawEmail);
+    let userId: string;
+    let isNewUser: boolean;
+
+    if (existingUser) {
+      // Upgrade path: keep onboarding_status, profile, identity untouched;
+      // only re-mark the access source and apply the new plan.
+      await markUserAdminProvisioned(existingUser.id, plan);
+      userId = existingUser.id;
+      isNewUser = false;
+    } else {
+      const onboardingStep: AppUserOnboardingStep = rawName ? "upload" : "name";
+      try {
+        userId = await createUser(rawName, buildPlaceholderProfile(rawName), {
+          email: rawEmail,
+          plan,
+          accessSource: "manual",
+          onboardingStatus: "pending",
+          onboardingStep,
+        });
+        isNewUser = true;
+      } catch (err) {
+        // Race condition: another admin invited the same email between our
+        // findUserByEmail() and createUser(). The UNIQUE INDEX on
+        // lower(email) rejected the insert. Fall through to upgrade.
+        const racedUser = await findUserByEmail(rawEmail);
+        if (!racedUser) {
+          throw err;
+        }
+        await markUserAdminProvisioned(racedUser.id, plan);
+        userId = racedUser.id;
+        isNewUser = false;
+      }
+    }
+
+    let createCodeResult: Awaited<ReturnType<typeof Passwordless.createCode>>;
+    try {
+      createCodeResult = await Passwordless.createCode({
+        tenantId: DEFAULT_TENANT_ID,
+        email: rawEmail,
+      });
+    } catch (err) {
+      app.log.error(
+        { err, userId, email: rawEmail },
+        "Failed to create passwordless invite code",
+      );
+      return reply.status(502).send({
+        error: "invite_send_failed",
+        userId,
+        plan,
+        isNewUser,
+      });
+    }
+
+    const magicLink = buildMagicLink({
+      preAuthSessionId: createCodeResult.preAuthSessionId,
+      linkCode: createCodeResult.linkCode,
+      tenantId: DEFAULT_TENANT_ID,
+    });
+
+    const expiresAt = new Date(Date.now() + INVITE_TTL_MS).toISOString();
+
+    return reply.status(200).send({
+      userId,
+      plan,
+      isNewUser,
+      magicLink,
+      expiresAt,
+    });
   });
 
   app.get<{ Querystring: { q?: string; page?: string; pageSize?: string } }>(

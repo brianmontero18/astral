@@ -29,6 +29,9 @@ interface AppUserAccessInput {
 interface AppUserCreateInput extends AppUserAccessInput {
   // Astral-owned support contact field. Nullable until auth/provider sync exists.
   email?: string | null;
+  onboardingStatus?: AppUserOnboardingStatus;
+  onboardingStep?: AppUserOnboardingStep | null;
+  accessSource?: AppUserAccessSource;
 }
 
 export interface AppUserRecord {
@@ -410,8 +413,11 @@ export async function createUser(
 ): Promise<string> {
   const id = randomUUID();
   const resolvedAccess = resolveUserAccess(options);
+  const onboardingStatus = options.onboardingStatus ?? DEFAULT_ONBOARDING_STATUS;
+  const onboardingStep = options.onboardingStep ?? null;
+  const accessSource = options.accessSource ?? DEFAULT_ACCESS_SOURCE;
   await client.execute({
-    sql: "INSERT INTO users (id, name, email, profile, plan, role, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    sql: "INSERT INTO users (id, name, email, profile, plan, role, status, onboarding_status, onboarding_step, access_source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     args: [
       id,
       name,
@@ -420,6 +426,9 @@ export async function createUser(
       resolvedAccess.plan,
       resolvedAccess.role,
       resolvedAccess.status,
+      onboardingStatus,
+      onboardingStep,
+      accessSource,
     ],
   });
   return id;
@@ -678,6 +687,78 @@ export async function deleteUser(id: string): Promise<boolean> {
   const result = await client.execute({
     sql: "DELETE FROM users WHERE id = ?",
     args: [id],
+  });
+  return result.rowsAffected > 0;
+}
+
+/**
+ * Marks an existing user as admin-provisioned and (re)assigns their plan.
+ * Used by the admin invite endpoint to upgrade a self-signup `free` user to
+ * `premium` (or any paid tier) without creating a duplicate row. Does not
+ * touch onboarding_status, profile, name, role, or status — those are
+ * either already populated (legacy linked user) or owned by other flows.
+ *
+ * Returns true iff the user exists.
+ */
+export async function markUserAdminProvisioned(
+  id: string,
+  plan: AppUserPlan,
+): Promise<boolean> {
+  const result = await client.execute({
+    sql: "UPDATE users SET plan = ?, access_source = 'manual', updated_at = datetime('now') WHERE id = ?",
+    args: [plan, id],
+  });
+  return result.rowsAffected > 0;
+}
+
+/**
+ * Atomically updates the onboarding cursor and any of the supported
+ * checkpoint fields (name, profile, intake). Used by the PATCH endpoint
+ * landing in Slice 4. Empty payload (no fields supplied) is a no-op and
+ * returns true if the user exists, false otherwise.
+ */
+export async function updateUserOnboarding(
+  id: string,
+  patch: {
+    name?: string;
+    profile?: object;
+    intake?: object | null;
+    onboardingStep?: AppUserOnboardingStep | null;
+    onboardingStatus?: AppUserOnboardingStatus;
+  },
+): Promise<boolean> {
+  const sets: Array<string> = [];
+  const args: Array<string | null> = [];
+
+  if (patch.name !== undefined) {
+    sets.push("name = ?");
+    args.push(patch.name);
+  }
+  if (patch.profile !== undefined) {
+    sets.push("profile = ?");
+    args.push(JSON.stringify(patch.profile));
+  }
+  if (patch.intake !== undefined) {
+    sets.push("intake = ?");
+    args.push(patch.intake === null ? null : JSON.stringify(patch.intake));
+  }
+  if (patch.onboardingStep !== undefined) {
+    sets.push("onboarding_step = ?");
+    args.push(patch.onboardingStep);
+  }
+  if (patch.onboardingStatus !== undefined) {
+    sets.push("onboarding_status = ?");
+    args.push(patch.onboardingStatus);
+  }
+
+  if (sets.length === 0) {
+    const exists = await getUser(id);
+    return exists !== undefined;
+  }
+
+  const result = await client.execute({
+    sql: `UPDATE users SET ${sets.join(", ")}, updated_at = datetime('now') WHERE id = ?`,
+    args: [...args, id],
   });
   return result.rowsAffected > 0;
 }
