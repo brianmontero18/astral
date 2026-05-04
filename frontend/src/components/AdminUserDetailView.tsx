@@ -155,36 +155,41 @@ function SupportField<T extends string>({
       >
         {label}
       </span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value as T)}
-        disabled={disabled}
-        style={{
-          width: "100%",
-          borderRadius: 14,
-          border: "1px solid rgba(248, 244, 232, 0.12)",
-          background: "rgba(248, 244, 232, 0.04)",
-          color: "var(--text-main)",
-          padding: "14px 16px",
-          outline: "none",
-          fontSize: 14,
-          cursor: disabled ? "not-allowed" : "pointer",
-          opacity: disabled ? 0.6 : 1,
-        }}
-      >
-        {options.map((option) => (
-          <option
-            key={option.value}
-            value={option.value}
-            style={{
-              background: "var(--bg-dark)",
-              color: "var(--text-main)",
-            }}
-          >
-            {option.label}
-          </option>
-        ))}
-      </select>
+      <div className="admin-select-wrapper">
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value as T)}
+          disabled={disabled}
+          className="admin-select"
+        >
+          {options.map((option) => (
+            <option
+              key={option.value}
+              value={option.value}
+              style={{
+                background: "var(--surface-deeper)",
+                color: "var(--text-main)",
+              }}
+            >
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <svg
+          className="admin-select-chevron"
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </div>
     </label>
   );
 }
@@ -820,14 +825,14 @@ export function AdminUserDetailView({
             >
               <button
                 type="submit"
-                className="btn-primary"
+                className="astral-auth-primary admin-cta-compact"
                 disabled={!pendingPatch || saving || isSelfMutation}
               >
                 {saving ? "Guardando..." : "Guardar acceso"}
               </button>
               <button
                 type="button"
-                className="btn-secondary"
+                className="astral-auth-secondary admin-cta-compact"
                 onClick={handleResetDraft}
                 disabled={!pendingPatch || saving}
               >
@@ -874,7 +879,7 @@ export function AdminUserDetailView({
                 <button
                   type="button"
                   onClick={handleReinvite}
-                  className="btn-primary"
+                  className="astral-auth-primary admin-cta-compact"
                   disabled={
                     !detail.email || reinviteState.kind === "submitting"
                   }

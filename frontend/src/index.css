@@ -1758,6 +1758,16 @@ textarea { outline: none !important; }
   flex-shrink: 0;
 }
 
+/* Compact override for astral-auth-* used as inline CTAs in admin screens */
+.admin-cta-compact {
+  width: auto;
+  min-height: 0;
+  padding: 10px 18px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+}
+
 /* ─── Onboarding Shell ─── */
 
 .onboarding-shell {
