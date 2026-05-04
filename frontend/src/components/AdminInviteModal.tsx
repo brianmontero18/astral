@@ -115,15 +115,7 @@ export function AdminInviteModal({
       }}
     >
       <div
-        className="glass-panel"
-        style={{
-          maxWidth: 520,
-          width: "100%",
-          padding: "28px 28px 24px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 18,
-        }}
+        className="glass-panel admin-invite-card"
       >
         <div>
           <div
@@ -144,8 +136,9 @@ export function AdminInviteModal({
               margin: 0,
               color: "var(--text-main)",
               fontFamily: "var(--font-serif)",
-              fontSize: 30,
-              fontWeight: 400,
+              fontSize: 28,
+              fontWeight: 500,
+              lineHeight: 1.2,
             }}
           >
             Invitar usuaria
@@ -178,26 +171,42 @@ export function AdminInviteModal({
               disabled={fieldsDisabled}
               placeholder="usuaria@dominio.com"
               autoComplete="off"
-              style={inputStyle}
+              className="admin-input"
             />
           </Field>
           <Field label="Plan">
-            <select
-              value={plan}
-              onChange={(event) => setPlan(event.target.value as AppUserPlan)}
-              disabled={fieldsDisabled}
-              style={selectStyle}
-            >
-              {PLAN_OPTIONS.map((option) => (
-                <option
-                  key={option.value}
-                  value={option.value}
-                  style={{ background: "var(--bg-dark)" }}
-                >
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <div className="admin-select-wrapper">
+              <select
+                value={plan}
+                onChange={(event) => setPlan(event.target.value as AppUserPlan)}
+                disabled={fieldsDisabled}
+                className="admin-select"
+              >
+                {PLAN_OPTIONS.map((option) => (
+                  <option
+                    key={option.value}
+                    value={option.value}
+                    style={{ background: "var(--surface-deeper)" }}
+                  >
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <svg
+                className="admin-select-chevron"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </div>
           </Field>
           <Field label="Nombre (opcional)">
             <input
@@ -207,7 +216,7 @@ export function AdminInviteModal({
               disabled={fieldsDisabled}
               placeholder="Marina"
               autoComplete="off"
-              style={inputStyle}
+              className="admin-input"
             />
           </Field>
 
@@ -224,18 +233,11 @@ export function AdminInviteModal({
             />
           ) : null}
 
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              gap: 10,
-              marginTop: 4,
-            }}
-          >
+          <div className="admin-invite-actions">
             <button
               type="button"
               onClick={onClose}
-              className="btn-secondary"
+              className="astral-auth-secondary"
               disabled={submitting}
             >
               {submitState.kind === "ok" ? "Cerrar y ver lista" : "Cancelar"}
@@ -243,7 +245,7 @@ export function AdminInviteModal({
             {submitState.kind !== "ok" ? (
               <button
                 type="submit"
-                className="btn-primary"
+                className="astral-auth-primary"
                 disabled={submitting}
               >
                 {submitting ? "Enviando…" : "Enviar invitación"}
@@ -280,21 +282,6 @@ function Field({
     </label>
   );
 }
-
-const inputStyle: React.CSSProperties = {
-  borderRadius: 12,
-  border: "1px solid rgba(248, 244, 232, 0.12)",
-  background: "rgba(248, 244, 232, 0.04)",
-  color: "var(--text-main)",
-  padding: "12px 14px",
-  outline: "none",
-  fontSize: 14,
-};
-
-const selectStyle: React.CSSProperties = {
-  ...inputStyle,
-  cursor: "pointer",
-};
 
 function Notice({
   tone,
@@ -401,8 +388,7 @@ function SuccessPanel({
         <button
           type="button"
           onClick={() => onCopy(result.data.magicLink)}
-          className="btn-secondary"
-          style={{ padding: "8px 14px", fontSize: 13 }}
+          className="astral-auth-secondary admin-invite-copy"
         >
           Copiar link
         </button>

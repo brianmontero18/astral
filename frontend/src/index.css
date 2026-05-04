@@ -1668,6 +1668,96 @@ textarea { outline: none !important; }
   box-shadow: none;
 }
 
+/* ─── Admin invite modal ─── */
+
+.admin-invite-card {
+  width: 100%;
+  max-width: 520px;
+  padding: 28px 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  border-radius: 18px;
+}
+
+.admin-input,
+.admin-select {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid rgba(248, 244, 232, 0.12);
+  background: rgba(248, 244, 232, 0.04);
+  color: var(--text-main);
+  padding: 12px 14px;
+  outline: none;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 400;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.admin-input:focus,
+.admin-select:focus {
+  border-color: rgba(207, 172, 108, 0.5);
+  background: rgba(248, 244, 232, 0.06);
+}
+
+.admin-input:disabled,
+.admin-select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.admin-input::placeholder {
+  color: rgba(248, 244, 232, 0.32);
+}
+
+.admin-select-wrapper {
+  position: relative;
+}
+
+.admin-select {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  padding-right: 38px;
+}
+
+.admin-select-chevron {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-faint);
+  pointer-events: none;
+}
+
+.admin-invite-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.admin-invite-actions .astral-auth-secondary,
+.admin-invite-actions .astral-auth-primary {
+  width: auto;
+  min-height: 0;
+  padding: 10px 18px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+}
+
+.admin-invite-copy {
+  width: auto;
+  min-height: 0;
+  padding: 8px 14px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 /* ─── Onboarding Shell ─── */
 
 .onboarding-shell {
