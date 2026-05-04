@@ -650,16 +650,8 @@ export function AdminUserDetailView({
           >
             Support Panel
           </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              gap: 18,
-              flexWrap: "wrap",
-            }}
-          >
-            <div style={{ minWidth: 0, flex: 1 }}>
+          <div className="admin-detail-hero-row">
+            <div className="admin-detail-hero-main">
               <h1
                 style={{
                   margin: "0 0 8px",
@@ -699,13 +691,7 @@ export function AdminUserDetailView({
                 </p>
               ) : null}
             </div>
-            <div
-              style={{
-                display: "flex",
-                gap: 12,
-                flexWrap: "wrap",
-              }}
-            >
+            <div className="admin-detail-hero-meta">
               <div className="glass-panel-gold" style={{ padding: "14px 16px", minWidth: 108 }}>
                 <SupportValue label="Plan" value={detailDisplay.header.plan} />
               </div>

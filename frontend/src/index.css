@@ -1768,6 +1768,85 @@ textarea { outline: none !important; }
   white-space: nowrap;
 }
 
+/* Admin user detail — hero row (name+email left, plan/estado right) */
+.admin-detail-hero-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.admin-detail-hero-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.admin-detail-hero-meta {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .admin-detail-hero-row {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .admin-detail-hero-main {
+    width: 100%;
+  }
+
+  .admin-detail-hero-meta {
+    width: 100%;
+  }
+
+  .admin-detail-hero-meta > * {
+    flex: 1;
+  }
+
+  /* NavBar compact en mobile */
+  .app-shell-header {
+    padding: 14px 16px 0;
+  }
+
+  .app-shell-header-row {
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .app-brand-title {
+    font-size: 15px;
+    letter-spacing: 0.04em;
+  }
+
+  .app-profile-actions {
+    gap: 8px;
+  }
+
+  .admin-link-button {
+    display: none;
+  }
+
+  .user-pill {
+    max-width: 110px;
+    padding: 6px 10px;
+    font-size: 10px;
+  }
+
+  .app-nav {
+    gap: 14px;
+    overflow-x: auto;
+  }
+
+  .app-nav-item {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    white-space: nowrap;
+  }
+}
+
 /* ─── Onboarding Shell ─── */
 
 .onboarding-shell {
