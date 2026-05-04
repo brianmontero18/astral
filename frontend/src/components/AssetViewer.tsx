@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { getUserAssets, uploadAsset, deleteAsset } from "../api";
 import { getAssetFailureMessage } from "../asset-errors";
 import type { AssetMeta } from "../types";
+import { ConfirmModal } from "./ConfirmModal";
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -50,6 +51,8 @@ export function AssetViewer() {
   const [error, setError] = useState<string | null>(null);
   const [previewAsset, setPreviewAsset] = useState<AssetMeta | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const loadAssets = () => {
@@ -100,15 +103,25 @@ export function AssetViewer() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("¿Querés eliminar este archivo? Esta acción no se puede deshacer.")) return;
+  const requestDelete = (id: string) => {
+    setPendingDeleteId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDeleteId) return;
+    const id = pendingDeleteId;
+    setDeleting(true);
     setError(null);
     try {
       await deleteAsset(id);
       setAssets((prev) => prev.filter((a) => a.id !== id));
       if (previewAsset?.id === id) setPreviewAsset(null);
+      setPendingDeleteId(null);
     } catch (e) {
       setError(getAssetFailureMessage(e, "No pudimos eliminar el archivo."));
+      setPendingDeleteId(null);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -213,7 +226,7 @@ export function AssetViewer() {
                 Ver
               </button>
               <button
-                onClick={() => handleDelete(asset.id)}
+                onClick={() => requestDelete(asset.id)}
                 style={{
                   background: "transparent",
                   border: "1px solid rgba(248, 244, 232, 0.16)",
@@ -309,6 +322,17 @@ export function AssetViewer() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={pendingDeleteId !== null}
+        title="Eliminar este archivo"
+        body="No se puede deshacer. El archivo y su preview se borran de tu biblioteca."
+        confirmLabel={deleting ? "Eliminando..." : "Eliminar"}
+        cancelLabel="Cancelar"
+        destructive
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDeleteId(null)}
+      />
     </div>
   );
 }

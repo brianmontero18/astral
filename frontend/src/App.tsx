@@ -15,6 +15,7 @@ import { TransitViewer } from "./components/TransitViewer";
 import { AssetViewer } from "./components/AssetViewer";
 import { IntakeView } from "./components/IntakeView";
 import { ReportView } from "./components/ReportView";
+import { ConfirmModal } from "./components/ConfirmModal";
 import { generateReport, getCurrentUser, getReport, updateCurrentUser } from "./api";
 import { getAccessibleReportTier } from "./report-access";
 import {
@@ -62,6 +63,9 @@ export default function App() {
   const [reportLoading, setReportLoading] = useState(false);
   const [previousView, setPreviousView] = useState<View>("chat");
   const [intakeError, setIntakeError] = useState(false);
+  const [pendingRegenerateIntake, setPendingRegenerateIntake] = useState<{
+    intake?: Intake;
+  } | null>(null);
   const [resumeStep, setResumeStep] = useState<AppUserOnboardingStep | null>(
     null,
   );
@@ -219,7 +223,16 @@ export default function App() {
   const handleGenerateReport = async (intakeData?: Intake) => {
     if (!user || !profile) return;
 
-    if (report && !window.confirm("Esto va a reemplazar tu informe actual. ¿Continuar?")) return;
+    if (report) {
+      setPendingRegenerateIntake({ intake: intakeData });
+      return;
+    }
+
+    runGenerateReport(intakeData);
+  };
+
+  const runGenerateReport = async (intakeData?: Intake) => {
+    if (!user || !profile) return;
 
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -460,6 +473,20 @@ export default function App() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={pendingRegenerateIntake !== null}
+        title="Regenerar tu informe"
+        body="Esto va a reemplazar tu informe actual. ¿Querés continuar?"
+        confirmLabel="Regenerar"
+        cancelLabel="Cancelar"
+        onConfirm={() => {
+          const data = pendingRegenerateIntake;
+          setPendingRegenerateIntake(null);
+          runGenerateReport(data?.intake);
+        }}
+        onCancel={() => setPendingRegenerateIntake(null)}
+      />
     </div>
   );
 }
