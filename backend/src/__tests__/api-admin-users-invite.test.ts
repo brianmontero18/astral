@@ -10,12 +10,13 @@
  *  - existing email (case-insensitive) → upgrade plan + access_source='manual',
  *    no duplicate row, do not touch onboarding_status / profile / identity.
  *  - 400 on malformed email or unknown plan; 403 for non-admin sessions.
- *  - 502 invite_send_failed when the Passwordless code cannot be issued —
- *    the users row remains intact so admin can retry from the UI.
+ *  - 502 invite_send_failed when the Passwordless code cannot be issued or
+ *    the email cannot be sent — the users row remains intact so admin can
+ *    retry from the UI.
  *
- * SuperTokens.Passwordless.createCode is mocked module-wide because tests
- * cannot reach a real SuperTokens core; the magicLink in the response is
- * built deterministically from the mocked output.
+ * SuperTokens.Passwordless create/send calls are mocked module-wide because
+ * tests cannot reach a real SuperTokens core or email service; the magicLink
+ * in the response is built deterministically from the mocked output.
  */
 
 import {
@@ -34,6 +35,7 @@ import { mockSessionModule } from "./session-mock.js";
 vi.mock("../auth/session.js", () => mockSessionModule());
 
 const passwordlessCreateCodeMock = vi.fn();
+const passwordlessSendEmailMock = vi.fn();
 
 vi.mock("supertokens-node/recipe/passwordless", async () => {
   const actual = await vi.importActual<
@@ -44,6 +46,7 @@ vi.mock("supertokens-node/recipe/passwordless", async () => {
     default: {
       ...actual.default,
       createCode: passwordlessCreateCodeMock,
+      sendEmail: passwordlessSendEmailMock,
     },
   };
 });
@@ -71,6 +74,7 @@ afterAll(async () => {
 
 beforeEach(() => {
   passwordlessCreateCodeMock.mockReset();
+  passwordlessSendEmailMock.mockReset();
   passwordlessCreateCodeMock.mockResolvedValue({
     status: "OK",
     preAuthSessionId: "preauth-mock",
@@ -81,6 +85,7 @@ beforeEach(() => {
     codeLifetime: 48 * 60 * 60 * 1000,
     timeCreated: Date.now(),
   });
+  passwordlessSendEmailMock.mockResolvedValue(undefined);
 });
 
 async function postInvite(payload: {
@@ -126,6 +131,16 @@ describe("POST /api/admin/users — happy paths", () => {
 
     expect(passwordlessCreateCodeMock).toHaveBeenCalledWith(
       expect.objectContaining({ email: "marina@coach.test" }),
+    );
+    expect(passwordlessSendEmailMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "PASSWORDLESS_LOGIN",
+        email: "marina@coach.test",
+        preAuthSessionId: "preauth-mock",
+        urlWithLinkCode: body.magicLink,
+        userInputCode: "123456",
+        tenantId: "public",
+      }),
     );
   });
 
@@ -248,6 +263,33 @@ describe("POST /api/admin/users — invite send failure", () => {
     const { getUser } = await import("../db.js");
     const stranded = await getUser(body.userId);
     expect(stranded?.email).toBe("fragile@coach.test");
+    expect(stranded?.access_source).toBe("manual");
+    expect(stranded?.onboarding_status).toBe("pending");
+  });
+
+  it("returns 502 invite_send_failed but keeps the users row when email delivery throws", async () => {
+    passwordlessSendEmailMock.mockRejectedValueOnce(
+      new Error("SMTP 421 service unavailable"),
+    );
+
+    const res = await postInvite({
+      email: "maildown@coach.test",
+      plan: "premium",
+      name: "Mail Down",
+    });
+
+    expect(res.statusCode).toBe(502);
+    const body = JSON.parse(res.body);
+    expect(body).toMatchObject({
+      error: "invite_send_failed",
+      plan: "premium",
+      isNewUser: true,
+    });
+    expect(body.magicLink).toBeUndefined();
+
+    const { getUser } = await import("../db.js");
+    const stranded = await getUser(body.userId);
+    expect(stranded?.email).toBe("maildown@coach.test");
     expect(stranded?.access_source).toBe("manual");
     expect(stranded?.onboarding_status).toBe("pending");
   });

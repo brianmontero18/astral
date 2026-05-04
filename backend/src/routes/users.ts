@@ -402,15 +402,33 @@ export async function userRoutes(app: FastifyInstance) {
     }
 
     let createCodeResult: Awaited<ReturnType<typeof Passwordless.createCode>>;
+    let magicLink: string;
     try {
       createCodeResult = await Passwordless.createCode({
         tenantId: DEFAULT_TENANT_ID,
         email: rawEmail,
       });
+
+      magicLink = buildMagicLink({
+        preAuthSessionId: createCodeResult.preAuthSessionId,
+        linkCode: createCodeResult.linkCode,
+        tenantId: DEFAULT_TENANT_ID,
+      });
+
+      await Passwordless.sendEmail({
+        type: "PASSWORDLESS_LOGIN",
+        isFirstFactor: true,
+        email: rawEmail,
+        codeLifetime: createCodeResult.codeLifetime,
+        preAuthSessionId: createCodeResult.preAuthSessionId,
+        urlWithLinkCode: magicLink,
+        userInputCode: createCodeResult.userInputCode,
+        tenantId: DEFAULT_TENANT_ID,
+      });
     } catch (err) {
       app.log.error(
         { err, userId, email: rawEmail },
-        "Failed to create passwordless invite code",
+        "Failed to issue passwordless invite email",
       );
       return reply.status(502).send({
         error: "invite_send_failed",
@@ -419,12 +437,6 @@ export async function userRoutes(app: FastifyInstance) {
         isNewUser,
       });
     }
-
-    const magicLink = buildMagicLink({
-      preAuthSessionId: createCodeResult.preAuthSessionId,
-      linkCode: createCodeResult.linkCode,
-      tenantId: DEFAULT_TENANT_ID,
-    });
 
     const expiresAt = new Date(Date.now() + INVITE_TTL_MS).toISOString();
 
