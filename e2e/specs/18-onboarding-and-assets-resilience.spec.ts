@@ -219,13 +219,14 @@ test.describe("Onboarding & Assets resilience", () => {
       });
 
       await expect(page.getByText("mi-carta.txt")).toBeVisible();
-      await page.getByRole("button", { name: "Ver" }).click();
+      await page.getByRole("button", { name: /^Abrir/ }).click();
       await expect(page.getByRole("dialog")).toBeVisible();
       await expect(page.getByText("Mi carta base")).toBeVisible();
 
       await page.getByLabel("Cerrar vista previa").click();
       await expect(page.getByRole("dialog")).toHaveCount(0);
 
+      await page.getByRole("button", { name: /^Quitar/ }).click();
       await page.getByRole("button", { name: "Eliminar" }).click();
       await expect(page.getByText("Todavía no subiste archivos.")).toBeVisible();
     });
@@ -348,10 +349,11 @@ test.describe("Onboarding & Assets resilience", () => {
       await page.goto("/");
       await page.getByRole("button", { name: "Mis Cartas" }).click();
 
-      await page.getByRole("button", { name: "Ver" }).click();
+      await page.getByRole("button", { name: /^Abrir/ }).click();
       await expect(page.getByText("No pudimos mostrar este archivo ahora.")).toBeVisible();
       await page.getByLabel("Cerrar vista previa").click();
 
+      await page.getByRole("button", { name: /^Quitar/ }).click();
       await page.getByRole("button", { name: "Eliminar" }).click();
       await expect(page.getByText("No tenés acceso a este archivo.")).toBeVisible();
       await expect(page.getByText("asset_forbidden")).not.toBeVisible();

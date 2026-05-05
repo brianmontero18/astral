@@ -98,7 +98,7 @@ test.describe("Mobile — Core Surfaces", () => {
     await page.getByRole("button", { name: "Mis Cartas" }).click();
     await expect(page.getByRole("heading", { name: "Mis Cartas" })).toBeVisible();
     await expect(page.getByText("mi-carta.pdf")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Ver" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Abrir/ })).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });
 

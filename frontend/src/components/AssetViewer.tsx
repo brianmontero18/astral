@@ -212,33 +212,37 @@ export function AssetViewer() {
             <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
               <button
                 onClick={() => setPreviewAsset(asset)}
+                aria-label={`Abrir ${asset.filename}`}
                 style={{
                   background: "transparent",
                   border: "1px solid rgba(248, 244, 232, 0.2)",
-                  color: "var(--text-main)", padding: "6px 14px",
+                  color: "var(--text-main)", padding: "8px 16px",
                   borderRadius: "20px", cursor: "pointer", fontSize: "11px",
-                  letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 600,
+                  letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 600,
+                  fontFamily: "var(--font-sans)",
                   transition: "all 0.2s ease"
                 }}
                 onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--color-primary)"; e.currentTarget.style.color = "var(--color-primary)"; }}
                 onMouseOut={(e) => { e.currentTarget.style.borderColor = "rgba(248, 244, 232, 0.2)"; e.currentTarget.style.color = "var(--text-main)"; }}
               >
-                Ver
+                Abrir
               </button>
               <button
                 onClick={() => requestDelete(asset.id)}
+                aria-label={`Quitar ${asset.filename}`}
                 style={{
                   background: "transparent",
                   border: "1px solid rgba(248, 244, 232, 0.16)",
-                  color: "var(--text-muted)", padding: "6px 14px",
+                  color: "var(--text-muted)", padding: "8px 16px",
                   borderRadius: "20px", cursor: "pointer", fontSize: "11px",
-                  letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 600,
+                  letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 600,
+                  fontFamily: "var(--font-sans)",
                   transition: "all 0.2s ease"
                 }}
                 onMouseOver={(e) => { e.currentTarget.style.background = "rgba(196, 96, 96, 0.18)"; e.currentTarget.style.borderColor = "rgba(196, 96, 96, 0.5)"; e.currentTarget.style.color = "#f3c2c2"; }}
                 onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "rgba(248, 244, 232, 0.16)"; e.currentTarget.style.color = "var(--text-muted)"; }}
               >
-                Eliminar
+                Quitar
               </button>
             </div>
           </div>
