@@ -24,7 +24,7 @@ test.describe("Report — Intake Persistence", () => {
 
     await openFreshReportIntake(page);
 
-    await page.getByLabel("¿A qué te dedicás?").fill("Soy dev");
+    await page.getByLabel("¿A qué dedicás tu energía hoy?").fill("Soy dev");
     await page.getByRole("button", { name: /Generar mi informe/ }).click();
 
     await expect(page.getByText("Informe Personal")).toBeVisible();
@@ -37,7 +37,7 @@ test.describe("Report — Intake Persistence", () => {
 
     await openFreshReportIntake(page);
 
-    await expect(page.getByLabel("¿A qué te dedicás?")).toHaveValue("");
+    await expect(page.getByLabel("¿A qué dedicás tu energía hoy?")).toHaveValue("");
     await expect(page.getByLabel("¿Qué buscás en este momento?")).toHaveValue("");
     await expect(page.getByLabel("¿Cuál es tu mayor desafío?")).toHaveValue("");
   });

@@ -87,7 +87,7 @@ test.describe("Mobile — Core Surfaces", () => {
     await expectWithinViewport(page.getByRole("link", { name: "Completar mi informe" }), page);
     await expectNoHorizontalOverflow(page);
 
-    await page.getByRole("button", { name: "← Volver" }).click();
+    await page.getByRole("button", { name: "Volver" }).click();
     await expect(page.getByPlaceholder("Preguntá al oráculo sobre tu semana...")).toBeVisible();
 
     await page.getByRole("button", { name: "Tránsitos" }).click();

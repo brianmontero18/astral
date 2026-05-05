@@ -183,6 +183,12 @@ textarea { outline: none !important; }
   display: flex;
   gap: 26px;
   padding-left: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.app-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .app-nav-item {
@@ -208,6 +214,20 @@ textarea { outline: none !important; }
   border-bottom-color: var(--color-primary);
   color: var(--color-primary);
   font-weight: 600;
+}
+
+.app-nav-item--back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 12px;
+  margin-right: 4px;
+  border-right: 1px solid rgba(248, 244, 232, 0.18);
+  color: var(--color-primary);
+}
+
+.app-nav-item--back:hover {
+  color: var(--color-gold-deep);
 }
 
 .user-pill,

@@ -78,13 +78,13 @@ test.describe("Report — First Generation", () => {
     await mockGetReport(page, null);
     await openFreshReportIntake(page);
 
-    await page.getByLabel("¿A qué te dedicás?").fill("Soy diseñadora");
-    await page.getByLabel("¿Qué buscás en este momento?").fill("Entender mi energía");
-    await page.getByLabel("¿Cuál es tu mayor desafío?").fill("Decir que no");
+    await page.getByLabel("¿A qué dedicás tu energía hoy?").fill("Soy diseñadora");
+    await page.getByLabel("¿Qué desafío tenés ahora?").fill("Entender mi energía");
+    await page.getByLabel("¿Qué querés concretar en los próximos 12 meses? (opcional)").fill("Decir que no");
 
-    await expect(page.getByLabel("¿A qué te dedicás?")).toHaveValue("Soy diseñadora");
-    await expect(page.getByLabel("¿Qué buscás en este momento?")).toHaveValue("Entender mi energía");
-    await expect(page.getByLabel("¿Cuál es tu mayor desafío?")).toHaveValue("Decir que no");
+    await expect(page.getByLabel("¿A qué dedicás tu energía hoy?")).toHaveValue("Soy diseñadora");
+    await expect(page.getByLabel("¿Qué desafío tenés ahora?")).toHaveValue("Entender mi energía");
+    await expect(page.getByLabel("¿Qué querés concretar en los próximos 12 meses? (opcional)")).toHaveValue("Decir que no");
   });
 
   test('Clicking "Generar mi informe" shows loading then report', async ({ page }) => {
@@ -94,7 +94,7 @@ test.describe("Report — First Generation", () => {
     await mockGenerateReport(page, FREE_REPORT);
     await openFreshReportIntake(page);
 
-    await page.getByLabel("¿A qué te dedicás?").fill("Soy diseñadora");
+    await page.getByLabel("¿A qué dedicás tu energía hoy?").fill("Soy diseñadora");
     await page.getByRole("button", { name: /Generar mi informe/ }).click();
 
     // Report should appear
@@ -161,7 +161,7 @@ test.describe("Report — First Generation", () => {
     await page.getByRole("button", { name: "Omitir" }).click();
     await expect(page.getByText("Informe Personal")).toBeVisible();
 
-    await page.getByRole("button", { name: "← Volver" }).click();
+    await page.getByRole("button", { name: "Volver" }).click();
     // Should return to chat (default previousView)
     await expect(page.getByPlaceholder("Preguntá al oráculo")).toBeVisible();
   });

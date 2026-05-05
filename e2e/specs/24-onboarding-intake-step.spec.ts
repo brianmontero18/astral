@@ -122,7 +122,7 @@ test.describe("Onboarding — Intake step", () => {
     await page.getByRole("button", { name: "CONTINUAR" }).click();
 
     await expect(page.getByText("Contame de tu negocio")).toBeVisible();
-    await page.getByLabel("¿A qué te dedicás?").fill("Mentora de coaches en Latam");
+    await page.getByLabel("¿A qué dedicás tu energía hoy?").fill("Mentora de coaches en Latam");
     await page.getByLabel("¿Qué desafío tenés ahora?").fill("Lanzar mi programa premium en mayo");
 
     const submit = page.getByRole("button", { name: /Embarcar al chat/ });

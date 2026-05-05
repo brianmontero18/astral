@@ -61,8 +61,8 @@ test.describe("Navigation — state preservation", () => {
     await page.getByRole("button", { name: /Generar mi informe/ }).click();
     await expect(page.getByText("Personalizá tu informe")).toBeVisible();
 
-    await page.getByLabel("¿A qué te dedicás?").fill("Navego entre superficies sin perderme");
-    await page.getByRole("button", { name: "← Volver" }).click();
+    await page.getByLabel("¿A qué dedicás tu energía hoy?").fill("Navego entre superficies sin perderme");
+    await page.getByRole("button", { name: "Volver" }).click();
 
     await expect(page.getByRole("heading", { name: "Mis Cartas" })).toBeVisible();
     await expect(page.getByText("carta-base.pdf")).toBeVisible();
@@ -74,7 +74,7 @@ test.describe("Navigation — state preservation", () => {
     await page.getByRole("button", { name: "Omitir" }).click();
     await expect(page.getByText("Informe Personal")).toBeVisible();
 
-    await page.getByRole("button", { name: "← Volver" }).click();
+    await page.getByRole("button", { name: "Volver" }).click();
     await expect(page.getByRole("heading", { name: "Mis Cartas" })).toBeVisible();
 
     await page.getByRole("button", { name: "Chat" }).click();
@@ -97,13 +97,15 @@ test.describe("Navigation — state preservation", () => {
 
     await page.getByRole("button", { name: /Editar mis respuestas/ }).click();
     await expect(page.getByText("Personalizá tu informe")).toBeVisible();
-    await expect(page.getByLabel("¿A qué te dedicás?")).toHaveValue("Soy diseñadora freelance");
+    await expect(page.getByLabel("¿A qué dedicás tu energía hoy?")).toHaveValue("Soy diseñadora freelance");
     await expect(page.getByRole("button", { name: "Volver al informe" })).toBeVisible();
 
     await page.getByRole("button", { name: "Volver al informe" }).click();
     await expect(page.getByText("Informe Personal")).toBeVisible();
 
-    await page.getByRole("button", { name: "← Volver" }).click();
+    // The NavBar now keeps tabs visible during intake/report and the back
+    // button is icon + label "Volver" (aria-label="Volver"). Match by aria.
+    await page.getByRole("button", { name: "Volver" }).click();
     await expect(page.getByRole("heading", { name: "Tránsitos de la Semana" })).toBeVisible();
   });
 });

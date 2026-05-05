@@ -100,34 +100,35 @@ export function NavBar({
         {!supportRoute && (currentView === "intake" || currentView === "report") ? (
           <button
             onClick={() => onNavigate(previousView ?? "chat")}
-            className="app-nav-item"
+            className="app-nav-item app-nav-item--back"
+            aria-label="Volver"
           >
-            ← Volver
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            <span>Volver</span>
           </button>
-        ) : (
-          <>
-            {TABS.map((tab) => {
-              const active = !supportRoute && currentView === tab.key;
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => onNavigate(tab.key)}
-                  className={`app-nav-item${active ? " app-nav-item--active" : ""}`}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-            {userRole === "admin" ? (
-              <button
-                onClick={onOpenSupportPanel}
-                className={`app-nav-item${supportRoute ? " app-nav-item--active" : ""}`}
-              >
-                Usuarios
-              </button>
-            ) : null}
-          </>
-        )}
+        ) : null}
+        {TABS.map((tab) => {
+          const active = !supportRoute && currentView === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => onNavigate(tab.key)}
+              className={`app-nav-item${active ? " app-nav-item--active" : ""}`}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+        {userRole === "admin" ? (
+          <button
+            onClick={onOpenSupportPanel}
+            className={`app-nav-item${supportRoute ? " app-nav-item--active" : ""}`}
+          >
+            Usuarios
+          </button>
+        ) : null}
       </div>
     </header>
   );
