@@ -195,16 +195,28 @@ export function AssetViewer() {
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-        {assets.map((asset) => (
+        {[...assets]
+          .sort((a, b) => Number(Boolean(b.isActive)) - Number(Boolean(a.isActive)))
+          .map((asset) => (
           <div
             key={asset.id}
-            className="glass-panel asset-row"
+            className={"glass-panel asset-row" + (asset.isActive ? " asset-row--active" : "")}
           >
             <div className="asset-row-icon" aria-hidden="true">
               <FileIcon />
             </div>
             <div className="asset-row-meta">
-              <div className="asset-row-filename">{asset.filename}</div>
+              <div className="asset-row-filename">
+                <span className="asset-row-filename-text">{asset.filename}</span>
+                {asset.isActive ? (
+                  <span
+                    className="asset-row-active-pill"
+                    aria-label="Carta activa, en uso para tus tránsitos e informes"
+                  >
+                    En uso
+                  </span>
+                ) : null}
+              </div>
               <div className="asset-row-detail">
                 {fileTypeLabel(asset.fileType)} · {formatSize(asset.sizeBytes)} · {formatAssetDate(asset.createdAt)}
               </div>

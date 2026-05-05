@@ -269,8 +269,48 @@ describe("Assets list routes", () => {
     expect(assets[0].fileType).toBe("hd");
     expect(assets[0].sizeBytes).toBeGreaterThan(0);
     expect(assets[0].createdAt).toBeDefined();
+    // Single HD bodygraph -> it's the active one used for transits/reports.
+    expect(assets[0].isActive).toBe(true);
     // Verify camelCase (not snake_case)
     expect(assets[0].mime_type).toBeUndefined();
+  });
+
+  it("GET /api/me/assets marks only the most recent fileType=hd as active", async () => {
+    const sessionSubject = "st-assets-active";
+    const linkedUserId = await createLinkedTestUser(app, sessionSubject);
+
+    // Upload three: oldest hd, then a natal, then the newest hd.
+    const upload = async (name: string, fileType: "hd" | "natal") => {
+      const { headers, body } = multipartPayload(name, "%PDF-content", "application/pdf");
+      await app.inject({
+        method: "POST",
+        url: `/api/users/${linkedUserId}/assets?fileType=${fileType}`,
+        headers: {
+          ...headers,
+          ...sessionHeaders(sessionSubject),
+        },
+        body,
+      });
+      // Tiny gap so created_at sorts deterministically across uploads.
+      await new Promise((r) => setTimeout(r, 1100));
+    };
+
+    await upload("old-hd.pdf", "hd");
+    await upload("natal-chart.pdf", "natal");
+    await upload("new-hd.pdf", "hd");
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/me/assets",
+      headers: sessionHeaders(sessionSubject),
+    });
+    const { assets } = JSON.parse(res.body);
+    const byName = Object.fromEntries(assets.map((a: { filename: string }) => [a.filename, a]));
+
+    expect(byName["new-hd.pdf"].isActive).toBe(true);
+    expect(byName["old-hd.pdf"].isActive).toBe(false);
+    // Natal charts are never the active bodygraph; pill should not show.
+    expect(byName["natal-chart.pdf"].isActive).toBe(false);
   });
 });
 

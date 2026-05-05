@@ -26,6 +26,12 @@ export async function assetRoutes(app: FastifyInstance) {
       created_at: string;
     }>,
   ) {
+    // The most recent fileType="hd" asset is the bodygraph backing the
+    // user's current profile (the extraction pipeline always uses the
+    // newest HD asset). Mark it isActive so the UI can pin it on top
+    // with an "En uso" pill. raw is already ORDER BY created_at DESC.
+    const activeHdId = raw.find((a) => a.file_type === "hd")?.id ?? null;
+
     return raw.map((a) => ({
       id: a.id,
       filename: a.filename,
@@ -33,6 +39,7 @@ export async function assetRoutes(app: FastifyInstance) {
       fileType: a.file_type,
       sizeBytes: a.size_bytes,
       createdAt: a.created_at,
+      isActive: a.id === activeHdId,
     }));
   }
 

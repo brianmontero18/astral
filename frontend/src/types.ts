@@ -276,4 +276,11 @@ export interface AssetMeta {
   fileType: string;
   sizeBytes: number;
   createdAt: string;
+  /**
+   * True when this asset is the bodygraph backing the user's current
+   * Diseño Humano profile. The backend derives it server-side: the most
+   * recent fileType="hd" asset is treated as active. UI marks it with
+   * an "En uso" pill and sorts it to the top.
+   */
+  isActive?: boolean;
 }
