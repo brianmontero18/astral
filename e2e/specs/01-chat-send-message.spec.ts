@@ -163,13 +163,26 @@ test.describe("Chat — Send Message", () => {
     await expect(input).toHaveValue("El chat sigue usable");
   });
 
-  test("Quick actions send a message", async ({ page }) => {
+  test("Conversational quick actions send a message", async ({ page }) => {
     await mockChatHistory(page, []);
     await mockChatStream(page, ["Tus tránsitos de hoy..."], { userMsgId: 10, assistantMsgId: 11 });
     await page.goto("/");
 
-    await page.getByRole("button", { name: "Reporte semanal completo" }).click();
+    // The gold CTA "Ver mi informe semanal" navigates to ReportView (covered in
+    // spec 07). The remaining quick actions stay conversational — clicking one
+    // should produce a chat message reply.
+    await page.getByRole("button", { name: "¿Qué tránsitos me afectan hoy?" }).click();
     await expect(page.getByText("Tus tránsitos de hoy...")).toBeVisible();
+  });
+
+  test("Gold CTA 'Ver mi informe semanal' opens ReportView, does not send a chat message", async ({ page }) => {
+    await mockChatHistory(page, []);
+    await page.goto("/");
+
+    await page.getByRole("button", { name: "Ver mi informe semanal" }).click();
+    // Either the cached report or the intake — what matters is that the chat
+    // empty state is gone (we're no longer in chat view).
+    await expect(page.getByText("Hola, ", { exact: false })).not.toBeVisible();
   });
 
   test("Shift+Enter creates newline instead of sending", async ({ page }) => {

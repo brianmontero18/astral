@@ -93,10 +93,15 @@ function FeedbackButton({
   );
 }
 
-const QUICK_ACTIONS: Array<{ label: string; primary?: boolean }> = [
-  { label: "Reporte semanal completo", primary: true },
-  { label: "¿Cómo está mi energía esta semana?" },
-  { label: "¿Qué tránsitos me afectan hoy?" },
+type QuickAction =
+  | { kind: "report"; label: string; primary: true }
+  | { kind: "send"; label: string; primary?: boolean };
+
+const QUICK_ACTIONS: QuickAction[] = [
+  { kind: "report", label: "Ver mi informe semanal", primary: true },
+  { kind: "send", label: "¿Cómo está mi energía esta semana?" },
+  { kind: "send", label: "¿Qué tránsitos me afectan hoy?" },
+  { kind: "send", label: "Conversemos sobre la semana" },
 ];
 
 function formatResetDate(value: string | undefined): string | null {
@@ -119,9 +124,10 @@ function formatResetDate(value: string | undefined): string | null {
 
 interface Props {
   userName: string;
+  onOpenReport?: () => void;
 }
 
-export function ChatView({ userName }: Props) {
+export function ChatView({ userName, onOpenReport }: Props) {
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -453,15 +459,21 @@ export function ChatView({ userName }: Props) {
             </div>
             {!limitReached && (
               <div className="chat-quick-actions">
-                {QUICK_ACTIONS.map((q) => (
-                  <button
-                    key={q.label}
-                    onClick={() => sendMessage(q.label)}
-                    className={"chat-quick-action" + (q.primary ? " chat-quick-action--primary" : "")}
-                  >
-                    {q.label}
-                  </button>
-                ))}
+                {QUICK_ACTIONS.map((q) => {
+                  const isReport = q.kind === "report";
+                  if (isReport && !onOpenReport) {
+                    return null;
+                  }
+                  return (
+                    <button
+                      key={q.label}
+                      onClick={isReport ? onOpenReport : () => sendMessage(q.label)}
+                      className={"chat-quick-action" + (q.primary ? " chat-quick-action--primary" : "")}
+                    >
+                      {q.label}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>

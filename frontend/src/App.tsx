@@ -443,7 +443,7 @@ export default function App() {
               )
             ) : (
               <>
-                {currentView === "chat" && <ChatView userName={user.name} />}
+                {currentView === "chat" && <ChatView userName={user.name} onOpenReport={handleGoToReport} />}
                 {currentView === "transits" && <TransitViewer profile={profile} />}
                 {currentView === "assets" && <AssetViewer />}
                 {currentView === "intake" && (
