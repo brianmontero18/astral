@@ -86,6 +86,18 @@ describe("buildSystemPrompt — business_context injection", () => {
     expect(prompt).not.toContain("<voz_marca>");
   });
 
+  it("emits <situacion>sin_emprendimiento_actualmente</situacion> when tipo_de_negocio is sin_negocio", () => {
+    const intake: Intake = {
+      actividad: "Trabajo en relaciones públicas",
+      desafio_actual: "Estoy explorando armar algo propio",
+      tipo_de_negocio: "sin_negocio",
+    };
+    const prompt = buildSystemPrompt(PROFILE, TRANSITS, undefined, intake);
+    expect(prompt).toContain("<situacion>sin_emprendimiento_actualmente</situacion>");
+    // The structured tag is suppressed so the LLM doesn't infer a fictional negocio.
+    expect(prompt).not.toContain("<tipo_de_negocio>");
+  });
+
   it("places <business_context> between </user_profile> and <transits>", () => {
     const intake: Intake = { actividad: "X" };
     const prompt = buildSystemPrompt(PROFILE, TRANSITS, undefined, intake);

@@ -1,4 +1,5 @@
 export type TipoNegocio =
+  | "sin_negocio"
   | "mentora"
   | "coach"
   | "marca_personal"

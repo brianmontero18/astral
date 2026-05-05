@@ -49,6 +49,7 @@ export interface UserProfile {
 // ─── Intake ───────────────────────────────────────────────────────────────────
 
 export type TipoNegocio =
+  | "sin_negocio"
   | "mentora"
   | "coach"
   | "marca_personal"

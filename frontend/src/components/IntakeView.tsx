@@ -41,6 +41,7 @@ type SelectField = {
 type FieldDef = TextField | SelectField;
 
 const TIPO_NEGOCIO_OPTIONS: { value: TipoNegocio; label: string }[] = [
+  { value: "sin_negocio", label: "Sin negocio aún" },
   { value: "mentora", label: "Mentora" },
   { value: "coach", label: "Coach" },
   { value: "marca_personal", label: "Marca personal" },
@@ -53,34 +54,34 @@ const FIELDS: FieldDef[] = [
   {
     kind: "textarea",
     key: "actividad",
-    label: "¿A qué te dedicás?",
-    placeholder: "Ej: Mentora de mujeres que están armando su negocio holístico",
+    label: "¿A qué dedicás tu energía hoy?",
+    placeholder: "Ej: trabajo en relaciones públicas y estoy explorando armar algo propio",
     required: true,
   },
   {
     kind: "textarea",
     key: "desafio_actual",
     label: "¿Qué desafío tenés ahora?",
-    placeholder: "Ej: Me cuesta sostener el ritmo de contenido sin sentirme drenada",
+    placeholder: "Ej: me cuesta sostener el ritmo sin sentirme drenada",
     required: true,
   },
   {
     kind: "select",
     key: "tipo_de_negocio",
-    label: "Tipo de negocio (opcional)",
+    label: "Si tenés un negocio, ¿de qué tipo? (opcional)",
     options: TIPO_NEGOCIO_OPTIONS,
   },
   {
     kind: "textarea",
     key: "objetivo_12m",
     label: "¿Qué querés concretar en los próximos 12 meses? (opcional)",
-    placeholder: "Ej: Lanzar mi programa grupal con 15 mujeres y dejar de hacer 1:1",
+    placeholder: "Ej: lanzar un programa grupal · cambiar de trabajo · publicar mi libro",
     required: false,
   },
   {
     kind: "textarea",
     key: "voz_marca",
-    label: "¿Cómo describirías el tono de tu marca? (opcional)",
+    label: "Si tenés marca o presencia profesional, ¿cómo describirías su tono? (opcional)",
     placeholder: "Ej: Cálido pero directo, con humor seco",
     required: false,
   },
@@ -237,8 +238,8 @@ export function IntakeView({
   return (
     <div className="intake-stage">
       <div className="intake-card">
-        <div className="intake-kicker">Tu negocio</div>
-        <h2 className="intake-title">Contame de tu negocio</h2>
+        <div className="intake-kicker">Tu contexto</div>
+        <h2 className="intake-title">Personalizá tu informe</h2>
         <p className="intake-description">{description}</p>
 
         <div className="intake-fields">

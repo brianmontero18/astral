@@ -64,6 +64,7 @@ export interface ChatMessage {
 // ─── Prompt builder ───────────────────────────────────────────────────────────
 
 const TIPO_NEGOCIO_PROMPT_LABELS: Record<NonNullable<Intake["tipo_de_negocio"]>, string> = {
+  sin_negocio: "sin_negocio",
   mentora: "mentora",
   coach: "coach",
   marca_personal: "marca personal",
@@ -84,11 +85,18 @@ const TIPO_NEGOCIO_PROMPT_LABELS: Record<NonNullable<Intake["tipo_de_negocio"]>,
 function buildBusinessContextBlock(intake?: Intake): string {
   if (!intake) return "";
   const parts: string[] = [];
-  if (intake.actividad)        parts.push(`  <actividad>${intake.actividad}</actividad>`);
-  if (intake.tipo_de_negocio)  parts.push(`  <tipo_de_negocio>${TIPO_NEGOCIO_PROMPT_LABELS[intake.tipo_de_negocio]}</tipo_de_negocio>`);
-  if (intake.desafio_actual)   parts.push(`  <desafio_actual>${intake.desafio_actual}</desafio_actual>`);
-  if (intake.objetivo_12m)     parts.push(`  <objetivo_12m>${intake.objetivo_12m}</objetivo_12m>`);
-  if (intake.voz_marca)        parts.push(`  <voz_marca>${intake.voz_marca}</voz_marca>`);
+  if (intake.actividad) parts.push(`  <actividad>${intake.actividad}</actividad>`);
+  if (intake.tipo_de_negocio === "sin_negocio") {
+    // User explicitly opted out of the negocio framing. Signal so the LLM
+    // avoids marketing-heavy interpretations and stays in personal / vocational
+    // language.
+    parts.push(`  <situacion>sin_emprendimiento_actualmente</situacion>`);
+  } else if (intake.tipo_de_negocio) {
+    parts.push(`  <tipo_de_negocio>${TIPO_NEGOCIO_PROMPT_LABELS[intake.tipo_de_negocio]}</tipo_de_negocio>`);
+  }
+  if (intake.desafio_actual) parts.push(`  <desafio_actual>${intake.desafio_actual}</desafio_actual>`);
+  if (intake.objetivo_12m)   parts.push(`  <objetivo_12m>${intake.objetivo_12m}</objetivo_12m>`);
+  if (intake.voz_marca)      parts.push(`  <voz_marca>${intake.voz_marca}</voz_marca>`);
   if (parts.length === 0) return "";
   return `\n<business_context>\n${parts.join("\n")}\n</business_context>`;
 }
