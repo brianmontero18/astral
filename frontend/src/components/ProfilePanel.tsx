@@ -59,7 +59,7 @@ export function ProfilePanel({ profile, userPlan, onGenerateReport }: Props) {
   ];
 
   return (
-    <div className="profile-panel">
+    <div className="profile-panel" role="dialog" aria-label="Perfil activo">
       <div className="profile-panel-header">
         <div className="profile-panel-kicker">✦ Perfil activo</div>
         <div className="profile-panel-name">{displayName}</div>
@@ -67,6 +67,15 @@ export function ProfilePanel({ profile, userPlan, onGenerateReport }: Props) {
           Resumen rápido de tu Diseño Humano disponible en esta cuenta.
         </div>
       </div>
+
+      {onGenerateReport && (
+        <button
+          onClick={onGenerateReport}
+          className="astral-auth-primary profile-panel-cta"
+        >
+          Ver mi informe semanal
+        </button>
+      )}
 
       <div className="profile-grid">
         {compactRows.map(([label, value]) => (
@@ -87,16 +96,6 @@ export function ProfilePanel({ profile, userPlan, onGenerateReport }: Props) {
           )}
         </div>
       </div>
-
-      {onGenerateReport && (
-        <button
-          onClick={onGenerateReport}
-          className="astral-auth-primary"
-          style={{ marginTop: 16, minHeight: 44 }}
-        >
-          Generar mi informe
-        </button>
-      )}
     </div>
   );
 }
