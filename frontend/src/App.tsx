@@ -69,6 +69,7 @@ export default function App() {
   const [resumeStep, setResumeStep] = useState<AppUserOnboardingStep | null>(
     null,
   );
+  const [chatPrefill, setChatPrefill] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const adminSupportRoute = parseAdminSupportRoute(pathname);
 
@@ -443,8 +444,23 @@ export default function App() {
               )
             ) : (
               <>
-                {currentView === "chat" && <ChatView userName={user.name} onOpenReport={handleGoToReport} />}
-                {currentView === "transits" && <TransitViewer profile={profile} />}
+                {currentView === "chat" && (
+                  <ChatView
+                    userName={user.name}
+                    onOpenReport={handleGoToReport}
+                    prefill={chatPrefill}
+                    onPrefillConsumed={() => setChatPrefill(null)}
+                  />
+                )}
+                {currentView === "transits" && (
+                  <TransitViewer
+                    profile={profile}
+                    onAskAgent={(prefill) => {
+                      setChatPrefill(prefill);
+                      handleNavigate("chat");
+                    }}
+                  />
+                )}
                 {currentView === "assets" && <AssetViewer />}
                 {currentView === "intake" && (
                   <IntakeView

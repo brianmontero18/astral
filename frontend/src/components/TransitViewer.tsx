@@ -17,9 +17,10 @@ const PLANET_GLYPHS: Record<string, string> = {
 
 interface Props {
   profile: UserProfile;
+  onAskAgent?: (prefill: string) => void;
 }
 
-export function TransitViewer({ profile }: Props) {
+export function TransitViewer({ profile, onAskAgent }: Props) {
   const [data, setData] = useState<TransitsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -86,6 +87,7 @@ export function TransitViewer({ profile }: Props) {
             touchesUser={userGates.has(p.hdGate)}
             expanded={expandedCard === `planet-${p.name}`}
             onToggle={() => toggleExpand(`planet-${p.name}`)}
+            onAskAgent={onAskAgent}
           />
         ))}
       </div>
@@ -276,11 +278,12 @@ export function TransitViewer({ profile }: Props) {
 
 // ─── Planet Card ──────────────────────────────────────────────────────────────
 
-function PlanetCard({ planet, touchesUser, expanded, onToggle }: {
+function PlanetCard({ planet, touchesUser, expanded, onToggle, onAskAgent }: {
   planet: PlanetTransit;
   touchesUser: boolean;
   expanded: boolean;
   onToggle: () => void;
+  onAskAgent?: (prefill: string) => void;
 }) {
   const glyph = PLANET_GLYPHS[planet.name] ?? "•";
   const gateTheme = getGateTheme(planet.hdGate);
@@ -393,6 +396,20 @@ function PlanetCard({ planet, touchesUser, expanded, onToggle }: {
             }}>
               {gateTheme.theme}
             </div>
+            {onAskAgent && touchesUser && (
+              <button
+                type="button"
+                className="transit-ask-agent"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAskAgent(
+                    `¿Cómo me afecta esta semana que ${planet.name} esté activando mi Puerta ${planet.hdGate} (línea ${planet.hdLine})?`,
+                  );
+                }}
+              >
+                Preguntale al agente sobre Puerta {planet.hdGate}
+              </button>
+            )}
           </div>
         )}
       </div>

@@ -125,9 +125,11 @@ function formatResetDate(value: string | undefined): string | null {
 interface Props {
   userName: string;
   onOpenReport?: () => void;
+  prefill?: string | null;
+  onPrefillConsumed?: () => void;
 }
 
-export function ChatView({ userName, onOpenReport }: Props) {
+export function ChatView({ userName, onOpenReport, prefill, onPrefillConsumed }: Props) {
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -223,6 +225,17 @@ export function ChatView({ userName, onOpenReport }: Props) {
     const el = bottomRef.current?.parentElement;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, loading]);
+
+  // When TransitViewer (or another parent) hands us a pre-filled question,
+  // load it into the textarea but never auto-submit — the user has to choose
+  // to send it, so we don't burn tokens on a stray click.
+  useEffect(() => {
+    if (!prefill) {
+      return;
+    }
+    setInput(prefill);
+    onPrefillConsumed?.();
+  }, [prefill, onPrefillConsumed]);
 
   const sendMessage = async (text: string, baseMessages?: ChatMsg[]) => {
     const trimmed = text.trim();
