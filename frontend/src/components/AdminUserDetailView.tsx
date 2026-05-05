@@ -662,28 +662,16 @@ export function AdminUserDetailView({
             padding: "24px 24px 20px",
           }}
         >
-          <div
-            style={{
-              color: "var(--color-primary)",
-              fontSize: 11,
-              letterSpacing: "0.18em",
-              textTransform: "uppercase",
-              fontWeight: 600,
-              marginBottom: 10,
-            }}
-          >
-            Support Panel
+          <div className="page-header page-header--editorial page-header--on-dark" style={{ marginBottom: 0 }}>
+            <div className="page-header-kicker">Support Panel</div>
           </div>
           <div className="admin-detail-hero-row">
             <div className="admin-detail-hero-main">
               <h1
+                className="page-header-title"
                 style={{
                   margin: "0 0 8px",
                   color: "var(--text-main)",
-                  fontFamily: "var(--font-serif)",
-                  fontSize: 38,
-                  fontWeight: 400,
-                  lineHeight: 1,
                   wordBreak: "break-word",
                 }}
               >
@@ -750,8 +738,9 @@ export function AdminUserDetailView({
                   margin: "0 0 8px",
                   color: "var(--text-main)",
                   fontFamily: "var(--font-serif)",
-                  fontSize: 30,
-                  fontWeight: 400,
+                  fontSize: 22,
+                  fontWeight: 500,
+                  lineHeight: 1.25,
                 }}
               >
                 {supportActionsTitle}
@@ -760,7 +749,7 @@ export function AdminUserDetailView({
                 style={{
                   margin: 0,
                   color: "var(--text-muted)",
-                  lineHeight: 1.7,
+                  lineHeight: 1.65,
                   fontSize: 14,
                 }}
               >

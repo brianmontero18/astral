@@ -350,7 +350,7 @@ export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
             }}
             className="animate-fade-in"
           >
-            <div style={{ color: "var(--color-primary)", fontSize: 11, letterSpacing: "0.24em", fontFamily: "var(--font-sans)", fontWeight: 700, marginBottom: 16, textTransform: "uppercase" }}>
+            <div style={{ color: "var(--color-primary)", fontSize: 10, letterSpacing: "0.20em", fontFamily: "var(--font-sans)", fontWeight: 700, marginBottom: 16, textTransform: "uppercase" }}>
               Empecemos
             </div>
             <h2 style={{
@@ -425,10 +425,10 @@ export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
               color: "var(--text-main)",
             }}
           >
-            <div style={{ color: "var(--color-primary)", fontSize: 11, letterSpacing: "0.24em", fontFamily: "var(--font-sans)", fontWeight: 700, marginBottom: 14, textTransform: "uppercase", textAlign: "center" }}>
+            <div style={{ color: "var(--color-primary)", fontSize: 10, letterSpacing: "0.20em", fontFamily: "var(--font-sans)", fontWeight: 700, marginBottom: 14, textTransform: "uppercase", textAlign: "center" }}>
               Tu carta
             </div>
-            <h2 style={{ color: "var(--text-main)", fontSize: "26px", marginBottom: "12px", textAlign: "center", fontFamily: "var(--font-serif)", fontWeight: 500 }}>
+            <h2 style={{ color: "var(--text-main)", fontSize: "28px", marginBottom: "12px", textAlign: "center", fontFamily: "var(--font-serif)", fontWeight: 500, lineHeight: 1.15 }}>
               Sincronizá tu energía
             </h2>
             <p style={{ color: "var(--text-muted)", fontSize: "14px", textAlign: "center", marginBottom: "28px", fontWeight: 400, lineHeight: 1.6 }}>
@@ -566,10 +566,10 @@ export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
               color: "var(--text-main)",
             }}
           >
-            <div style={{ color: "var(--color-primary)", fontSize: 11, letterSpacing: "0.24em", fontFamily: "var(--font-sans)", fontWeight: 700, marginBottom: 14, textTransform: "uppercase", textAlign: "center" }}>
+            <div style={{ color: "var(--color-primary)", fontSize: 10, letterSpacing: "0.20em", fontFamily: "var(--font-sans)", fontWeight: 700, marginBottom: 14, textTransform: "uppercase", textAlign: "center" }}>
               Tu identidad
             </div>
-            <h2 style={{ color: "var(--text-main)", fontSize: "26px", marginBottom: "12px", textAlign: "center", fontFamily: "var(--font-serif)", fontWeight: 500 }}>
+            <h2 style={{ color: "var(--text-main)", fontSize: "28px", marginBottom: "12px", textAlign: "center", fontFamily: "var(--font-serif)", fontWeight: 500, lineHeight: 1.15 }}>
               Esto es lo que leímos
             </h2>
             <p style={{ color: "var(--text-muted)", fontSize: "14px", textAlign: "center", marginBottom: "28px", fontWeight: 400, lineHeight: 1.6 }}>

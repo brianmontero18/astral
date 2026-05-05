@@ -74,8 +74,9 @@ function SupportListState({
           margin: "0 0 12px",
           color: "var(--text-main)",
           fontFamily: "var(--font-serif)",
-          fontSize: 30,
-          fontWeight: 400,
+          fontSize: 22,
+          fontWeight: 500,
+          lineHeight: 1.25,
         }}
       >
         {title}
@@ -135,9 +136,9 @@ function SupportUserRow({
             style={{
               color: "var(--text-main)",
               fontFamily: "var(--font-serif)",
-              fontSize: 26,
-              fontWeight: 400,
-              lineHeight: 1.1,
+              fontSize: 22,
+              fontWeight: 500,
+              lineHeight: 1.25,
               marginBottom: 6,
               wordBreak: "break-word",
             }}
@@ -278,31 +279,9 @@ export function AdminUsersView({ onOpenUser }: Props) {
               flexWrap: "wrap",
             }}
           >
-            <div>
-              <div
-                style={{
-                  color: "var(--color-primary)",
-                  fontSize: 11,
-                  letterSpacing: "0.18em",
-                  textTransform: "uppercase",
-                  fontWeight: 600,
-                  marginBottom: 8,
-                }}
-              >
-                Support Panel
-              </div>
-              <h1
-                style={{
-                  margin: 0,
-                  color: "var(--text-main)",
-                  fontFamily: "var(--font-serif)",
-                  fontSize: 36,
-                  fontWeight: 400,
-                  lineHeight: 1,
-                }}
-              >
-                Personas
-              </h1>
+            <div className="page-header page-header--editorial page-header--on-dark" style={{ marginBottom: 0 }}>
+              <div className="page-header-kicker">Support Panel</div>
+              <h1 className="page-header-title" style={{ margin: 0 }}>Personas</h1>
             </div>
             <button
               type="button"
@@ -313,12 +292,12 @@ export function AdminUsersView({ onOpenUser }: Props) {
             </button>
           </div>
           <p
+            className="page-header-description"
             style={{
               margin: "0 0 18px",
               color: "var(--text-muted)",
-              lineHeight: 1.7,
-              fontSize: 14,
               maxWidth: 680,
+              textAlign: "left",
             }}
           >
             Encontrá rápido quién es cada persona, cómo contactarla y si necesita

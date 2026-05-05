@@ -218,7 +218,7 @@ function SectionCard({ section, locked, onUnlockClick }: { section: ReportSectio
         <h2 style={{
           margin: 0, flex: 1,
           fontFamily: "var(--font-serif)", color: "var(--text-main)",
-          fontSize: 17, fontWeight: 500, lineHeight: 1.25,
+          fontSize: 18, fontWeight: 500, lineHeight: 1.25,
         }}>
           {section.title}
         </h2>
@@ -462,28 +462,14 @@ export function ReportView({ report, loading, onBack, onEditIntake, intakeWarnin
       }}
     >
       <div style={{ maxWidth: 760, width: "100%", margin: "0 auto" }}>
-        <div style={{
-          color: "var(--color-gold-deep)", fontSize: 10, letterSpacing: "0.22em",
-          fontWeight: 700, marginBottom: 8, fontFamily: "var(--font-sans)", textTransform: "uppercase",
-        }}>
-          Tu informe de Diseño Humano
+        <div className="page-header page-header--editorial">
+          <div className="page-header-kicker">Tu informe de Diseño Humano</div>
+          <h1 className="page-header-title">Informe Personal</h1>
         </div>
-        <h1 style={{
-          fontFamily: "var(--font-serif)", color: "var(--text-on-light)",
-          fontSize: 30, fontWeight: 500, margin: "0 0 8px",
-        }}>
-          Informe Personal
-        </h1>
 
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          marginBottom: 24, flexWrap: "wrap", gap: 8,
-        }}>
+        <div className="page-header-meta">
           {report.createdAt && (
-            <span style={{
-              color: "var(--text-on-light-muted)", fontSize: 12, fontWeight: 400,
-              fontFamily: "var(--font-sans)",
-            }}>
+            <span>
               Generado el {new Date(report.createdAt).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}
             </span>
           )}

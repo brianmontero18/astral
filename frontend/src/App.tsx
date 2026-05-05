@@ -313,8 +313,9 @@ export default function App() {
               margin: "0 0 12px",
               color: "var(--text-main)",
               fontFamily: "var(--font-serif)",
-              fontWeight: 400,
+              fontWeight: 500,
               fontSize: 28,
+              lineHeight: 1.15,
             }}
           >
             {bootstrapError.title}
@@ -409,8 +410,9 @@ export default function App() {
                         margin: "0 0 12px",
                         color: "var(--text-main)",
                         fontFamily: "var(--font-serif)",
-                        fontWeight: 400,
-                        fontSize: 30,
+                        fontWeight: 500,
+                        fontSize: 28,
+                        lineHeight: 1.15,
                       }}
                     >
                       Soporte no disponible
