@@ -123,7 +123,19 @@ export function TransitViewer({ profile }: Props) {
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span style={{ color: "var(--color-primary)", fontSize: "12px", fontWeight: 600 }}>{ch}</span>
-                    <span style={{ color: "var(--text-muted)", fontSize: "10px", transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "none" }}>▾</span>
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        display: "inline-flex",
+                        color: "var(--text-muted)",
+                        transition: "transform 0.2s",
+                        transform: isExpanded ? "rotate(180deg)" : "none",
+                      }}
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                    </span>
                   </div>
                   {isExpanded && info && (
                     <div style={{
@@ -327,7 +339,19 @@ function PlanetCard({ planet, touchesUser, expanded, onToggle }: {
                 Rx
               </span>
             )}
-            <span style={{ color: "var(--text-muted)", fontSize: "10px", transition: "transform 0.2s", transform: expanded ? "rotate(180deg)" : "none" }}>▾</span>
+            <span
+              aria-hidden="true"
+              style={{
+                display: "inline-flex",
+                color: "var(--text-muted)",
+                transition: "transform 0.2s",
+                transform: expanded ? "rotate(180deg)" : "none",
+              }}
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </span>
           </div>
         </div>
         <div style={{
@@ -407,7 +431,19 @@ function PersonalChannelCard({ channel, expanded, onToggle }: {
             Tu Puerta {channel.userGate} + {channel.transitPlanet} en Puerta {channel.transitGate}
           </div>
         </div>
-        <span style={{ color: "var(--text-muted)", fontSize: "10px", transition: "transform 0.2s", transform: expanded ? "rotate(180deg)" : "none" }}>▾</span>
+        <span
+          aria-hidden="true"
+          style={{
+            display: "inline-flex",
+            color: "var(--text-muted)",
+            transition: "transform 0.2s",
+            transform: expanded ? "rotate(180deg)" : "none",
+          }}
+        >
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </span>
       </div>
       {expanded && info && (
         <div style={{

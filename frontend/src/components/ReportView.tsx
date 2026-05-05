@@ -212,8 +212,27 @@ function SectionCard({ section, locked, onUnlockClick }: { section: ReportSectio
         }}>
           {section.title}
         </span>
-        <span style={{ color: "var(--color-primary)", fontSize: 12, transition: "transform 0.2s" }}>
-          {expanded ? "▾" : "▸"}
+        <span
+          aria-hidden="true"
+          style={{
+            display: "inline-flex",
+            color: "var(--color-primary)",
+            transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform 0.2s ease",
+          }}
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
         </span>
       </button>
 

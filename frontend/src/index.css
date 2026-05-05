@@ -2264,7 +2264,7 @@ textarea { outline: none !important; }
   top: 50%;
   transform: translateY(-50%);
   color: var(--color-gold);
-  font-size: 14px;
+  display: inline-flex;
   pointer-events: none;
 }
 
