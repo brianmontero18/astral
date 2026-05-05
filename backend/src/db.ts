@@ -838,6 +838,23 @@ export async function getUserAssets(
   }));
 }
 
+// Returns the R2 storage keys backing this user's assets so callers can
+// clean physical objects before the DB cascade drops the asset rows.
+// ORDER BY created_at keeps the result stable so admin delete tests can
+// assert which asset failed first when R2 returns transient errors.
+export async function getUserAssetStorageKeys(
+  userId: string,
+): Promise<Array<{ id: string; storageKey: string }>> {
+  const result = await client.execute({
+    sql: "SELECT id, storage_key FROM assets WHERE user_id = ? ORDER BY created_at",
+    args: [userId],
+  });
+  return result.rows.map((row) => ({
+    id: row.id as string,
+    storageKey: row.storage_key as string,
+  }));
+}
+
 export async function getUserAssetCount(userId: string): Promise<number> {
   const result = await client.execute({
     sql: "SELECT COUNT(*) as count FROM assets WHERE user_id = ?",

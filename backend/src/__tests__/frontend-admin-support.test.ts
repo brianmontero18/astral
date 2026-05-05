@@ -7,6 +7,7 @@ import {
   applyAdminUserAccessValues,
   buildAdminUserPath,
   buildAdminUserAccessPatch,
+  formatExpiresIn,
   getAdminSupportFailureMessage,
   getAdminRoleLabel,
   getAdminUserDetailDisplay,
@@ -289,5 +290,35 @@ describe("frontend admin support helpers", () => {
       createdAt: "2026-04-10T10:00:00.000Z",
       updatedAt: "2026-04-12T18:10:00.000Z",
     });
+  });
+});
+
+describe("formatExpiresIn", () => {
+  const now = new Date("2026-05-04T12:00:00.000Z");
+
+  it("renders hours when expiry is between 1 and 48 hours away", () => {
+    const expiry = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString();
+    expect(formatExpiresIn(expiry, now)).toBe("Expira en ~48 h");
+  });
+
+  it("renders minutes when expiry is under an hour away", () => {
+    const expiry = new Date(now.getTime() + 15 * 60 * 1000).toISOString();
+    expect(formatExpiresIn(expiry, now)).toBe("Expira en ~15 min");
+  });
+
+  it("renders days when expiry is more than 48 hours away", () => {
+    const expiry = new Date(
+      now.getTime() + 5 * 24 * 60 * 60 * 1000,
+    ).toISOString();
+    expect(formatExpiresIn(expiry, now)).toBe("Expira en ~5 días");
+  });
+
+  it("flags an already-expired link", () => {
+    const expired = new Date(now.getTime() - 60 * 1000).toISOString();
+    expect(formatExpiresIn(expired, now)).toBe("Expirado");
+  });
+
+  it("falls back gracefully on invalid input", () => {
+    expect(formatExpiresIn("not a date", now)).toBe("TTL desconocido");
   });
 });

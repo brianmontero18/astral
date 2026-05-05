@@ -516,6 +516,30 @@ export async function updateAdminUserAccess(
   }
 }
 
+export interface AdminDeleteUserResult {
+  ok: true;
+  deletedAssets: number;
+  r2Errors: Array<{ assetId: string; storageKey: string; reason: string }>;
+}
+
+export async function deleteAdminUser(
+  userId: string,
+): Promise<AdminDeleteUserResult> {
+  const res = await fetch(
+    `${BASE}/admin/users/${encodeURIComponent(userId)}`,
+    {
+      method: "DELETE",
+    },
+  );
+
+  if (!res.ok) {
+    const err = await readErrorMessage(res);
+    throw new Error(`Admin user delete error ${res.status}: ${err}`);
+  }
+
+  return (await res.json()) as AdminDeleteUserResult;
+}
+
 // ─── Transcription ───────────────────────────────────────────────────────────
 
 export async function transcribeAudio(

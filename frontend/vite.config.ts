@@ -9,11 +9,14 @@ function isHtmlNavigationRequest(
     return false;
   }
 
+  // Match any auth sub-path that the React SPA handles:
+  // /auth, /auth/, /auth?..., /auth/?..., /auth/verify?..., etc.
   const isAuthDocument =
     requestUrl === "/auth" ||
     requestUrl === "/auth/" ||
     requestUrl.startsWith("/auth?") ||
-    requestUrl.startsWith("/auth/?");
+    requestUrl.startsWith("/auth/?") ||
+    requestUrl.startsWith("/auth/verify");
 
   return isAuthDocument && Boolean(acceptHeader?.includes("text/html"));
 }

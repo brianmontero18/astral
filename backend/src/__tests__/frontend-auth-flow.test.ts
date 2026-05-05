@@ -12,6 +12,8 @@ import {
   getCodeConsumeErrorMessage,
   getStepForFlowType,
   hasMagicLinkAttempt,
+  isInviteWhileSignedIn,
+  readMagicLinkIntent,
   readRedirectToPath,
   shouldAutoConsumeMagicLink,
   shouldPreserveAuthRedirect,
@@ -38,6 +40,104 @@ describe("frontend auth helpers", () => {
     expect(
       shouldAutoConsumeMagicLink("?preAuthSessionId=pre-123", "#link-code", {
         preAuthSessionId: "pre-999",
+      }),
+    ).toBe(false);
+
+    // No attempt + no intent = visitor must confirm explicitly. Keeps the
+    // strict CSRF-style gate for user-initiated logins.
+    expect(
+      shouldAutoConsumeMagicLink("?preAuthSessionId=pre-123", "#link-code", null),
+    ).toBe(false);
+  });
+
+  it("auto-consumes admin invite links even without a stored attempt", () => {
+    // intent=invite is the explicit signal that this link came from the
+    // admin panel and the recipient may not have requested it from this
+    // browser. Without it, an invite link would dead-end on the
+    // "Continuar con este enlace" intermediate screen.
+    expect(
+      shouldAutoConsumeMagicLink(
+        "?preAuthSessionId=pre-abc&intent=invite",
+        "#link-code",
+        null,
+      ),
+    ).toBe(true);
+
+    // Mismatched stored attempt is fine when intent=invite — the invite
+    // path is the source of truth, not the local browser state.
+    expect(
+      shouldAutoConsumeMagicLink(
+        "?preAuthSessionId=pre-abc&intent=invite",
+        "#link-code",
+        { preAuthSessionId: "pre-different" },
+      ),
+    ).toBe(true);
+
+    // Forged intent values must NOT widen auto-consume.
+    expect(
+      shouldAutoConsumeMagicLink(
+        "?preAuthSessionId=pre-abc&intent=login",
+        "#link-code",
+        null,
+      ),
+    ).toBe(false);
+
+    // Missing link code or session id keeps the gate closed regardless of
+    // intent.
+    expect(
+      shouldAutoConsumeMagicLink(
+        "?preAuthSessionId=pre-abc&intent=invite",
+        "",
+        null,
+      ),
+    ).toBe(false);
+    expect(
+      shouldAutoConsumeMagicLink("?intent=invite", "#link-code", null),
+    ).toBe(false);
+  });
+
+  it("recognizes only the literal invite intent", () => {
+    expect(readMagicLinkIntent("?intent=invite")).toBe("invite");
+    expect(readMagicLinkIntent("?intent=hack")).toBeNull();
+    expect(readMagicLinkIntent("")).toBeNull();
+  });
+
+  it("flags invite links arriving while another session is active", () => {
+    // Happy path: invite link + existing session = show intermediate UI.
+    expect(
+      isInviteWhileSignedIn({
+        hasActiveSession: true,
+        search: "?preAuthSessionId=pre-1&intent=invite",
+        hash: "#linkcode",
+      }),
+    ).toBe(true);
+
+    // Without an active session, the regular flow handles it.
+    expect(
+      isInviteWhileSignedIn({
+        hasActiveSession: false,
+        search: "?preAuthSessionId=pre-1&intent=invite",
+        hash: "#linkcode",
+      }),
+    ).toBe(false);
+
+    // Without intent=invite, an active session means a normal user landed
+    // back on /auth — the bootstrap should redirect to "/", not show the
+    // intermediate screen.
+    expect(
+      isInviteWhileSignedIn({
+        hasActiveSession: true,
+        search: "?preAuthSessionId=pre-1",
+        hash: "#linkcode",
+      }),
+    ).toBe(false);
+
+    // No magic link attempt at all means there's nothing to confirm.
+    expect(
+      isInviteWhileSignedIn({
+        hasActiveSession: true,
+        search: "?intent=invite",
+        hash: "",
       }),
     ).toBe(false);
   });

@@ -8,6 +8,7 @@ import {
   getCodeConsumeErrorMessage,
   getStepForFlowType,
   hasMagicLinkAttempt,
+  isInviteWhileSignedIn,
   readRedirectToPath,
   shouldAutoConsumeMagicLink,
   type AstralAuthStep,
@@ -106,6 +107,18 @@ function renderIntroTitle(step: AstralAuthStep) {
     );
   }
 
+  if (step === "invite-while-signed-in") {
+    return (
+      <>
+        <span className="astral-auth-display-line">Tu nueva</span>
+        <span className="astral-auth-display-line">
+          <span className="astral-auth-display-accent">invitación</span> está
+        </span>
+        <span className="astral-auth-display-line">esperando</span>
+      </>
+    );
+  }
+
   return (
     <>
       <span className="astral-auth-display-line">Tu portal de</span>
@@ -135,6 +148,8 @@ export function AuthScreen() {
       ? "Abre el enlace en este mismo dispositivo o continúa manualmente desde aquí."
       : step === "verifying"
       ? "Estamos verificando tu acceso para devolverte a la experiencia de Astral Guide."
+      : step === "invite-while-signed-in"
+      ? "Hay una sesión activa en este navegador. Cerrala para abrir tu invitación, o seguí en la cuenta actual."
       : "Entra con un enlace mágico por email para mantener la atmósfera intacta.";
 
   const destination =
@@ -163,6 +178,32 @@ export function AuthScreen() {
       "/";
 
     await Passwordless.clearLoginAttemptInfo();
+    window.location.assign(redirectToPath);
+  }
+
+  async function handleAcceptInviteAfterSignOut() {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      await Session.signOut();
+      // The signed-out browser keeps the magic link in its URL — consume
+      // it now so the recipient lands authenticated as the invited user.
+      await consumeMagicLink(null);
+    } catch {
+      setError(
+        "No pudimos cerrar la sesión activa. Volvé a intentar en unos segundos.",
+      );
+      setBusy(false);
+    }
+  }
+
+  function handleKeepCurrentSession() {
+    // Recipient prefers to stay in their current account. Drop the invite
+    // link from the URL so it does not silently re-trigger this dialog,
+    // and send them back to where they were going.
+    const redirectToPath = readRedirectToPath(window.location.search) ?? "/";
     window.location.assign(redirectToPath);
   }
 
@@ -211,7 +252,25 @@ export function AuthScreen() {
 
     async function bootstrapAuth() {
       try {
-        if (await Session.doesSessionExist()) {
+        const hasSession = await Session.doesSessionExist();
+        const location = readCurrentAuthLocation();
+
+        // Edge case: an invite link arrives while another account is logged
+        // in on this browser. We must NOT silently redirect — that burns
+        // the invite. Surface the choice to the recipient instead.
+        if (
+          isInviteWhileSignedIn({
+            hasActiveSession: hasSession,
+            search: location.search,
+            hash: location.hash,
+          })
+        ) {
+          if (!active) return;
+          setStep("invite-while-signed-in");
+          return;
+        }
+
+        if (hasSession) {
           window.location.assign(readRedirectToPath(window.location.search) ?? "/");
           return;
         }
@@ -225,8 +284,6 @@ export function AuthScreen() {
 
         setAttempt(storedAttempt ?? null);
         setEmail(storedAttempt?.contactInfo ?? "");
-
-        const location = readCurrentAuthLocation();
 
         if (hasMagicLinkAttempt(location.search, location.hash)) {
           if (
@@ -613,6 +670,29 @@ export function AuthScreen() {
               <div className="astral-auth-loading">
                 <div className="astral-auth-spinner" />
                 <p>Verificando tu enlace para abrir Astral Guide.</p>
+              </div>
+            ) : null}
+
+            {step === "invite-while-signed-in" ? (
+              <div className="astral-auth-actions astral-auth-actions-stack">
+                <button
+                  className="astral-auth-primary"
+                  disabled={busy}
+                  onClick={() => void handleAcceptInviteAfterSignOut()}
+                  type="button"
+                >
+                  {busy
+                    ? "Abriendo invitación..."
+                    : "Cerrar sesión y abrir mi invitación"}
+                </button>
+                <button
+                  className="astral-auth-secondary"
+                  disabled={busy}
+                  onClick={handleKeepCurrentSession}
+                  type="button"
+                >
+                  Volver a Astral con la cuenta actual
+                </button>
               </div>
             ) : null}
           </div>

@@ -9,14 +9,11 @@ import { TEST_USER } from "../helpers/fixtures";
 import { mockHealth } from "../helpers/mock-api";
 
 /**
- * NORTH STAR — bead astral-bgk (Slice 1 of admin user provisioning epic).
- *
- * This spec is the UX contract for the admin invite flow. It is checked in
- * with every test marked `test.fixme(...)` because the backend (Slices 3 & 4)
- * and the frontend pieces (Slices 5 & 6) do not exist yet. As each downstream
- * slice lands, the corresponding `fixme` is removed and the test must pass.
- *
- * Slice 7 (astral-6o4) is the wrap-up that closes this contract.
+ * UX contract for the admin invite flow. Originally landed under epic
+ * astral-0xw with every test marked `test.fixme(...)`. Activated under
+ * epic astral-b7u — Slice 9 (astral-o2g) — once the slices behind each
+ * scenario shipped (branded email, intent=invite, dynamic TTL, neutral
+ * copy). Specs 26 and 27 cover the new delete + auto-consume flows.
  */
 
 const INVITED_EMAIL = "marina@coach.test";
@@ -60,7 +57,7 @@ test.describe("Admin user provisioning — invite premium", () => {
     await mockHealth(page);
   });
 
-  test.fixme(
+  test(
     "admin invites a new email to premium and sees the copyable magic link",
     async ({ page }) => {
       await mockCurrentUser(page, ADMIN_USER_SESSION);
@@ -115,11 +112,11 @@ test.describe("Admin user provisioning — invite premium", () => {
       await page.goto("/admin/users");
 
       await page
-        .getByRole("button", { name: /invitar usuaria/i })
+        .getByRole("button", { name: /invitar persona/i })
         .click();
 
       await expect(
-        page.getByRole("heading", { name: /invitar usuaria/i }),
+        page.getByRole("heading", { name: /invitar persona/i }),
       ).toBeVisible();
 
       await page.getByLabel(/email/i).fill(INVITED_EMAIL);
@@ -130,7 +127,9 @@ test.describe("Admin user provisioning — invite premium", () => {
         .click();
 
       await expect(page.getByText(SAMPLE_MAGIC_LINK)).toBeVisible();
-      await expect(page.getByText(/expira en 48h/i)).toBeVisible();
+      // Real expiry is dynamic (mirrors SuperTokens core codeLifetime). The
+      // contract only asserts the surfaced copy still mentions an expiry.
+      await expect(page.getByText(/expira en/i)).toBeVisible();
 
       await page.getByRole("button", { name: /copiar link/i }).click();
 
@@ -145,7 +144,7 @@ test.describe("Admin user provisioning — invite premium", () => {
     },
   );
 
-  test.fixme(
+  test(
     "admin invites an existing free email — UI shows upgrade success, not error",
     async ({ page }) => {
       await mockCurrentUser(page, ADMIN_USER_SESSION);
@@ -192,7 +191,7 @@ test.describe("Admin user provisioning — invite premium", () => {
 
       await page.goto("/admin/users");
       await page
-        .getByRole("button", { name: /invitar usuaria/i })
+        .getByRole("button", { name: /invitar persona/i })
         .click();
       await page.getByLabel(/email/i).fill(INVITED_EMAIL);
       await page.getByLabel(/^plan$/i).selectOption("premium");
@@ -202,8 +201,12 @@ test.describe("Admin user provisioning — invite premium", () => {
 
       // Upgrade copy distinguishes from new-user copy without surfacing as
       // an error — the operation succeeded; the meaning is "we upgraded
-      // the existing free account, here's the fresh login link".
-      await expect(page.getByText(/upgrade|upgradeo/i)).toBeVisible();
+      // the existing free account, here's the fresh login link". Asserting
+      // on success-panel copy instead of the modal header (which always
+      // mentions "upgradeamos") so the test fails if the success branch
+      // ever stops rendering.
+      await expect(page.getByText(/Plan actualizado/i)).toBeVisible();
+      await expect(page.getByText(/no se duplicó/i)).toBeVisible();
       await expect(page.getByText(SAMPLE_MAGIC_LINK)).toBeVisible();
       await expect(
         page.getByRole("button", { name: /copiar link/i }),
@@ -212,7 +215,7 @@ test.describe("Admin user provisioning — invite premium", () => {
     },
   );
 
-  test.fixme(
+  test(
     "admin reinvites a pending user from detail view and gets a fresh link",
     async ({ page }) => {
       await mockCurrentUser(page, ADMIN_USER_SESSION);
@@ -253,9 +256,12 @@ test.describe("Admin user provisioning — invite premium", () => {
       await expect(
         page.getByRole("heading", { name: INVITED_NAME }),
       ).toBeVisible();
+      // Spanish copy from getAdminOnboardingStatusLabel("pending") and
+      // getAdminAccessSourceLabel("manual"). Asserting on English keys
+      // would be a false negative against the actual rendered UI.
       await expect(page.getByText(/onboarding/i)).toBeVisible();
-      await expect(page.getByText(/pending/i)).toBeVisible();
-      await expect(page.getByText(/manual/i)).toBeVisible();
+      await expect(page.getByText(/pendiente/i)).toBeVisible();
+      await expect(page.getByText(/Invitación admin/i)).toBeVisible();
 
       await page
         .getByRole("button", { name: /reinvitar/i })
@@ -268,7 +274,7 @@ test.describe("Admin user provisioning — invite premium", () => {
     },
   );
 
-  test.fixme(
+  test(
     "invited user lands in onboarding with plan locked, completes flow into premium chat",
     async ({ page }) => {
       // Once SuperTokens consumed the magic link, the session exists and the
@@ -325,7 +331,7 @@ test.describe("Admin user provisioning — invite premium", () => {
     },
   );
 
-  test.fixme(
+  test(
     "self-signup vanilla user reaches chat as free without admin involvement (regression)",
     async ({ page }) => {
       // SuperTokens session exists but identity is not linked to any users

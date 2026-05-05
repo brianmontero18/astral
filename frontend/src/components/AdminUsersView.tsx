@@ -309,7 +309,7 @@ export function AdminUsersView({ onOpenUser }: Props) {
               onClick={() => setInviteOpen(true)}
               className="astral-auth-primary admin-cta-compact"
             >
-              Invitar usuaria
+              Invitar persona
             </button>
           </div>
           <p

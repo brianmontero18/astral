@@ -9,7 +9,7 @@ import Passwordless from "supertokens-node/recipe/passwordless";
 import Session from "supertokens-node/recipe/session";
 import UserRoles from "supertokens-node/recipe/userroles";
 import { readSuperTokensConfig } from "./config.js";
-import { createPasswordlessEmailService } from "./passwordless-email.js";
+import { createPasswordlessEmailService } from "./email-templates.js";
 
 export interface AuthRuntime {
   corsHeaders: Array<string>;

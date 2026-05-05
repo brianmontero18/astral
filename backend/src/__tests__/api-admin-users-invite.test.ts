@@ -36,6 +36,7 @@ vi.mock("../auth/session.js", () => mockSessionModule());
 
 const passwordlessCreateCodeMock = vi.fn();
 const passwordlessSendEmailMock = vi.fn();
+const sendAdminInviteEmailMock = vi.fn();
 
 vi.mock("supertokens-node/recipe/passwordless", async () => {
   const actual = await vi.importActual<
@@ -48,6 +49,16 @@ vi.mock("supertokens-node/recipe/passwordless", async () => {
       createCode: passwordlessCreateCodeMock,
       sendEmail: passwordlessSendEmailMock,
     },
+  };
+});
+
+vi.mock("../auth/admin-invite-email.js", async () => {
+  const actual = await vi.importActual<
+    typeof import("../auth/admin-invite-email.js")
+  >("../auth/admin-invite-email.js");
+  return {
+    ...actual,
+    sendAdminInviteEmail: sendAdminInviteEmailMock,
   };
 });
 
@@ -75,6 +86,7 @@ afterAll(async () => {
 beforeEach(() => {
   passwordlessCreateCodeMock.mockReset();
   passwordlessSendEmailMock.mockReset();
+  sendAdminInviteEmailMock.mockReset();
   passwordlessCreateCodeMock.mockResolvedValue({
     status: "OK",
     preAuthSessionId: "preauth-mock",
@@ -86,6 +98,7 @@ beforeEach(() => {
     timeCreated: Date.now(),
   });
   passwordlessSendEmailMock.mockResolvedValue(undefined);
+  sendAdminInviteEmailMock.mockResolvedValue(undefined);
 });
 
 async function postInvite(payload: {
@@ -118,6 +131,10 @@ describe("POST /api/admin/users — happy paths", () => {
       expiresAt: expect.any(String),
     });
     expect(body.magicLink).toContain("linkcode-mock");
+    // intent=invite signals to the frontend it should auto-consume even
+    // when the recipient opens the link from a browser that never held a
+    // matching login attempt.
+    expect(body.magicLink).toContain("intent=invite");
     expect(typeof body.userId).toBe("string");
 
     const { getUser } = await import("../db.js");
@@ -132,16 +149,20 @@ describe("POST /api/admin/users — happy paths", () => {
     expect(passwordlessCreateCodeMock).toHaveBeenCalledWith(
       expect.objectContaining({ email: "marina@coach.test" }),
     );
-    expect(passwordlessSendEmailMock).toHaveBeenCalledWith(
+    expect(sendAdminInviteEmailMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: "PASSWORDLESS_LOGIN",
         email: "marina@coach.test",
+        magicLink: body.magicLink,
+        codeLifetime: 48 * 60 * 60 * 1000,
         preAuthSessionId: "preauth-mock",
-        urlWithLinkCode: body.magicLink,
         userInputCode: "123456",
         tenantId: "public",
+        recipientName: "Marina",
       }),
     );
+    // Login transport must NOT be touched by admin invite — login emails stay
+    // in their own SuperTokens-driven path.
+    expect(passwordlessSendEmailMock).not.toHaveBeenCalled();
   });
 
   it("creates a pending user starting at step='name' when no name is provided", async () => {
@@ -186,6 +207,34 @@ describe("POST /api/admin/users — happy paths", () => {
     expect(after?.onboarding_status).toBe("complete");
     // body.userId already asserted equal to seededId above — proves no
     // duplicate row was created.
+  });
+
+  it("returns expiresAt aligned with the actual SuperTokens codeLifetime, not a hardcoded constant", async () => {
+    // Dev cores often run with the default 15-min codeLifetime — admin UI
+    // must reflect that, not a baked-in 48h promise.
+    passwordlessCreateCodeMock.mockResolvedValueOnce({
+      status: "OK",
+      preAuthSessionId: "preauth-short",
+      codeId: "code-short",
+      deviceId: "device-short",
+      userInputCode: "654321",
+      linkCode: "linkcode-short",
+      codeLifetime: 15 * 60 * 1000,
+      timeCreated: Date.now(),
+    });
+
+    const before = Date.now();
+    const res = await postInvite({
+      email: "shortttl@coach.test",
+      plan: "premium",
+    });
+    const after = Date.now();
+
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    const expiresAtMs = new Date(body.expiresAt).getTime();
+    expect(expiresAtMs).toBeGreaterThanOrEqual(before + 15 * 60 * 1000);
+    expect(expiresAtMs).toBeLessThanOrEqual(after + 15 * 60 * 1000 + 100);
   });
 });
 
@@ -268,7 +317,7 @@ describe("POST /api/admin/users — invite send failure", () => {
   });
 
   it("returns 502 invite_send_failed but keeps the users row when email delivery throws", async () => {
-    passwordlessSendEmailMock.mockRejectedValueOnce(
+    sendAdminInviteEmailMock.mockRejectedValueOnce(
       new Error("SMTP 421 service unavailable"),
     );
 
@@ -290,6 +339,37 @@ describe("POST /api/admin/users — invite send failure", () => {
     const { getUser } = await import("../db.js");
     const stranded = await getUser(body.userId);
     expect(stranded?.email).toBe("maildown@coach.test");
+    expect(stranded?.access_source).toBe("manual");
+    expect(stranded?.onboarding_status).toBe("pending");
+  });
+
+  it("returns 503 email_delivery_unavailable when SMTP is not configured", async () => {
+    const { AdminInviteEmailUnavailableError } = await import(
+      "../auth/admin-invite-email.js"
+    );
+    sendAdminInviteEmailMock.mockRejectedValueOnce(
+      new AdminInviteEmailUnavailableError(),
+    );
+
+    const res = await postInvite({
+      email: "nosmtp@coach.test",
+      plan: "premium",
+      name: "No SMTP",
+    });
+
+    expect(res.statusCode).toBe(503);
+    const body = JSON.parse(res.body);
+    expect(body).toMatchObject({
+      error: "email_delivery_unavailable",
+      plan: "premium",
+      isNewUser: true,
+    });
+    expect(body.magicLink).toBeUndefined();
+
+    // The users row must remain so admin can retry once SMTP is up.
+    const { getUser } = await import("../db.js");
+    const stranded = await getUser(body.userId);
+    expect(stranded?.email).toBe("nosmtp@coach.test");
     expect(stranded?.access_source).toBe("manual");
     expect(stranded?.onboarding_status).toBe("pending");
   });

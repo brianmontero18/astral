@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { createAdminInvite, type AdminInviteResult } from "../api";
 import {
   buildAdminUserPath,
+  formatExpiresIn,
   getAdminPlanLabel,
   getAdminSupportFailureMessage,
+  useCopyToClipboard,
 } from "../admin-support";
 import type { AppUserPlan } from "../types";
 
@@ -38,7 +40,7 @@ export function AdminInviteModal({
   const [plan, setPlan] = useState<AppUserPlan>(DEFAULT_PLAN);
   const [name, setName] = useState("");
   const [submitState, setSubmitState] = useState<SubmitState>({ kind: "idle" });
-  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+  const clipboard = useCopyToClipboard();
   const emailInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -47,7 +49,6 @@ export function AdminInviteModal({
       setName("");
       setPlan(DEFAULT_PLAN);
       setSubmitState({ kind: "idle" });
-      setCopyFeedback(null);
       // Focus the email field on open.
       requestAnimationFrame(() => emailInputRef.current?.focus());
     }
@@ -82,13 +83,8 @@ export function AdminInviteModal({
     }
   };
 
-  const handleCopy = async (link: string) => {
-    try {
-      await navigator.clipboard.writeText(link);
-      setCopyFeedback("Link copiado al portapapeles");
-    } catch {
-      setCopyFeedback("No se pudo copiar — seleccioná el link manualmente");
-    }
+  const handleCopy = (link: string) => {
+    void clipboard.copy(link);
   };
 
   const handleOpenDetail = (userId: string) => {
@@ -141,7 +137,7 @@ export function AdminInviteModal({
               lineHeight: 1.2,
             }}
           >
-            Invitar usuaria
+            Invitar persona
           </h2>
           <p
             style={{
@@ -151,9 +147,8 @@ export function AdminInviteModal({
               fontSize: 13,
             }}
           >
-            Le enviamos un email con magic link + código que vence en 48h. Si
-            el email ya existe, le upgradeamos el plan en lugar de duplicar la
-            cuenta.
+            Le enviamos un email con un magic link de un solo uso. Si el email
+            ya existe, le upgradeamos el plan en lugar de duplicar la cuenta.
           </p>
         </div>
 
@@ -169,7 +164,7 @@ export function AdminInviteModal({
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               disabled={fieldsDisabled}
-              placeholder="usuaria@dominio.com"
+              placeholder="persona@dominio.com"
               autoComplete="off"
               className="admin-input"
             />
@@ -227,7 +222,8 @@ export function AdminInviteModal({
           {submitState.kind === "ok" ? (
             <SuccessPanel
               result={submitState.result}
-              copyFeedback={copyFeedback}
+              copyFeedback={clipboard.message}
+              copyStatus={clipboard.status}
               onCopy={handleCopy}
               onOpenDetail={handleOpenDetail}
             />
@@ -327,11 +323,13 @@ function Notice({
 function SuccessPanel({
   result,
   copyFeedback,
+  copyStatus,
   onCopy,
   onOpenDetail,
 }: {
   result: AdminInviteResult;
   copyFeedback: string | null;
+  copyStatus: "idle" | "copied" | "error";
   onCopy: (link: string) => void;
   onOpenDetail: (userId: string) => void;
 }) {
@@ -340,7 +338,7 @@ function SuccessPanel({
       <Notice tone="error">
         <div style={{ marginBottom: 10 }}>
           <strong>Cuenta creada</strong> pero no pudimos enviar el email.
-          Probá reinvitar desde el detalle de la usuaria.
+          Probá reinvitar desde el detalle de la cuenta.
         </div>
         <a
           href={buildAdminUserPath(result.data.userId)}
@@ -350,7 +348,7 @@ function SuccessPanel({
           }}
           style={{ color: "var(--color-primary)", textDecoration: "underline" }}
         >
-          Abrir detalle de la usuaria →
+          Abrir detalle de la cuenta →
         </a>
       </Notice>
     );
@@ -390,11 +388,12 @@ function SuccessPanel({
           onClick={() => onCopy(result.data.magicLink)}
           className="astral-auth-secondary admin-invite-copy"
         >
-          Copiar link
+          {copyStatus === "copied" ? "✓ Copiado" : "Copiar link"}
         </button>
       </div>
       <div style={{ fontSize: 12, color: "var(--text-faint)" }}>
-        El link expira en 48h. Pasado ese tiempo, reinvitá desde el detalle.
+        {formatExpiresIn(result.data.expiresAt)}. Pasado ese tiempo, reinvitá
+        desde el detalle.
       </div>
       {copyFeedback ? (
         <div

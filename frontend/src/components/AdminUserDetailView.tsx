@@ -7,6 +7,7 @@ import {
   ADMIN_USER_DETAIL_SUPPORT_BODY,
   applyAdminUserAccessValues,
   buildAdminUserAccessPatch,
+  formatExpiresIn,
   getAdminAccessSourceLabel,
   getAdminOnboardingStatusLabel,
   getAdminOnboardingStepLabel,
@@ -15,14 +16,17 @@ import {
   getAdminRoleLabel,
   getAdminStatusLabel,
   getAdminUserDetailDisplay,
+  useCopyToClipboard,
 } from "../admin-support";
 import {
   createAdminInvite,
+  deleteAdminUser,
   getAdminUserDetail,
   getAdminUserLlmUsage,
   updateAdminUserAccess,
   type AdminInviteResult,
 } from "../api";
+import { ConfirmModal } from "./ConfirmModal";
 import type {
   AdminUserAccessValues,
   AdminUserDetail,
@@ -368,9 +372,13 @@ export function AdminUserDetailView({
     | { kind: "ok"; result: AdminInviteResult }
     | { kind: "error"; message: string }
   >({ kind: "idle" });
-  const [reinviteCopyFeedback, setReinviteCopyFeedback] = useState<string | null>(
-    null,
-  );
+  const reinviteClipboard = useCopyToClipboard();
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteState, setDeleteState] = useState<
+    | { kind: "idle" }
+    | { kind: "submitting" }
+    | { kind: "error"; message: string }
+  >({ kind: "idle" });
 
   useEffect(() => {
     let cancelled = false;
@@ -481,7 +489,6 @@ export function AdminUserDetailView({
   const handleReinvite = async () => {
     if (!detail || !detail.email) return;
     setReinviteState({ kind: "submitting" });
-    setReinviteCopyFeedback(null);
     try {
       const result = await createAdminInvite({
         email: detail.email,
@@ -493,19 +500,36 @@ export function AdminUserDetailView({
         kind: "error",
         message: getAdminSupportFailureMessage(
           err,
-          "No pudimos reinvitar a esta usuaria. Reintentá en unos segundos.",
+          "No pudimos reinvitar a esta persona. Reintentá en unos segundos.",
         ),
       });
     }
   };
 
-  const handleCopyReinviteLink = async (link: string) => {
+  const handleConfirmDelete = async () => {
+    if (!detail) return;
+    setDeleteState({ kind: "submitting" });
     try {
-      await navigator.clipboard.writeText(link);
-      setReinviteCopyFeedback("Link copiado al portapapeles");
-    } catch {
-      setReinviteCopyFeedback("No se pudo copiar — seleccionalo manualmente");
+      await deleteAdminUser(userId);
+      setDeleteConfirmOpen(false);
+      setDeleteState({ kind: "idle" });
+      onBackToUsers();
+    } catch (err) {
+      // Close the modal so the error notice in "Zona de cuidado" is
+      // visible — it lives outside the modal backdrop.
+      setDeleteConfirmOpen(false);
+      setDeleteState({
+        kind: "error",
+        message: getAdminSupportFailureMessage(
+          err,
+          "No pudimos eliminar esta cuenta. Reintentá en unos segundos.",
+        ),
+      });
     }
+  };
+
+  const handleCopyReinviteLink = (link: string) => {
+    void reinviteClipboard.copy(link);
   };
 
   const handleResetDraft = () => {
@@ -877,7 +901,7 @@ export function AdminUserDetailView({
                 </button>
                 {!detail.email ? (
                   <span style={{ color: "var(--text-faint)", fontSize: 13 }}>
-                    No hay email registrado para esta usuaria — no se puede
+                    No hay email registrado para esta persona — no se puede
                     reinvitar desde acá.
                   </span>
                 ) : null}
@@ -929,14 +953,18 @@ export function AdminUserDetailView({
                         className="btn-secondary"
                         style={{ padding: "8px 14px", fontSize: 13 }}
                       >
-                        Copiar link
+                        {reinviteClipboard.status === "copied"
+                          ? "✓ Copiado"
+                          : "Copiar link"}
                       </button>
                       <span
                         style={{ color: "var(--text-faint)", fontSize: 12 }}
                       >
-                        Expira en 48h.
+                        {reinviteState.result.kind === "ok"
+                          ? `${formatExpiresIn(reinviteState.result.data.expiresAt)}.`
+                          : ""}
                       </span>
-                      {reinviteCopyFeedback ? (
+                      {reinviteClipboard.message ? (
                         <span
                           aria-live="polite"
                           style={{
@@ -944,7 +972,7 @@ export function AdminUserDetailView({
                             color: "var(--text-main)",
                           }}
                         >
-                          {reinviteCopyFeedback}
+                          {reinviteClipboard.message}
                         </span>
                       ) : null}
                     </div>
@@ -1126,8 +1154,76 @@ export function AdminUserDetailView({
               ))}
             </div>
           </SupportSection>
+
+          <SupportSection
+            title="Zona de cuidado"
+            body="Acciones irreversibles sobre la cuenta. Solo úsalas cuando tengas certeza de este paso."
+            subdued
+          >
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+                alignItems: "flex-start",
+              }}
+            >
+              <button
+                type="button"
+                className="confirm-modal-destructive"
+                onClick={() => {
+                  setDeleteState({ kind: "idle" });
+                  setDeleteConfirmOpen(true);
+                }}
+                disabled={isSelfMutation || deleteState.kind === "submitting"}
+                title={
+                  isSelfMutation
+                    ? "No podés eliminar tu propia cuenta admin"
+                    : undefined
+                }
+              >
+                Eliminar cuenta
+              </button>
+              {isSelfMutation ? (
+                <span style={{ color: "var(--text-faint)", fontSize: 12 }}>
+                  Astral bloquea la auto-eliminación de la cuenta admin
+                  activa.
+                </span>
+              ) : null}
+              {deleteState.kind === "error" ? (
+                <InlineNotice tone="error">{deleteState.message}</InlineNotice>
+              ) : null}
+            </div>
+          </SupportSection>
         </div>
       </div>
+
+      <ConfirmModal
+        open={deleteConfirmOpen}
+        title="Eliminar esta cuenta"
+        body={(() => {
+          const displayName = detail.name?.trim() || null;
+          const email = detail.email || null;
+          const subject =
+            displayName && email
+              ? `${displayName} (${email})`
+              : displayName || email || "esta persona";
+          return `Vas a eliminar a ${subject}. Borraremos sus mensajes, reportes, intake, identidad de auth y los assets en R2. Esta acción es irreversible.`;
+        })()}
+        confirmLabel={
+          deleteState.kind === "submitting" ? "Eliminando..." : "Eliminar"
+        }
+        cancelLabel="Cancelar"
+        destructive
+        onConfirm={() => {
+          if (deleteState.kind === "submitting") return;
+          void handleConfirmDelete();
+        }}
+        onCancel={() => {
+          if (deleteState.kind === "submitting") return;
+          setDeleteConfirmOpen(false);
+        }}
+      />
     </div>
   );
 }

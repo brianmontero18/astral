@@ -467,7 +467,15 @@ export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
                   ref={fileRef}
                   type="file"
                   accept="application/pdf,.pdf"
-                  style={{ display: "none" }}
+                  style={{
+                    position: "absolute",
+                    width: 0,
+                    height: 0,
+                    opacity: 0,
+                    pointerEvents: "none",
+                  }}
+                  aria-hidden="true"
+                  tabIndex={-1}
                   onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
                 />
                 <div className="onboarding-dropzone-icon" aria-hidden="true">

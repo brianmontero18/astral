@@ -8,6 +8,7 @@ import {
   findUserByIdentity,
   getLlmUsageForUser,
   getUserAssetCount,
+  getUserAssetStorageKeys,
   getUserIdentity,
   getUserMessageCount,
   getUser,
@@ -23,6 +24,7 @@ import {
   updateUserAccess,
   updateUserProfile,
 } from "../db.js";
+import { deleteObject as r2DeleteObject } from "../storage/r2.js";
 import { type AuthenticatedRequest } from "../auth/session.js";
 import {
   resolveRequestCurrentUser,
@@ -30,6 +32,10 @@ import {
 } from "../auth/current-user.js";
 import type { AuthenticatedAppUser } from "../auth/identity.js";
 import { readSuperTokensConfig } from "../auth/config.js";
+import {
+  AdminInviteEmailUnavailableError,
+  sendAdminInviteEmail,
+} from "../auth/admin-invite-email.js";
 import { getMessageLimitForPlan } from "../chat-limits.js";
 import { deriveImpliedFields } from "../extraction-service.js";
 import type { UserProfile } from "../agent-service.js";
@@ -48,13 +54,6 @@ const ALLOWED_ONBOARDING_STEPS = new Set<AppUserOnboardingStep>([
 // when the magic link is consumed. This guards against obvious garbage at the
 // admin endpoint boundary.
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-// 48h matches the operational decision in epic astral-0xw. The actual TTL
-// of the magic link is set on the SuperTokens core (cloud dashboard or
-// self-hosted env). This constant is what we surface to admin as
-// `expiresAt` — keeping it in lockstep with the core config is part of
-// the runbook (Slice 7, astral-6o4).
-const INVITE_TTL_MS = 48 * 60 * 60 * 1000;
 
 // SuperTokens default tenant. Multi-tenancy is not configured in Astral.
 const DEFAULT_TENANT_ID = "public";
@@ -86,6 +85,7 @@ function buildMagicLink(input: {
   preAuthSessionId: string;
   linkCode: string;
   tenantId: string;
+  intent?: "invite";
 }): string {
   const config = readSuperTokensConfig();
   const websiteDomain = config.appInfo.websiteDomain.replace(/\/$/, "");
@@ -95,7 +95,16 @@ function buildMagicLink(input: {
   // SuperTokens places the linkCode in the URL fragment so it never reaches
   // server logs. Mirrors the format used by `urlWithLinkCode` in the
   // passwordless email template.
-  return `${websiteDomain}${websiteBasePath}/verify?preAuthSessionId=${encodeURIComponent(input.preAuthSessionId)}&tenantId=${encodeURIComponent(input.tenantId)}#${encodeURIComponent(input.linkCode)}`;
+  //
+  // intent=invite signals to the frontend that this magic link was minted by
+  // an admin and the recipient may not have a stored login attempt in this
+  // browser. The frontend uses it to auto-consume without requiring same-
+  // browser state. Login-initiated links omit the param and keep the
+  // stricter same-browser gate.
+  const intentParam = input.intent
+    ? `&intent=${encodeURIComponent(input.intent)}`
+    : "";
+  return `${websiteDomain}${websiteBasePath}/verify?preAuthSessionId=${encodeURIComponent(input.preAuthSessionId)}&tenantId=${encodeURIComponent(input.tenantId)}${intentParam}#${encodeURIComponent(input.linkCode)}`;
 }
 export async function userRoutes(app: FastifyInstance) {
   app.post<{ Body: { name: string; profile: object } }>("/users", async (req, reply) => {
@@ -413,22 +422,35 @@ export async function userRoutes(app: FastifyInstance) {
         preAuthSessionId: createCodeResult.preAuthSessionId,
         linkCode: createCodeResult.linkCode,
         tenantId: DEFAULT_TENANT_ID,
+        intent: "invite",
       });
 
-      await Passwordless.sendEmail({
-        type: "PASSWORDLESS_LOGIN",
-        isFirstFactor: true,
+      await sendAdminInviteEmail({
         email: rawEmail,
+        magicLink,
         codeLifetime: createCodeResult.codeLifetime,
         preAuthSessionId: createCodeResult.preAuthSessionId,
-        urlWithLinkCode: magicLink,
         userInputCode: createCodeResult.userInputCode,
         tenantId: DEFAULT_TENANT_ID,
+        recipientName: rawName || null,
       });
     } catch (err) {
+      if (err instanceof AdminInviteEmailUnavailableError) {
+        app.log.error(
+          { err, userId, email: rawEmail },
+          "Admin invite email transport unavailable (SMTP not configured)",
+        );
+        return reply.status(503).send({
+          error: "email_delivery_unavailable",
+          userId,
+          plan,
+          isNewUser,
+        });
+      }
+
       app.log.error(
         { err, userId, email: rawEmail },
-        "Failed to issue passwordless invite email",
+        "Failed to issue admin invite email",
       );
       return reply.status(502).send({
         error: "invite_send_failed",
@@ -438,7 +460,13 @@ export async function userRoutes(app: FastifyInstance) {
       });
     }
 
-    const expiresAt = new Date(Date.now() + INVITE_TTL_MS).toISOString();
+    // expiresAt mirrors the actual TTL configured on the SuperTokens core.
+    // codeLifetime is in ms and varies between dev (default 15 min) and
+    // production (operationally set to 48h). Surfacing the real value keeps
+    // the admin UI honest if the core config drifts.
+    const expiresAt = new Date(
+      Date.now() + createCodeResult.codeLifetime,
+    ).toISOString();
 
     return reply.status(200).send({
       userId,
@@ -534,6 +562,80 @@ export async function userRoutes(app: FastifyInstance) {
       }
 
       return reply.send({ ok: true });
+    },
+  );
+
+  app.delete<{ Params: { id: string } }>(
+    "/admin/users/:id",
+    async (req, reply) => {
+      const adminUser = await requireAdminUser(
+        req as AuthenticatedRequest,
+        reply,
+      );
+
+      if (!adminUser) {
+        return;
+      }
+
+      // Self-delete from the admin panel is blocked. The legacy
+      // DELETE /api/users/:id endpoint stays available for an intentional
+      // self-delete UI in the future.
+      if (req.params.id === adminUser.id) {
+        return reply.status(400).send({ error: "cannot_delete_self" });
+      }
+
+      const target = await getUser(req.params.id);
+      if (!target) {
+        return reply.status(404).send({ error: "User not found" });
+      }
+
+      // Audit the admin's intent before any destructive work, so a partial
+      // failure (R2 transient, DB race) still leaves a record of who tried
+      // to delete whom.
+      app.log.warn(
+        {
+          adminId: adminUser.id,
+          targetId: req.params.id,
+          targetEmail: target.email,
+        },
+        "Admin invoked user delete",
+      );
+
+      // Best-effort R2 cleanup before the DB cascade drops asset rows.
+      // We continue on individual failures so a stale R2 object never
+      // strands the user record. Operators inspect the response payload
+      // (and structured logs) to clean up orphans by hand if needed.
+      const assetKeys = await getUserAssetStorageKeys(req.params.id);
+      const r2Errors: Array<{ assetId: string; storageKey: string; reason: string }> = [];
+      for (const asset of assetKeys) {
+        try {
+          await r2DeleteObject(asset.storageKey);
+        } catch (err) {
+          const reason = err instanceof Error ? err.message : String(err);
+          r2Errors.push({
+            assetId: asset.id,
+            storageKey: asset.storageKey,
+            reason,
+          });
+          app.log.warn(
+            { err, adminId: adminUser.id, targetId: req.params.id, assetId: asset.id },
+            "Failed to delete R2 object during admin user delete",
+          );
+        }
+      }
+
+      const deleted = await deleteUser(req.params.id);
+      if (!deleted) {
+        // The user existed at the lookup above but vanished before the
+        // DELETE — likely a concurrent delete from another admin tab.
+        return reply.status(404).send({ error: "User not found" });
+      }
+
+      return reply.send({
+        ok: true,
+        deletedAssets: assetKeys.length,
+        r2Errors,
+      });
     },
   );
 

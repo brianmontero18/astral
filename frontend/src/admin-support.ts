@@ -1,3 +1,5 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+
 import type {
   AdminUserDetail,
   AdminUserAccessPatch,
@@ -371,4 +373,78 @@ export function applyAdminUserAccessValues(
       messageLimit: getMessageLimitForPlan(next.plan),
     },
   };
+}
+
+// Formats the time remaining until an invite link expires, anchored to the
+// real `expiresAt` returned by the backend (which mirrors the SuperTokens
+// core `codeLifetime`). The admin UI uses this so the copy stays honest if
+// dev and production drift in TTL configuration.
+export function formatExpiresIn(
+  expiresAt: string,
+  now: Date = new Date(),
+): string {
+  const expiry = new Date(expiresAt).getTime();
+  if (!Number.isFinite(expiry)) {
+    return "TTL desconocido";
+  }
+  const diffMs = expiry - now.getTime();
+  if (diffMs <= 0) {
+    return "Expirado";
+  }
+
+  const minutes = Math.round(diffMs / (60 * 1000));
+  if (minutes < 60) {
+    return `Expira en ~${minutes} min`;
+  }
+  const hours = Math.round(diffMs / (60 * 60 * 1000));
+  if (hours <= 48) {
+    return `Expira en ~${hours} h`;
+  }
+  const days = Math.round(diffMs / (24 * 60 * 60 * 1000));
+  return `Expira en ~${days} días`;
+}
+
+export interface UseCopyToClipboardResult {
+  copy: (text: string) => Promise<void>;
+  status: "idle" | "copied" | "error";
+  message: string | null;
+}
+
+// Shared clipboard helper for admin invite/reinvite buttons. Returns a
+// short-lived "copied" status so call-sites can swap the button label
+// without each one duplicating the timer logic. The aria-live message
+// stays announceable for screen readers.
+export function useCopyToClipboard(
+  resetMs = 2000,
+): UseCopyToClipboardResult {
+  const [status, setStatus] = useState<"idle" | "copied" | "error">("idle");
+  const [message, setMessage] = useState<string | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  const copy = useCallback(
+    async (text: string) => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      try {
+        await navigator.clipboard.writeText(text);
+        setStatus("copied");
+        setMessage("Link copiado al portapapeles");
+      } catch {
+        setStatus("error");
+        setMessage("No se pudo copiar — seleccionalo manualmente");
+      }
+      timeoutRef.current = setTimeout(() => {
+        setStatus("idle");
+        setMessage(null);
+      }, resetMs);
+    },
+    [resetMs],
+  );
+
+  return { copy, status, message };
 }
