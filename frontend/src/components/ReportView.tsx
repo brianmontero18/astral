@@ -133,6 +133,7 @@ function LockIcon({ size = 14 }: { size?: number }) {
 
 function SectionCard({ section, locked, onUnlockClick }: { section: ReportSection; locked: boolean; onUnlockClick?: () => void }) {
   const [expanded, setExpanded] = useState(!locked);
+  const sectionAnchorId = `section-${section.id}`;
 
   useEffect(() => {
     setExpanded(!locked);
@@ -141,6 +142,7 @@ function SectionCard({ section, locked, onUnlockClick }: { section: ReportSectio
   if (locked) {
     return (
       <div
+        id={sectionAnchorId}
         onClick={onUnlockClick}
         role="button"
         tabIndex={0}
@@ -157,18 +159,20 @@ function SectionCard({ section, locked, onUnlockClick }: { section: ReportSectio
           cursor: "pointer", transition: "border-color 0.2s ease",
           color: "var(--text-main)",
           opacity: 0.85,
+          scrollMarginTop: 80,
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ display: "inline-flex", color: "var(--color-primary)" }}>
             <SectionIcon id={section.id} size={18} />
           </span>
-          <span style={{
+          <h2 style={{
+            margin: 0,
             fontFamily: "var(--font-serif)", color: "var(--text-main)",
-            fontSize: 16, fontWeight: 500,
+            fontSize: 16, fontWeight: 500, lineHeight: 1.25,
           }}>
             {section.title}
-          </span>
+          </h2>
           <span style={{ marginLeft: "auto", display: "inline-flex", color: "var(--color-primary)" }}>
             <LockIcon size={14} />
           </span>
@@ -188,15 +192,20 @@ function SectionCard({ section, locked, onUnlockClick }: { section: ReportSectio
   }
 
   return (
-    <div style={{
-      background: "var(--surface-dark)",
-      border: "1px solid rgba(248, 244, 232, 0.1)",
-      borderRadius: 14, padding: "18px 20px", marginBottom: 14,
-      color: "var(--text-main)",
-    }}>
+    <div
+      id={sectionAnchorId}
+      style={{
+        background: "var(--surface-dark)",
+        border: "1px solid rgba(248, 244, 232, 0.1)",
+        borderRadius: 14, padding: "18px 20px", marginBottom: 14,
+        color: "var(--text-main)",
+        scrollMarginTop: 80,
+      }}
+    >
       <button
         onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
+        aria-controls={`${sectionAnchorId}-body`}
         style={{
           background: "none", border: "none", cursor: "pointer", width: "100%",
           display: "flex", alignItems: "center", gap: 10, padding: 0, textAlign: "left",
@@ -206,12 +215,13 @@ function SectionCard({ section, locked, onUnlockClick }: { section: ReportSectio
         <span style={{ display: "inline-flex", color: "var(--color-primary)" }}>
           <SectionIcon id={section.id} size={18} />
         </span>
-        <span style={{
+        <h2 style={{
+          margin: 0, flex: 1,
           fontFamily: "var(--font-serif)", color: "var(--text-main)",
-          fontSize: 17, fontWeight: 500, flex: 1,
+          fontSize: 17, fontWeight: 500, lineHeight: 1.25,
         }}>
           {section.title}
-        </span>
+        </h2>
         <span
           aria-hidden="true"
           style={{
@@ -237,11 +247,14 @@ function SectionCard({ section, locked, onUnlockClick }: { section: ReportSectio
       </button>
 
       {expanded && (
-        <div style={{
-          marginTop: 14, paddingTop: 12, borderTop: "1px solid rgba(207, 172, 108, 0.18)",
-          color: "var(--text-main)", fontSize: 13.5,
-          lineHeight: 1.8, fontWeight: 400, whiteSpace: "pre-line",
-        }}>
+        <div
+          id={`${sectionAnchorId}-body`}
+          style={{
+            marginTop: 14, paddingTop: 12, borderTop: "1px solid rgba(207, 172, 108, 0.18)",
+            color: "var(--text-main)", fontSize: 13.5,
+            lineHeight: 1.8, fontWeight: 400, whiteSpace: "pre-line",
+          }}
+        >
           {section.staticContent && <div>{section.staticContent}</div>}
           {section.llmContent && (
             <div style={{ marginTop: section.staticContent ? 14 : 0, color: "var(--color-cream-soft)" }}>
@@ -261,6 +274,46 @@ function SectionCard({ section, locked, onUnlockClick }: { section: ReportSectio
         </div>
       )}
     </div>
+  );
+}
+
+function ReportToc({ sections }: { sections: ReportSection[] }) {
+  if (sections.length < 2) {
+    return null;
+  }
+
+  const handleClick = (event: React.MouseEvent<HTMLAnchorElement>, sectionId: string) => {
+    event.preventDefault();
+    const target = document.getElementById(`section-${sectionId}`);
+    if (!target) {
+      return;
+    }
+    const container = target.closest("[data-report-scroll]") as HTMLElement | null;
+    if (!container) {
+      return;
+    }
+    const containerRect = container.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const offset = targetRect.top - containerRect.top + container.scrollTop - 16;
+    container.scrollTo({ top: offset, behavior: "smooth" });
+  };
+
+  return (
+    <nav aria-label="Secciones del informe" className="report-toc">
+      <ul className="report-toc-list">
+        {sections.map((section) => (
+          <li key={section.id} className="report-toc-item">
+            <a
+              href={`#section-${section.id}`}
+              onClick={(event) => handleClick(event, section.id)}
+              className="report-toc-link"
+            >
+              {section.title}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }
 
@@ -396,10 +449,18 @@ export function ReportView({ report, loading, onBack, onEditIntake, intakeWarnin
     }
   };
 
+  const tocSections: ReportSection[] = [
+    ...freeSections,
+    ...(premiumSections.length > 0 ? premiumSections : []),
+  ];
+
   return (
-    <div style={{
-      flex: 1, overflowY: "auto", padding: "24px 16px",
-    }}>
+    <div
+      data-report-scroll
+      style={{
+        flex: 1, overflowY: "auto", padding: "24px 16px",
+      }}
+    >
       <div style={{ maxWidth: 760, width: "100%", margin: "0 auto" }}>
         <div style={{
           color: "var(--color-gold-deep)", fontSize: 10, letterSpacing: "0.22em",
@@ -451,6 +512,8 @@ export function ReportView({ report, loading, onBack, onEditIntake, intakeWarnin
             Tu contexto personal no se pudo guardar. El informe se generó sin tus respuestas de intake.
           </div>
         )}
+
+        <ReportToc sections={tocSections} />
 
         {freeSections.map((section) => (
           <SectionCard key={section.id} section={section} locked={false} />

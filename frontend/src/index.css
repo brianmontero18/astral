@@ -2107,6 +2107,76 @@ textarea { outline: none !important; }
   }
 }
 
+/* ─── Report TOC (índice de secciones del informe) ─── */
+
+.report-toc {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin: 0 -4px 18px;
+  padding: 10px 4px 12px;
+  background: linear-gradient(
+    180deg,
+    rgba(173, 194, 182, 0.96) 0%,
+    rgba(173, 194, 182, 0.72) 88%,
+    rgba(173, 194, 182, 0) 100%
+  );
+}
+
+.report-toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.report-toc-list::-webkit-scrollbar {
+  display: none;
+}
+
+.report-toc-item {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+}
+
+.report-toc-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(33, 41, 30, 0.06);
+  border: 1px solid rgba(33, 41, 30, 0.18);
+  color: var(--text-on-light);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  white-space: nowrap;
+}
+
+.report-toc-link:hover,
+.report-toc-link:focus-visible {
+  background: rgba(207, 172, 108, 0.18);
+  border-color: rgba(207, 172, 108, 0.55);
+  color: var(--color-gold-deep);
+  outline: none;
+}
+
+@media (max-width: 640px) {
+  .report-toc {
+    margin: 0 -16px 18px;
+    padding: 10px 16px 12px;
+  }
+}
+
 /* ─── Intake (form de contexto de negocio) ─── */
 
 .intake-stage {

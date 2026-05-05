@@ -100,6 +100,14 @@ test.describe("Report — First Generation", () => {
     // Report should appear
     await expect(page.getByText("Informe Personal")).toBeVisible();
     await expect(page.getByText("Tu Carta Mecánica")).toBeVisible();
+
+    // TOC navigation: each section has a corresponding pill in the report TOC.
+    const toc = page.getByRole("navigation", { name: "Secciones del informe" });
+    await expect(toc).toBeVisible();
+    await expect(toc.getByRole("link", { name: "Tu Carta Mecánica" })).toBeVisible();
+
+    // Sections render as semantic <h2> headings (replaces previous <span> structure).
+    await expect(page.getByRole("heading", { level: 2, name: "Tu Carta Mecánica" })).toBeVisible();
   });
 
   test('Clicking "Omitir" generates report without intake', async ({ page }) => {
