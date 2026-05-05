@@ -375,6 +375,7 @@ export default function App() {
             supportRoute={adminSupportRoute?.kind ?? null}
             onNavigate={handleNavigate}
             onOpenSupportPanel={handleOpenAdminUsers}
+            onOpenReport={handleGoToReport}
             userName={user.name}
             userPlan={user.plan}
             userRole={user.role}

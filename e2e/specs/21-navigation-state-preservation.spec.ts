@@ -108,4 +108,16 @@ test.describe("Navigation — state preservation", () => {
     await page.getByRole("button", { name: "Volver" }).click();
     await expect(page.getByRole("heading", { name: "Tránsitos de la Semana" })).toBeVisible();
   });
+
+  test("the new \"Informe\" tab is a first-class entry into the report flow", async ({ page }) => {
+    await mockGetUser(page, TEST_USER_WITH_INTAKE);
+    await mockGetReport(page, FREE_REPORT);
+    await page.goto("/");
+
+    // The chat surface should not need the profile dropdown anymore — tapping
+    // the new top-level Informe tab routes through handleGoToReport, which
+    // surfaces the cached report directly.
+    await page.getByRole("button", { name: "Informe" }).click();
+    await expect(page.getByText("Informe Personal")).toBeVisible();
+  });
 });

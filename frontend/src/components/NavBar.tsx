@@ -7,6 +7,7 @@ interface Props {
   supportRoute: "users-list" | "user-detail" | null;
   onNavigate: (view: View) => void;
   onOpenSupportPanel: () => void;
+  onOpenReport?: () => void;
   userName: string;
   userPlan: AppUserPlan;
   userRole: AppUserRole;
@@ -16,8 +17,11 @@ interface Props {
   previousView?: View;
 }
 
-const TABS: { key: NavView; label: string }[] = [
+type TabDef = { key: NavView; label: string };
+
+const TABS: TabDef[] = [
   { key: "chat", label: "Chat" },
+  { key: "report", label: "Informe" },
   { key: "transits", label: "Tránsitos" },
   { key: "assets", label: "Mis Cartas" },
 ];
@@ -27,6 +31,7 @@ export function NavBar({
   supportRoute,
   onNavigate,
   onOpenSupportPanel,
+  onOpenReport,
   userName,
   userPlan,
   userRole,
@@ -110,11 +115,26 @@ export function NavBar({
           </button>
         ) : null}
         {TABS.map((tab) => {
-          const active = !supportRoute && currentView === tab.key;
+          // The "report" tab is special: clicking it routes through
+          // handleGoToReport (App.tsx), which decides whether to land on the
+          // cached report or the intake form. Treating it like any other
+          // setCurrentView would skip that decision. The active state still
+          // covers both the "report" view and the "intake" view, since intake
+          // is part of the report flow as far as the user is concerned.
+          const isReportTab = tab.key === "report";
+          const active = !supportRoute && (
+            isReportTab
+              ? currentView === "report" || currentView === "intake"
+              : currentView === tab.key
+          );
           return (
             <button
               key={tab.key}
-              onClick={() => onNavigate(tab.key)}
+              onClick={
+                isReportTab && onOpenReport
+                  ? onOpenReport
+                  : () => onNavigate(tab.key)
+              }
               className={`app-nav-item${active ? " app-nav-item--active" : ""}`}
             >
               {tab.label}
