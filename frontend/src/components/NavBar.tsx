@@ -14,7 +14,6 @@ interface Props {
   profile: UserProfile;
   onReset: () => void;
   onGenerateReport?: () => void;
-  previousView?: View;
 }
 
 type TabDef = { key: NavView; label: string };
@@ -38,7 +37,6 @@ export function NavBar({
   profile,
   onReset,
   onGenerateReport,
-  previousView,
 }: Props) {
   const [showProfile, setShowProfile] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -102,18 +100,6 @@ export function NavBar({
       </div>
 
       <div className="app-nav">
-        {!supportRoute && (currentView === "intake" || currentView === "report") ? (
-          <button
-            onClick={() => onNavigate(previousView ?? "chat")}
-            className="app-nav-item app-nav-item--back"
-            aria-label="Volver"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-            <span>Volver</span>
-          </button>
-        ) : null}
         {TABS.map((tab) => {
           // The "report" tab is special: clicking it routes through
           // handleGoToReport (App.tsx), which decides whether to land on the

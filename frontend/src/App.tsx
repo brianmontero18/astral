@@ -114,7 +114,12 @@ export default function App() {
             setCurrentView("onboarding");
           } else {
             setResumeStep(null);
-            setCurrentView("chat");
+            // This effect re-runs whenever pathname changes (e.g. when the
+            // admin leaves /admin/users back to "/"). Only set the default
+            // landing view on the very first bootstrap; otherwise we'd race
+            // against handleNavigate and bounce the user back to "chat"
+            // when they meant to go to "transits", "report", etc.
+            setCurrentView((prev) => (prev === "onboarding" ? "chat" : prev));
           }
           setReady(true);
           return;
@@ -209,9 +214,17 @@ export default function App() {
         setReport(cached);
         setIntakeError(false);
         handleNavigate("report");
-      } else {
-        handleNavigate("intake");
+        return;
       }
+      // No cached report yet. If the user already filled the required intake
+      // fields during onboarding, generate the report directly instead of
+      // making them re-fill the same form. They can still tweak it from
+      // ReportView via "Editar mis respuestas".
+      if (intake?.actividad?.trim() && intake?.desafio_actual?.trim()) {
+        runGenerateReport();
+        return;
+      }
+      handleNavigate("intake");
     } catch {
       handleNavigate("intake");
     }
@@ -383,7 +396,6 @@ export default function App() {
             profile={profile}
             onReset={handleReset}
             onGenerateReport={handleGoToReport}
-            previousView={previousView}
           />
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
             {adminSupportRoute ? (

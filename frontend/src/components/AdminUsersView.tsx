@@ -251,7 +251,7 @@ export function AdminUsersView({ onOpenUser }: Props) {
       style={{
         flex: 1,
         overflow: "auto",
-        padding: "28px 24px 40px",
+        padding: "16px 24px 40px",
       }}
     >
       <div

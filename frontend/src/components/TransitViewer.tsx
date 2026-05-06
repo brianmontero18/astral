@@ -71,7 +71,7 @@ export function TransitViewer({ profile, onAskAgent }: Props) {
   if (!data) return null;
 
   return (
-    <div style={{ maxWidth: 760, margin: "0 auto", padding: "28px 16px 20px", overflowY: "auto", flex: 1, width: "100%", boxSizing: "border-box" as const }} className="animate-fade-in-slow">
+    <div style={{ maxWidth: 760, margin: "0 auto", padding: "16px 16px 32px", overflowY: "auto", flex: 1, width: "100%", boxSizing: "border-box" as const }} className="animate-fade-in-slow">
       {/* Header */}
       <div className="page-header">
         <div className="page-header-kicker">{data.weekRange}</div>

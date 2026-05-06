@@ -139,7 +139,7 @@ export function AssetViewer() {
   }
 
   return (
-    <div style={{ maxWidth: 760, margin: "0 auto", padding: "32px 16px", flex: 1, overflowY: "auto", width: "100%", boxSizing: "border-box" as const }} className="animate-fade-in-slow">
+    <div style={{ maxWidth: 760, margin: "0 auto", padding: "16px 16px 32px", flex: 1, overflowY: "auto", width: "100%", boxSizing: "border-box" as const }} className="animate-fade-in-slow">
       <div className="page-header">
         <div className="page-header-kicker">Tus archivos</div>
         <h2 className="page-header-title">Mis cartas</h2>
@@ -283,67 +283,92 @@ export function AssetViewer() {
             aria-modal="true"
             aria-labelledby="asset-preview-title"
             style={{
-              padding: "24px",
-              maxWidth: 800, width: "100%", maxHeight: "85vh",
-              overflow: "auto",
+              padding: "20px 20px 24px",
+              maxWidth: 880, width: "100%", maxHeight: "90vh",
+              display: "flex",
+              flexDirection: "column",
+              gap: 16,
               position: "relative",
             }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "16px", marginBottom: "20px" }}>
-              <div style={{ minWidth: 0 }}>
-                <div
-                  style={{
-                    color: "var(--color-primary)",
-                    fontSize: "9px",
-                    letterSpacing: "0.14em",
-                    textTransform: "uppercase",
-                    fontWeight: 700,
-                    marginBottom: "8px",
-                  }}
-                >
-                  Vista previa
-                </div>
-                <div
-                  id="asset-preview-title"
-                  style={{ color: "var(--text-main)", fontSize: "16px", fontWeight: 500, fontFamily: "var(--font-serif)", lineHeight: 1.2, wordBreak: "break-word" }}
-                >
-                  {previewAsset.filename}
-                </div>
-                <div
-                  style={{
-                    marginTop: "8px",
-                    color: "var(--text-muted)",
-                    fontSize: "12px",
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {fileTypeLabel(previewAsset.fileType)} · {formatSize(previewAsset.sizeBytes)}
-                </div>
-              </div>
-              <button
-                onClick={() => setPreviewAsset(null)}
-                aria-label="Cerrar vista previa"
+            <button
+              onClick={() => setPreviewAsset(null)}
+              aria-label="Cerrar vista previa"
+              style={{
+                position: "absolute",
+                top: 14,
+                right: 14,
+                width: 36,
+                height: 36,
+                borderRadius: "50%",
+                background: "rgba(248, 244, 232, 0.06)",
+                border: "1px solid rgba(248, 244, 232, 0.18)",
+                color: "var(--text-main)",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "background 0.2s ease, border-color 0.2s ease",
+                zIndex: 1,
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = "rgba(248, 244, 232, 0.12)";
+                e.currentTarget.style.borderColor = "rgba(207, 172, 108, 0.55)";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = "rgba(248, 244, 232, 0.06)";
+                e.currentTarget.style.borderColor = "rgba(248, 244, 232, 0.18)";
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+            <div style={{ paddingRight: 48, flexShrink: 0 }}>
+              <div
                 style={{
-                  background: "transparent", border: "none",
-                  color: "var(--text-muted)", fontSize: "24px", cursor: "pointer",
-                  lineHeight: 1, padding: "0 8px", transition: "color 0.2s ease"
+                  color: "var(--color-primary)",
+                  fontSize: "10px",
+                  letterSpacing: "0.20em",
+                  textTransform: "uppercase",
+                  fontWeight: 700,
+                  marginBottom: "6px",
+                  fontFamily: "var(--font-sans)",
                 }}
-                onMouseOver={(e) => { e.currentTarget.style.color = "var(--text-main)" }}
-                onMouseOut={(e) => { e.currentTarget.style.color = "var(--text-muted)" }}
               >
-                ×
-              </button>
+                Vista previa
+              </div>
+              <div
+                id="asset-preview-title"
+                style={{ color: "var(--text-main)", fontSize: "18px", fontWeight: 500, fontFamily: "var(--font-serif)", lineHeight: 1.25, wordBreak: "break-word" }}
+              >
+                {previewAsset.filename}
+              </div>
+              <div
+                style={{
+                  marginTop: "6px",
+                  color: "var(--text-muted)",
+                  fontSize: "13px",
+                  lineHeight: 1.55,
+                  fontFamily: "var(--font-sans)",
+                }}
+              >
+                {fileTypeLabel(previewAsset.fileType)} · {formatSize(previewAsset.sizeBytes)}
+              </div>
             </div>
-            <PreviewContent asset={previewAsset} />
+            <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+              <PreviewContent asset={previewAsset} />
+            </div>
           </div>
         </div>
       )}
 
       <ConfirmModal
         open={pendingDeleteId !== null}
-        title="Eliminar este archivo"
-        body="No se puede deshacer. El archivo y su preview se borran de tu biblioteca."
-        confirmLabel={deleting ? "Eliminando..." : "Eliminar"}
+        title="¿Quitar este archivo?"
+        body="Vas a borrar el archivo y su preview de tu biblioteca. Esta acción es permanente."
+        confirmLabel={deleting ? "Eliminando..." : "Sí, quitar"}
         cancelLabel="Cancelar"
         destructive
         onConfirm={confirmDelete}
@@ -362,7 +387,7 @@ function PreviewContent({ asset }: PreviewContentProps) {
   }
 
   if (mime === "application/pdf") {
-    return <iframe src={url} title={asset.filename} style={{ width: "100%", height: "70vh", border: "none", borderRadius: 8 }} />;
+    return <iframe src={url} title={asset.filename} style={{ width: "100%", height: "100%", minHeight: "60vh", border: "none", borderRadius: 8, display: "block" }} />;
   }
 
   if (mime === "text/plain") {

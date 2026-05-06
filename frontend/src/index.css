@@ -216,19 +216,6 @@ textarea { outline: none !important; }
   font-weight: 600;
 }
 
-.app-nav-item--back {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding-right: 12px;
-  margin-right: 4px;
-  border-right: 1px solid rgba(248, 244, 232, 0.18);
-  color: var(--color-primary);
-}
-
-.app-nav-item--back:hover {
-  color: var(--color-gold-deep);
-}
 
 .user-pill,
 .admin-link-button {
@@ -2269,19 +2256,77 @@ textarea { outline: none !important; }
   );
 }
 
+/* The pill row scrolls horizontally when sections overflow. Without an
+   affordance users don't realize there's more — so we fade the right edge
+   into the background and add a small chevron button that scrolls one
+   page-worth on click (and is hidden once the row is at the end). */
+.report-toc-scroller {
+  position: relative;
+}
+
 .report-toc-list {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0 36px 0 0;
   display: flex;
   gap: 8px;
   overflow-x: auto;
   scroll-snap-type: x proximity;
+  scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  mask-image: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 1) 0%,
+    rgba(0, 0, 0, 1) calc(100% - 36px),
+    rgba(0, 0, 0, 0) 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 1) 0%,
+    rgba(0, 0, 0, 1) calc(100% - 36px),
+    rgba(0, 0, 0, 0) 100%
+  );
+}
+
+.report-toc-list--end {
+  mask-image: none;
+  -webkit-mask-image: none;
+  padding-right: 0;
 }
 
 .report-toc-list::-webkit-scrollbar {
+  display: none;
+}
+
+.report-toc-arrow {
+  position: absolute;
+  top: 50%;
+  right: 2px;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(33, 41, 30, 0.18);
+  background: rgba(248, 244, 232, 0.92);
+  color: var(--color-gold-deep);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+  z-index: 1;
+  padding: 0;
+}
+
+.report-toc-arrow:hover,
+.report-toc-arrow:focus-visible {
+  background: rgba(248, 244, 232, 1);
+  border-color: rgba(207, 172, 108, 0.55);
+  outline: none;
+}
+
+.report-toc-arrow[hidden] {
   display: none;
 }
 
