@@ -101,10 +101,34 @@ test.describe("Report — First Generation", () => {
     await expect(page.getByText("Informe Personal")).toBeVisible();
     await expect(page.getByText("Tu Carta Mecánica")).toBeVisible();
 
-    // TOC navigation: each section has a corresponding pill in the report TOC.
+    // TOC navigation: each section has a corresponding pill in the report
+    // TOC. The bar wraps to multiple rows when needed — every pill is
+    // visible at all times, no horizontal scroll, no fade mask. We assert
+    // visibility on the first and last pills to catch regressions back to
+    // the old single-row scroll layout where late pills were clipped.
     const toc = page.getByRole("navigation", { name: "Secciones del informe" });
     await expect(toc).toBeVisible();
     await expect(toc.getByRole("link", { name: "Tu Carta Mecánica" })).toBeVisible();
+    await expect(toc.getByRole("link", { name: "Próximos 30 días" })).toBeVisible();
+
+    // Initial active pill anchors on the first section.
+    await expect(toc.getByRole("link", { name: "Tu Carta Mecánica" })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+
+    // Clicking another pill flips aria-current onto it (the scroll listener
+    // also reconciles this on real wheel events; this guards the optimistic
+    // click path).
+    await toc.getByRole("link", { name: "Tu Tipo" }).click();
+    await expect(toc.getByRole("link", { name: "Tu Tipo" })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    await expect(toc.getByRole("link", { name: "Tu Carta Mecánica" })).not.toHaveAttribute(
+      "aria-current",
+      "true",
+    );
 
     // Sections render as semantic <h2> headings (replaces previous <span> structure).
     await expect(page.getByRole("heading", { level: 2, name: "Tu Carta Mecánica" })).toBeVisible();
