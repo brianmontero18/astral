@@ -227,7 +227,13 @@ test.describe("Onboarding & Assets resilience", () => {
       await expect(page.getByRole("dialog")).toHaveCount(0);
 
       await page.getByRole("button", { name: /^Quitar/ }).click();
-      await page.getByRole("button", { name: "Eliminar" }).click();
+      // The delete confirm modal frames the action positively (\"¿Quitar este
+      // archivo?\") with a permanence cue — checking both ensures the copy
+      // doesn't accidentally regress to the old \"No se puede deshacer\"
+      // language that read like the operation was unavailable.
+      await expect(page.getByRole("dialog")).toContainText("¿Quitar este archivo?");
+      await expect(page.getByRole("dialog")).toContainText("Esta acción es permanente");
+      await page.getByRole("button", { name: /Sí, quitar/ }).click();
       await expect(page.getByText("Todavía no subiste archivos.")).toBeVisible();
     });
 
@@ -354,11 +360,11 @@ test.describe("Onboarding & Assets resilience", () => {
       await page.getByLabel("Cerrar vista previa").click();
 
       await page.getByRole("button", { name: /^Quitar/ }).click();
-      await page.getByRole("button", { name: "Eliminar" }).click();
+      await page.getByRole("button", { name: /Sí, quitar/ }).click();
       await expect(page.getByText("No tenés acceso a este archivo.")).toBeVisible();
       await expect(page.getByText("asset_forbidden")).not.toBeVisible();
 
-      await page.getByRole("button", { name: "Eliminar" }).click();
+      await page.getByRole("button", { name: /Sí, quitar/ }).click();
       await expect(page.getByText("Ese archivo ya no está disponible.")).toBeVisible();
       await expect(page.getByText("Asset not found")).not.toBeVisible();
       await expect(page.getByRole("button", { name: "AGREGAR NUEVA CARTA" })).toBeVisible();

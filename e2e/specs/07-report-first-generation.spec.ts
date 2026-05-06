@@ -153,7 +153,11 @@ test.describe("Report — First Generation", () => {
     await expect(page.getByText(/Generado el/)).toBeVisible();
   });
 
-  test('"Volver" button in NavBar returns to previous tab', async ({ page }) => {
+  test("clicking another tab from the report navigates away cleanly", async ({ page }) => {
+    // The NavBar no longer renders a dedicated \"Volver\" button — the tabs
+    // (Chat / Informe / Tránsitos / Mis Cartas) are always visible and
+    // doubling as the back path. This test guards against regressions
+    // where a tab click while in report would bounce back to chat.
     await mockGetUser(page, TEST_USER_NO_INTAKE);
     await mockGetReport(page, null);
     await mockGenerateReport(page, FREE_REPORT);
@@ -161,8 +165,7 @@ test.describe("Report — First Generation", () => {
     await page.getByRole("button", { name: "Omitir" }).click();
     await expect(page.getByText("Informe Personal")).toBeVisible();
 
-    await page.getByRole("button", { name: "Volver" }).click();
-    // Should return to chat (default previousView)
+    await page.getByRole("button", { name: "Chat" }).click();
     await expect(page.getByPlaceholder("Preguntá al oráculo")).toBeVisible();
   });
 });

@@ -118,7 +118,7 @@ test.describe("Responsive layout stability", () => {
       animations: "disabled",
       caret: "hide",
     });
-    await page.getByRole("button", { name: "Volver" }).click();
+    await page.getByRole("button", { name: "Chat" }).click();
 
     const dialog = await openAssetPreview(page);
     await expect(page).toHaveScreenshot("desktop-asset-preview-layout-smoke.png", {
@@ -148,7 +148,7 @@ test.describe("Responsive layout stability", () => {
       await assertLockedReportLayout(page);
       await expect(page.getByText("Cómo trabajás mejor")).toBeVisible();
       await expect(page.getByRole("link", { name: "Completar mi informe" })).toBeVisible();
-      await page.getByRole("button", { name: "Volver" }).click();
+      await page.getByRole("button", { name: "Chat" }).click();
 
       const dialog = await openAssetPreview(page);
       await expect(page).toHaveScreenshot("mobile-asset-preview-layout-smoke.png", {

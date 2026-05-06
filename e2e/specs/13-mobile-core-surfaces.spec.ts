@@ -87,7 +87,8 @@ test.describe("Mobile — Core Surfaces", () => {
     await expectWithinViewport(page.getByRole("link", { name: "Completar mi informe" }), page);
     await expectNoHorizontalOverflow(page);
 
-    await page.getByRole("button", { name: "Volver" }).click();
+    // No standalone NavBar back button anymore — tabs are the navigation.
+    await page.getByRole("button", { name: "Chat" }).click();
     await expect(page.getByPlaceholder("Preguntá al oráculo sobre tu semana...")).toBeVisible();
 
     await page.getByRole("button", { name: "Tránsitos" }).click();
