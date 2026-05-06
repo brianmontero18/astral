@@ -278,36 +278,56 @@ function SectionCard({ section, locked, onUnlockClick }: { section: ReportSectio
 }
 
 function ReportToc({ sections }: { sections: ReportSection[] }) {
-  const listRef = useRef<HTMLUListElement>(null);
-  const [atEnd, setAtEnd] = useState(true);
-  const [hasOverflow, setHasOverflow] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(
+    sections[0]?.id ?? null,
+  );
 
+  // Sync the active pill with whichever section is closest to the top of
+  // the report scroller. We pick "closest to top" rather than "most
+  // visible" so the highlight lands on the section the reader is anchoring
+  // their eye on, not the one that happens to be tallest.
   useEffect(() => {
-    const list = listRef.current;
-    if (!list) {
+    if (sections.length < 2) {
+      return;
+    }
+    const container = document.querySelector("[data-report-scroll]") as HTMLElement | null;
+    if (!container) {
       return;
     }
 
-    const recompute = () => {
-      const overflow = list.scrollWidth - list.clientWidth > 1;
-      setHasOverflow(overflow);
-      if (!overflow) {
-        setAtEnd(true);
-        return;
+    const update = () => {
+      const containerTop = container.getBoundingClientRect().top;
+      const toc = container.querySelector(".report-toc") as HTMLElement | null;
+      const anchor = (toc?.offsetHeight ?? 90) + 12;
+      let bestId: string | null = sections[0]?.id ?? null;
+      let bestDistance = Number.POSITIVE_INFINITY;
+      for (const section of sections) {
+        const el = document.getElementById(`section-${section.id}`);
+        if (!el) continue;
+        // Section is "anchored" when its top has crossed the TOC's bottom
+        // edge. Distance ≤ 0 means it's past that line → still active
+        // until the next section anchors.
+        const distance = el.getBoundingClientRect().top - containerTop - anchor;
+        if (distance <= 0 && distance > -el.offsetHeight) {
+          bestId = section.id;
+          break;
+        }
+        if (Math.abs(distance) < bestDistance) {
+          bestDistance = Math.abs(distance);
+          bestId = section.id;
+        }
       }
-      const remaining = list.scrollWidth - list.clientWidth - list.scrollLeft;
-      setAtEnd(remaining <= 1);
+      setActiveId(bestId);
     };
 
-    recompute();
-    list.addEventListener("scroll", recompute, { passive: true });
-    const ro = new ResizeObserver(recompute);
-    ro.observe(list);
+    update();
+    container.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
     return () => {
-      list.removeEventListener("scroll", recompute);
-      ro.disconnect();
+      container.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
     };
-  }, [sections.length]);
+  }, [sections]);
 
   if (sections.length < 2) {
     return null;
@@ -325,51 +345,35 @@ function ReportToc({ sections }: { sections: ReportSection[] }) {
     }
     const containerRect = container.getBoundingClientRect();
     const targetRect = target.getBoundingClientRect();
-    const offset = targetRect.top - containerRect.top + container.scrollTop - 16;
+    // Reserve room for the sticky TOC. Reading the rendered nav height
+    // keeps the offset accurate when the pill row wraps to 2 or 3 lines
+    // (a fixed constant would underestimate at narrow viewports).
+    const toc = container.querySelector(".report-toc") as HTMLElement | null;
+    const tocHeight = toc?.offsetHeight ?? 90;
+    const offset = targetRect.top - containerRect.top + container.scrollTop - tocHeight - 12;
     container.scrollTo({ top: offset, behavior: "smooth" });
+    setActiveId(sectionId);
   };
-
-  const scrollToc = () => {
-    const list = listRef.current;
-    if (!list) {
-      return;
-    }
-    list.scrollBy({ left: list.clientWidth * 0.7, behavior: "smooth" });
-  };
-
-  const showArrow = hasOverflow && !atEnd;
 
   return (
     <nav aria-label="Secciones del informe" className="report-toc">
-      <div className="report-toc-scroller">
-        <ul
-          ref={listRef}
-          className={`report-toc-list${atEnd ? " report-toc-list--end" : ""}`}
-        >
-          {sections.map((section) => (
+      <ul className="report-toc-list">
+        {sections.map((section) => {
+          const isActive = section.id === activeId;
+          return (
             <li key={section.id} className="report-toc-item">
               <a
                 href={`#section-${section.id}`}
                 onClick={(event) => handleClick(event, section.id)}
                 className="report-toc-link"
+                aria-current={isActive ? "true" : undefined}
               >
                 {section.title}
               </a>
             </li>
-          ))}
-        </ul>
-        <button
-          type="button"
-          className="report-toc-arrow"
-          aria-label="Ver más secciones"
-          onClick={scrollToc}
-          hidden={!showArrow}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
-        </button>
-      </div>
+          );
+        })}
+      </ul>
     </nav>
   );
 }
@@ -515,11 +519,11 @@ export function ReportView({ report, loading, onBack, onEditIntake, intakeWarnin
     <div
       data-report-scroll
       style={{
-        flex: 1, overflowY: "auto", padding: "12px 16px 32px",
+        flex: 1, overflowY: "auto", padding: "16px 16px 32px",
       }}
     >
       <div style={{ maxWidth: 760, width: "100%", margin: "0 auto" }}>
-        <div className="page-header page-header--editorial" style={{ marginBottom: 16 }}>
+        <div className="page-header page-header--editorial">
           <div className="page-header-kicker">Tu informe de Diseño Humano</div>
           <h1 className="page-header-title">Informe Personal</h1>
         </div>
