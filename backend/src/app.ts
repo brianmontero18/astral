@@ -23,7 +23,18 @@ function isHtmlAuthEntryRequest(acceptHeader: string | undefined, requestUrl: st
     return false;
   }
 
-  return requestUrl === "/auth/" || requestUrl.startsWith("/auth/?");
+  // Match every auth sub-path the React SPA owns. SuperTokens itself only
+  // claims its API endpoints (e.g. /auth/signinup/code/consume); everything
+  // listed below is rendered client-side and must fall through to index.html
+  // so the SPA can read the URL and complete the flow. Mirrors the dev-only
+  // bypass list in frontend/vite.config.ts — keep both in sync.
+  return (
+    requestUrl === "/auth" ||
+    requestUrl === "/auth/" ||
+    requestUrl.startsWith("/auth?") ||
+    requestUrl.startsWith("/auth/?") ||
+    requestUrl.startsWith("/auth/verify")
+  );
 }
 
 function buildCorsOptions(auth: AuthRuntime) {

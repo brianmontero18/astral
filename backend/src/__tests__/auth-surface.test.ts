@@ -74,18 +74,43 @@ describe("auth surface wiring", () => {
 
     await spaApp.ready();
 
-    const res = await spaApp.inject({
-      method: "GET",
-      url: "/auth/?redirectToPath=",
-      headers: {
-        accept: "text/html",
-      },
-    });
+    // Each path the React SPA owns: /auth, /auth?..., /auth/, /auth/?... and
+    // /auth/verify?... (the magic-link landing — used by admin invites in
+    // production). All must resolve to the SPA shell, not a SuperTokens 404.
+    const spaPaths = [
+      "/auth",
+      "/auth?intent=invite",
+      "/auth/",
+      "/auth/?redirectToPath=",
+      "/auth/verify?preAuthSessionId=abc&intent=invite#linkcode",
+    ];
 
-    expect(res.statusCode).toBe(200);
-    expect(JSON.parse(res.body)).toEqual({ shell: true });
+    for (const url of spaPaths) {
+      const res = await spaApp.inject({
+        method: "GET",
+        url,
+        headers: { accept: "text/html" },
+      });
+
+      expect(res.statusCode, `expected SPA fallback for ${url}`).toBe(200);
+      expect(JSON.parse(res.body)).toEqual({ shell: true });
+    }
 
     await spaApp.close();
+  });
+
+  it("still 404s non-HTML requests to unknown /auth/* paths so SuperTokens API errors stay JSON", async () => {
+    // The SPA fallback is gated on Accept: text/html. API clients (no html
+    // accept) should keep getting the JSON 404 — otherwise we'd shadow the
+    // structured error responses SuperTokens relies on for its SDK.
+    const res = await app.inject({
+      method: "GET",
+      url: "/auth/verify?preAuthSessionId=abc",
+      headers: { accept: "application/json" },
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(JSON.parse(res.body)).toEqual({ error: "Not Found" });
   });
 
   it("includes auth-compatible CORS headers when auth runtime is enabled", async () => {
