@@ -6,11 +6,9 @@ import type {
   Intake,
 } from "../types";
 import {
-  uploadAsset,
-  extractProfile,
   bootstrapCurrentUser,
-  getCurrentUser,
   patchOnboarding,
+  replaceBodygraph,
   updateCurrentUser,
 } from "../api";
 import { getOnboardingFailureMessage } from "../onboarding-errors";
@@ -40,7 +38,6 @@ type Step = "welcome" | "name" | "upload" | "extracting" | "review" | "intake";
 interface FileSlot {
   file: File | null;
   label: string;
-  type: string;
 }
 
 const STEP_ORDER: Step[] = ["name", "upload", "review", "intake"];
@@ -60,7 +57,7 @@ export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
   );
   const [name, setName] = useState(resumeFrom?.user.name ?? "");
   const [nameError, setNameError] = useState<string | null>(null);
-  const [slot, setSlot] = useState<FileSlot>({ file: null, label: "Carta de Diseño Humano", type: "hd" });
+  const [slot, setSlot] = useState<FileSlot>({ file: null, label: "Carta de Diseño Humano" });
   const [bootstrappedUser, setBootstrappedUser] = useState<LocalUser | null>(
     resumeFrom?.user ?? null,
   );
@@ -152,35 +149,23 @@ export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
         };
         await bootstrapCurrentUser(name, tempProfile);
       }
-      const assetIds: string[] = [];
-
-      if (slot.file) {
-        const result = await uploadAsset(slot.file, slot.type);
-        assetIds.push(result.id);
+      if (!slot.file) {
+        throw new Error("Subí tu PDF para canalizar tu energía.");
       }
 
-      const { profile } = await extractProfile(assetIds);
-      profile.name = profile.name || name;
-
+      const { user: currentUser, profile } = await replaceBodygraph(slot.file);
       if (isResume) {
-        await patchOnboarding({ profile, step: "review" });
-      } else {
-        await updateCurrentUser(profile.name, profile);
-      }
-
-      const currentUser = await getCurrentUser();
-      if (currentUser.kind !== "linked") {
-        throw new Error("No se pudo resolver el usuario actual después del bootstrap.");
+        await patchOnboarding({ step: "review" });
       }
 
       setBootstrappedUser({
-        id: currentUser.user.id,
-        name: currentUser.user.name,
-        plan: currentUser.user.plan,
-        role: currentUser.user.role,
-        status: currentUser.user.status,
+        id: currentUser.id,
+        name: currentUser.name,
+        plan: currentUser.plan,
+        role: currentUser.role,
+        status: currentUser.status,
       });
-      setExtractedProfile(currentUser.user.profile);
+      setExtractedProfile(profile);
 
       setStep("review");
     } catch (e) {

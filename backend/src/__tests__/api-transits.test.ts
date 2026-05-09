@@ -32,6 +32,7 @@ const {
   createTestUser,
   sessionHeaders,
 } = await import("./helpers.js");
+const { updateUserBodygraph } = await import("../db.js");
 const actualTransitService = await vi.importActual<typeof import("../transit-service.js")>(
   "../transit-service.js",
 );
@@ -113,6 +114,71 @@ describe("GET /api/transits", () => {
     expect(Array.isArray(body.impact.reinforcedGates)).toBe(true);
     expect(Array.isArray(body.impact.conditionedCenters)).toBe(true);
     expect(Array.isArray(body.impact.educationalChannels)).toBe(true);
+  });
+
+  it("recomputes personalized impact from users.profile while reusing cached collective transits", async () => {
+    const subject = "st-transits-profile-replace";
+    const userId = await createLinkedTestUser(app, subject, "Transit Replace User", {
+      humanDesign: {
+        activatedGates: [{ number: 34 }],
+        definedCenters: ["Sacral"],
+        undefinedCenters: ["G", "Throat"],
+      },
+    });
+    fetchWeeklyTransitsMock.mockResolvedValue({
+      fetchedAt: "2026-05-08T00:00:00.000Z",
+      weekRange: "4 — 10 may · 2026",
+      planets: [
+        {
+          name: "Sol",
+          longitude: 0,
+          sign: "Aries",
+          degree: 0,
+          isRetrograde: false,
+          hdGate: 20,
+          hdLine: 1,
+        },
+      ],
+      activatedChannels: [],
+    });
+
+    const url = "/api/transits?timeZone=Etc%2FUTC&clientNow=1778198400000";
+    const first = await app.inject({
+      method: "GET",
+      url,
+      headers: sessionHeaders(subject),
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(JSON.parse(first.body).impact.personalChannels).toEqual([
+      expect.objectContaining({
+        channelId: "20-34",
+        userGate: 34,
+        transitGate: 20,
+      }),
+    ]);
+
+    await updateUserBodygraph(
+      userId,
+      {
+        humanDesign: {
+          activatedGates: [{ number: 1 }],
+          definedCenters: ["Sacral"],
+          undefinedCenters: ["G", "Throat"],
+        },
+      },
+      "asset-transit-profile",
+    );
+
+    const second = await app.inject({
+      method: "GET",
+      url,
+      headers: sessionHeaders(subject),
+    });
+
+    expect(second.statusCode).toBe(200);
+    expect(JSON.parse(second.body).impact.personalChannels).toEqual([]);
+    expect(fetchWeeklyTransitsMock).toHaveBeenCalledTimes(1);
   });
 
   it("ignores userId query authority when there is no validated session", async () => {

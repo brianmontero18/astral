@@ -39,6 +39,7 @@ export interface AppUserRecord {
   name: string;
   email: string | null;
   profile: object;
+  profile_asset_id: string | null;
   intake: object | null;
   /**
    * Living Document memory. Plain markdown, merged in-place by the memory
@@ -100,6 +101,8 @@ function mapUserRow(row: Record<string, unknown>): AppUserRecord {
     name: row.name as string,
     email: typeof row.email === "string" ? row.email : null,
     profile: JSON.parse(row.profile as string),
+    profile_asset_id:
+      typeof row.profile_asset_id === "string" ? row.profile_asset_id : null,
     intake: row.intake ? JSON.parse(row.intake as string) : null,
     memory_md: typeof row.memory_md === "string" ? row.memory_md : "",
     plan: (row.plan as AppUserPlan | null) ?? DEFAULT_USER_PLAN,
@@ -246,6 +249,7 @@ export async function initDb(): Promise<void> {
         name               TEXT NOT NULL,
         email              TEXT DEFAULT NULL,
         profile            TEXT NOT NULL CHECK(json_valid(profile)),
+        profile_asset_id   TEXT DEFAULT NULL,
         intake             TEXT DEFAULT NULL CHECK(intake IS NULL OR json_valid(intake)),
         plan               TEXT NOT NULL DEFAULT 'free' CHECK(plan IN ('free', 'basic', 'premium')),
         role               TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('user', 'admin')),
@@ -331,6 +335,7 @@ export async function initDb(): Promise<void> {
   const idempotentAlters: Array<string> = [
     "ALTER TABLE users ADD COLUMN intake TEXT DEFAULT NULL",
     "ALTER TABLE users ADD COLUMN email TEXT DEFAULT NULL",
+    "ALTER TABLE users ADD COLUMN profile_asset_id TEXT DEFAULT NULL",
     "ALTER TABLE users ADD COLUMN plan TEXT NOT NULL DEFAULT 'free'",
     "ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'",
     "ALTER TABLE users ADD COLUMN status TEXT NOT NULL DEFAULT 'active'",
@@ -666,6 +671,18 @@ export async function updateUserProfile(
   return result.rowsAffected > 0;
 }
 
+export async function updateUserBodygraph(
+  id: string,
+  profile: object,
+  profileAssetId: string,
+): Promise<boolean> {
+  const result = await client.execute({
+    sql: "UPDATE users SET profile = ?, profile_asset_id = ?, updated_at = datetime('now') WHERE id = ?",
+    args: [JSON.stringify(profile), profileAssetId, id],
+  });
+  return result.rowsAffected > 0;
+}
+
 export async function updateUserAccess(
   id: string,
   access: AppUserAccessInput,
@@ -911,6 +928,11 @@ export async function deleteAsset(id: string): Promise<boolean> {
     console.error(`[deleteAsset] R2 delete failed for ${storageKey}:`, error);
   }
 
+  await client.execute({
+    sql: "UPDATE users SET profile_asset_id = NULL, updated_at = datetime('now') WHERE profile_asset_id = ?",
+    args: [id],
+  });
+
   const result = await client.execute({
     sql: "DELETE FROM assets WHERE id = ?",
     args: [id],
@@ -1065,9 +1087,9 @@ export async function getReport(
 
 export async function getReportById(
   id: string,
-): Promise<{ id: string; user_id: string; tier: string; content: string } | undefined> {
+): Promise<{ id: string; user_id: string; tier: string; profile_hash: string; content: string } | undefined> {
   const result = await client.execute({
-    sql: "SELECT id, user_id, tier, content FROM hd_reports WHERE id = ?",
+    sql: "SELECT id, user_id, tier, profile_hash, content FROM hd_reports WHERE id = ?",
     args: [id],
   });
   const row = result.rows[0];
@@ -1076,6 +1098,7 @@ export async function getReportById(
     id: row.id as string,
     user_id: row.user_id as string,
     tier: row.tier as string,
+    profile_hash: row.profile_hash as string,
     content: row.content as string,
   };
 }

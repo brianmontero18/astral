@@ -16,7 +16,14 @@ import { AssetViewer } from "./components/AssetViewer";
 import { IntakeView } from "./components/IntakeView";
 import { ReportView } from "./components/ReportView";
 import { ConfirmModal } from "./components/ConfirmModal";
-import { generateReport, getCurrentUser, getReport, updateCurrentUser } from "./api";
+import {
+  generateReport,
+  getCurrentUser,
+  getReport,
+  isReportStaleError,
+  updateCurrentUser,
+} from "./api";
+import type { ReplaceBodygraphResponse } from "./api";
 import { getAccessibleReportTier } from "./report-access";
 import {
   shouldPreserveAuthRedirect,
@@ -61,6 +68,7 @@ export default function App() {
   const [intake, setIntake] = useState<Intake | undefined>(undefined);
   const [report, setReport] = useState<DesignReport | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
+  const [profileRevision, setProfileRevision] = useState(0);
   const [previousView, setPreviousView] = useState<View>("chat");
   const [intakeError, setIntakeError] = useState(false);
   const [pendingRegenerateIntake, setPendingRegenerateIntake] = useState<{
@@ -225,9 +233,34 @@ export default function App() {
         return;
       }
       handleNavigate("intake");
-    } catch {
+    } catch (error) {
+      if (isReportStaleError(error)) {
+        setReport(null);
+        setIntakeError(false);
+        if (intake?.actividad?.trim() && intake?.desafio_actual?.trim()) {
+          runGenerateReport();
+          return;
+        }
+      }
       handleNavigate("intake");
     }
+  };
+
+  const handleBodygraphReplaced = (result: ReplaceBodygraphResponse) => {
+    abortRef.current?.abort();
+    setUser({
+      id: result.user.id,
+      name: result.user.name,
+      plan: result.user.plan,
+      role: result.user.role,
+      status: result.user.status,
+    });
+    setProfile(result.profile);
+    setIntake(result.user.intake ?? undefined);
+    setReport(null);
+    setReportLoading(false);
+    setPendingRegenerateIntake(null);
+    setProfileRevision((value) => value + 1);
   };
 
   const handleEditIntake = () => {
@@ -469,6 +502,7 @@ export default function App() {
                 )}
                 {currentView === "transits" && (
                   <TransitViewer
+                    key={profileRevision}
                     profile={profile}
                     onAskAgent={(prefill) => {
                       setChatPrefill(prefill);
@@ -476,7 +510,9 @@ export default function App() {
                     }}
                   />
                 )}
-                {currentView === "assets" && <AssetViewer />}
+                {currentView === "assets" && (
+                  <AssetViewer onBodygraphReplaced={handleBodygraphReplaced} />
+                )}
                 {currentView === "intake" && (
                   <IntakeView
                     initialIntake={intake}

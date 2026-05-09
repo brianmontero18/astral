@@ -41,6 +41,25 @@ function buildMessageLimitError(data: ChatLimitResponse) {
   return err;
 }
 
+export interface ReportStaleError extends Error {
+  code: "report_stale";
+  tier: "free" | "premium";
+}
+
+function buildReportStaleError(tier: "free" | "premium"): ReportStaleError {
+  const err = new Error("report_stale") as ReportStaleError;
+  err.code = "report_stale";
+  err.tier = tier;
+  return err;
+}
+
+export function isReportStaleError(error: unknown): error is ReportStaleError {
+  return (
+    error instanceof Error &&
+    (error as Partial<ReportStaleError>).code === "report_stale"
+  );
+}
+
 export interface CurrentUserResponse {
   id: string;
   name: string;
@@ -52,6 +71,12 @@ export interface CurrentUserResponse {
   onboardingStatus: "pending" | "complete";
   onboardingStep: "name" | "upload" | "review" | "intake" | null;
   accessSource: "self" | "manual" | "payment";
+}
+
+export interface ReplaceBodygraphResponse {
+  user: CurrentUserResponse;
+  profile: UserProfile;
+  asset: AssetMeta;
 }
 
 export interface OnboardingPatchInput {
@@ -401,6 +426,23 @@ export async function deleteAsset(id: string): Promise<void> {
   }
 }
 
+export async function replaceBodygraph(
+  file: File,
+): Promise<ReplaceBodygraphResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`${BASE}/me/bodygraph`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await readErrorMessage(res);
+    throw new Error(err);
+  }
+  return res.json();
+}
+
 export async function getAdminUsers({
   query,
   page,
@@ -582,6 +624,15 @@ export async function getReport(
 ): Promise<DesignReport | null> {
   const res = await fetch(`${BASE}/me/report?tier=${tier}`);
   if (res.status === 404) return null;
+  if (res.status === 409) {
+    const data = await readJsonBody<{
+      error?: string;
+      tier?: "free" | "premium";
+    }>(res);
+    if (data?.error === "report_stale") {
+      throw buildReportStaleError(data.tier ?? tier);
+    }
+  }
   if (!res.ok) {
     const err = await readErrorMessage(res);
     throw new Error(err);

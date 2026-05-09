@@ -16,7 +16,7 @@ const {
   createTestApp,
   sessionHeaders,
 } = await import("./helpers.js");
-const { getUserAssets } = await import("../db.js");
+const { getUserAssets, updateUserBodygraph } = await import("../db.js");
 
 let app: FastifyInstance;
 
@@ -269,22 +269,22 @@ describe("Assets list routes", () => {
     expect(assets[0].fileType).toBe("hd");
     expect(assets[0].sizeBytes).toBeGreaterThan(0);
     expect(assets[0].createdAt).toBeDefined();
-    // Single HD bodygraph -> it's the active one used for transits/reports.
-    expect(assets[0].isActive).toBe(true);
+    // Uploading an asset alone does not replace the canonical bodygraph.
+    expect(assets[0].isActive).toBe(false);
     // Verify camelCase (not snake_case)
     expect(assets[0].mime_type).toBeUndefined();
   });
 
-  it("GET /api/me/assets marks only the most recent fileType=hd as active", async () => {
+  it("GET /api/me/assets marks the HD asset linked from users.profile_asset_id as active", async () => {
     const sessionSubject = "st-assets-active";
     const linkedUserId = await createLinkedTestUser(app, sessionSubject);
 
     // Upload three: oldest hd, then a natal, then the newest hd.
     const upload = async (name: string, fileType: "hd" | "natal") => {
-      const { headers, body } = multipartPayload(name, "%PDF-content", "application/pdf");
+      const { headers, body } = multipartPayload(name, "%PDF-content", "application/pdf", fileType);
       await app.inject({
         method: "POST",
-        url: `/api/users/${linkedUserId}/assets?fileType=${fileType}`,
+        url: `/api/users/${linkedUserId}/assets`,
         headers: {
           ...headers,
           ...sessionHeaders(sessionSubject),
@@ -299,6 +299,15 @@ describe("Assets list routes", () => {
     await upload("natal-chart.pdf", "natal");
     await upload("new-hd.pdf", "hd");
 
+    const rawAssets = await getUserAssets(linkedUserId);
+    const oldHd = rawAssets.find((asset) => asset.filename === "old-hd.pdf");
+    expect(oldHd).toBeDefined();
+    await updateUserBodygraph(
+      linkedUserId,
+      { humanDesign: { type: "Projector" } },
+      oldHd!.id,
+    );
+
     const res = await app.inject({
       method: "GET",
       url: "/api/me/assets",
@@ -307,8 +316,8 @@ describe("Assets list routes", () => {
     const { assets } = JSON.parse(res.body);
     const byName = Object.fromEntries(assets.map((a: { filename: string }) => [a.filename, a]));
 
-    expect(byName["new-hd.pdf"].isActive).toBe(true);
-    expect(byName["old-hd.pdf"].isActive).toBe(false);
+    expect(byName["old-hd.pdf"].isActive).toBe(true);
+    expect(byName["new-hd.pdf"].isActive).toBe(false);
     // Natal charts are never the active bodygraph; pill should not show.
     expect(byName["natal-chart.pdf"].isActive).toBe(false);
   });

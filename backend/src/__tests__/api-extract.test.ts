@@ -26,6 +26,8 @@ vi.mock("../extraction-service.js", () => ({
 
 const {
   createAsset,
+  getUser,
+  updateUserProfile,
 } = await import("../db.js");
 const {
   createLinkedTestUser,
@@ -45,8 +47,33 @@ afterAll(async () => {
 });
 
 beforeEach(() => {
-  extractProfileFromAssets.mockClear();
+  extractProfileFromAssets.mockReset();
+  extractProfileFromAssets.mockResolvedValue({
+    humanDesign: {
+      type: "Generator",
+    },
+  });
 });
+
+function multipartPayload(
+  filename: string,
+  content: Buffer | string,
+  mimeType: string,
+) {
+  const boundary = "----TestBoundary" + Date.now();
+  const body = Buffer.concat([
+    Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: ${mimeType}\r\n\r\n`,
+    ),
+    Buffer.isBuffer(content) ? content : Buffer.from(content),
+    Buffer.from(`\r\n--${boundary}--\r\n`),
+  ]);
+
+  return {
+    headers: { "content-type": `multipart/form-data; boundary=${boundary}` },
+    body,
+  };
+}
 
 describe("POST /api/extract-profile", () => {
   it("returns authentication_required when no validated session exists", async () => {
@@ -156,5 +183,104 @@ describe("POST /api/extract-profile", () => {
       },
     });
     expect(extractProfileFromAssets).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("POST /api/me/bodygraph", () => {
+  it("replaces users.profile, records profile_asset_id, and preserves intake", async () => {
+    const subject = "st-bodygraph-replace";
+    const userId = await createLinkedTestUser(app, subject, "Bodygraph User", {
+      name: "Bodygraph User",
+      humanDesign: {
+        type: "Projector",
+      },
+    });
+    const originalUser = await getUser(userId);
+    expect(originalUser).toBeDefined();
+    await updateUserProfile(
+      userId,
+      originalUser!.name,
+      originalUser!.profile,
+      {
+        actividad: "Consultoria",
+        desafio_actual: "Foco",
+      },
+    );
+
+    extractProfileFromAssets.mockResolvedValueOnce({
+      name: "",
+      humanDesign: {
+        type: "Generator",
+      },
+    });
+
+    const { headers, body } = multipartPayload(
+      "replacement.pdf",
+      "%PDF-replacement",
+      "application/pdf",
+    );
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/me/bodygraph",
+      headers: {
+        ...headers,
+        ...sessionHeaders(subject),
+      },
+      body,
+    });
+
+    expect(res.statusCode).toBe(201);
+    const response = JSON.parse(res.body);
+    expect(response.profile).toMatchObject({
+      name: "Bodygraph User",
+      humanDesign: {
+        type: "Generator",
+      },
+    });
+    expect(response.asset).toMatchObject({
+      id: expect.any(String),
+      filename: "replacement.pdf",
+      fileType: "hd",
+      isActive: true,
+    });
+    expect(response.user.intake).toEqual({
+      actividad: "Consultoria",
+      desafio_actual: "Foco",
+    });
+
+    const updatedUser = await getUser(userId);
+    expect(updatedUser?.profile).toMatchObject({
+      name: "Bodygraph User",
+      humanDesign: {
+        type: "Generator",
+      },
+    });
+    expect(updatedUser?.profile_asset_id).toBe(response.asset.id);
+    expect(updatedUser?.intake).toEqual({
+      actividad: "Consultoria",
+      desafio_actual: "Foco",
+    });
+    expect(extractProfileFromAssets).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects non-PDF bodygraph replacements", async () => {
+    const subject = "st-bodygraph-non-pdf";
+    await createLinkedTestUser(app, subject);
+    const { headers, body } = multipartPayload("chart.png", "png", "image/png");
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/me/bodygraph",
+      headers: {
+        ...headers,
+        ...sessionHeaders(subject),
+      },
+      body,
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(JSON.parse(res.body).error).toMatch(/PDF/);
+    expect(extractProfileFromAssets).not.toHaveBeenCalled();
   });
 });

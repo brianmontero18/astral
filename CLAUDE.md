@@ -1,5 +1,12 @@
 # Astral Guide
 
+## Canonical Architecture
+
+Read `ARCHITECTURE.md` before changing bodygraph extraction/replacement,
+`users.profile`, assets, transits, chat, reports, memory, or report/transit
+caching. That file is the current code-truth map for source of truth,
+sequence flows, invalidation rules, and known stale-bodygraph risks.
+
 ## Contexto
 
 App de Diseño Humano que genera reportes semanales personalizados.

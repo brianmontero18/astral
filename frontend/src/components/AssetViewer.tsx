@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
-import { getUserAssets, uploadAsset, deleteAsset } from "../api";
+import { getUserAssets, replaceBodygraph, deleteAsset } from "../api";
 import { getAssetFailureMessage } from "../asset-errors";
 import type { AssetMeta } from "../types";
+import type { ReplaceBodygraphResponse } from "../api";
 import { ConfirmModal } from "./ConfirmModal";
 
 function formatSize(bytes: number): string {
@@ -45,7 +46,11 @@ interface TextPreviewProps {
   url: string;
 }
 
-export function AssetViewer() {
+interface AssetViewerProps {
+  onBodygraphReplaced?: (result: ReplaceBodygraphResponse) => void;
+}
+
+export function AssetViewer({ onBodygraphReplaced }: AssetViewerProps) {
   const [assets, setAssets] = useState<AssetMeta[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -94,7 +99,8 @@ export function AssetViewer() {
     setUploading(true);
     setError(null);
     try {
-      await uploadAsset(file, "natal");
+      const result = await replaceBodygraph(file);
+      onBodygraphReplaced?.(result);
       loadAssets();
     } catch (e) {
       setError(getAssetFailureMessage(e, "No pudimos sincronizar el archivo."));
@@ -163,7 +169,7 @@ export function AssetViewer() {
         <input
           ref={fileRef}
           type="file"
-          accept=".pdf,.png,.jpg,.jpeg,.txt"
+          accept="application/pdf,.pdf"
           style={{ display: "none" }}
           onChange={(e) => {
             const f = e.target.files?.[0];
@@ -176,7 +182,7 @@ export function AssetViewer() {
           disabled={uploading}
           className="btn-primary"
         >
-          {uploading ? "Sincronizando..." : "Agregar nueva carta"}
+          {uploading ? "Sincronizando..." : "Reemplazar carta activa"}
         </button>
       </div>
 

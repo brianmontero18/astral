@@ -26,6 +26,7 @@ function getBaseUrl(req: { protocol: string; headers: { host?: string }; hostnam
 const lastGenerationByUser = new Map<string, number>();
 const GENERATION_COOLDOWN_MS = 30_000;
 const REPORT_GENERATION_FAILED_ERROR = "Report generation failed";
+const REPORT_STALE_ERROR = "report_stale";
 
 function resolveReportTier(input: string | undefined): ReportTier {
   return input === "premium" ? "premium" : "free";
@@ -47,6 +48,26 @@ async function sendReportTierNotAllowed(
   return reply.status(403).send({
     error: "report_tier_not_allowed",
     plan,
+    tier,
+  });
+}
+
+function computeCurrentProfileHash(user: {
+  profile: object;
+  intake: object | null;
+}): string {
+  return computeProfileHash(
+    user.profile as UserProfile,
+    (user.intake as Intake | null) ?? undefined,
+  );
+}
+
+async function sendReportStale(
+  reply: import("fastify").FastifyReply,
+  tier: ReportTier,
+) {
+  return reply.status(409).send({
+    error: REPORT_STALE_ERROR,
     tier,
   });
 }
@@ -120,9 +141,15 @@ export async function reportRoutes(app: FastifyInstance) {
       return null;
     }
 
+    if (cached.profile_hash !== computeCurrentProfileHash(user)) {
+      await sendReportStale(reply, tier);
+      return null;
+    }
+
     return {
       userId,
       tier,
+      user,
       cached,
     };
   }
@@ -283,15 +310,10 @@ export async function reportRoutes(app: FastifyInstance) {
         return;
       }
 
-      const user = await getUser(owned.userId);
-      if (!user) {
-        return reply.status(404).send({ error: "User not found" });
-      }
-
       const reportData = safeParseReport(owned.cached.content);
       if (!reportData) return reply.status(500).send({ error: "Stored report is corrupted" });
 
-      const pdfBuffer = await renderReportPDF(reportData, user.name);
+      const pdfBuffer = await renderReportPDF(reportData, owned.user.name);
       return reply
         .header("Content-Type", "application/pdf")
         .header("Content-Disposition", `attachment; filename="informe-hd-${owned.tier}.pdf"`)
@@ -312,15 +334,10 @@ export async function reportRoutes(app: FastifyInstance) {
         return;
       }
 
-      const user = await getUser(owned.userId);
-      if (!user) {
-        return reply.status(404).send({ error: "User not found" });
-      }
-
       const reportData = safeParseReport(owned.cached.content);
       if (!reportData) return reply.status(500).send({ error: "Stored report is corrupted" });
 
-      const pdfBuffer = await renderReportPDF(reportData, user.name);
+      const pdfBuffer = await renderReportPDF(reportData, owned.user.name);
       return reply
         .header("Content-Type", "application/pdf")
         .header("Content-Disposition", `attachment; filename="informe-hd-${owned.tier}.pdf"`)
@@ -332,34 +349,19 @@ export async function reportRoutes(app: FastifyInstance) {
   app.post<{ Params: { id: string }; Body: { tier?: ReportTier } }>(
     "/users/:id/report/share",
     async (req, reply) => {
-      const userId = await resolveOwnedReportUser(
+      const owned = await loadOwnedReport(
         req as AuthenticatedRequest,
         reply,
+        req.body?.tier,
         req.params.id,
       );
 
-      if (!userId) {
+      if (!owned) {
         return;
       }
 
-      const user = await getUser(userId);
-      if (!user) {
-        return reply.status(404).send({ error: "User not found" });
-      }
-
-      const tier = resolveReportTier(req.body?.tier);
-      if (!isReportTierAllowed(user.plan, tier)) {
-        return sendReportTierNotAllowed(reply, user.plan, tier);
-      }
-      const cached = await getReport(userId, tier);
-      if (!cached) {
-        return reply.status(404).send({
-          error: `No se encontró un informe ${tier}. Generá uno primero.`,
-        });
-      }
-
       await cleanupExpiredShares();
-      const token = await createShareToken(userId, cached.id);
+      const token = await createShareToken(owned.userId, owned.cached.id);
       const baseUrl = getBaseUrl(req);
       const url = `${baseUrl}/api/report/shared/${token}`;
 
@@ -370,33 +372,18 @@ export async function reportRoutes(app: FastifyInstance) {
   app.post<{ Body: { tier?: ReportTier } }>(
     "/me/report/share",
     async (req, reply) => {
-      const userId = await resolveOwnedReportUser(
+      const owned = await loadOwnedReport(
         req as AuthenticatedRequest,
         reply,
+        req.body?.tier,
       );
 
-      if (!userId) {
+      if (!owned) {
         return;
       }
 
-      const user = await getUser(userId);
-      if (!user) {
-        return reply.status(404).send({ error: "User not found" });
-      }
-
-      const tier = resolveReportTier(req.body?.tier);
-      if (!isReportTierAllowed(user.plan, tier)) {
-        return sendReportTierNotAllowed(reply, user.plan, tier);
-      }
-      const cached = await getReport(userId, tier);
-      if (!cached) {
-        return reply.status(404).send({
-          error: `No se encontró un informe ${tier}. Generá uno primero.`,
-        });
-      }
-
       await cleanupExpiredShares();
-      const token = await createShareToken(userId, cached.id);
+      const token = await createShareToken(owned.userId, owned.cached.id);
       const baseUrl = getBaseUrl(req);
       const url = `${baseUrl}/api/report/shared/${token}`;
 
@@ -422,6 +409,10 @@ export async function reportRoutes(app: FastifyInstance) {
       }
 
       const user = await getUser(share.user_id);
+      if (user && report.profile_hash !== computeCurrentProfileHash(user)) {
+        return sendReportStale(reply, report.tier as ReportTier);
+      }
+
       const reportData = safeParseReport(report.content);
       if (!reportData) return reply.status(500).send({ error: "Stored report is corrupted" });
 

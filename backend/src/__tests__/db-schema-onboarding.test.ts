@@ -3,6 +3,7 @@
  *   - users.onboarding_status (default 'complete')
  *   - users.onboarding_step (NULL by default)
  *   - users.access_source (default 'self')
+ *   - users.profile_asset_id (NULL by default)
  *   - UNIQUE INDEX on lower(email) WHERE email IS NOT NULL
  *   - findUserByEmail() helper (case-insensitive)
  *
@@ -26,13 +27,14 @@ beforeAll(async () => {
 });
 
 describe("users schema — onboarding defaults (fresh install)", () => {
-  it("creates users with onboarding_status='complete', step=NULL, access_source='self' by default", async () => {
+  it("creates users with onboarding defaults and profile_asset_id=NULL by default", async () => {
     const { createUser, getUser } = await import("../db.js");
     const id = await createUser("Default User", { humanDesign: {} });
     const user = await getUser(id);
     expect(user?.onboarding_status).toBe("complete");
     expect(user?.onboarding_step).toBeNull();
     expect(user?.access_source).toBe("self");
+    expect(user?.profile_asset_id).toBeNull();
   });
 
   // CHECK constraint behaviour and UNIQUE-index behaviour are covered with
@@ -120,6 +122,7 @@ describe("idempotent ALTERs — backfill semantics on a pre-migration DB", () =>
       "ALTER TABLE users ADD COLUMN onboarding_status TEXT NOT NULL DEFAULT 'complete'",
       "ALTER TABLE users ADD COLUMN onboarding_step TEXT DEFAULT NULL",
       "ALTER TABLE users ADD COLUMN access_source TEXT NOT NULL DEFAULT 'self'",
+      "ALTER TABLE users ADD COLUMN profile_asset_id TEXT DEFAULT NULL",
     ];
     for (const sql of alters) {
       try {
@@ -134,7 +137,7 @@ describe("idempotent ALTERs — backfill semantics on a pre-migration DB", () =>
     await applyIdempotentAlters();
 
     const rows = await client.execute(
-      "SELECT id, onboarding_status, onboarding_step, access_source FROM users ORDER BY id",
+      "SELECT id, onboarding_status, onboarding_step, access_source, profile_asset_id FROM users ORDER BY id",
     );
 
     expect(rows.rows).toHaveLength(2);
@@ -142,6 +145,7 @@ describe("idempotent ALTERs — backfill semantics on a pre-migration DB", () =>
       expect(row.onboarding_status).toBe("complete");
       expect(row.onboarding_step).toBeNull();
       expect(row.access_source).toBe("self");
+      expect(row.profile_asset_id).toBeNull();
     }
   });
 
@@ -156,6 +160,7 @@ describe("idempotent ALTERs — backfill semantics on a pre-migration DB", () =>
     expect(names.filter((n) => n === "onboarding_status")).toHaveLength(1);
     expect(names.filter((n) => n === "onboarding_step")).toHaveLength(1);
     expect(names.filter((n) => n === "access_source")).toHaveLength(1);
+    expect(names.filter((n) => n === "profile_asset_id")).toHaveLength(1);
   });
 
   it("CHECK constraints on a fresh CREATE TABLE reject invalid enum values", async () => {

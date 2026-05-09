@@ -19,6 +19,7 @@ vi.mock("../report/generate-report.js", () => ({
 const {
   getReport,
   getUser,
+  createShareToken,
   saveReport,
   updateUserProfile,
   updateReportContent,
@@ -46,12 +47,16 @@ afterEach(() => {
   computeProfileHashMock.mockReturnValue("profile-hash-test");
 });
 
-async function seedReport(userId: string, tier: "free" | "premium" = "free") {
+async function seedReport(
+  userId: string,
+  tier: "free" | "premium" = "free",
+  profileHash = "profile-hash-test",
+) {
   const reportId = await saveReport({
     id: `report-${userId}-${tier}`,
     userId,
     tier,
-    profileHash: `hash-${userId}-${tier}`,
+    profileHash,
     content: "{}",
     tokensUsed: 0,
     costUsd: 0,
@@ -128,6 +133,23 @@ describe("Report routes", () => {
       id: reportId,
       userId,
       summary: "persisted report",
+    });
+  });
+
+  it("GET /api/me/report returns report_stale when the stored hash does not match current profile and intake", async () => {
+    const userId = await createLinkedTestUser(app, "st-report-stale-get");
+    await seedReport(userId, "free", "old-profile-hash");
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/me/report",
+      headers: sessionHeaders("st-report-stale-get"),
+    });
+
+    expect(res.statusCode).toBe(409);
+    expect(JSON.parse(res.body)).toEqual({
+      error: "report_stale",
+      tier: "free",
     });
   });
 
@@ -229,7 +251,7 @@ describe("Report routes", () => {
 
   it("POST /api/me/report regenerates in place when the cached report hash is stale", async () => {
     const userId = await createLinkedTestUser(app, "st-report-regenerate");
-    const reportId = await seedReport(userId);
+    const reportId = await seedReport(userId, "free", "stale-profile-hash");
     generateReportMock.mockResolvedValueOnce({
       tier: "free",
       profileHash: "profile-hash-test",
@@ -574,6 +596,24 @@ describe("Report routes", () => {
     });
   });
 
+  it("POST /api/me/report/share rejects stale reports", async () => {
+    const userId = await createLinkedTestUser(app, "st-report-share-stale");
+    await seedReport(userId, "free", "stale-share-hash");
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/me/report/share",
+      headers: sessionHeaders("st-report-share-stale"),
+      payload: { tier: "free" },
+    });
+
+    expect(res.statusCode).toBe(409);
+    expect(JSON.parse(res.body)).toEqual({
+      error: "report_stale",
+      tier: "free",
+    });
+  });
+
   it("GET /api/me/report/pdf returns the current user's PDF", async () => {
     const userId = await createLinkedTestUser(app, "st-report-pdf", "Premium PDF User", undefined, {
       plan: "premium",
@@ -589,6 +629,40 @@ describe("Report routes", () => {
     expect(res.statusCode).toBe(200);
     expect(res.headers["content-type"]).toBe("application/pdf");
     expect(res.headers["content-disposition"]).toContain("informe-hd-premium.pdf");
+  });
+
+  it("GET /api/me/report/pdf rejects stale reports", async () => {
+    const userId = await createLinkedTestUser(app, "st-report-pdf-stale");
+    await seedReport(userId, "free", "stale-pdf-hash");
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/me/report/pdf",
+      headers: sessionHeaders("st-report-pdf-stale"),
+    });
+
+    expect(res.statusCode).toBe(409);
+    expect(JSON.parse(res.body)).toEqual({
+      error: "report_stale",
+      tier: "free",
+    });
+  });
+
+  it("GET /api/report/shared/:token rejects stale reports", async () => {
+    const userId = await createLinkedTestUser(app, "st-report-shared-pdf-stale");
+    const reportId = await seedReport(userId, "free", "stale-shared-pdf-hash");
+    const token = await createShareToken(userId, reportId);
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/report/shared/${token}`,
+    });
+
+    expect(res.statusCode).toBe(409);
+    expect(JSON.parse(res.body)).toEqual({
+      error: "report_stale",
+      tier: "free",
+    });
   });
 
   it.each(["free", "basic"] as const)(
