@@ -9,8 +9,6 @@ import {
 } from "../helpers/mock-api";
 import { TEST_USER, TEST_USER_WITH_INTAKE, FREE_REPORT, REGENERATED_REPORT } from "../helpers/fixtures";
 import {
-  acceptNextDialog,
-  dismissNextDialog,
   openReportEditor,
   seedAuthenticatedReportShell,
 } from "../helpers/report";
@@ -43,10 +41,9 @@ test.describe("Report — Regeneration", () => {
       }
     });
 
-    acceptNextDialog(page);
-
     await openReportEditor(page);
     await page.getByRole("button", { name: /Regenerar mi informe/ }).click();
+    await page.getByRole("dialog", { name: "Regenerar tu informe" }).getByRole("button", { name: "Regenerar" }).click();
 
     await expect(page.getByText("Informe Personal")).toBeVisible();
     expect(generatedReportTiers).toEqual(["free"]);
@@ -57,16 +54,10 @@ test.describe("Report — Regeneration", () => {
     await mockGetReport(page, FREE_REPORT);
     await mockUpdateUser(page);
 
-    let confirmCalled = false;
-    page.once("dialog", async (dialog) => {
-      confirmCalled = true;
-      await dialog.dismiss();
-    });
-
     await openReportEditor(page);
     await page.getByRole("button", { name: /Regenerar mi informe/ }).click();
 
-    expect(confirmCalled).toBe(true);
+    await expect(page.getByRole("dialog", { name: "Regenerar tu informe" })).toBeVisible();
   });
 
   test("Canceling confirm dialog does not regenerate", async ({ page }) => {
@@ -83,10 +74,9 @@ test.describe("Report — Regeneration", () => {
       }
     });
 
-    dismissNextDialog(page);
-
     await openReportEditor(page);
     await page.getByRole("button", { name: /Regenerar mi informe/ }).click();
+    await page.getByRole("dialog", { name: "Regenerar tu informe" }).getByRole("button", { name: "Cancelar" }).click();
 
     await expect(page.getByText("Personalizá tu informe")).toBeVisible();
     expect(postCalled).toBe(false);
@@ -98,10 +88,9 @@ test.describe("Report — Regeneration", () => {
     await mockUpdateUser(page);
     await mockGenerateReport(page, REGENERATED_REPORT);
 
-    acceptNextDialog(page);
-
     await openReportEditor(page);
     await page.getByRole("button", { name: /Regenerar mi informe/ }).click();
+    await page.getByRole("dialog", { name: "Regenerar tu informe" }).getByRole("button", { name: "Regenerar" }).click();
 
     await expect(page.getByText("Informe Personal")).toBeVisible();
   });
@@ -112,13 +101,12 @@ test.describe("Report — Regeneration", () => {
     await mockUpdateUser(page);
     await mockGenerateReportError(page, 500);
 
-    acceptNextDialog(page);
-
     await openReportEditor(page);
     await page.getByRole("button", { name: /Regenerar mi informe/ }).click();
+    await page.getByRole("dialog", { name: "Regenerar tu informe" }).getByRole("button", { name: "Regenerar" }).click();
 
     await expect(page.getByText("Informe Personal")).toBeVisible();
-    await expect(page.getByText("Tu Carta Mecánica")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Tu Carta Mecánica" })).toBeVisible();
     await expect(page.getByText("No se pudo generar el informe. Intentá de nuevo.")).not.toBeVisible();
     await expect(page.getByText("Generation failed")).not.toBeVisible();
   });
@@ -129,13 +117,12 @@ test.describe("Report — Regeneration", () => {
     await mockUpdateUser(page);
     await mockGenerateReportError(page, 429);
 
-    acceptNextDialog(page);
-
     await openReportEditor(page);
     await page.getByRole("button", { name: /Regenerar mi informe/ }).click();
+    await page.getByRole("dialog", { name: "Regenerar tu informe" }).getByRole("button", { name: "Regenerar" }).click();
 
     await expect(page.getByText("Informe Personal")).toBeVisible();
-    await expect(page.getByText("Tu Carta Mecánica")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Tu Carta Mecánica" })).toBeVisible();
     await expect(page.getByText("No se pudo generar el informe. Intentá de nuevo.")).not.toBeVisible();
     await expect(page.getByText("Generation failed")).not.toBeVisible();
   });
@@ -146,10 +133,9 @@ test.describe("Report — Regeneration", () => {
     await mockUpdateUserError(page);
     await mockGenerateReport(page, REGENERATED_REPORT);
 
-    acceptNextDialog(page);
-
     await openReportEditor(page);
     await page.getByRole("button", { name: /Regenerar mi informe/ }).click();
+    await page.getByRole("dialog", { name: "Regenerar tu informe" }).getByRole("button", { name: "Regenerar" }).click();
 
     await expect(page.getByText("Informe Personal")).toBeVisible();
     await expect(page.getByText(/contexto personal no se pudo guardar/)).toBeVisible();

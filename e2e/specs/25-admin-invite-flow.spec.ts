@@ -20,7 +20,10 @@ const INVITED_EMAIL = "marina@coach.test";
 const INVITED_NAME = "Marina";
 const SAMPLE_MAGIC_LINK =
   "http://localhost:5173/auth/verify?preAuthSessionId=preauth-abc&linkCode=link-abc";
-const FUTURE_EXPIRY = "2026-05-05T18:00:00.000Z";
+
+function buildFutureExpiry() {
+  return new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+}
 
 const INVITED_USER_DETAIL = {
   id: "invited-marina-1",
@@ -59,7 +62,8 @@ test.describe("Admin user provisioning — invite premium", () => {
 
   test(
     "admin invites a new email to premium and sees the copyable magic link",
-    async ({ page }) => {
+    async ({ context, page }) => {
+      await context.grantPermissions(["clipboard-read", "clipboard-write"]);
       await mockCurrentUser(page, ADMIN_USER_SESSION);
 
       const adminPosts: Array<{
@@ -82,7 +86,7 @@ test.describe("Admin user provisioning — invite premium", () => {
               plan: "premium",
               isNewUser: true,
               magicLink: SAMPLE_MAGIC_LINK,
-              expiresAt: FUTURE_EXPIRY,
+              expiresAt: buildFutureExpiry(),
             },
           });
           return;
@@ -120,7 +124,7 @@ test.describe("Admin user provisioning — invite premium", () => {
       ).toBeVisible();
 
       await page.getByLabel(/email/i).fill(INVITED_EMAIL);
-      await page.getByLabel(/^plan$/i).selectOption("premium");
+      await page.getByRole("dialog", { name: /invitar persona/i }).getByRole("combobox", { name: "Plan" }).selectOption("premium");
       await page.getByLabel(/nombre/i).fill(INVITED_NAME);
       await page
         .getByRole("button", { name: /enviar invitaci[oó]n/i })
@@ -162,7 +166,7 @@ test.describe("Admin user provisioning — invite premium", () => {
               plan: "premium",
               isNewUser: false,
               magicLink: SAMPLE_MAGIC_LINK,
-              expiresAt: FUTURE_EXPIRY,
+              expiresAt: buildFutureExpiry(),
             },
           });
           return;
@@ -194,7 +198,7 @@ test.describe("Admin user provisioning — invite premium", () => {
         .getByRole("button", { name: /invitar persona/i })
         .click();
       await page.getByLabel(/email/i).fill(INVITED_EMAIL);
-      await page.getByLabel(/^plan$/i).selectOption("premium");
+      await page.getByRole("dialog", { name: /invitar persona/i }).getByRole("combobox", { name: "Plan" }).selectOption("premium");
       await page
         .getByRole("button", { name: /enviar invitaci[oó]n/i })
         .click();
@@ -243,7 +247,7 @@ test.describe("Admin user provisioning — invite premium", () => {
               plan: "premium",
               isNewUser: false,
               magicLink: SAMPLE_MAGIC_LINK,
-              expiresAt: FUTURE_EXPIRY,
+              expiresAt: buildFutureExpiry(),
             },
           });
           return;
@@ -259,9 +263,9 @@ test.describe("Admin user provisioning — invite premium", () => {
       // Spanish copy from getAdminOnboardingStatusLabel("pending") and
       // getAdminAccessSourceLabel("manual"). Asserting on English keys
       // would be a false negative against the actual rendered UI.
-      await expect(page.getByText(/onboarding/i)).toBeVisible();
-      await expect(page.getByText(/pendiente/i)).toBeVisible();
-      await expect(page.getByText(/Invitación admin/i)).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Onboarding y acceso" })).toBeVisible();
+      await expect(page.getByText("Pendiente", { exact: true })).toBeVisible();
+      await expect(page.getByText("Invitación admin", { exact: true })).toBeVisible();
 
       await page
         .getByRole("button", { name: /reinvitar/i })

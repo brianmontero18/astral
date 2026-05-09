@@ -117,7 +117,7 @@ test.describe("Chat — Voice Notes", () => {
     await page.getByRole("button", { name: "Enviar nota de voz" }).click();
     await expect(page.getByText(/[Ee]rror al transcribir/)).toBeVisible();
 
-    await page.getByRole("button", { name: "Cerrar" }).click();
+    await page.getByRole("button", { name: "Cerrar", exact: true }).click();
     await expect(page.getByRole("button", { name: "Grabar nota de voz" })).toBeVisible();
     await expect(page.getByText(/[Ee]rror al transcribir/)).not.toBeVisible();
 

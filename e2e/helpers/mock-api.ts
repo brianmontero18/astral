@@ -169,6 +169,22 @@ export async function mockGetReport(page: Page, report: DesignReport | null) {
   });
 }
 
+export async function mockGetReportStale(
+  page: Page,
+  tier: "free" | "premium" = "free",
+) {
+  await page.route("**/api/me/report**", async (route) => {
+    if (route.request().method() === "GET" && isExactPath(route.request().url(), "/api/me/report")) {
+      await route.fulfill({
+        status: 409,
+        json: { error: "report_stale", tier },
+      });
+    } else {
+      await route.fallback();
+    }
+  });
+}
+
 export async function mockGenerateReport(page: Page, report: DesignReport) {
   await page.route("**/api/me/report", async (route) => {
     if (route.request().method() === "POST" && isExactPath(route.request().url(), "/api/me/report")) {
@@ -201,6 +217,38 @@ export async function mockUploadAsset(page: Page, asset: Partial<AssetMeta> = {}
           fileType: asset.fileType ?? "hd",
           sizeBytes: asset.sizeBytes ?? 1024,
           createdAt: asset.createdAt ?? "2026-03-28T09:00:00.000Z",
+        },
+      });
+    } else {
+      await route.fallback();
+    }
+  });
+}
+
+export async function mockReplaceBodygraph(
+  page: Page,
+  response: {
+    user: unknown;
+    profile: unknown;
+    asset?: Partial<AssetMeta>;
+  },
+) {
+  await page.route("**/api/me/bodygraph", async (route) => {
+    if (route.request().method() === "POST" && isExactPath(route.request().url(), "/api/me/bodygraph")) {
+      await route.fulfill({
+        status: 201,
+        json: {
+          user: response.user,
+          profile: response.profile,
+          asset: {
+            id: response.asset?.id ?? "asset-bodygraph-123",
+            filename: response.asset?.filename ?? "chart.pdf",
+            mimeType: response.asset?.mimeType ?? "application/pdf",
+            fileType: response.asset?.fileType ?? "hd",
+            sizeBytes: response.asset?.sizeBytes ?? 1024,
+            createdAt: response.asset?.createdAt ?? "2026-03-28T09:00:00.000Z",
+            isActive: response.asset?.isActive ?? true,
+          },
         },
       });
     } else {

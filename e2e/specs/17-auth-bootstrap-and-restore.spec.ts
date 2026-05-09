@@ -3,11 +3,10 @@ import path from "node:path";
 
 import {
   mockChatHistory,
-  mockExtractProfile,
   mockGetUser,
   mockHealth,
+  mockReplaceBodygraph,
   mockUpdateUser,
-  mockUploadAsset,
 } from "../helpers/mock-api";
 import {
   FREE_REPORT,
@@ -87,25 +86,34 @@ test.describe("Auth — Bootstrap & Restore", () => {
       bootstrapped = true;
       await route.fulfill({ status: 201, json: { id: "test-user-123" } });
     });
-    await mockUploadAsset(page);
-    await mockExtractProfile(page, HD_PROFILE);
+    await mockReplaceBodygraph(page, {
+      user: {
+        ...buildLinkedUser("free"),
+        profile: HD_PROFILE,
+        intake: null,
+      },
+      profile: HD_PROFILE,
+    });
     await mockUpdateUser(page);
 
     await page.goto("/");
 
-    await expect(page.getByText("Astral Guide", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Astral Guide" })).toBeVisible();
     await page.getByRole("button", { name: "DESCUBRIR MI CARTA" }).click();
     await page.getByPlaceholder("Tu nombre").fill("Test User");
     await page.getByRole("button", { name: "CONTINUAR" }).click();
     await page.locator('input[type="file"]').setInputFiles(CHART_FIXTURE_PATH);
     await page.getByRole("button", { name: "CANALIZAR ENERGÍA" }).click();
 
-    await expect(page.getByText("Tu Identidad Cósmica")).toBeVisible();
+    await expect(page.getByText("Esto es lo que leímos")).toBeVisible();
     await expect(page.getByText("Tipo HD")).toBeVisible();
     await expect(page.getByText("Generador")).toBeVisible();
-    await page.getByRole("button", { name: "EMBARCAR" }).click();
+    await page.getByRole("button", { name: "CONTINUAR" }).click();
+    await page.getByLabel("¿A qué dedicás tu energía hoy?").fill("Mentora de coaches");
+    await page.getByLabel("¿Qué desafío tenés ahora?").fill("Ordenar mi primera oferta");
+    await page.getByRole("button", { name: /Embarcar al chat/i }).click();
 
-    await expect(page.getByPlaceholder("Preguntá al oráculo sobre tu semana...")).toBeVisible();
+    await expect(page.getByPlaceholder(/Preguntá al oráculo/)).toBeVisible();
     await expectPlanVisible(page, "Free");
   });
 
@@ -113,7 +121,7 @@ test.describe("Auth — Bootstrap & Restore", () => {
     await mockGetUser(page, buildLinkedUser("free"));
     await page.goto("/");
 
-    await expect(page.getByPlaceholder("Preguntá al oráculo sobre tu semana...")).toBeVisible();
+    await expect(page.getByPlaceholder(/Preguntá al oráculo/)).toBeVisible();
     await expect(page.getByText("Que transitos tengo esta semana?")).toBeVisible();
     await expect(page.getByText("Como afecta mi centro Sacral?")).toBeVisible();
     await expect(page.getByText("DESCUBRIR MI CARTA")).not.toBeVisible();
@@ -140,11 +148,11 @@ test.describe("Auth — Bootstrap & Restore", () => {
     await page.goto("/");
 
     await expectPlanVisible(page, "Basic");
-    await page.getByRole("button", { name: /Generar mi informe/ }).click();
+    await page.getByRole("dialog", { name: "Perfil activo" }).getByRole("button", { name: /Ver mi informe semanal/ }).click();
 
     await expect(page.getByText("Informe Personal")).toBeVisible();
-    await expect(page.getByText("Tu Carta Mecánica")).toBeVisible();
-    await expect(page.getByText("Cómo trabajás mejor")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Tu Carta Mecánica" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Cómo trabajás mejor/ })).toBeVisible();
     await expect(page.getByText("✦ Continuación aplicada del informe")).toBeVisible();
     await expect(page.getByRole("link", { name: "Completar mi informe" })).toBeVisible();
     expect(requestedTier).toBe("free");
@@ -185,7 +193,7 @@ test.describe("Auth — Bootstrap & Restore", () => {
     await page.goto("/");
 
     await expectPlanVisible(page, "Premium");
-    await page.getByRole("button", { name: /Generar mi informe/ }).click();
+    await page.getByRole("dialog", { name: "Perfil activo" }).getByRole("button", { name: /Ver mi informe semanal/ }).click();
 
     await expect(page.getByText("Informe Personal")).toBeVisible();
     await expect(page.getByRole("button", { name: /Cómo trabajás mejor/ })).toBeVisible();
@@ -214,8 +222,8 @@ test.describe("Auth — Bootstrap & Restore", () => {
     await page.goto("/");
 
     await page.waitForURL("**/auth**");
-    await expect(page.getByText("Sign In")).toBeVisible();
-    await expect(page.getByText("Astral Guide", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Tu portal de claridad empieza aquí" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Enviar enlace mágico" })).toBeVisible();
   });
 
   test("Inactive boot blocks access with friendly copy instead of technical details", async ({ page }) => {

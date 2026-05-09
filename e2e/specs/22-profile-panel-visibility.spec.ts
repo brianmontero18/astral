@@ -72,7 +72,7 @@ test.describe("Profile — panel visibility", () => {
     await expect(page.getByText("Sacral, Garganta")).toBeVisible();
     await expect(page.getByText("Canales", { exact: true })).toBeVisible();
     await expect(page.getByText("Canal de Carisma")).toBeVisible();
-    await expect(page.getByRole("button", { name: /Generar mi informe/ })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Perfil activo" }).getByRole("button", { name: /Ver mi informe semanal/ })).toBeVisible();
   });
 
   test("profile panel stays usable with partial HD data and still opens the report flow", async ({ page }) => {
@@ -91,8 +91,8 @@ test.describe("Profile — panel visibility", () => {
     await expect(page.getByText("Canales", { exact: true })).toBeVisible();
     await expect(page.getByText("—", { exact: true }).first()).toBeVisible();
 
-    await page.getByRole("button", { name: /Generar mi informe/ }).click();
+    await page.getByRole("dialog", { name: "Perfil activo" }).getByRole("button", { name: /Ver mi informe semanal/ }).click();
     await expect(page.getByText("Personalizá tu informe")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Omitir" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Generar mi informe/ })).toBeVisible();
   });
 });

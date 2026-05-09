@@ -1,7 +1,11 @@
 import { test, expect } from "@playwright/test";
 import { mockGetUser, mockGetReport, mockGenerateReport } from "../helpers/mock-api";
 import { TEST_USER, TEST_USER_WITH_INTAKE, TEST_USER_NO_INTAKE, FREE_REPORT } from "../helpers/fixtures";
-import { openFreshReportIntake, seedAuthenticatedReportShell } from "../helpers/report";
+import {
+  fillRequiredIntakeAndGenerate,
+  openFreshReportIntake,
+  seedAuthenticatedReportShell,
+} from "../helpers/report";
 
 test.describe("Report — Intake Persistence", () => {
   test.beforeEach(async ({ page }) => {
@@ -24,11 +28,16 @@ test.describe("Report — Intake Persistence", () => {
 
     await openFreshReportIntake(page);
 
-    await page.getByLabel("¿A qué dedicás tu energía hoy?").fill("Soy dev");
-    await page.getByRole("button", { name: /Generar mi informe/ }).click();
+    await fillRequiredIntakeAndGenerate(page, {
+      actividad: "Soy dev",
+      desafio: "Publicar sin sobrepensar",
+    });
 
     await expect(page.getByText("Informe Personal")).toBeVisible();
-    expect((putBody as Record<string, unknown>)?.intake).toBeDefined();
+    expect((putBody as Record<string, unknown>)?.intake).toMatchObject({
+      actividad: "Soy dev",
+      desafio_actual: "Publicar sin sobrepensar",
+    });
   });
 
   test("Null intake from DB results in empty IntakeView fields", async ({ page }) => {
@@ -38,8 +47,8 @@ test.describe("Report — Intake Persistence", () => {
     await openFreshReportIntake(page);
 
     await expect(page.getByLabel("¿A qué dedicás tu energía hoy?")).toHaveValue("");
-    await expect(page.getByLabel("¿Qué buscás en este momento?")).toHaveValue("");
-    await expect(page.getByLabel("¿Cuál es tu mayor desafío?")).toHaveValue("");
+    await expect(page.getByLabel("¿Qué desafío tenés ahora?")).toHaveValue("");
+    await expect(page.getByLabel("¿Qué querés concretar en los próximos 12 meses? (opcional)")).toHaveValue("");
   });
 
   test("User reset clears intake state", async ({ page }) => {
@@ -47,8 +56,8 @@ test.describe("Report — Intake Persistence", () => {
     await mockGetReport(page, FREE_REPORT);
 
     await page.goto("/");
-    await page.getByRole("button", { name: "Salir" }).click();
+    await page.getByRole("button", { name: "Cerrar sesión" }).click();
 
-    await expect(page.getByText("Astral Guide", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Tu portal de claridad empieza aquí" })).toBeVisible();
   });
 });

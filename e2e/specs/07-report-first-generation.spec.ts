@@ -10,8 +10,8 @@ import {
 } from "../helpers/mock-api";
 import { TEST_USER, TEST_USER_NO_INTAKE, FREE_REPORT } from "../helpers/fixtures";
 import {
+  fillRequiredIntakeAndGenerate,
   openFreshReportIntake,
-  openReportEntryPoint,
   seedAuthenticatedReportShell,
 } from "../helpers/report";
 
@@ -34,6 +34,7 @@ test.describe("Report — First Generation", () => {
     await mockHealth(page);
     await mockChatHistory(page, []);
     await mockGetUser(page, basicUser);
+    await mockUpdateUser(page);
     await page.route("**/api/me/report**", async (route) => {
       const request = route.request();
       const pathname = new URL(request.url()).pathname;
@@ -60,14 +61,14 @@ test.describe("Report — First Generation", () => {
     });
 
     await openFreshReportIntake(page);
-    await page.getByRole("button", { name: "Omitir" }).click();
+    await fillRequiredIntakeAndGenerate(page);
     await expect(page.getByText("Informe Personal")).toBeVisible();
 
     expect(requestedReportTiers).toEqual(["free"]);
     expect(generatedReportTiers).toEqual(["free"]);
   });
 
-  test('Clicking "Generar mi informe" from Profile Panel navigates to IntakeView', async ({ page }) => {
+  test('Clicking "Informe" navigates to IntakeView when there is no cached report', async ({ page }) => {
     await mockGetUser(page, TEST_USER_NO_INTAKE);
     await mockGetReport(page, null); // No cached report — 404
     await openFreshReportIntake(page);
@@ -94,12 +95,14 @@ test.describe("Report — First Generation", () => {
     await mockGenerateReport(page, FREE_REPORT);
     await openFreshReportIntake(page);
 
-    await page.getByLabel("¿A qué dedicás tu energía hoy?").fill("Soy diseñadora");
-    await page.getByRole("button", { name: /Generar mi informe/ }).click();
+    await fillRequiredIntakeAndGenerate(page, {
+      actividad: "Soy diseñadora",
+      desafio: "Entender mi energía",
+    });
 
     // Report should appear
     await expect(page.getByText("Informe Personal")).toBeVisible();
-    await expect(page.getByText("Tu Carta Mecánica")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Tu Carta Mecánica" })).toBeVisible();
 
     // TOC navigation: each section has a corresponding pill in the report
     // TOC. The bar wraps to multiple rows when needed — every pill is
@@ -134,21 +137,28 @@ test.describe("Report — First Generation", () => {
     await expect(page.getByRole("heading", { level: 2, name: "Tu Carta Mecánica" })).toBeVisible();
   });
 
-  test('Clicking "Omitir" generates report without intake', async ({ page }) => {
+  test("Required intake fields gate first report generation", async ({ page }) => {
     await mockGetUser(page, TEST_USER_NO_INTAKE);
     await mockGetReport(page, null);
+    await mockUpdateUser(page);
     await mockGenerateReport(page, FREE_REPORT);
     await openFreshReportIntake(page);
-    await page.getByRole("button", { name: "Omitir" }).click();
+
+    await page.getByRole("button", { name: /Generar mi informe/ }).click();
+    await expect(page.getByText("Necesitamos al menos los dos campos marcados con * para arrancar con contexto real.")).toBeVisible();
+    await expect(page.getByText("Informe Personal")).not.toBeVisible();
+
+    await fillRequiredIntakeAndGenerate(page);
     await expect(page.getByText("Informe Personal")).toBeVisible();
   });
 
   test("First generation failure shows a user-safe fallback instead of backend details", async ({ page }) => {
     await mockGetUser(page, TEST_USER_NO_INTAKE);
     await mockGetReport(page, null);
+    await mockUpdateUser(page);
     await mockGenerateReportError(page, 500);
     await openFreshReportIntake(page);
-    await page.getByRole("button", { name: "Omitir" }).click();
+    await fillRequiredIntakeAndGenerate(page);
 
     await expect(page.getByText("No se pudo generar el informe. Intentá de nuevo.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Volver", exact: true })).toBeVisible();
@@ -161,19 +171,20 @@ test.describe("Report — First Generation", () => {
     await mockUpdateUser(page);
     await mockGenerateReport(page, FREE_REPORT);
     await openFreshReportIntake(page);
-    await page.getByRole("button", { name: "Omitir" }).click();
+    await fillRequiredIntakeAndGenerate(page);
 
-    await expect(page.getByText("Tu Tipo")).toBeVisible();
-    await expect(page.getByText("Tu Autoridad")).toBeVisible();
-    await expect(page.getByText("🔒").first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Tu Tipo" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Tu Autoridad" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Cómo trabajás mejor/ })).toBeVisible();
   });
 
   test("Generation date is visible in ReportView", async ({ page }) => {
     await mockGetUser(page, TEST_USER_NO_INTAKE);
     await mockGetReport(page, null);
+    await mockUpdateUser(page);
     await mockGenerateReport(page, FREE_REPORT);
     await openFreshReportIntake(page);
-    await page.getByRole("button", { name: "Omitir" }).click();
+    await fillRequiredIntakeAndGenerate(page);
     await expect(page.getByText(/Generado el/)).toBeVisible();
   });
 
@@ -184,9 +195,10 @@ test.describe("Report — First Generation", () => {
     // where a tab click while in report would bounce back to chat.
     await mockGetUser(page, TEST_USER_NO_INTAKE);
     await mockGetReport(page, null);
+    await mockUpdateUser(page);
     await mockGenerateReport(page, FREE_REPORT);
-    await openReportEntryPoint(page);
-    await page.getByRole("button", { name: "Omitir" }).click();
+    await openFreshReportIntake(page);
+    await fillRequiredIntakeAndGenerate(page);
     await expect(page.getByText("Informe Personal")).toBeVisible();
 
     await page.getByRole("button", { name: "Chat" }).click();

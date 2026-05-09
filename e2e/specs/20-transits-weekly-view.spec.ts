@@ -195,7 +195,7 @@ test.describe("Transits — Weekly view", () => {
     await expect(page.getByText("swiss ephemeris timeout on worker 3")).not.toBeVisible();
 
     await page.getByRole("button", { name: "Chat" }).click();
-    await expect(page.getByPlaceholder("Preguntá al oráculo sobre tu semana...")).toBeVisible();
+    await expect(page.getByPlaceholder(/Preguntá al oráculo/)).toBeVisible();
 
     await page.getByRole("button", { name: "Tránsitos" }).click();
     await expect(page.getByRole("heading", { name: "Tránsitos de la Semana" })).toBeVisible();

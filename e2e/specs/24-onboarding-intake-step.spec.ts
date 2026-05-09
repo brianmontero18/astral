@@ -6,7 +6,7 @@
  * el usuario llegue al chat con el contexto persistido.
  *
  * El flow completo del onboarding ya está cubierto por el spec 18 hasta
- * "Tu Identidad Cósmica" — este spec extiende a partir de ahí.
+ * la review del perfil — este spec extiende a partir de ahí.
  */
 
 import path from "node:path";
@@ -76,27 +76,24 @@ async function walkOnboardingToReview(page: import("@playwright/test").Page) {
     await route.fulfill({ status: 201, json: { id: LINKED_USER_BASE.id } });
   });
 
-  await page.route("**/api/me/assets", async (route) => {
-    if (route.request().method() === "POST" && new URL(route.request().url()).pathname === "/api/me/assets") {
+  await page.route("**/api/me/bodygraph", async (route) => {
+    if (route.request().method() === "POST" && new URL(route.request().url()).pathname === "/api/me/bodygraph") {
       await route.fulfill({
         status: 201,
         json: {
-          id: "asset-intake-1",
-          filename: "chart.pdf",
-          mimeType: "application/pdf",
-          fileType: "hd",
-          sizeBytes: 1024,
-          createdAt: "2026-04-29T09:00:00.000Z",
+          user: { ...LINKED_USER_BASE, intake: null },
+          profile: HD_PROFILE,
+          asset: {
+            id: "asset-intake-1",
+            filename: "chart.pdf",
+            mimeType: "application/pdf",
+            fileType: "hd",
+            sizeBytes: 1024,
+            createdAt: "2026-04-29T09:00:00.000Z",
+            isActive: true,
+          },
         },
       });
-    } else {
-      await route.fallback();
-    }
-  });
-
-  await page.route("**/api/extract-profile", async (route) => {
-    if (route.request().method() === "POST" && new URL(route.request().url()).pathname === "/api/extract-profile") {
-      await route.fulfill({ status: 200, json: { profile: HD_PROFILE } });
     } else {
       await route.fallback();
     }
@@ -110,7 +107,7 @@ async function walkOnboardingToReview(page: import("@playwright/test").Page) {
   await page.getByRole("button", { name: "CANALIZAR ENERGÍA" }).click();
 
   // We're at the review step now.
-  await expect(page.getByText("Tu Identidad Cósmica")).toBeVisible();
+  await expect(page.getByText("Esto es lo que leímos")).toBeVisible();
 
   return { getPutBody: () => lastPutBody };
 }
@@ -121,7 +118,7 @@ test.describe("Onboarding — Intake step", () => {
 
     await page.getByRole("button", { name: "CONTINUAR" }).click();
 
-    await expect(page.getByText("Contame de tu negocio")).toBeVisible();
+    await expect(page.getByText("Personalizá tu informe")).toBeVisible();
     await page.getByLabel("¿A qué dedicás tu energía hoy?").fill("Mentora de coaches en Latam");
     await page.getByLabel("¿Qué desafío tenés ahora?").fill("Lanzar mi programa premium en mayo");
 

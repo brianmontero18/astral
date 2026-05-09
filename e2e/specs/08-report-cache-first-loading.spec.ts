@@ -36,19 +36,18 @@ test.describe("Report — Cache-First Loading", () => {
 
     await openReportEditor(page);
 
-    await expect(page.getByLabel("¿A qué te dedicás?")).toHaveValue("Soy diseñadora freelance");
-    await expect(page.getByLabel("¿Qué buscás en este momento?")).toHaveValue("Quiero entender mi energía");
-    await expect(page.getByLabel("¿Cuál es tu mayor desafío?")).toHaveValue("Me cuesta decir que no");
+    await expect(page.getByLabel("¿A qué dedicás tu energía hoy?")).toHaveValue("Soy diseñadora freelance");
+    await expect(page.getByLabel("¿Qué desafío tenés ahora?")).toHaveValue("Me cuesta decir que no");
+    await expect(page.getByLabel("¿Qué querés concretar en los próximos 12 meses? (opcional)")).toHaveValue("Quiero entender mi energía");
   });
 
-  test('IntakeView shows "Volver al informe" instead of "Omitir"', async ({ page }) => {
+  test('IntakeView shows "Volver al informe" for cached reports', async ({ page }) => {
     await mockGetUser(page, TEST_USER_WITH_INTAKE);
     await mockGetReport(page, FREE_REPORT);
 
     await openReportEditor(page);
 
     await expect(page.getByRole("button", { name: "Volver al informe" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Omitir" })).not.toBeVisible();
   });
 
   test('IntakeView shows "Regenerar mi informe" instead of "Generar"', async ({ page }) => {

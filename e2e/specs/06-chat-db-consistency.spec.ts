@@ -208,7 +208,7 @@ test.describe("Chat — DB Consistency", () => {
     await expect(page.getByText("Respuesta editada")).toBeVisible();
     await expect(page.getByText("Como afecta mi centro Sacral?")).not.toBeVisible();
 
-    const input = page.getByPlaceholder("Preguntá al oráculo sobre tu semana...");
+    const input = page.getByPlaceholder(/Preguntá al oráculo/);
     await input.fill("Necesito un siguiente paso concreto");
     await page.getByRole("button", { name: "Enviar" }).click();
 
@@ -257,7 +257,7 @@ test.describe("Chat — DB Consistency", () => {
 
     const prompts = [
       {
-        user: "Reporte semanal completo",
+        user: "¿Cómo está mi energía esta semana?",
         assistant: "Resumen semanal aplicado para empezar la conversación.",
         createdAt: ["2026-03-28T10:00:00.000Z", "2026-03-28T10:00:01.000Z"],
       },
@@ -369,7 +369,7 @@ test.describe("Chat — DB Consistency", () => {
     await expect(page.getByText(prompts[0].user)).toBeVisible();
     await expect(page.getByText(prompts[0].assistant)).toBeVisible();
 
-    const input = page.getByPlaceholder("Preguntá al oráculo sobre tu semana...");
+    const input = page.getByPlaceholder(/Preguntá al oráculo/);
     await input.fill(prompts[1].user);
     await page.getByRole("button", { name: "Enviar" }).click();
 

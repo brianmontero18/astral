@@ -50,7 +50,7 @@ test.describe("Report — PDF & Share", () => {
   test("Locked premium section clicks scroll to upgrade CTA", async ({ page }) => {
     await openCachedReport(page);
 
-    await page.getByText("Cómo trabajás mejor").click();
+    await page.getByRole("button", { name: /Cómo trabajás mejor/ }).click();
     await expect(page.getByText("✦ Continuación aplicada del informe")).toBeVisible();
     await expect(page.getByRole("link", { name: "Completar mi informe" })).toBeVisible();
   });

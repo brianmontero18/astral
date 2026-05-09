@@ -61,7 +61,7 @@ async function bootstrapLayoutSurface(page: Page) {
 
 function profilePanel(page: Page) {
   return page.locator("div").filter({
-    has: page.getByRole("button", { name: /Generar mi informe/ }),
+    has: page.getByRole("button", { name: /Ver mi informe semanal/ }),
     hasText: "Plan actual",
   }).first();
 }
@@ -73,9 +73,9 @@ async function openProfilePanel(page: Page) {
 }
 
 async function assertLockedReportLayout(page: Page) {
-  await page.getByRole("button", { name: /Generar mi informe/ }).click();
+  await page.getByRole("dialog", { name: "Perfil activo" }).getByRole("button", { name: /Ver mi informe semanal/ }).click();
   await expect(page.getByText("Informe Personal")).toBeVisible();
-  await expect(page.getByText("Cómo trabajás mejor")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Cómo trabajás mejor/ })).toBeVisible();
   await expect(page.getByRole("link", { name: "Completar mi informe" })).toBeVisible();
   await page.getByRole("link", { name: "Completar mi informe" }).scrollIntoViewIfNeeded();
   await expect(page.getByRole("link", { name: "Completar mi informe" })).toBeInViewport();
@@ -86,7 +86,7 @@ async function openAssetPreview(page: Page) {
   await page.getByRole("button", { name: "Mis Cartas" }).click();
   await expect(page.getByRole("heading", { name: "Mis Cartas" })).toBeVisible();
   await expect(page.getByText(LAYOUT_ASSET.filename)).toBeVisible();
-  await page.getByRole("button", { name: "Ver" }).click();
+  await page.getByRole("button", { name: /^Abrir/ }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   await expect(page.getByText("Vista previa")).toBeVisible();
@@ -146,7 +146,7 @@ test.describe("Responsive layout stability", () => {
       });
 
       await assertLockedReportLayout(page);
-      await expect(page.getByText("Cómo trabajás mejor")).toBeVisible();
+      await expect(page.getByRole("button", { name: /Cómo trabajás mejor/ })).toBeVisible();
       await expect(page.getByRole("link", { name: "Completar mi informe" })).toBeVisible();
       await page.getByRole("button", { name: "Chat" }).click();
 

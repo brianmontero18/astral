@@ -79,26 +79,8 @@ test.describe("Onboarding & Assets resilience", () => {
         json: { error: "identity_already_linked", userId: "test-user-123" },
       });
     });
-    await page.route("**/api/me/assets", async (route) => {
-      if (route.request().method() === "POST" && new URL(route.request().url()).pathname === "/api/me/assets") {
-        await route.fulfill({
-          status: 201,
-          json: {
-            id: "asset-hd-1",
-            filename: "chart.pdf",
-            mimeType: "application/pdf",
-            fileType: "hd",
-            sizeBytes: 1024,
-            createdAt: "2026-03-28T09:00:00.000Z",
-          },
-        });
-        return;
-      }
-
-      await route.fallback();
-    });
-    await page.route("**/api/extract-profile", async (route) => {
-      if (route.request().method() !== "POST" || new URL(route.request().url()).pathname !== "/api/extract-profile") {
+    await page.route("**/api/me/bodygraph", async (route) => {
+      if (route.request().method() !== "POST" || new URL(route.request().url()).pathname !== "/api/me/bodygraph") {
         await route.fallback();
         return;
       }
@@ -113,7 +95,26 @@ test.describe("Onboarding & Assets resilience", () => {
         return;
       }
 
-      await route.fulfill({ status: 200, json: { profile: HD_PROFILE } });
+      await route.fulfill({
+        status: 201,
+        json: {
+          user: {
+            ...LINKED_USER,
+            profile: HD_PROFILE,
+            intake: null,
+          },
+          profile: HD_PROFILE,
+          asset: {
+            id: "asset-hd-1",
+            filename: "chart.pdf",
+            mimeType: "application/pdf",
+            fileType: "hd",
+            sizeBytes: 1024,
+            createdAt: "2026-03-28T09:00:00.000Z",
+            isActive: true,
+          },
+        },
+      });
     });
     await page.goto("/");
 
@@ -125,12 +126,12 @@ test.describe("Onboarding & Assets resilience", () => {
 
     await expect(page.getByText("No pudimos leer tu carta ahora. Reintentá con otro PDF o probá de nuevo.")).toBeVisible();
     await expect(page.getByText("vector store timeout on worker 3")).not.toBeVisible();
-    await expect(page.getByText("Sincroniza tu energía")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sincronizá tu energía" })).toBeVisible();
     await expect(page.getByText("chart.pdf")).toBeVisible();
 
     await page.getByRole("button", { name: "CANALIZAR ENERGÍA" }).click();
 
-    await expect(page.getByText("Tu Identidad Cósmica")).toBeVisible();
+    await expect(page.getByText("Esto es lo que leímos")).toBeVisible();
     await expect(page.getByText("No pudimos leer tu carta ahora. Reintentá con otro PDF o probá de nuevo.")).toHaveCount(0);
   });
 
@@ -144,7 +145,7 @@ test.describe("Onboarding & Assets resilience", () => {
       await mockGetUser(page, LINKED_USER);
     });
 
-    test("Source-file flow covers empty state, upload, preview, close and delete", async ({ page }) => {
+    test("Bodygraph replacement flow covers empty state, upload, active marker, preview, close and delete", async ({ page }) => {
       const state = {
         assets: [] as Array<{
           id: string;
@@ -153,6 +154,7 @@ test.describe("Onboarding & Assets resilience", () => {
           fileType: string;
           sizeBytes: number;
           createdAt: string;
+          isActive?: boolean;
         }>,
       };
 
@@ -168,29 +170,42 @@ test.describe("Onboarding & Assets resilience", () => {
           await route.fulfill({ status: 200, json: { assets: state.assets } });
           return;
         }
-
-        if (route.request().method() === "POST") {
-          const createdAsset = {
-            id: "asset-1",
-            filename: "mi-carta.txt",
-            mimeType: "text/plain",
-            fileType: "natal",
-            sizeBytes: 14,
-            createdAt: "2026-03-28T09:00:00.000Z",
-          };
-          state.assets = [createdAsset];
-          await route.fulfill({ status: 201, json: createdAsset });
+        await route.fallback();
+      });
+      await page.route("**/api/me/bodygraph", async (route) => {
+        if (route.request().method() !== "POST" || new URL(route.request().url()).pathname !== "/api/me/bodygraph") {
+          await route.fallback();
           return;
         }
 
-        await route.fallback();
+        const createdAsset = {
+          id: "asset-1",
+          filename: "mi-carta.pdf",
+          mimeType: "application/pdf",
+          fileType: "hd",
+          sizeBytes: 1024,
+          createdAt: "2026-03-28T09:00:00.000Z",
+          isActive: true,
+        };
+        state.assets = [createdAsset];
+        await route.fulfill({
+          status: 201,
+          json: {
+            user: {
+              ...LINKED_USER,
+              profile: HD_PROFILE,
+            },
+            profile: HD_PROFILE,
+            asset: createdAsset,
+          },
+        });
       });
       await page.route("**/api/assets/asset-1", async (route) => {
         if (route.request().method() === "GET") {
           await route.fulfill({
             status: 200,
-            contentType: "text/plain",
-            body: "Mi carta base",
+            contentType: "application/pdf",
+            body: "%PDF-1.4 test",
           });
           return;
         }
@@ -210,18 +225,19 @@ test.describe("Onboarding & Assets resilience", () => {
       await page.goto("/");
       await page.getByRole("button", { name: "Mis Cartas" }).click();
 
-      await expect(page.getByText("Todavía no subiste archivos.")).toBeVisible();
+      await expect(page.getByText("Tu biblioteca está vacía")).toBeVisible();
 
       await page.locator('input[type="file"]').setInputFiles({
-        name: "mi-carta.txt",
-        mimeType: "text/plain",
-        buffer: Buffer.from("Mi carta base"),
+        name: "mi-carta.pdf",
+        mimeType: "application/pdf",
+        buffer: Buffer.from("%PDF-1.4 test"),
       });
 
-      await expect(page.getByText("mi-carta.txt")).toBeVisible();
+      await expect(page.getByText("mi-carta.pdf")).toBeVisible();
+      await expect(page.getByText("En uso")).toBeVisible();
       await page.getByRole("button", { name: /^Abrir/ }).click();
       await expect(page.getByRole("dialog")).toBeVisible();
-      await expect(page.getByText("Mi carta base")).toBeVisible();
+      await expect(page.getByRole("dialog").getByText("mi-carta.pdf")).toBeVisible();
 
       await page.getByLabel("Cerrar vista previa").click();
       await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -234,32 +250,28 @@ test.describe("Onboarding & Assets resilience", () => {
       await expect(page.getByRole("dialog")).toContainText("¿Quitar este archivo?");
       await expect(page.getByRole("dialog")).toContainText("Esta acción es permanente");
       await page.getByRole("button", { name: /Sí, quitar/ }).click();
-      await expect(page.getByText("Todavía no subiste archivos.")).toBeVisible();
+      await expect(page.getByText("Tu biblioteca está vacía")).toBeVisible();
     });
 
     test("Validation failures keep the asset surface usable", async ({ page }) => {
       let uploadAttempt = 0;
 
       await page.route("**/api/me/assets", async (route) => {
-        const pathname = new URL(route.request().url()).pathname;
-
-        if (pathname !== "/api/me/assets") {
-          await route.fallback();
-          return;
-        }
-
-        if (route.request().method() === "GET") {
+        if (route.request().method() === "GET" && new URL(route.request().url()).pathname === "/api/me/assets") {
           await route.fulfill({ status: 200, json: { assets: [] } });
           return;
         }
 
-        if (route.request().method() === "POST") {
+        await route.fallback();
+      });
+      await page.route("**/api/me/bodygraph", async (route) => {
+        if (route.request().method() === "POST" && new URL(route.request().url()).pathname === "/api/me/bodygraph") {
           uploadAttempt += 1;
 
           if (uploadAttempt === 1) {
             await route.fulfill({
               status: 400,
-              json: { error: "Invalid file type: application/octet-stream" },
+              json: { error: "Subi un PDF exportado desde MyHumanDesign o Genetic Matrix. No aceptamos imagenes ni capturas." },
             });
             return;
           }
@@ -282,8 +294,8 @@ test.describe("Onboarding & Assets resilience", () => {
         mimeType: "application/octet-stream",
         buffer: Buffer.from("bad"),
       });
-      await expect(page.getByText("Podés subir PDF, PNG, JPG o TXT.")).toBeVisible();
-      await expect(page.getByRole("button", { name: "AGREGAR NUEVA CARTA" })).toBeVisible();
+      await expect(page.getByText("Subi un PDF exportado desde MyHumanDesign o Genetic Matrix. No aceptamos imagenes ni capturas.")).toBeVisible();
+      await expect(page.getByRole("button", { name: /Reemplazar carta activa/i })).toBeVisible();
 
       await page.locator('input[type="file"]').setInputFiles({
         name: "mi-carta-grande.pdf",
@@ -291,7 +303,7 @@ test.describe("Onboarding & Assets resilience", () => {
         buffer: Buffer.from("%PDF"),
       });
       await expect(page.getByText("El archivo supera el límite de 10 MB.")).toBeVisible();
-      await expect(page.getByText("Todavía no subiste archivos.")).toBeVisible();
+      await expect(page.getByText("Tu biblioteca está vacía")).toBeVisible();
     });
 
     test("Preview, forbidden and missing failures stay friendly and keep the surface usable", async ({ page }) => {
@@ -364,10 +376,11 @@ test.describe("Onboarding & Assets resilience", () => {
       await expect(page.getByText("No tenés acceso a este archivo.")).toBeVisible();
       await expect(page.getByText("asset_forbidden")).not.toBeVisible();
 
+      await page.getByRole("button", { name: /^Quitar/ }).click();
       await page.getByRole("button", { name: /Sí, quitar/ }).click();
       await expect(page.getByText("Ese archivo ya no está disponible.")).toBeVisible();
       await expect(page.getByText("Asset not found")).not.toBeVisible();
-      await expect(page.getByRole("button", { name: "AGREGAR NUEVA CARTA" })).toBeVisible();
+      await expect(page.getByRole("button", { name: /Reemplazar carta activa/i })).toBeVisible();
     });
   });
 });

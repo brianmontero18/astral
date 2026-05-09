@@ -164,7 +164,7 @@ test.describe("Auth — Passwordless flow", () => {
     releaseCreateCode?.();
 
     await expect(page.getByLabel("Código de acceso")).toBeVisible();
-    await expect(page.getByText("Te enviamos un código y un enlace mágico a daniela@astral.test.")).toBeVisible();
+    await expect(page.getByText("Revisá tu bandeja. El código tiene 6 dígitos y vence en 10 minutos.")).toBeVisible();
     await expect(page.getByText("Destino")).toBeVisible();
     await expect(page.getByText("daniela@astral.test", { exact: true })).toBeVisible();
     expect(createPayload).toEqual({
@@ -172,9 +172,9 @@ test.describe("Auth — Passwordless flow", () => {
       shouldTryLinkingWithSessionUser: false,
     });
 
-    await page.getByRole("button", { name: "Reenviar acceso" }).click();
+    await page.getByRole("button", { name: "Reenviar código" }).click();
 
-    await expect(page.getByText("Reenviamos el acceso a daniela@astral.test.")).toBeVisible();
+    await expect(page.getByText("Acabamos de reenviarte el acceso. Revisá tu bandeja.")).toBeVisible();
 
     await page.getByRole("button", { name: "Usar otro correo" }).click();
 
@@ -232,8 +232,7 @@ test.describe("Auth — Passwordless flow", () => {
 
     await expect(page.getByLabel("Código de acceso")).toBeVisible();
 
-    await page.getByLabel("Código de acceso").fill("123 456");
-    await page.getByRole("button", { name: "Entrar a mi espacio" }).click();
+    await page.getByLabel("Código de acceso").fill("123456");
 
     await expect(page.getByRole("button", { name: "Validando..." })).toBeDisabled();
 
@@ -245,12 +244,12 @@ test.describe("Auth — Passwordless flow", () => {
       deviceId: "device-auth-2",
       preAuthSessionId: "pre-auth-2",
       shouldTryLinkingWithSessionUser: false,
-      userInputCode: "123 456",
+      userInputCode: "123456",
     });
 
-    await page.getByRole("button", { name: "Reenviar acceso" }).click();
+    await page.getByRole("button", { name: "Reenviar código" }).click();
 
-    await expect(page.getByText("Reenviamos el acceso a daniela@astral.test.")).toBeVisible();
+    await expect(page.getByText("Acabamos de reenviarte el acceso. Revisá tu bandeja.")).toBeVisible();
     await expect(page.getByLabel("Código de acceso")).toBeVisible();
   });
 
@@ -292,7 +291,7 @@ test.describe("Auth — Passwordless flow", () => {
 
     releaseConsume?.();
 
-    await expect(page.getByPlaceholder("Preguntá al oráculo sobre tu semana...")).toBeVisible();
+    await expect(page.getByPlaceholder(/Preguntá al oráculo/)).toBeVisible();
     await expect(page.getByText("Que transitos tengo esta semana?")).toBeVisible();
     expect(consumePayload).toEqual({
       linkCode: "magic-link-123",
@@ -332,7 +331,7 @@ test.describe("Auth — Passwordless flow", () => {
 
     await page.goto("/auth?redirectToPath=%2F&preAuthSessionId=pre-auto#magic-link-456");
 
-    await expect(page.getByPlaceholder("Preguntá al oráculo sobre tu semana...")).toBeVisible();
+    await expect(page.getByPlaceholder(/Preguntá al oráculo/)).toBeVisible();
     await expect(page.getByRole("button", { name: "Continuar con este enlace" })).toHaveCount(0);
     expect(consumeCalls).toBe(1);
   });

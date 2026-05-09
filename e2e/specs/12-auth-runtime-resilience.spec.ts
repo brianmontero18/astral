@@ -1,7 +1,8 @@
 import { test, expect } from "@playwright/test";
 
-import { mockChatHistory, mockGetReport, mockGetUser, mockHealth } from "../helpers/mock-api";
+import { mockChatHistory, mockGetReport, mockGetUser, mockHealth, mockUpdateUser } from "../helpers/mock-api";
 import { HISTORY_MESSAGES, TEST_USER, TEST_USER_NO_INTAKE } from "../helpers/fixtures";
+import { fillRequiredIntakeAndGenerate } from "../helpers/report";
 
 test.describe("Auth — Runtime Resilience", () => {
   test.beforeEach(async ({ page }) => {
@@ -17,14 +18,14 @@ test.describe("Auth — Runtime Resilience", () => {
     await page.goto("/");
 
     await expect(page.getByRole("button", { name: "Test User" })).toBeVisible();
-    await expect(page.getByPlaceholder("Preguntá al oráculo sobre tu semana...")).toBeVisible();
+    await expect(page.getByPlaceholder(/Preguntá al oráculo/)).toBeVisible();
 
-    await page.getByRole("button", { name: "Salir" }).click();
+    await page.getByRole("button", { name: "Cerrar sesión" }).click();
 
     await expect(page.getByRole("button", { name: "Test User" })).not.toBeVisible();
     await expect(page.getByRole("button", { name: "Chat" })).not.toBeVisible();
-    await expect(page.getByPlaceholder("Preguntá al oráculo sobre tu semana...")).not.toBeVisible();
-    await expect(page.getByText("Astral Guide", { exact: true })).toBeVisible();
+    await expect(page.getByPlaceholder(/Preguntá al oráculo/)).not.toBeVisible();
+    await expect(page.getByRole("heading", { name: "Tu portal de claridad empieza aquí" })).toBeVisible();
   });
 
   test("Session expiry during chat action shows friendly copy without leaking backend details", async ({ page }) => {
@@ -37,7 +38,7 @@ test.describe("Auth — Runtime Resilience", () => {
     });
     await page.goto("/");
 
-    const input = page.getByPlaceholder("Preguntá al oráculo sobre tu semana...");
+    const input = page.getByPlaceholder(/Preguntá al oráculo/);
     await input.fill("Necesito claridad");
     await page.getByRole("button", { name: "Enviar" }).click();
 
@@ -51,6 +52,7 @@ test.describe("Auth — Runtime Resilience", () => {
   test("Session expiry during report generation shows a safe fallback and lets the user return to chat", async ({ page }) => {
     await mockChatHistory(page, []);
     await mockGetReport(page, null);
+    await mockUpdateUser(page);
     await page.route("**/api/me/report", async (route) => {
       const pathname = new URL(route.request().url()).pathname;
 
@@ -64,17 +66,17 @@ test.describe("Auth — Runtime Resilience", () => {
     await page.goto("/");
 
     await page.getByRole("button", { name: "Test User" }).click();
-    await page.getByRole("button", { name: /Generar mi informe/ }).click();
+    await page.getByRole("dialog", { name: "Perfil activo" }).getByRole("button", { name: /Ver mi informe semanal/ }).click();
     await expect(page.getByText("Personalizá tu informe")).toBeVisible();
 
-    await page.getByRole("button", { name: "Omitir" }).click();
+    await fillRequiredIntakeAndGenerate(page);
 
     await expect(page.getByText("No se pudo generar el informe. Intentá de nuevo.")).toBeVisible();
     await expect(page.getByText("authentication_required")).not.toBeVisible();
     await expect(page.getByText(/Report generation failed|Backend error 401/)).not.toBeVisible();
 
     await page.getByRole("button", { name: "Volver", exact: true }).click();
-    await expect(page.getByPlaceholder("Preguntá al oráculo sobre tu semana...")).toBeVisible();
+    await expect(page.getByPlaceholder(/Preguntá al oráculo/)).toBeVisible();
   });
 
   test("Session expiry while loading assets keeps the shell usable and hides backend details", async ({ page }) => {
@@ -96,6 +98,6 @@ test.describe("Auth — Runtime Resilience", () => {
     await expect(page.getByText("/api/me/assets")).not.toBeVisible();
 
     await page.getByRole("button", { name: "Chat" }).click();
-    await expect(page.getByPlaceholder("Preguntá al oráculo sobre tu semana...")).toBeVisible();
+    await expect(page.getByPlaceholder(/Preguntá al oráculo/)).toBeVisible();
   });
 });

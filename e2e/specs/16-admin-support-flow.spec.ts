@@ -84,7 +84,7 @@ test.describe("Admin support — happy path", () => {
     await page.goto("/");
 
     await expect(page.getByRole("button", { name: "Usuarios" })).toHaveCount(0);
-    await expect(page.getByPlaceholder("Preguntá al oráculo sobre tu semana...")).toBeVisible();
+    await expect(page.getByPlaceholder(/Preguntá al oráculo/)).toBeVisible();
   });
 
   test("Admin can paginate, search, inspect detail, and save access for another user", async ({ page }) => {

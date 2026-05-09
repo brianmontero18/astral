@@ -31,7 +31,7 @@ test.describe("Admin support — safe copy", () => {
     await expect(page.getByText("/api/admin/users")).not.toBeVisible();
 
     await page.getByRole("button", { name: "Volver al chat" }).click();
-    await expect(page.getByPlaceholder("Preguntá al oráculo sobre tu semana...")).toBeVisible();
+    await expect(page.getByPlaceholder(/Preguntá al oráculo/)).toBeVisible();
   });
 
   test("Admin list failures show safe copy without leaking backend details", async ({ page }) => {
@@ -44,7 +44,7 @@ test.describe("Admin support — safe copy", () => {
 
     await expect(page.getByText("No se pudo abrir soporte")).toBeVisible();
     await expect(
-      page.getByText("Esta sesión dejó de tener permisos para operar el panel de soporte."),
+      page.getByText("Esta sesión dejó de tener permisos para operar el panel de soporte.").first(),
     ).toBeVisible();
     await expect(page.getByText("admin_required")).not.toBeVisible();
     await expect(page.getByText(/Admin users error 403/)).not.toBeVisible();
@@ -118,7 +118,7 @@ test.describe("Admin support — safe copy", () => {
     await page.getByRole("button", { name: "Guardar acceso" }).click();
 
     await expect(
-      page.getByText("Esta sesión dejó de tener permisos para operar el panel de soporte."),
+      page.getByText("Esta sesión dejó de tener permisos para operar el panel de soporte.").first(),
     ).toBeVisible();
     await expect(page.getByText("admin_required")).not.toBeVisible();
     await expect(page.getByText(/Admin user access update error 403/)).not.toBeVisible();

@@ -5,11 +5,13 @@ import {
   mockGenerateReport,
   mockGetAssets,
   mockGetReport,
+  mockGetReportStale,
   mockGetUser,
   mockHealth,
   mockTransits,
   mockUpdateUser,
 } from "../helpers/mock-api";
+import { fillRequiredIntakeAndGenerate } from "../helpers/report";
 import {
   FREE_REPORT,
   HISTORY_MESSAGES,
@@ -57,8 +59,7 @@ test.describe("Navigation — state preservation", () => {
     await expect(page.getByRole("heading", { name: "Mis Cartas" })).toBeVisible();
     await expect(page.getByText("carta-base.pdf")).toBeVisible();
 
-    await page.getByRole("button", { name: "Test User" }).click();
-    await page.getByRole("button", { name: /Generar mi informe/ }).click();
+    await page.getByRole("button", { name: "Informe", exact: true }).click();
     await expect(page.getByText("Personalizá tu informe")).toBeVisible();
 
     await page.getByLabel("¿A qué dedicás tu energía hoy?").fill("Navego entre superficies sin perderme");
@@ -68,18 +69,20 @@ test.describe("Navigation — state preservation", () => {
     await expect(page.getByRole("heading", { name: "Mis Cartas" })).toBeVisible();
     await expect(page.getByText("carta-base.pdf")).toBeVisible();
 
-    await page.getByRole("button", { name: "Test User" }).click();
-    await page.getByRole("button", { name: /Generar mi informe/ }).click();
+    await page.getByRole("button", { name: "Informe", exact: true }).click();
     await expect(page.getByText("Personalizá tu informe")).toBeVisible();
 
-    await page.getByRole("button", { name: "Omitir" }).click();
+    await fillRequiredIntakeAndGenerate(page, {
+      actividad: "Navego entre superficies sin perderme",
+      desafio: "Volver al informe desde otra pestaña",
+    });
     await expect(page.getByText("Informe Personal")).toBeVisible();
 
     await page.getByRole("button", { name: "Mis Cartas" }).click();
     await expect(page.getByRole("heading", { name: "Mis Cartas" })).toBeVisible();
 
     await page.getByRole("button", { name: "Chat" }).click();
-    await expect(page.getByPlaceholder("Preguntá al oráculo sobre tu semana...")).toBeVisible();
+    await expect(page.getByPlaceholder(/Preguntá al oráculo/)).toBeVisible();
     await expect(page.getByText("Que transitos tengo esta semana?")).toBeVisible();
     await expect(page.getByText("Como afecta mi centro Sacral?")).toBeVisible();
   });
@@ -92,8 +95,7 @@ test.describe("Navigation — state preservation", () => {
     await page.getByRole("button", { name: "Tránsitos" }).click();
     await expect(page.getByRole("heading", { name: "Tránsitos de la Semana" })).toBeVisible();
 
-    await page.getByRole("button", { name: "Test User" }).click();
-    await page.getByRole("button", { name: /Generar mi informe/ }).click();
+    await page.getByRole("button", { name: "Informe", exact: true }).click();
     await expect(page.getByText("Informe Personal")).toBeVisible();
 
     await page.getByRole("button", { name: /Editar mis respuestas/ }).click();
@@ -117,7 +119,7 @@ test.describe("Navigation — state preservation", () => {
     // The chat surface should not need the profile dropdown anymore — tapping
     // the new top-level Informe tab routes through handleGoToReport, which
     // surfaces the cached report directly.
-    await page.getByRole("button", { name: "Informe" }).click();
+    await page.getByRole("button", { name: "Informe", exact: true }).click();
     await expect(page.getByText("Informe Personal")).toBeVisible();
   });
 
@@ -132,11 +134,33 @@ test.describe("Navigation — state preservation", () => {
     await mockGenerateReport(page, FREE_REPORT);
     await page.goto("/");
 
-    await page.getByRole("button", { name: "Informe" }).click();
+    await page.getByRole("button", { name: "Informe", exact: true }).click();
 
     // Should land on the report, NOT on the intake form.
     await expect(page.getByText("Informe Personal")).toBeVisible();
     await expect(page.getByText("Personalizá tu informe")).not.toBeVisible();
+  });
+
+  test("Informe with completed intake and stale cached report regenerates without showing old content", async ({ page }) => {
+    let postCalled = false;
+    await mockGetUser(page, TEST_USER_WITH_INTAKE);
+    await mockGetReportStale(page);
+    await page.route("**/api/me/report", async (route) => {
+      if (route.request().method() === "POST" && new URL(route.request().url()).pathname === "/api/me/report") {
+        postCalled = true;
+        await route.fulfill({ status: 200, json: FREE_REPORT });
+        return;
+      }
+
+      await route.fallback();
+    });
+    await page.goto("/");
+
+    await page.getByRole("button", { name: "Informe", exact: true }).click();
+
+    await expect(page.getByText("Informe Personal")).toBeVisible();
+    await expect(page.getByText("Personalizá tu informe")).not.toBeVisible();
+    expect(postCalled).toBe(true);
   });
 
   test("admin clicking a tab from /admin/users lands on that tab without bouncing through Chat", async ({ page }) => {
@@ -188,6 +212,6 @@ test.describe("Navigation — state preservation", () => {
     await page.getByRole("button", { name: "Tránsitos" }).click();
     await expect(page.getByRole("heading", { name: "Tránsitos de la Semana" })).toBeVisible();
     // Chat placeholder must NOT appear — that would mean we bounced through it.
-    await expect(page.getByPlaceholder("Preguntá al oráculo sobre tu semana...")).not.toBeVisible();
+    await expect(page.getByPlaceholder(/Preguntá al oráculo/)).not.toBeVisible();
   });
 });
