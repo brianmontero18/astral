@@ -346,7 +346,7 @@ describe("Report routes", () => {
       nextIntake,
     );
 
-    computeProfileHashMock.mockReturnValueOnce("new-intake-hash");
+    computeProfileHashMock.mockReturnValue("new-intake-hash");
     generateReportMock.mockResolvedValueOnce({
       tier: "free",
       profileHash: "new-intake-hash",
