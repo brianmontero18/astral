@@ -11,7 +11,7 @@ import { AdminUsersView } from "./components/AdminUsersView";
 import { AdminUserDetailView } from "./components/AdminUserDetailView";
 import { NavBar } from "./components/NavBar";
 import { ChatView } from "./components/ChatView";
-import { TransitViewer } from "./components/TransitViewer";
+import { TransitExperienceContainer } from "./transits/TransitExperienceContainer";
 import { AssetViewer } from "./components/AssetViewer";
 import { IntakeView } from "./components/IntakeView";
 import { ReportView } from "./components/ReportView";
@@ -45,6 +45,7 @@ import type {
   DesignReport,
   View,
 } from "./types";
+import type { TransitChatContext } from "./transits/types";
 
 function readCurrentPathname(): string {
   if (typeof window === "undefined") {
@@ -78,6 +79,7 @@ export default function App() {
     null,
   );
   const [chatPrefill, setChatPrefill] = useState<string | null>(null);
+  const [transitChatContext, setTransitChatContext] = useState<TransitChatContext | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const adminSupportRoute = parseAdminSupportRoute(pathname);
 
@@ -497,15 +499,23 @@ export default function App() {
                     userName={user.name}
                     onOpenReport={handleGoToReport}
                     prefill={chatPrefill}
+                    transitContext={transitChatContext}
                     onPrefillConsumed={() => setChatPrefill(null)}
+                    onTransitContextConsumed={() => setTransitChatContext(null)}
                   />
                 )}
                 {currentView === "transits" && (
-                  <TransitViewer
+                  <TransitExperienceContainer
                     key={profileRevision}
-                    profile={profile}
-                    onAskAgent={(prefill) => {
-                      setChatPrefill(prefill);
+                    onAskAgent={(payload) => {
+                      setChatPrefill(payload.prefill);
+                      setTransitChatContext({
+                        source: "transitScreen",
+                        mode: payload.mode,
+                        snapshotId: payload.snapshotId,
+                        targetAt: payload.targetAt,
+                        timeZone: payload.timeZone,
+                      });
                       handleNavigate("chat");
                     }}
                   />

@@ -12,8 +12,8 @@ import { mockSessionModule } from "./session-mock.js";
 
 const runAstralAgentMock = vi.fn();
 const runAstralAgentStreamMock = vi.fn();
-const getTransitsCachedMock = vi.fn();
 const analyzeTransitImpactMock = vi.fn();
+const getTransitSnapshotCachedMock = vi.fn();
 
 function mockAgentResult(content: string) {
   return {
@@ -33,21 +33,13 @@ vi.mock("../agent-service.js", () => ({
   CHAT_MODEL: "gpt-4o-mini",
 }));
 
-vi.mock("../routes/transits.js", async () => {
-  const actual = await vi.importActual<typeof import("../routes/transits.js")>("../routes/transits.js");
-
-  return {
-    ...actual,
-    getTransitsCached: getTransitsCachedMock,
-  };
-});
-
 vi.mock("../transit-service.js", async () => {
   const actual = await vi.importActual<typeof import("../transit-service.js")>("../transit-service.js");
 
   return {
     ...actual,
     analyzeTransitImpact: analyzeTransitImpactMock,
+    getTransitSnapshotCached: getTransitSnapshotCachedMock,
   };
 });
 
@@ -77,8 +69,22 @@ const MOCK_TRANSITS = {
   activatedChannels: [],
 };
 
+const MOCK_TRANSIT_SNAPSHOT = {
+  id: "instant:2026-04-20T00:00:00.000Z",
+  targetAt: MOCK_TRANSITS.fetchedAt,
+  calculatedAt: "2026-04-20T00:00:01.000Z",
+  label: MOCK_TRANSITS.weekRange,
+  collective: {
+    planets: MOCK_TRANSITS.planets,
+    activatedGates: [],
+    activatedChannels: [],
+    activatedCenters: [],
+    temporarilyDefinedCenters: [],
+  },
+};
+
 beforeAll(() => {
-  getTransitsCachedMock.mockResolvedValue(MOCK_TRANSITS);
+  getTransitSnapshotCachedMock.mockResolvedValue(MOCK_TRANSIT_SNAPSHOT);
   analyzeTransitImpactMock.mockReturnValue({
     personalChannels: [],
     conditionedCenters: [],
@@ -90,10 +96,10 @@ beforeAll(() => {
 afterEach(() => {
   runAstralAgentMock.mockReset();
   runAstralAgentStreamMock.mockReset();
-  getTransitsCachedMock.mockReset();
+  getTransitSnapshotCachedMock.mockReset();
   analyzeTransitImpactMock.mockReset();
 
-  getTransitsCachedMock.mockResolvedValue(MOCK_TRANSITS);
+  getTransitSnapshotCachedMock.mockResolvedValue(MOCK_TRANSIT_SNAPSHOT);
   analyzeTransitImpactMock.mockReturnValue({
     personalChannels: [],
     conditionedCenters: [],
@@ -476,6 +482,12 @@ describe("Freemium message limit", () => {
       undefined, // intake (test user has none)
       undefined, // memory (test user has none)
     );
+    expect(getTransitSnapshotCachedMock).toHaveBeenCalledWith(
+      "instant",
+      expect.any(Date),
+      "UTC",
+      "Ahora",
+    );
     expect(userId).toEqual(expect.any(String));
   });
 
@@ -514,6 +526,45 @@ describe("Freemium message limit", () => {
         expect.objectContaining({ role: "assistant", content: "Respuesta streaming" }),
       ],
     });
+  });
+
+  it("POST /api/chat/stream uses transitContext.targetAt for transit-screen questions", async () => {
+    await createLinkedTestUser(app, "st-chat-stream-transit-context");
+    const targetAt = "2026-05-10T17:00:00.000Z";
+    getTransitSnapshotCachedMock.mockResolvedValueOnce({
+      ...MOCK_TRANSIT_SNAPSHOT,
+      id: `instant:${targetAt}`,
+      targetAt,
+      label: "Tránsito seleccionado",
+    });
+    runAstralAgentStreamMock.mockImplementationOnce(async function* streamReply() {
+      yield "Respuesta con contexto";
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/chat/stream",
+      headers: sessionHeaders("st-chat-stream-transit-context"),
+      payload: {
+        messages: [{ role: "user", content: "¿Cómo me afecta esta hora?" }],
+        transitContext: {
+          source: "transitScreen",
+          mode: "today",
+          snapshotId: "hour:2026-05-10T17:00:00.000Z",
+          targetAt,
+          timeZone: "America/Argentina/Buenos_Aires",
+        },
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toContain(`"transits_used":"${targetAt}"`);
+    expect(getTransitSnapshotCachedMock).toHaveBeenCalledWith(
+      "instant",
+      new Date(targetAt),
+      "America/Argentina/Buenos_Aires",
+      "Tránsito seleccionado",
+    );
   });
 
   it("does not persist duplicate messages when the backend agent fails", async () => {

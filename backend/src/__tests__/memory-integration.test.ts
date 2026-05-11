@@ -23,8 +23,8 @@ import { mockSessionModule } from "./session-mock.js";
 const runAstralAgentMock = vi.fn();
 const runAstralAgentStreamMock = vi.fn();
 const runMemoryWriterMock = vi.fn();
-const getTransitsCachedMock = vi.fn();
 const analyzeTransitImpactMock = vi.fn();
+const getTransitSnapshotCachedMock = vi.fn();
 
 vi.mock("../auth/session.js", () => mockSessionModule());
 
@@ -45,14 +45,13 @@ vi.mock("../memory-writer.js", async () => {
   };
 });
 
-vi.mock("../routes/transits.js", async () => {
-  const actual = await vi.importActual<typeof import("../routes/transits.js")>("../routes/transits.js");
-  return { ...actual, getTransitsCached: getTransitsCachedMock };
-});
-
 vi.mock("../transit-service.js", async () => {
   const actual = await vi.importActual<typeof import("../transit-service.js")>("../transit-service.js");
-  return { ...actual, analyzeTransitImpact: analyzeTransitImpactMock };
+  return {
+    ...actual,
+    analyzeTransitImpact: analyzeTransitImpactMock,
+    getTransitSnapshotCached: getTransitSnapshotCachedMock,
+  };
 });
 
 const { createLinkedTestUser, createTestApp, sessionHeaders } = await import("./helpers.js");
@@ -67,6 +66,20 @@ const MOCK_TRANSITS = {
   weekRange: "Apr 27 – May 3, 2026",
   planets: [],
   activatedChannels: [],
+};
+
+const MOCK_TRANSIT_SNAPSHOT = {
+  id: "instant:2026-04-27T00:00:00.000Z",
+  targetAt: MOCK_TRANSITS.fetchedAt,
+  calculatedAt: "2026-04-27T00:00:01.000Z",
+  label: MOCK_TRANSITS.weekRange,
+  collective: {
+    planets: MOCK_TRANSITS.planets,
+    activatedGates: [],
+    activatedChannels: [],
+    activatedCenters: [],
+    temporarilyDefinedCenters: [],
+  },
 };
 
 const MOCK_IMPACT = {
@@ -102,7 +115,7 @@ afterAll(async () => {
 });
 
 beforeEach(() => {
-  getTransitsCachedMock.mockResolvedValue(MOCK_TRANSITS);
+  getTransitSnapshotCachedMock.mockResolvedValue(MOCK_TRANSIT_SNAPSHOT);
   analyzeTransitImpactMock.mockReturnValue(MOCK_IMPACT);
 });
 
@@ -110,6 +123,7 @@ afterEach(() => {
   runAstralAgentMock.mockReset();
   runAstralAgentStreamMock.mockReset();
   runMemoryWriterMock.mockReset();
+  getTransitSnapshotCachedMock.mockReset();
 });
 
 describe("Memory layer — two-turn integration", () => {

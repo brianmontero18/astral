@@ -24,6 +24,7 @@ import type {
   DesignReport,
 } from "./types";
 import type { ChatUsageSnapshot } from "./chat-limits";
+import type { TransitChatContext } from "./transits/types";
 
 const BASE = "/api";
 
@@ -141,11 +142,16 @@ async function readErrorMessage(res: Response): Promise<string> {
 export async function sendChat(
   messages: ChatMessage[],
   profile?: UserProfile,
+  transitContext?: TransitChatContext,
 ): Promise<ChatResponse> {
   const res = await fetch(`${BASE}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(profile ? { profile, messages } : { messages }),
+    body: JSON.stringify({
+      ...(profile && { profile }),
+      messages,
+      ...(transitContext && { transitContext }),
+    }),
   });
   if (!res.ok) {
     if (res.status === 403) {
@@ -164,11 +170,16 @@ export async function sendChatStream(
   messages: ChatMessage[],
   onChunk: (accumulated: string) => void,
   profile?: UserProfile,
+  transitContext?: TransitChatContext,
 ): Promise<{ transits_used: string; userMsgId?: number; assistantMsgId?: number }> {
   const res = await fetch(`${BASE}/chat/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(profile ? { profile, messages } : { messages }),
+    body: JSON.stringify({
+      ...(profile && { profile }),
+      messages,
+      ...(transitContext && { transitContext }),
+    }),
   });
 
   if (!res.ok) {

@@ -1,10 +1,62 @@
 import type { FastifyInstance } from "fastify";
-import { fetchWeeklyTransits, type WeeklyTransits, analyzeTransitImpact, type TransitImpact } from "../transit-service.js";
+import {
+  fetchWeeklyTransits,
+  type WeeklyTransits,
+  analyzeTransitImpact,
+  type TransitImpact,
+  buildTransitExperience,
+  isValidTimeZone,
+  type BuildTransitExperienceInput,
+  type TransitExperienceMode,
+  type UserHDProfile,
+} from "../transit-service.js";
 import { getCachedTransits, setCachedTransits, getISOWeekKey, getUser } from "../db.js";
 import { type AuthenticatedRequest } from "../auth/session.js";
 import { resolveRequestCurrentUser } from "../auth/current-user.js";
 
 export async function transitRoutes(app: FastifyInstance) {
+  app.get<{
+    Querystring: {
+      mode?: string;
+      timeZone?: string;
+      clientNow?: string;
+      selectedAt?: string;
+      includeTimeline?: string;
+    };
+  }>("/transits/experience", async (req, reply) => {
+    const parsed = parseExperienceQuery(req.query);
+    if ("error" in parsed) {
+      return reply.status(400).send({ error: parsed.error });
+    }
+
+    try {
+      const currentUser = await resolveRequestCurrentUser(
+        req as AuthenticatedRequest,
+        reply,
+      );
+
+      if (reply.sent) {
+        return;
+      }
+
+      let profile: UserHDProfile | undefined;
+      if (
+        currentUser.kind === "linked" &&
+        currentUser.user.onboarding_status === "complete"
+      ) {
+        const user = await getUser(currentUser.user.id);
+        profile = user ? extractUserHDProfile(user.profile) : undefined;
+      }
+
+      const experience = await buildTransitExperience(parsed.input, profile);
+      return reply.send(experience);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      app.log.error(message);
+      return reply.status(502).send({ error: message });
+    }
+  });
+
   app.get<{ Querystring: { userId?: string; timeZone?: string; clientNow?: string } }>("/transits", async (req, reply) => {
     try {
       const transits = await getTransitsCached(req.query.timeZone, req.query.clientNow);
@@ -55,6 +107,67 @@ export async function getTransitsCached(timeZone?: string, clientNow?: string): 
   const fresh = await fetchWeeklyTransits(now, timeZone);
   await setCachedTransits(cacheKey, fresh);
   return fresh;
+}
+
+function parseExperienceQuery(query: {
+  mode?: string;
+  timeZone?: string;
+  clientNow?: string;
+  selectedAt?: string;
+  includeTimeline?: string;
+}): { input: BuildTransitExperienceInput; error?: undefined } | { input?: undefined; error: string } {
+  if (query.mode !== "today" && query.mode !== "next7Days") {
+    return { error: "invalid_mode" };
+  }
+
+  if (!query.timeZone || !isValidTimeZone(query.timeZone)) {
+    return { error: "invalid_time_zone" };
+  }
+
+  const clientNow = parseRequiredEpochMs(query.clientNow);
+  if (!clientNow) {
+    return { error: "invalid_time" };
+  }
+
+  const selectedAt = query.selectedAt === undefined
+    ? undefined
+    : parseRequiredEpochMs(query.selectedAt);
+
+  if (query.selectedAt !== undefined && !selectedAt) {
+    return { error: "invalid_time" };
+  }
+
+  return {
+    input: {
+      mode: query.mode as TransitExperienceMode,
+      timeZone: query.timeZone,
+      clientNow,
+      ...(selectedAt && { selectedAt }),
+      includeTimeline: query.includeTimeline === "true",
+    },
+  };
+}
+
+function parseRequiredEpochMs(value: string | undefined): Date | null {
+  if (!value) return null;
+  const timestamp = Number(value);
+  if (!Number.isFinite(timestamp)) return null;
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return null;
+  return date;
+}
+
+function extractUserHDProfile(profile: object): UserHDProfile {
+  const hdProfile = profile as {
+    humanDesign?: {
+      activatedGates?: Array<{ number: number }>;
+      definedCenters?: string[];
+    };
+  };
+  return {
+    activatedGates: hdProfile.humanDesign?.activatedGates ?? [],
+    definedCenters: hdProfile.humanDesign?.definedCenters ?? [],
+  };
 }
 
 function parseClientNow(clientNow?: string): Date {

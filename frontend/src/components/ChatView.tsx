@@ -16,6 +16,7 @@ import {
   type ChatUsageSnapshot,
 } from "../chat-limits";
 import { FLAGS } from "../config/flags";
+import type { TransitChatContext } from "../transits/types";
 
 interface ChatMsg extends ChatMessage {
   dbId?: number;
@@ -126,10 +127,19 @@ interface Props {
   userName: string;
   onOpenReport?: () => void;
   prefill?: string | null;
+  transitContext?: TransitChatContext | null;
   onPrefillConsumed?: () => void;
+  onTransitContextConsumed?: () => void;
 }
 
-export function ChatView({ userName, onOpenReport, prefill, onPrefillConsumed }: Props) {
+export function ChatView({
+  userName,
+  onOpenReport,
+  prefill,
+  transitContext,
+  onPrefillConsumed,
+  onTransitContextConsumed,
+}: Props) {
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -144,6 +154,7 @@ export function ChatView({ userName, onOpenReport, prefill, onPrefillConsumed }:
   const [editText, setEditText] = useState("");
   const [feedback, setFeedback] = useState<Record<number, "up" | "down">>({});
   const [feedbackPending, setFeedbackPending] = useState<Record<number, boolean>>({});
+  const [pendingTransitContext, setPendingTransitContext] = useState<TransitChatContext | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const resetDateLabel = formatResetDate(messageUsage?.resetsAt);
 
@@ -234,8 +245,9 @@ export function ChatView({ userName, onOpenReport, prefill, onPrefillConsumed }:
       return;
     }
     setInput(prefill);
+    setPendingTransitContext(transitContext ?? null);
     onPrefillConsumed?.();
-  }, [prefill, onPrefillConsumed]);
+  }, [prefill, transitContext, onPrefillConsumed]);
 
   const sendMessage = async (text: string, baseMessages?: ChatMsg[]) => {
     const trimmed = text.trim();
@@ -250,6 +262,11 @@ export function ChatView({ userName, onOpenReport, prefill, onPrefillConsumed }:
     setMessages(updated);
     setLoading(true);
     bumpMessageUsage();
+    const transitContextForMessage = pendingTransitContext ?? undefined;
+    if (pendingTransitContext) {
+      setPendingTransitContext(null);
+      onTransitContextConsumed?.();
+    }
 
     try {
       const withPlaceholder: ChatMsg[] = [...updated, { role: "assistant", content: "", pending: true }];
@@ -263,7 +280,7 @@ export function ChatView({ userName, onOpenReport, prefill, onPrefillConsumed }:
           copy[copy.length - 1] = { role: "assistant", content: accumulated, pending: false };
           return copy;
         });
-      });
+      }, undefined, transitContextForMessage);
 
       // Update dbIds on the persisted messages so edit truncation works in-session
       setMessages((prev) => {
@@ -299,7 +316,7 @@ export function ChatView({ userName, onOpenReport, prefill, onPrefillConsumed }:
       setMessages(updated);
       setLoading(true);
       try {
-        const data = await sendChat(updated);
+        const data = await sendChat(updated, undefined, transitContextForMessage);
         setMessages((prev) => {
           const copy = [...prev];
           // Set dbId on the user message we just sent

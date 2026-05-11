@@ -23,8 +23,13 @@ import {
   type FeedbackThumb,
   type LlmCallRoute,
 } from "../db.js";
-import { getTransitsCached } from "./transits.js";
-import { analyzeTransitImpact } from "../transit-service.js";
+import {
+  analyzeTransitImpact,
+  getTransitSnapshotCached,
+  isValidTimeZone,
+  transitSnapshotToWeeklyTransits,
+  type WeeklyTransits,
+} from "../transit-service.js";
 import { type AuthenticatedRequest } from "../auth/session.js";
 import {
   resolveRequestCurrentUser,
@@ -142,6 +147,15 @@ export async function chatRoutes(app: FastifyInstance) {
     profile?: UserProfile;
     userId?: string;
     messages: ChatMessage[];
+    transitContext?: TransitChatContext;
+  }
+
+  interface TransitChatContext {
+    source: "transitScreen";
+    mode: "today" | "next7Days";
+    snapshotId: string;
+    targetAt: string;
+    timeZone: string;
   }
 
   async function getPersistedChatUsage(
@@ -153,11 +167,52 @@ export async function chatRoutes(app: FastifyInstance) {
     return buildChatUsageSnapshot(plan, used, now);
   }
 
+  function parseTransitChatContext(
+    context: TransitChatContext | undefined,
+  ): { context?: TransitChatContext; error?: undefined } | { context?: undefined; error: string } {
+    if (!context) {
+      return {};
+    }
+
+    if (
+      context.source !== "transitScreen" ||
+      (context.mode !== "today" && context.mode !== "next7Days") ||
+      !context.snapshotId ||
+      !context.targetAt ||
+      !context.timeZone ||
+      !isValidTimeZone(context.timeZone)
+    ) {
+      return { error: "invalid_transit_context" };
+    }
+
+    const targetAt = new Date(context.targetAt);
+    if (Number.isNaN(targetAt.getTime())) {
+      return { error: "invalid_transit_context" };
+    }
+
+    return { context };
+  }
+
+  async function getTransitsForChat(
+    context?: TransitChatContext,
+  ): Promise<WeeklyTransits> {
+    const targetAt = context ? new Date(context.targetAt) : new Date();
+    const timeZone = context?.timeZone ?? "UTC";
+    const label = context ? "Tránsito seleccionado" : "Ahora";
+    const snapshot = await getTransitSnapshotCached("instant", targetAt, timeZone, label);
+    return transitSnapshotToWeeklyTransits(snapshot);
+  }
+
   app.post<{ Body: ChatBody }>("/chat", async (req, reply) => {
     const { profile: directProfile, userId, messages } = req.body;
 
     if (!messages?.length) {
       return reply.status(400).send({ error: "Missing messages" });
+    }
+
+    const transitContext = parseTransitChatContext(req.body.transitContext);
+    if (transitContext.error) {
+      return reply.status(400).send({ error: transitContext.error });
     }
 
     const currentUser = await resolveRequestCurrentUser(
@@ -221,7 +276,7 @@ export async function chatRoutes(app: FastifyInstance) {
     }
 
     try {
-      const transits = await getTransitsCached();
+      const transits = await getTransitsForChat(transitContext.context);
       const impact = analyzeTransitImpact(transits, {
         activatedGates: profile.humanDesign?.activatedGates ?? [],
         definedCenters: profile.humanDesign?.definedCenters ?? [],
@@ -270,6 +325,11 @@ export async function chatRoutes(app: FastifyInstance) {
 
     if (!messages?.length) {
       return reply.status(400).send({ error: "Missing messages" });
+    }
+
+    const transitContext = parseTransitChatContext(req.body.transitContext);
+    if (transitContext.error) {
+      return reply.status(400).send({ error: transitContext.error });
     }
 
     const currentUser = await resolveRequestCurrentUser(
@@ -336,7 +396,7 @@ export async function chatRoutes(app: FastifyInstance) {
     });
 
     try {
-      const transits = await getTransitsCached();
+      const transits = await getTransitsForChat(transitContext.context);
       const impact = analyzeTransitImpact(transits, {
         activatedGates: profile.humanDesign?.activatedGates ?? [],
         definedCenters: profile.humanDesign?.definedCenters ?? [],

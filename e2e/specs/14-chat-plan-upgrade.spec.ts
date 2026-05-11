@@ -170,7 +170,7 @@ test.describe("Chat — Plan upgrades", () => {
           body,
         });
       });
-      await page.goto("/");
+      await page.goto("/", { waitUntil: "domcontentloaded" });
 
       await expect(page.getByText("Que transitos tengo esta semana?")).toBeVisible();
       await expect(page.getByText("Tu ventana al cosmos de este mes se ha completado")).toBeVisible();
@@ -199,7 +199,7 @@ test.describe("Chat — Plan upgrades", () => {
       await expect(page.getByText(`Seguimos despues del upgrade a ${upgradeCase.to}`)).toBeVisible();
 
       await page.getByRole("button", { name: "Tránsitos" }).click();
-      await expect(page.getByText("Tránsitos de la Semana")).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Tránsitos" })).toBeVisible();
 
       await page.getByRole("button", { name: "Chat" }).click();
       await expect(page.getByText("Que transitos tengo esta semana?")).toBeVisible();

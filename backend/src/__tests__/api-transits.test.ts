@@ -7,6 +7,7 @@
 
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
 import type { FastifyInstance } from "fastify";
+import type { TransitSnapshot } from "../transit-service.js";
 import { mockSessionModule } from "./session-mock.js";
 
 const { fetchWeeklyTransitsMock } = vi.hoisted(() => ({
@@ -233,5 +234,260 @@ describe("GET /api/transits", () => {
     expect(recoveredBody.planets).toHaveLength(13);
     expect(recoveredBody.weekRange).toBeDefined();
     expect(fetchWeeklyTransitsMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("GET /api/transits/experience", () => {
+  const clientNow = Date.parse("2026-05-10T14:23:00.000Z");
+  const selectedAt = Date.parse("2026-05-10T17:00:00.000Z");
+  const baseUrl = `/api/transits/experience?mode=today&timeZone=Etc%2FUTC&clientNow=${clientNow}`;
+
+  it("returns the v2 today contract with the exact selectedAt", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: `${baseUrl}&selectedAt=${selectedAt}`,
+    });
+    const body = JSON.parse(res.body);
+
+    expect(res.statusCode).toBe(200);
+    expect(body.version).toBe("transits.v2");
+    expect(body.mode).toBe("today");
+    expect(body.selectedAt).toBe("2026-05-10T17:00:00.000Z");
+    expect(body.range.kind).toBe("today");
+    expect(body.snapshots[0].collective.activatedGates).toEqual(expect.any(Array));
+    expect(body.snapshots[0].collective.activatedChannels).toEqual(expect.any(Array));
+    expect(body.snapshots[0].collective.activatedCenters).toEqual(expect.any(Array));
+    expect(body.snapshots[0].collective.temporarilyDefinedCenters).toEqual(expect.any(Array));
+    expect(body.snapshots[0].personal).toBeUndefined();
+  });
+
+  it("includes 24 hourly snapshots and reuses cached collective hour facts", async () => {
+    const url = `${baseUrl}&includeTimeline=true`;
+    const first = await app.inject({ method: "GET", url });
+    const second = await app.inject({ method: "GET", url });
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+
+    const firstBody = JSON.parse(first.body);
+    const secondBody = JSON.parse(second.body);
+    const firstHourly = firstBody.snapshots.filter((snapshot: { id: string }) => snapshot.id.startsWith("hour:"));
+    const secondHourly = secondBody.snapshots.filter((snapshot: { id: string }) => snapshot.id.startsWith("hour:"));
+
+    expect(firstHourly).toHaveLength(24);
+    expect(firstBody.snapshots).toHaveLength(25);
+    expect(secondHourly).toHaveLength(24);
+    expect(secondHourly[0].calculatedAt).toBe(firstHourly[0].calculatedAt);
+    expect(secondHourly[0].collective).toEqual(firstHourly[0].collective);
+  });
+
+  it("recomputes personal facts from users.profile without changing cached collective facts", async () => {
+    const subject = "st-transits-v2-profile-replace";
+    const userId = await createLinkedTestUser(app, subject, "Transit V2 User", {
+      humanDesign: {
+        activatedGates: [],
+        definedCenters: [],
+        undefinedCenters: ["Head", "Ajna", "G", "Throat", "Sacral", "SolarPlexus", "Root", "Heart", "Spleen"],
+      },
+    });
+    const url = `${baseUrl}&includeTimeline=true`;
+    const first = await app.inject({
+      method: "GET",
+      url,
+      headers: sessionHeaders(subject),
+    });
+    const firstBody = JSON.parse(first.body);
+    const firstGate = firstBody.snapshots[0].collective.activatedGates[0].gate;
+
+    await updateUserBodygraph(
+      userId,
+      {
+        humanDesign: {
+          activatedGates: [{ number: firstGate }],
+          definedCenters: [],
+          undefinedCenters: ["Head", "Ajna", "G", "Throat", "Sacral", "SolarPlexus", "Root", "Heart", "Spleen"],
+        },
+      },
+      "asset-transit-v2-profile",
+    );
+
+    const second = await app.inject({
+      method: "GET",
+      url,
+      headers: sessionHeaders(subject),
+    });
+    const secondBody = JSON.parse(second.body);
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(firstBody.snapshots[0].personal.reinforcedGates).toEqual([]);
+    expect(secondBody.snapshots[0].personal.reinforcedGates).toEqual([
+      expect.objectContaining({ gate: firstGate }),
+    ]);
+    expect(secondBody.snapshots.find((snapshot: { id: string }) => snapshot.id.startsWith("hour:")).collective)
+      .toEqual(firstBody.snapshots.find((snapshot: { id: string }) => snapshot.id.startsWith("hour:")).collective);
+  });
+
+  it("returns collective only for pending linked users", async () => {
+    await createLinkedTestUser(
+      app,
+      "st-transits-v2-pending",
+      "Transit Pending User",
+      { humanDesign: { activatedGates: [{ number: 55 }], definedCenters: [] } },
+      { onboardingStatus: "pending", onboardingStep: "name" },
+    );
+
+    const res = await app.inject({
+      method: "GET",
+      url: baseUrl,
+      headers: sessionHeaders("st-transits-v2-pending"),
+    });
+    const body = JSON.parse(res.body);
+
+    expect(res.statusCode).toBe(200);
+    expect(body.version).toBe("transits.v2");
+    expect(body.snapshots[0].collective).toBeDefined();
+    expect(body.snapshots[0].personal).toBeUndefined();
+  });
+
+  it("keeps activated, conditioned, and temporarily defined centers separate", async () => {
+    const subject = "st-transits-v2-centers";
+    await createLinkedTestUser(app, subject, "Transit Centers User", {
+      humanDesign: {
+        activatedGates: [],
+        definedCenters: ["Sacral"],
+        undefinedCenters: ["Head", "Ajna", "G", "Throat", "SolarPlexus", "Root", "Heart", "Spleen"],
+      },
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: baseUrl,
+      headers: sessionHeaders(subject),
+    });
+    const snapshot = JSON.parse(res.body).snapshots[0];
+
+    expect(snapshot.collective.activatedCenters).toEqual(expect.any(Array));
+    expect(snapshot.collective.temporarilyDefinedCenters).toEqual(expect.any(Array));
+    expect(snapshot.personal.conditionedCenters).toEqual(expect.any(Array));
+    const activatedIds = new Set(snapshot.collective.activatedCenters.map((center: { id: string }) => center.id));
+    const definedIds = new Set(snapshot.collective.temporarilyDefinedCenters.map((center: { id: string }) => center.id));
+    expect(snapshot.collective.activatedCenters.length).toBeGreaterThanOrEqual(definedIds.size);
+    for (const centerId of definedIds) {
+      expect(activatedIds.has(centerId)).toBe(true);
+    }
+  });
+
+  it("does not report temporarily defined centers as merely conditioned", () => {
+    const snapshot: TransitSnapshot = {
+      id: "instant:test-channel",
+      targetAt: "2026-05-10T14:00:00.000Z",
+      calculatedAt: "2026-05-10T14:00:01.000Z",
+      label: "Test",
+      collective: {
+        planets: [
+          {
+            name: "Venus",
+            longitude: 0,
+            sign: "Aries",
+            degree: 0,
+            isRetrograde: false,
+            hdGate: 35,
+            hdLine: 1,
+          },
+          {
+            name: "Marte",
+            longitude: 0,
+            sign: "Aries",
+            degree: 0,
+            isRetrograde: false,
+            hdGate: 36,
+            hdLine: 1,
+          },
+        ],
+        activatedGates: [
+          { gate: 35, lines: [1], planets: ["Venus"], center: "Throat" },
+          { gate: 36, lines: [1], planets: ["Marte"], center: "SolarPlexus" },
+        ],
+        activatedChannels: [
+          {
+            id: "35-36",
+            name: "Canal de lo Transitorio",
+            gates: [35, 36],
+            centers: ["Throat", "SolarPlexus"],
+          },
+        ],
+        activatedCenters: [
+          { id: "Throat", displayName: "Garganta", gates: [35], channels: ["35-36"] },
+          { id: "SolarPlexus", displayName: "Plexo Solar", gates: [36], channels: ["35-36"] },
+        ],
+        temporarilyDefinedCenters: [
+          {
+            id: "Throat",
+            displayName: "Garganta",
+            channels: [
+              {
+                id: "35-36",
+                name: "Canal de lo Transitorio",
+                gates: [35, 36],
+                centers: ["Throat", "SolarPlexus"],
+              },
+            ],
+          },
+          {
+            id: "SolarPlexus",
+            displayName: "Plexo Solar",
+            channels: [
+              {
+                id: "35-36",
+                name: "Canal de lo Transitorio",
+                gates: [35, 36],
+                centers: ["Throat", "SolarPlexus"],
+              },
+            ],
+          },
+        ],
+      },
+    };
+
+    const personal = actualTransitService.analyzeTransitExperienceImpact(
+      snapshot,
+      { activatedGates: [], definedCenters: [] },
+    );
+
+    expect(personal.temporarilyDefinedCenters.map((center) => center.id).sort()).toEqual([
+      "SolarPlexus",
+      "Throat",
+    ]);
+    expect(personal.conditionedCenters).toEqual([]);
+  });
+
+  it("returns panorama step for next7Days MVP", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/transits/experience?mode=next7Days&timeZone=Etc%2FUTC&clientNow=${clientNow}`,
+    });
+    const body = JSON.parse(res.body);
+
+    expect(res.statusCode).toBe(200);
+    expect(body.version).toBe("transits.v2");
+    expect(body.mode).toBe("next7Days");
+    expect(body.range.step).toBe("panorama");
+  });
+
+  it("validates timeZone and time params", async () => {
+    const badTz = await app.inject({
+      method: "GET",
+      url: `/api/transits/experience?mode=today&timeZone=Nope%2FNowhere&clientNow=${clientNow}`,
+    });
+    const badTime = await app.inject({
+      method: "GET",
+      url: "/api/transits/experience?mode=today&timeZone=Etc%2FUTC&clientNow=nope",
+    });
+
+    expect(badTz.statusCode).toBe(400);
+    expect(JSON.parse(badTz.body).error).toBe("invalid_time_zone");
+    expect(badTime.statusCode).toBe(400);
+    expect(JSON.parse(badTime.body).error).toBe("invalid_time");
   });
 });

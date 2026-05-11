@@ -1,484 +1,513 @@
-import { useState, useEffect } from "react";
-import { fetchTransits } from "../api";
-import { CENTER_DISPLAY } from "../utils";
-import { getGateTheme, getChannelInfo, getChannelInfoByName } from "../hd-data";
-import { getTransitFailureMessage } from "../transit-errors";
-import type { TransitsResponse, PlanetTransit, PersonalChannel, UserProfile } from "../types";
-
-// ─── Planetary glyphs ────────────────────────────────────────────────────────
-
-const PLANET_GLYPHS: Record<string, string> = {
-  Sol: "☉", Luna: "☽", Mercurio: "☿", Venus: "♀", Marte: "♂",
-  "Júpiter": "♃", Saturno: "♄", Urano: "♅", Neptuno: "♆",
-  "Plutón": "♇", "Quirón": "⚷", "Nodo Norte": "☊", "Nodo Sur": "☋",
-};
-
-// ─── Component ───────────────────────────────────────────────────────────────
+import { useState } from "react";
+import { getGateTheme } from "../hd-data";
+import type {
+  TransitAskAgentPayload,
+  TransitCenterGroupModel,
+  TransitImpactCardModel,
+  TransitImpactSectionModel,
+  TransitMode,
+  TransitPlanetDetailModel,
+  TransitScreenModel,
+} from "../transits/types";
 
 interface Props {
-  profile: UserProfile;
-  onAskAgent?: (prefill: string) => void;
+  model: TransitScreenModel;
+  error?: string | null;
+  onModeChange: (mode: TransitMode) => void;
+  onTimeSelect: (snapshotId: string) => void;
+  onTimeNow: () => void;
+  onRefresh: () => void;
+  onAskAgent?: (payload: TransitAskAgentPayload) => void;
 }
 
-export function TransitViewer({ profile, onAskAgent }: Props) {
-  const [data, setData] = useState<TransitsResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [expandedCard, setExpandedCard] = useState<string | null>(null);
+export function TransitViewer({
+  model,
+  error,
+  onModeChange,
+  onTimeSelect,
+  onTimeNow,
+  onRefresh,
+  onAskAgent,
+}: Props) {
+  const [expandedPlanet, setExpandedPlanet] = useState<string | null>(null);
+  const [showAllPlanets, setShowAllPlanets] = useState(false);
+  const [showAllActivated, setShowAllActivated] = useState(false);
 
-  // Set of user's activated gate numbers for quick lookup
-  const userGates = new Set(
-    profile.humanDesign.activatedGates?.map((g) => g.number) ?? []
-  );
+  const timelineIndex = model.timeline
+    ? resolveTimelineIndex(
+        model.timeline.snapshots,
+        model.timeline.selectedSnapshotId,
+        model.actions.askAgent.targetAt,
+      )
+    : 0;
 
-  const toggleExpand = (id: string) =>
-    setExpandedCard((prev) => (prev === id ? null : id));
-
-  useEffect(() => {
-    fetchTransits()
-      .then(setData)
-      .catch((e) => setError(getTransitFailureMessage(e)))
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) {
-    return (
-      <div style={{ textAlign: "center", marginTop: 60, color: "var(--text-on-light-muted)", fontSize: 13 }}>
-        <div
-          style={{
-            width: 36, height: 36, borderRadius: "50%",
-            border: "3px solid rgba(33, 41, 30, 0.12)",
-            borderTopColor: "var(--color-gold-deep)",
-            animation: "spin 1s linear infinite",
-            margin: "0 auto 16px",
-          }}
-        />
-        Cargando tránsitos...
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={{ margin: "40px auto", maxWidth: 600, padding: "24px", textAlign: "center" }} className="glass-panel">
-        <div style={{ color: "#f3c2c2", fontSize: "14px", fontFamily: "var(--font-sans)" }}>
-          {error}
-        </div>
-      </div>
-    );
-  }
-
-  if (!data) return null;
+  const isSelectedHour = model.actions.askAgent.source === "selectedTime";
+  const pulseChannels = model.primaryInsight.pulseChannels ?? [];
+  const pulseGates = model.primaryInsight.pulseGates ?? [];
 
   return (
-    <div style={{ maxWidth: 760, margin: "0 auto", padding: "16px 16px 32px", overflowY: "auto", flex: 1, width: "100%", boxSizing: "border-box" as const }} className="animate-fade-in-slow">
-      {/* Header */}
-      <div className="page-header">
-        <div className="page-header-kicker">{data.weekRange}</div>
-        <h2 className="page-header-title">Tránsitos de la semana</h2>
+    <div
+      className="animate-fade-in-slow transit-screen"
+      style={{
+        maxWidth: 860,
+        margin: "0 auto",
+        padding: "16px 16px 32px",
+        overflowY: "auto",
+        flex: 1,
+        width: "100%",
+        minWidth: 0,
+      }}
+    >
+      <header className="transit-hero">
+        <div className="transit-hero-kicker">{model.header.rangeLabel}</div>
+        <h2 className="transit-hero-title">{model.header.title}</h2>
+        <p className="transit-hero-meta">{model.header.activeLabel} · {model.header.subtitle}</p>
+      </header>
+
+      <div className="transit-controls">
+        <div
+          role="group"
+          aria-label="Rango de tránsitos"
+          className="transit-segmented"
+        >
+          {model.selector.options.map((option) => (
+            <button
+              key={option.mode}
+              type="button"
+              onClick={() => onModeChange(option.mode)}
+              aria-pressed={option.selected}
+              className={`transit-segmented-option${option.selected ? " is-selected" : ""}`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="transit-controls-actions">
+          {model.mode === "today" && (
+            <button
+              type="button"
+              onClick={onTimeNow}
+              className={`transit-now-chip${isSelectedHour ? " is-active" : ""}`}
+              aria-pressed={!isSelectedHour}
+            >
+              <span aria-hidden="true" className="transit-now-dot" />
+              Ahora
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="transit-icon-button"
+            aria-label="Actualizar tránsitos"
+            title="Actualizar"
+          >
+            <span aria-hidden="true">↻</span>
+          </button>
+        </div>
       </div>
 
-      {/* Planet grid — 2 columns desktop, 1 column mobile */}
-      <div className="transit-planet-grid" style={{ marginBottom: "24px" }}>
-        {data.planets.map((p) => (
-          <PlanetCard
-            key={p.name}
-            planet={p}
-            touchesUser={userGates.has(p.hdGate)}
-            expanded={expandedCard === `planet-${p.name}`}
-            onToggle={() => toggleExpand(`planet-${p.name}`)}
-            onAskAgent={onAskAgent}
-          />
-        ))}
-      </div>
-
-      {/* Activated channels */}
-      {data.activatedChannels.length > 0 && (
-        <div className="glass-panel-gold" style={{ padding: "20px", marginBottom: "16px" }}>
-          <div style={{
-            color: "var(--color-primary)", fontSize: "10px", letterSpacing: "0.18em",
-            marginBottom: "6px", fontWeight: 700, textAlign: "center", textTransform: "uppercase",
-          }}>
-            Canales activados por tránsitos
-          </div>
-          <div style={{
-            color: "var(--text-muted)", fontSize: "12px", textAlign: "center",
-            marginBottom: "14px", fontFamily: "var(--font-sans)", fontWeight: 400,
-          }}>
-            Canales completados por las posiciones planetarias actuales
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            {data.activatedChannels.map((ch) => {
-              const info = getChannelInfoByName(ch);
-              const isExpanded = expandedCard === `channel-${ch}`;
-              return (
-                <div
-                  key={ch}
-                  onClick={() => toggleExpand(`channel-${ch}`)}
-                  style={{
-                    background: "rgba(207, 172, 108, 0.08)",
-                    border: "1px solid rgba(207, 172, 108, 0.22)",
-                    borderRadius: "10px", padding: "10px 14px",
-                    cursor: "pointer",
-                    transition: "all 0.3s ease",
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ color: "var(--color-primary)", fontSize: "12px", fontWeight: 600 }}>{ch}</span>
-                    <span
-                      aria-hidden="true"
-                      style={{
-                        display: "inline-flex",
-                        color: "var(--text-muted)",
-                        transition: "transform 0.2s",
-                        transform: isExpanded ? "rotate(180deg)" : "none",
-                      }}
-                    >
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="6 9 12 15 18 9" />
-                      </svg>
-                    </span>
-                  </div>
-                  {isExpanded && info && (
-                    <div style={{
-                      marginTop: "8px", paddingTop: "8px",
-                      borderTop: "1px solid rgba(207, 172, 108, 0.18)",
-                      color: "var(--text-muted)", fontSize: "12px",
-                      lineHeight: 1.6, fontFamily: "var(--font-sans)",
-                      animation: "fadeIn 0.3s ease",
-                    }}>
-                      <span style={{ color: "var(--color-primary)", fontSize: "9px", letterSpacing: "0.14em", fontFamily: "var(--font-sans)", fontWeight: 700 }}>
-                        {info.circuit.toUpperCase()}
-                      </span>
-                      <div style={{ marginTop: "4px" }}>{info.description}</div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+      {error && (
+        <div className="glass-panel transit-error" role="alert">
+          {error}
         </div>
       )}
 
-      {data.activatedChannels.length === 0 && (
-        <p style={{
-          color: "var(--text-on-light-muted)", fontSize: "13px", textAlign: "center",
-          fontStyle: "italic", fontFamily: "var(--font-serif)",
-        }}>
-          No hay canales completos activados por tránsitos esta semana.
-        </p>
+      {model.loadingState === "refreshing" && (
+        <div className="transit-refreshing">Actualizando lectura…</div>
       )}
 
-      {/* ─── Impact sections (available when the session has a linked user) ─────────────────── */}
-
-      {data.impact && data.impact.personalChannels.length > 0 && (
-        <div className="glass-panel-gold" style={{
-          padding: "20px", marginBottom: "16px",
-          borderColor: "rgba(207, 172, 108, 0.42)",
-        }}>
-          <div style={{
-            color: "var(--color-primary)", fontSize: "10px", letterSpacing: "0.18em",
-            marginBottom: "6px", fontWeight: 700, textAlign: "center", textTransform: "uppercase",
-          }}>
-            Canales personales activados
-          </div>
-          <div style={{
-            color: "var(--text-muted)", fontSize: "12px", textAlign: "center",
-            marginBottom: "14px", fontFamily: "var(--font-sans)", fontWeight: 400,
-          }}>
-            Un tránsito completa un canal de tu diseño
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            {data.impact.personalChannels.map((ch) => (
-              <PersonalChannelCard
-                key={`${ch.channelId}-${ch.transitPlanet}`}
-                channel={ch}
-                expanded={expandedCard === `personal-${ch.channelId}`}
-                onToggle={() => toggleExpand(`personal-${ch.channelId}`)}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {data.impact && data.impact.conditionedCenters.length > 0 && (
-        <div className="glass-panel" style={{
-          padding: "20px", marginBottom: "16px",
-        }}>
-          <div style={{
-            color: "var(--color-accent)", fontSize: "10px", letterSpacing: "0.18em",
-            marginBottom: "6px", fontWeight: 700, textAlign: "center", textTransform: "uppercase",
-          }}>
-            Centros condicionados
-          </div>
-          <div style={{
-            color: "var(--text-muted)", fontSize: "12px", textAlign: "center",
-            marginBottom: "14px", fontFamily: "var(--font-sans)", fontWeight: 400,
-          }}>
-            Tránsitos activando tus centros indefinidos
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            {data.impact.conditionedCenters.map((cc) => (
-              <div key={cc.center} style={{
-                background: "rgba(248, 244, 232, 0.04)",
-                border: "1px solid rgba(248, 244, 232, 0.1)",
-                borderRadius: "10px", padding: "10px 14px",
-              }}>
-                <div style={{
-                  color: "var(--text-main)", fontSize: "12px", fontWeight: 600, marginBottom: "4px",
-                }}>
-                  {CENTER_DISPLAY[cc.center] ?? cc.center}
-                </div>
-                <div style={{ color: "var(--text-muted)", fontSize: "11px" }}>
-                  {cc.gates.map((g) => `${g.planet} en Puerta ${g.gate}`).join(", ")}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {data.impact && data.impact.reinforcedGates.length > 0 && (
-        <div className="glass-panel" style={{
-          padding: "20px", marginBottom: "16px",
-        }}>
-          <div style={{
-            color: "var(--text-muted)", fontSize: "10px", letterSpacing: "0.18em",
-            marginBottom: "6px", fontWeight: 700, textAlign: "center", textTransform: "uppercase",
-          }}>
-            Puertas reforzadas
-          </div>
-          <div style={{
-            color: "var(--text-muted)", fontSize: "12px", textAlign: "center",
-            marginBottom: "14px", fontFamily: "var(--font-sans)", fontWeight: 400,
-          }}>
-            Tránsitos que tocan puertas que ya tenés
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", justifyContent: "center" }}>
-            {data.impact.reinforcedGates.map((rg) => (
-              <span key={`${rg.gate}-${rg.planet}`} style={{
-                background: "rgba(248, 244, 232, 0.06)",
-                border: "1px solid rgba(248, 244, 232, 0.12)",
-                borderRadius: "20px", padding: "5px 14px",
-                color: "var(--text-muted)", fontSize: "11px",
-              }}>
-                Puerta {rg.gate} — {rg.planet}
+      <section className="glass-panel-gold transit-insight">
+        <div className="transit-insight-kicker">{model.primaryInsight.eyebrow}</div>
+        <h3 className="transit-insight-title">{model.primaryInsight.title}</h3>
+        {model.primaryInsight.headlineDetail && (
+          <p className="transit-insight-detail">{model.primaryInsight.headlineDetail}</p>
+        )}
+        {(model.primaryInsight.attribution || model.primaryInsight.duration) && (
+          <p className="transit-insight-microcopy">
+            {model.primaryInsight.attribution && (
+              <span className="transit-insight-attribution">
+                {model.primaryInsight.attribution}
               </span>
-            ))}
+            )}
+            {model.primaryInsight.duration && (
+              <span className="transit-insight-duration">
+                {model.primaryInsight.duration}
+              </span>
+            )}
+          </p>
+        )}
+        <p className="transit-insight-body">{model.primaryInsight.body}</p>
+        {(pulseChannels.length > 0 || pulseGates.length > 0) && (
+          <div className="transit-insight-pulse">
+            {pulseChannels.length > 0 && (
+              <ul className="transit-insight-channels" aria-label="Canales activos">
+                {pulseChannels.map((channel) => (
+                  <li key={channel.id} className="transit-insight-channel">
+                    <span className="transit-insight-channel-name">{channel.name}</span>
+                    {channel.centers && (
+                      <span className="transit-insight-channel-meta">{channel.centers}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {pulseGates.length > 0 && (
+              <ul className="transit-insight-gates" aria-label="Puertas activadas">
+                {pulseGates.map((gate) => (
+                  <li key={gate.id} className="transit-insight-gate">
+                    {gate.label}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-        </div>
+        )}
+      </section>
+
+      {model.nextChange && (
+        <section className="transit-next-change" aria-label="Próximo cambio del día">
+          <div className="transit-next-change-kicker">{model.nextChange.kicker}</div>
+          <div className="transit-next-change-row">
+            <span className="transit-next-change-time">{model.nextChange.atLabel}</span>
+            <span className="transit-next-change-summary">{model.nextChange.summary}</span>
+          </div>
+        </section>
       )}
 
-      <p style={{ color: "var(--text-on-light-faint)", fontSize: "10px", textAlign: "center", marginTop: "20px" }}>
-        Última actualización: {new Date(data.fetchedAt).toLocaleString("es-AR")}
-      </p>
+      {model.personalSections.map((section) => (
+        <ImpactSection key={section.id} section={section} />
+      ))}
+
+      {model.timeline && (
+        <TimelineSection
+          activeLabel={model.header.activeLabel}
+          isSelectedHour={isSelectedHour}
+          snapshots={model.timeline.snapshots}
+          selectedIndex={timelineIndex}
+          onTimeSelect={onTimeSelect}
+          onTimeNow={onTimeNow}
+        />
+      )}
+
+      {model.centerGroups.length > 0 && (
+        <CentersSection
+          groups={model.centerGroups}
+          showAllActivated={showAllActivated}
+          onToggleAllActivated={() => setShowAllActivated((prev) => !prev)}
+        />
+      )}
+
+      <section className="glass-panel transit-panel">
+        <div className="transit-panel-kicker">DETALLE PLANETARIO</div>
+        <p className="transit-panel-sub">
+          {model.planetDetails.length} cuerpos en este momento. Cada uno está cayendo en una puerta y línea HD.
+        </p>
+        <div className="transit-planet-grid">
+          {(showAllPlanets ? model.planetDetails : model.planetDetails.slice(0, 6)).map((planet) => (
+            <PlanetRow
+              key={planet.id}
+              planet={planet}
+              expanded={expandedPlanet === planet.id}
+              onToggle={() => setExpandedPlanet((prev) => (prev === planet.id ? null : planet.id))}
+            />
+          ))}
+        </div>
+        {model.planetDetails.length > 6 && (
+          <button
+            type="button"
+            className="transit-show-more"
+            onClick={() => setShowAllPlanets((prev) => !prev)}
+            aria-expanded={showAllPlanets}
+          >
+            {showAllPlanets
+              ? "Mostrar menos"
+              : `Ver los ${model.planetDetails.length - 6} cuerpos restantes`}
+          </button>
+        )}
+      </section>
+
+      <button
+        type="button"
+        className="btn-primary transit-cta"
+        onClick={() => onAskAgent?.(model.actions.askAgent)}
+      >
+        {buildAskAgentButtonLabel(model)}
+      </button>
+
+      <p className="transit-calculated">{model.header.calculatedLabel}</p>
     </div>
   );
 }
 
-// ─── Planet Card ──────────────────────────────────────────────────────────────
+interface ImpactSectionProps {
+  section: TransitImpactSectionModel;
+}
 
-function PlanetCard({ planet, touchesUser, expanded, onToggle, onAskAgent }: {
-  planet: PlanetTransit;
-  touchesUser: boolean;
+function ImpactSection({ section }: ImpactSectionProps) {
+  return (
+    <section className={`glass-panel transit-impact transit-impact--${section.kind}`}>
+      <div className="transit-impact-kicker">{section.title.toUpperCase()}</div>
+      {section.subtitle && <p className="transit-impact-sub">{section.subtitle}</p>}
+      <ul className="transit-impact-list">
+        {section.items.map((item) => (
+          <ImpactRow key={item.id} item={item} kind={section.kind} />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+interface ImpactRowProps {
+  item: TransitImpactCardModel;
+  kind: TransitImpactSectionModel["kind"];
+}
+
+function ImpactRow({ item, kind }: ImpactRowProps) {
+  return (
+    <li className="transit-impact-row">
+      <span className={`transit-impact-tag transit-impact-tag--${kind}`}>{item.eyebrow}</span>
+      <div className="transit-impact-row-body">
+        <div className="transit-impact-row-title">{item.title}</div>
+        <div className="transit-impact-row-text">{item.body}</div>
+        {item.meta && <div className="transit-impact-row-meta">{item.meta}</div>}
+      </div>
+    </li>
+  );
+}
+
+interface TimelineSectionProps {
+  activeLabel: string;
+  isSelectedHour: boolean;
+  snapshots: Array<{ id: string; label: string; targetAt: string }>;
+  selectedIndex: number;
+  onTimeSelect: (snapshotId: string) => void;
+  onTimeNow: () => void;
+}
+
+function TimelineSection({
+  activeLabel,
+  isSelectedHour,
+  snapshots,
+  selectedIndex,
+  onTimeSelect,
+  onTimeNow,
+}: TimelineSectionProps) {
+  const max = Math.max(snapshots.length - 1, 0);
+  const fillPercent = max > 0 ? (selectedIndex / max) * 100 : 0;
+  const tickLabels = pickTickLabels(snapshots);
+
+  return (
+    <section className="glass-panel transit-panel transit-timeline">
+      <div className="transit-panel-kicker">EXPLORAR EL DÍA</div>
+      <p className="transit-timeline-active">{activeLabel}</p>
+      <div className="transit-timeline-track">
+        <div
+          className="transit-timeline-fill"
+          style={{ width: `${fillPercent}%` }}
+          aria-hidden="true"
+        />
+        <input
+          type="range"
+          aria-label="Seleccionar hora del tránsito"
+          min={0}
+          max={max}
+          value={selectedIndex}
+          onChange={(event) => {
+            const snapshot = snapshots[Number(event.currentTarget.value)];
+            if (snapshot) onTimeSelect(snapshot.id);
+          }}
+          className="transit-timeline-input"
+        />
+      </div>
+      <div className="transit-timeline-ticks" aria-hidden="true">
+        {tickLabels.map((label, i) => (
+          <span key={`${label}-${i}`}>{label}</span>
+        ))}
+      </div>
+      {isSelectedHour && (
+        <button type="button" onClick={onTimeNow} className="transit-timeline-now-link">
+          Volver al momento actual
+        </button>
+      )}
+    </section>
+  );
+}
+
+interface CentersSectionProps {
+  groups: TransitCenterGroupModel[];
+  showAllActivated: boolean;
+  onToggleAllActivated: () => void;
+}
+
+function CentersSection({ groups, showAllActivated, onToggleAllActivated }: CentersSectionProps) {
+  const temporarilyDefined = groups.find((g) => g.kind === "temporarilyDefined");
+  const conditioned = groups.find((g) => g.kind === "conditioned");
+  const activated = groups.find((g) => g.kind === "activated");
+
+  return (
+    <section className="glass-panel transit-panel transit-centers">
+      <div className="transit-panel-kicker">CENTROS</div>
+
+      {temporarilyDefined && temporarilyDefined.centers.length > 0 && (
+        <div className="transit-centers-group transit-centers-group--temporary">
+          <div className="transit-centers-label">Definidos temporalmente</div>
+          <p className="transit-centers-hint">
+            Un canal completo está uniendo estos centros mientras dure el tránsito.
+          </p>
+          <ul className="transit-centers-pills">
+            {temporarilyDefined.centers.map((center) => (
+              <li key={`temp-${center.id}`} className="transit-center-pill transit-center-pill--temporary">
+                <span className="transit-center-dot" aria-hidden="true" />
+                {center.displayName}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {conditioned && conditioned.centers.length > 0 && (
+        <div className="transit-centers-group transit-centers-group--conditioned">
+          <div className="transit-centers-label">Condicionados</div>
+          <p className="transit-centers-hint">
+            Centros indefinidos tuyos recibiendo presión externa. Notalo, no lo confundas con vos.
+          </p>
+          <ul className="transit-centers-pills">
+            {conditioned.centers.map((center) => (
+              <li key={`cond-${center.id}`} className="transit-center-pill transit-center-pill--conditioned">
+                {center.displayName}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {activated && activated.centers.length > 0 && (
+        <div className="transit-centers-group transit-centers-group--activated">
+          <button
+            type="button"
+            className="transit-centers-toggle"
+            onClick={onToggleAllActivated}
+            aria-expanded={showAllActivated}
+          >
+            <span className="transit-centers-label">Activados</span>
+            <span className="transit-centers-count">{activated.centers.length}</span>
+            <span className="transit-centers-chevron" aria-hidden="true">
+              {showAllActivated ? "−" : "+"}
+            </span>
+          </button>
+          {showAllActivated && (
+            <ul className="transit-centers-pills">
+              {activated.centers.map((center) => (
+                <li key={`act-${center.id}`} className="transit-center-pill transit-center-pill--activated">
+                  {center.displayName}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+interface PlanetRowProps {
+  planet: TransitPlanetDetailModel;
   expanded: boolean;
   onToggle: () => void;
-  onAskAgent?: (prefill: string) => void;
-}) {
-  const glyph = PLANET_GLYPHS[planet.name] ?? "•";
+}
+
+function PlanetRow({ planet, expanded, onToggle }: PlanetRowProps) {
   const gateTheme = getGateTheme(planet.hdGate);
 
   return (
-    <div
-      className={touchesUser ? "glass-panel-gold" : "glass-panel"}
+    <button
+      type="button"
       onClick={onToggle}
-      style={{
-        padding: "14px 16px",
-        transition: "all 0.3s ease",
-        display: "flex",
-        gap: "12px",
-        alignItems: "flex-start",
-        borderColor: touchesUser ? "rgba(207, 172, 108, 0.42)" : undefined,
-        cursor: "pointer",
-      }}
-      onMouseOver={(e) => {
-        e.currentTarget.style.borderColor = touchesUser
-          ? "rgba(207, 172, 108, 0.7)"
-          : "rgba(248, 244, 232, 0.22)";
-      }}
-      onMouseOut={(e) => {
-        e.currentTarget.style.borderColor = touchesUser
-          ? "rgba(207, 172, 108, 0.42)"
-          : "var(--glass-border)";
-      }}
+      aria-expanded={expanded}
+      className={`transit-planet-card${expanded ? " is-expanded" : ""}`}
     >
-      {/* Glyph */}
-      <div style={{
-        fontSize: "22px",
-        lineHeight: 1,
-        color: touchesUser ? "var(--color-primary)" : "var(--color-accent)",
-        flexShrink: 0,
-        width: "28px",
-        textAlign: "center",
-        paddingTop: "2px",
-      }}>
-        {glyph}
-      </div>
-
-      {/* Info */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-          <span style={{ color: "var(--text-main)", fontSize: "13px", fontWeight: 600 }}>
-            {planet.name}
-          </span>
-          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            {planet.isRetrograde && (
-              <span style={{
-                background: "rgba(207, 172, 108, 0.18)",
-                border: "1px solid rgba(207, 172, 108, 0.42)",
-                borderRadius: "8px", padding: "1px 7px",
-                color: "var(--color-primary)", fontSize: "9px", fontWeight: 700, letterSpacing: "0.04em",
-              }}>
-                Rx
-              </span>
-            )}
-            <span
-              aria-hidden="true"
-              style={{
-                display: "inline-flex",
-                color: "var(--text-muted)",
-                transition: "transform 0.2s",
-                transform: expanded ? "rotate(180deg)" : "none",
-              }}
-            >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
-            </span>
-          </div>
-        </div>
-        <div style={{
-          color: "var(--text-muted)", fontSize: "12px", marginBottom: "3px",
-          fontFamily: "var(--font-sans)",
-        }}>
+      <span className="transit-planet-glyph" aria-hidden="true">
+        {planet.glyph}
+      </span>
+      <span className="transit-planet-body">
+        <span className="transit-planet-name">
+          {planet.name}
+          {planet.isRetrograde && <span className="transit-planet-rx">Rx</span>}
+        </span>
+        <span className="transit-planet-meta">
           {planet.sign} {planet.degree}°
-        </div>
-        <div style={{
-          color: touchesUser ? "var(--color-primary)" : "var(--text-muted)",
-          fontSize: "10px", letterSpacing: "0.05em", fontWeight: touchesUser ? 600 : 400,
-        }}>
-          Puerta {planet.hdGate} · Línea {planet.hdLine}
-        </div>
-        {touchesUser && (
-          <div style={{
-            marginTop: "6px", fontSize: "9px", color: "var(--color-primary)",
-            letterSpacing: "0.14em", fontWeight: 700, textTransform: "uppercase",
-          }}>
-            ✦ ACTIVA TU PUERTA {planet.hdGate}
-          </div>
-        )}
-        {expanded && gateTheme && (
-          <div style={{
-            marginTop: "8px", paddingTop: "8px",
-            borderTop: `1px solid ${touchesUser ? "rgba(207, 172, 108, 0.22)" : "rgba(248, 244, 232, 0.1)"}`,
-            animation: "fadeIn 0.3s ease",
-          }}>
-            <div style={{
-              color: touchesUser ? "var(--color-primary)" : "var(--text-main)",
-              fontSize: "12px", fontWeight: 600, marginBottom: "4px",
-              fontFamily: "var(--font-serif)",
-            }}>
-              {gateTheme.name}
-            </div>
-            <div style={{
-              color: "var(--text-muted)", fontSize: "11px",
-              lineHeight: 1.6, fontFamily: "var(--font-serif)",
-            }}>
-              {gateTheme.theme}
-            </div>
-            {onAskAgent && touchesUser && (
-              <button
-                type="button"
-                className="transit-ask-agent"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAskAgent(
-                    `¿Cómo me afecta esta semana que ${planet.name} esté activando mi Puerta ${planet.hdGate} (línea ${planet.hdLine})?`,
-                  );
-                }}
-              >
-                Preguntale al agente sobre Puerta {planet.hdGate}
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
+        </span>
+        <span className="transit-planet-gate">
+          Puerta {planet.hdGate}
+          <span className="transit-planet-line"> · Línea {planet.hdLine}</span>
+        </span>
+      </span>
+      <span className={`transit-planet-chevron${expanded ? " is-open" : ""}`} aria-hidden="true">
+        ⌄
+      </span>
+      {expanded && gateTheme && (
+        <span className="transit-planet-detail">
+          <span className="transit-planet-detail-title">{gateTheme.name}</span>
+          <span className="transit-planet-detail-theme">{gateTheme.theme}</span>
+        </span>
+      )}
+    </button>
   );
 }
 
-// ─── Personal Channel Card ───────────────────────────────────────────────────
+function resolveTimelineIndex(
+  snapshots: Array<{ id: string; targetAt: string }>,
+  selectedSnapshotId: string,
+  targetAt: string,
+): number {
+  const exactIndex = snapshots.findIndex((snapshot) => snapshot.id === selectedSnapshotId);
+  if (exactIndex >= 0) {
+    return exactIndex;
+  }
 
-function PersonalChannelCard({ channel, expanded, onToggle }: {
-  channel: PersonalChannel;
-  expanded: boolean;
-  onToggle: () => void;
-}) {
-  const info = getChannelInfo(channel.channelId);
+  const selectedTime = Date.parse(targetAt);
+  if (!Number.isFinite(selectedTime)) {
+    return 0;
+  }
 
-  return (
-    <div
-      onClick={onToggle}
-      style={{
-        background: "rgba(207, 172, 108, 0.08)",
-        border: "1px solid rgba(207, 172, 108, 0.22)",
-        borderRadius: "10px", padding: "10px 14px",
-        cursor: "pointer",
-        transition: "all 0.3s ease",
-      }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <div style={{
-            color: "var(--color-primary)", fontSize: "12px", fontWeight: 600, marginBottom: "4px",
-          }}>
-            {channel.channelName} ({channel.channelId})
-          </div>
-          <div style={{ color: "var(--text-muted)", fontSize: "11px" }}>
-            Tu Puerta {channel.userGate} + {channel.transitPlanet} en Puerta {channel.transitGate}
-          </div>
-        </div>
-        <span
-          aria-hidden="true"
-          style={{
-            display: "inline-flex",
-            color: "var(--text-muted)",
-            transition: "transform 0.2s",
-            transform: expanded ? "rotate(180deg)" : "none",
-          }}
-        >
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </span>
-      </div>
-      {expanded && info && (
-        <div style={{
-          marginTop: "8px", paddingTop: "8px",
-          borderTop: "1px solid rgba(207, 172, 108, 0.18)",
-          animation: "fadeIn 0.3s ease",
-        }}>
-          <span style={{ color: "var(--color-primary)", fontSize: "9px", letterSpacing: "0.14em", fontFamily: "var(--font-sans)", fontWeight: 700 }}>
-            {info.circuit.toUpperCase()}
-          </span>
-          <div style={{
-            marginTop: "4px", color: "var(--text-muted)", fontSize: "12px",
-            lineHeight: 1.6, fontFamily: "var(--font-serif)",
-          }}>
-            {info.description}
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  let nearestIndex = 0;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+
+  snapshots.forEach((snapshot, index) => {
+    const snapshotTime = Date.parse(snapshot.targetAt);
+    if (!Number.isFinite(snapshotTime)) {
+      return;
+    }
+
+    const distance = Math.abs(snapshotTime - selectedTime);
+    if (distance < nearestDistance) {
+      nearestDistance = distance;
+      nearestIndex = index;
+    }
+  });
+
+  return nearestIndex;
+}
+
+function pickTickLabels(snapshots: Array<{ label: string }>): string[] {
+  if (snapshots.length === 0) return [];
+  if (snapshots.length <= 6) return snapshots.map((s) => s.label);
+  const indexes = [0, 4, 8, 12, 16, 20].filter((i) => i < snapshots.length);
+  const labels = indexes.map((i) => snapshots[i].label);
+  const last = snapshots[snapshots.length - 1].label;
+  if (!labels.includes(last)) labels.push(last);
+  return labels;
+}
+
+function buildAskAgentButtonLabel(model: TransitScreenModel): string {
+  if (model.actions.askAgent.source === "selectedTime") {
+    return `Preguntale al agente sobre ${model.header.activeLabel.replace("A las ", "las ")}`;
+  }
+
+  if (model.mode === "next7Days") {
+    return "Preguntale al agente sobre los próximos 7 días";
+  }
+
+  return "Preguntale al agente sobre este momento";
 }

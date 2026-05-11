@@ -276,6 +276,14 @@ export async function initDb(): Promise<void> {
         data       TEXT NOT NULL,
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       )`,
+      `CREATE TABLE IF NOT EXISTS transit_snapshots_cache (
+        cache_key  TEXT PRIMARY KEY,
+        kind       TEXT NOT NULL CHECK(kind IN ('instant','hour','day','panorama')),
+        time_zone  TEXT NOT NULL,
+        target_at  TEXT NOT NULL,
+        data       TEXT NOT NULL CHECK(json_valid(data)),
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
       `CREATE TABLE IF NOT EXISTS chat_messages (
         id             INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id        TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -956,6 +964,56 @@ export async function setCachedTransits(weekKey: string, data: object): Promise<
   await client.execute({
     sql: "INSERT OR REPLACE INTO transit_cache (week_key, data, created_at) VALUES (?, ?, datetime('now'))",
     args: [weekKey, JSON.stringify(data)],
+  });
+}
+
+export interface CachedTransitSnapshot {
+  cache_key: string;
+  kind: "instant" | "hour" | "day" | "panorama";
+  time_zone: string;
+  target_at: string;
+  data: object;
+  created_at: string;
+}
+
+export async function getCachedTransitSnapshot(
+  cacheKey: string,
+): Promise<CachedTransitSnapshot | undefined> {
+  const result = await client.execute({
+    sql: "SELECT cache_key, kind, time_zone, target_at, data, created_at FROM transit_snapshots_cache WHERE cache_key = ?",
+    args: [cacheKey],
+  });
+  const row = result.rows[0];
+  if (!row) return undefined;
+
+  return {
+    cache_key: row.cache_key as string,
+    kind: row.kind as CachedTransitSnapshot["kind"],
+    time_zone: row.time_zone as string,
+    target_at: row.target_at as string,
+    data: JSON.parse(row.data as string) as object,
+    created_at: row.created_at as string,
+  };
+}
+
+export async function setCachedTransitSnapshot(input: {
+  cacheKey: string;
+  kind: CachedTransitSnapshot["kind"];
+  timeZone: string;
+  targetAt: string;
+  data: object;
+}): Promise<void> {
+  await client.execute({
+    sql: `INSERT OR REPLACE INTO transit_snapshots_cache
+          (cache_key, kind, time_zone, target_at, data, created_at)
+          VALUES (?, ?, ?, ?, ?, datetime('now'))`,
+    args: [
+      input.cacheKey,
+      input.kind,
+      input.timeZone,
+      input.targetAt,
+      JSON.stringify(input.data),
+    ],
   });
 }
 

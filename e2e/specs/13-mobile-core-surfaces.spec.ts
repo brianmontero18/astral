@@ -62,7 +62,7 @@ test.describe("Mobile — Core Surfaces", () => {
     await mockGetReport(page, FREE_REPORT);
     await mockTransits(page);
     await mockGetAssets(page, MOBILE_ASSETS);
-    await page.goto("/");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
 
     await expect(page.getByRole("button", { name: "Test User" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Cerrar sesión" })).toBeVisible();
@@ -94,8 +94,9 @@ test.describe("Mobile — Core Surfaces", () => {
     await expect(page.getByPlaceholder(/Preguntá al oráculo/)).toBeVisible();
 
     await page.getByRole("button", { name: "Tránsitos" }).click();
-    await expect(page.getByText("Tránsitos de la Semana")).toBeVisible();
-    await expect(page.getByText("Mar 28 – Apr 3, 2026")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Tránsitos" })).toBeVisible();
+    await expect(page.getByText("Ahora · 08:15", { exact: true })).toBeVisible();
+    await expect(page.getByText("CENTROS", { exact: true })).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
     await page.getByRole("button", { name: "Mis Cartas" }).click();
@@ -113,7 +114,7 @@ test.describe("Mobile — Core Surfaces", () => {
     await mockGenerateReportError(page, 500);
     await mockTransitsError(page, 401, "authentication_required");
     await mockGetAssetsError(page, 500);
-    await page.goto("/");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
 
     await expect(page.getByText("Tu ventana al cosmos de este mes se ha completado")).toBeVisible();
     await expect(page.getByRole("link", { name: "Ver planes Astral ✦" })).toBeVisible();
@@ -151,7 +152,7 @@ test.describe("Mobile — Core Surfaces", () => {
   test("mobile logout returns to the public entry state without leaving protected controls on screen", async ({ page }) => {
     await mockGetUser(page, TEST_USER_NO_INTAKE);
     await mockChatHistory(page, HISTORY_MESSAGES, { used: 2, limit: 20 });
-    await page.goto("/");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
 
     await expect(page.getByRole("button", { name: "Test User" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Cerrar sesión" })).toBeVisible();
@@ -175,7 +176,7 @@ test.describe("Mobile — Core Surfaces", () => {
       userMsgId: 30,
       assistantMsgId: 31,
     });
-    await page.goto("/");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
 
     await page.getByRole("button", { name: "Grabar nota de voz" }).click();
 
@@ -201,7 +202,7 @@ test.describe("Mobile — Core Surfaces", () => {
     await mockGetUser(page, TEST_USER_NO_INTAKE);
     await mockChatHistory(page, []);
     await mockTranscribeError(page);
-    await page.goto("/");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
 
     await page.getByRole("button", { name: "Grabar nota de voz" }).click();
     await page.getByRole("button", { name: "Enviar nota de voz" }).click();
@@ -230,7 +231,7 @@ test.describe("Mobile — Core Surfaces", () => {
     await mockGetReport(page, FREE_REPORT);
     await mockTransits(page);
     await mockGetAssets(page, MOBILE_ASSETS);
-    await page.goto("/");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
     await page.addStyleTag({ content: VISUAL_SMOKE_STYLE });
 
     await expect(page.getByRole("button", { name: "Test User" })).toBeVisible();
