@@ -101,6 +101,7 @@ function buildExperience(overrides: Partial<TransitExperienceResponse> = {}): Tr
           activatedCenters: [
             { id: "Throat", displayName: "Garganta", gates: [35], channels: [] },
           ],
+          reinforcedCenters: [],
           temporarilyDefinedCenters: [
             {
               id: "Throat",
@@ -167,15 +168,73 @@ describe("frontend transit experience adapter", () => {
     expect(model.centerGroups.find((group) => group.kind === "activated")).toBeDefined();
   });
 
-  it("groups centers without calling isolated activated gates temporarily defined", () => {
+  it("respects center bucket precedence (temp > reinforced > conditioned > activated)", () => {
     const model = buildTransitScreenModel(buildExperience());
     const temporary = model.centerGroups.find((group) => group.kind === "temporarilyDefined");
     const conditioned = model.centerGroups.find((group) => group.kind === "conditioned");
     const activated = model.centerGroups.find((group) => group.kind === "activated");
 
+    // Throat is temporarily-defined (full channel through it) so it should
+    // appear in temporary only — NOT in the activated bucket.
     expect(temporary?.centers.map((center) => center.id)).toEqual(["Throat"]);
     expect(conditioned?.centers.map((center) => center.id)).toEqual(["SolarPlexus"]);
-    expect(activated?.centers.map((center) => center.id)).toEqual(["Throat"]);
+    expect(activated).toBeUndefined();
+  });
+
+  it("surfaces reinforcedCenters as a dedicated bucket when the user has matching definitions", () => {
+    const base = buildExperience();
+    const enriched: TransitExperienceResponse = {
+      ...base,
+      snapshots: base.snapshots.map((snapshot, index) => {
+        if (index !== 0 || !snapshot.personal) return snapshot;
+        return {
+          ...snapshot,
+          personal: {
+            ...snapshot.personal,
+            // User has Sacral defined permanently; transit touches it →
+            // reinforcedCenters should pick it up.
+            reinforcedCenters: [
+              { id: "Sacral", displayName: "Sacral", gates: [34], channels: [] },
+            ],
+          },
+        };
+      }),
+    };
+
+    const model = buildTransitScreenModel(enriched);
+    const reinforced = model.centerGroups.find((group) => group.kind === "reinforced");
+
+    expect(reinforced).toBeDefined();
+    expect(reinforced?.label).toBe("Reforzados");
+    expect(reinforced?.centers.map((c) => c.id)).toEqual(["Sacral"]);
+  });
+
+  it("does not duplicate a center across temporarilyDefined and reinforced", () => {
+    const base = buildExperience();
+    const enriched: TransitExperienceResponse = {
+      ...base,
+      snapshots: base.snapshots.map((snapshot, index) => {
+        if (index !== 0 || !snapshot.personal) return snapshot;
+        return {
+          ...snapshot,
+          personal: {
+            ...snapshot.personal,
+            // User has Throat defined; the channel 35-36 also temp-defines it.
+            // Temp takes precedence over reinforced.
+            reinforcedCenters: [
+              { id: "Throat", displayName: "Garganta", gates: [35], channels: [] },
+            ],
+          },
+        };
+      }),
+    };
+
+    const model = buildTransitScreenModel(enriched);
+    const temporary = model.centerGroups.find((group) => group.kind === "temporarilyDefined");
+    const reinforced = model.centerGroups.find((group) => group.kind === "reinforced");
+
+    expect(temporary?.centers.map((c) => c.id)).toEqual(["Throat"]);
+    expect(reinforced).toBeUndefined();
   });
 
   it("labels next7Days honestly as a panorama", () => {

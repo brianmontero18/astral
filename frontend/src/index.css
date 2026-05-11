@@ -3489,6 +3489,13 @@ textarea { outline: none !important; }
   box-shadow: 0 0 0 3px rgba(207, 172, 108, 0.22);
 }
 
+.transit-center-pill--reinforced {
+  border-color: var(--color-forest);
+  background: rgba(41, 76, 56, 0.16);
+  color: var(--text-main);
+  font-weight: 600;
+}
+
 .transit-center-pill--conditioned {
   border-color: rgba(215, 199, 173, 0.45);
   background: rgba(215, 199, 173, 0.1);

@@ -412,6 +412,7 @@ interface CentersSectionProps {
 
 function CentersSection({ groups, showAllActivated, onToggleAllActivated }: CentersSectionProps) {
   const temporarilyDefined = groups.find((g) => g.kind === "temporarilyDefined");
+  const reinforced = groups.find((g) => g.kind === "reinforced");
   const conditioned = groups.find((g) => g.kind === "conditioned");
   const activated = groups.find((g) => g.kind === "activated");
 
@@ -429,6 +430,22 @@ function CentersSection({ groups, showAllActivated, onToggleAllActivated }: Cent
             {temporarilyDefined.centers.map((center) => (
               <li key={`temp-${center.id}`} className="transit-center-pill transit-center-pill--temporary">
                 <span className="transit-center-dot" aria-hidden="true" />
+                {center.displayName}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {reinforced && reinforced.centers.length > 0 && (
+        <div className="transit-centers-group transit-centers-group--reinforced">
+          <div className="transit-centers-label">Reforzados</div>
+          <p className="transit-centers-hint">
+            Tus centros definidos que el cielo está tocando hoy. Energía conocida, intensificada.
+          </p>
+          <ul className="transit-centers-pills">
+            {reinforced.centers.map((center) => (
+              <li key={`reinf-${center.id}`} className="transit-center-pill transit-center-pill--reinforced">
                 {center.displayName}
               </li>
             ))}

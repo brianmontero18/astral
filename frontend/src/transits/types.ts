@@ -212,7 +212,7 @@ export interface TransitImpactCardModel {
 }
 
 export interface TransitCenterGroupModel {
-  kind: "temporarilyDefined" | "conditioned" | "activated";
+  kind: "temporarilyDefined" | "reinforced" | "conditioned" | "activated";
   label: string;
   centers: Array<{
     id: string;

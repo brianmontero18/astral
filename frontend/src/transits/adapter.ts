@@ -514,10 +514,19 @@ function buildCenterGroups(snapshot: TransitSnapshot): TransitCenterGroupModel[]
   const temporary = snapshot.personal?.temporarilyDefinedCenters.length
     ? snapshot.personal.temporarilyDefinedCenters
     : snapshot.collective.temporarilyDefinedCenters;
+  const reinforced = snapshot.personal?.reinforcedCenters ?? [];
   const conditioned = snapshot.personal?.conditionedCenters ?? [];
   const activated = snapshot.personal?.activatedCenters.length
     ? snapshot.personal.activatedCenters
     : snapshot.collective.activatedCenters;
+
+  // A center may appear in several buckets at once (e.g. a temp-defined center
+  // is also reinforced and also activated). Honor the HD precedence:
+  // temporarilyDefined > reinforced > conditioned > activated, so a stronger
+  // state shadows weaker ones in the UI.
+  const tempIds = new Set(temporary.map((c) => c.id));
+  const reinforcedIds = new Set(reinforced.map((c) => c.id));
+  const conditionedIds = new Set(conditioned.map((c) => c.center));
 
   const groups: TransitCenterGroupModel[] = [
     {
@@ -526,18 +535,29 @@ function buildCenterGroups(snapshot: TransitSnapshot): TransitCenterGroupModel[]
       centers: mapDefinitionCenters(temporary),
     },
     {
+      kind: "reinforced",
+      label: "Reforzados",
+      centers: mapActivatedCenters(reinforced.filter((c) => !tempIds.has(c.id))),
+    },
+    {
       kind: "conditioned",
       label: "Condicionados",
-      centers: conditioned.map((center) => ({
-        id: center.center,
-        displayName: center.displayName,
-        sourceIds: center.gates.map((gate) => String(gate.gate)),
-      })),
+      centers: conditioned
+        .filter((c) => !tempIds.has(c.center) && !reinforcedIds.has(c.center))
+        .map((center) => ({
+          id: center.center,
+          displayName: center.displayName,
+          sourceIds: center.gates.map((gate) => String(gate.gate)),
+        })),
     },
     {
       kind: "activated",
       label: "Activados",
-      centers: mapActivatedCenters(activated),
+      centers: mapActivatedCenters(
+        activated.filter(
+          (c) => !tempIds.has(c.id) && !reinforcedIds.has(c.id) && !conditionedIds.has(c.id),
+        ),
+      ),
     },
   ];
 
