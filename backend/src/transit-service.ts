@@ -227,19 +227,23 @@ async function calculatePlanetTransits(now: Date): Promise<PlanetTransit[]> {
     now.getUTCHours() + now.getUTCMinutes() / 60,
   );
 
+  // 13 canonical HD bodies + Chiron extra. We use SE_TRUE_NODE (real lunar node
+  // accounting for nutation) instead of SE_MEAN_NODE; HD canon expects the true
+  // position. Earth is derived as Sun + 180° (we do not query SE_EARTH because
+  // its definition in Swiss Ephemeris is heliocentric and not what HD needs).
   const PLANETS: PlanetDef[] = [
-    { id: swe.SE_SUN,     name: "Sol"       },
-    { id: swe.SE_MOON,    name: "Luna"      },
-    { id: swe.SE_MERCURY, name: "Mercurio"  },
-    { id: swe.SE_VENUS,   name: "Venus"     },
-    { id: swe.SE_MARS,    name: "Marte"     },
-    { id: swe.SE_JUPITER, name: "Júpiter"   },
-    { id: swe.SE_SATURN,  name: "Saturno"   },
-    { id: swe.SE_URANUS,  name: "Urano"     },
-    { id: swe.SE_NEPTUNE, name: "Neptuno"   },
-    { id: swe.SE_PLUTO,   name: "Plutón"    },
-    { id: swe.SE_CHIRON,  name: "Quirón"    },
-    { id: swe.SE_MEAN_NODE, name: "Nodo Norte" },
+    { id: swe.SE_SUN,       name: "Sol"        },
+    { id: swe.SE_MOON,      name: "Luna"       },
+    { id: swe.SE_MERCURY,   name: "Mercurio"   },
+    { id: swe.SE_VENUS,     name: "Venus"      },
+    { id: swe.SE_MARS,      name: "Marte"      },
+    { id: swe.SE_JUPITER,   name: "Júpiter"    },
+    { id: swe.SE_SATURN,    name: "Saturno"    },
+    { id: swe.SE_URANUS,    name: "Urano"      },
+    { id: swe.SE_NEPTUNE,   name: "Neptuno"    },
+    { id: swe.SE_PLUTO,     name: "Plutón"     },
+    { id: swe.SE_CHIRON,    name: "Quirón"     },
+    { id: swe.SE_TRUE_NODE, name: "Nodo Norte" },
   ];
 
   const planets: PlanetTransit[] = [];
@@ -261,8 +265,26 @@ async function calculatePlanetTransits(now: Date): Promise<PlanetTransit[]> {
       hdLine: line,
     });
 
-    // South Node = opposite of North Node
-    if (planet.id === swe.SE_MEAN_NODE) {
+    // Earth = Sun + 180° (geocentric activation of the body of incarnation).
+    // Earth always travels with the Sun and never goes retrograde from this
+    // geocentric vantage.
+    if (planet.id === swe.SE_SUN) {
+      const earthLon = ((longitude + 180) % 360 + 360) % 360;
+      const earthPos = longitudeToSign(earthLon);
+      const earthGate = degreeToGate(earthLon);
+      planets.push({
+        name: "Tierra",
+        longitude: parseFloat(earthLon.toFixed(4)),
+        sign: earthPos.sign,
+        degree: earthPos.degree,
+        isRetrograde: false,
+        hdGate: earthGate.gate,
+        hdLine: earthGate.line,
+      });
+    }
+
+    // South Node = opposite of North Node (always exactly 180° apart).
+    if (planet.id === swe.SE_TRUE_NODE) {
       const southLon = ((longitude + 180) % 360 + 360) % 360;
       const southPos = longitudeToSign(southLon);
       const southGate = degreeToGate(southLon);
@@ -271,7 +293,7 @@ async function calculatePlanetTransits(now: Date): Promise<PlanetTransit[]> {
         longitude: parseFloat(southLon.toFixed(4)),
         sign: southPos.sign,
         degree: southPos.degree,
-        isRetrograde: false,
+        isRetrograde: speed < 0,
         hdGate: southGate.gate,
         hdLine: southGate.line,
       });
@@ -553,19 +575,9 @@ export function analyzeTransitImpact(
 
   const personalChannels: PersonalChannel[] = [];
   const educationalChannels: EducationalChannel[] = [];
-  const reinforcedGates: ReinforcedGate[] = [];
   const conditionedCenterMap = new Map<string, Array<{ gate: number; planet: string }>>();
 
-  // 1. Reinforced gates: transit hits a gate user already has
-  for (const [gate, planets] of transitGateMap) {
-    if (userGateSet.has(gate)) {
-      for (const planet of planets) {
-        reinforcedGates.push({ gate, planet });
-      }
-    }
-  }
-
-  // 2. Channel analysis
+  // 1. Channel analysis (runs first so we can deduplicate reinforcedGates afterwards)
   for (const [pair, channelName] of Object.entries(HD_CHANNELS)) {
     const [g1, g2] = pair.split("-").map(Number);
     const g1InUser = userGateSet.has(g1);
@@ -587,6 +599,19 @@ export function analyzeTransitImpact(
     // Educational channel: neither gate in user, both in transit
     if (!g1InUser && !g2InUser && g1InTransit && g2InTransit) {
       educationalChannels.push({ channelId: pair, channelName, planet1: transitGateMap.get(g1)![0], planet2: transitGateMap.get(g2)![0] });
+    }
+  }
+
+  // 2. Reinforced gates: transit hits a gate the user already has — but only
+  //    when that gate is not already explained by a personal channel above
+  //    (otherwise the same activation gets reported twice).
+  const reinforcedGates: ReinforcedGate[] = [];
+  const gatesInPersonalChannels = new Set(personalChannels.map((channel) => channel.userGate));
+  for (const [gate, planets] of transitGateMap) {
+    if (!userGateSet.has(gate)) continue;
+    if (gatesInPersonalChannels.has(gate)) continue;
+    for (const planet of planets) {
+      reinforcedGates.push({ gate, planet });
     }
   }
 
@@ -620,9 +645,6 @@ export function analyzeTransitExperienceImpact(
     transitSnapshotToWeeklyTransits(snapshot),
     hdProfile,
   );
-  const definedCenterSet = new Set(
-    (hdProfile.definedCenters ?? []).map((center) => normalizeCenter(center)),
-  );
   const channelMap = new Map(
     Object.entries(HD_CHANNELS).map(([id, name]) => [id, buildChannelFact(id, name)]),
   );
@@ -653,11 +675,14 @@ export function analyzeTransitExperienceImpact(
   const reinforcedGates: TransitExperienceReinforcedGate[] =
     legacyImpact.reinforcedGates.map((gate) => ({
       ...gate,
-      center: GATE_TO_CENTER[gate.gate] ?? "Unknown",
+      center: normalizeCenter(GATE_TO_CENTER[gate.gate] ?? "Unknown"),
     }));
 
-  const activatedCenters = snapshot.collective.activatedCenters
-    .filter((center) => definedCenterSet.has(normalizeCenter(center.id)));
+  // ADR semantics: "centro activado por tránsito = al menos una puerta del
+  // centro activada por un planeta en tránsito". No filtramos por la definición
+  // del usuario: un Sacral indefinido sigue siendo un centro activado si recibe
+  // un planeta. La frontend decide cómo mostrarlo (e.g. colapsable bajo Activados).
+  const activatedCenters = snapshot.collective.activatedCenters;
 
   const temporarilyDefinedCenters = buildCenterDefinitionsFromChannels(
     Array.from(temporarilyDefinedChannels.values()),

@@ -56,6 +56,59 @@ describe("degreeToGate", () => {
       expect(gate).toBeLessThanOrEqual(64);
     }
   });
+
+  it("handles negative longitudes via modulo wrap", () => {
+    // -58° == 302° (Gate 41 start)
+    const result = degreeToGate(-58);
+    expect(result.gate).toBe(41);
+    expect(result.line).toBe(1);
+  });
+
+  it("handles longitudes greater than 360° via modulo wrap", () => {
+    // 720° + 302° == 302° (Gate 41 start)
+    const result = degreeToGate(720 + 302);
+    expect(result.gate).toBe(41);
+    expect(result.line).toBe(1);
+  });
+
+  it("respects exact line boundaries within Gate 41 (5.625° / 6 = 0.9375°)", () => {
+    // Each line covers 0.9375°. Verify boundary moments rather than midpoints.
+    expect(degreeToGate(302).line).toBe(1);             // Line 1 start
+    expect(degreeToGate(302.9374).line).toBe(1);        // Line 1 end (just before)
+    expect(degreeToGate(302.9375).line).toBe(2);        // Line 2 start
+    expect(degreeToGate(303.875).line).toBe(3);         // Line 3 start (302 + 2 * 0.9375)
+    expect(degreeToGate(304.8125).line).toBe(4);
+    expect(degreeToGate(305.75).line).toBe(5);
+    expect(degreeToGate(306.6875).line).toBe(6);
+    // Just before next gate (307.625): still line 6 of Gate 41
+    expect(degreeToGate(307.6249).line).toBe(6);
+  });
+
+  it("maps every Rave Mandala slot to its expected gate (full 64-slot validation)", () => {
+    // Each slot is 5.625° starting at 302°. Probe a tiny epsilon past the slot
+    // start so we don't catch the previous gate's line 6 boundary.
+    const SEQUENCE = [
+      41, 19, 13, 49, 30, 55, 37, 63, 22, 36, 25, 17, 21, 51, 42, 3,
+      27, 24, 2,  23, 8,  20, 16, 35, 45, 12, 15, 52, 39, 53, 62, 56,
+      31, 33, 7,  4,  29, 59, 40, 64, 47, 6,  46, 18, 48, 57, 32, 50,
+      28, 44, 1,  43, 14, 34, 9,  5,  26, 11, 10, 58, 38, 54, 61, 60,
+    ];
+    for (let slot = 0; slot < 64; slot += 1) {
+      const longitude = (302 + slot * 5.625 + 0.001) % 360;
+      const { gate, line } = degreeToGate(longitude);
+      expect(gate, `slot ${slot} should map to gate ${SEQUENCE[slot]}`).toBe(SEQUENCE[slot]);
+      expect(line, `slot ${slot} line should be 1`).toBe(1);
+    }
+  });
+
+  it("respects exact gate boundaries around 0° Aries", () => {
+    // 0° Aries falls inside Gate 25 (slot 10), which starts at 302 + 10*5.625 = 358.25°
+    // and ends at 363.875° (wrapping to 3.875° Aries).
+    expect(degreeToGate(358.25).gate).toBe(25);
+    expect(degreeToGate(0).gate).toBe(25);
+    expect(degreeToGate(3.5).gate).toBe(25);
+    expect(degreeToGate(3.875).gate).toBe(17);
+  });
 });
 
 describe("GATE_TO_CENTER", () => {

@@ -61,7 +61,7 @@ describe("GET /api/transits", () => {
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
 
-    expect(body.planets).toHaveLength(13);
+    expect(body.planets).toHaveLength(14);
     expect(body.weekRange).toBeDefined();
     expect(body.fetchedAt).toBeDefined();
     expect(Array.isArray(body.activatedChannels)).toBe(true);
@@ -84,7 +84,7 @@ describe("GET /api/transits", () => {
     const names = JSON.parse(res.body).planets.map((p: { name: string }) => p.name);
 
     const expected = [
-      "Sol", "Luna", "Mercurio", "Venus", "Marte",
+      "Sol", "Tierra", "Luna", "Mercurio", "Venus", "Marte",
       "Júpiter", "Saturno", "Urano", "Neptuno", "Plutón",
       "Quirón", "Nodo Norte", "Nodo Sur",
     ];
@@ -109,7 +109,7 @@ describe("GET /api/transits", () => {
     });
     const body = JSON.parse(res.body);
 
-    expect(body.planets).toHaveLength(13);
+    expect(body.planets).toHaveLength(14);
     expect(body.impact).toBeDefined();
     expect(Array.isArray(body.impact.personalChannels)).toBe(true);
     expect(Array.isArray(body.impact.reinforcedGates)).toBe(true);
@@ -191,7 +191,7 @@ describe("GET /api/transits", () => {
     const body = JSON.parse(res.body);
 
     expect(res.statusCode).toBe(200);
-    expect(body.planets).toHaveLength(13);
+    expect(body.planets).toHaveLength(14);
     expect(body.impact).toBeUndefined();
   });
 
@@ -231,7 +231,7 @@ describe("GET /api/transits", () => {
     const recoveredBody = JSON.parse(recoveredRes.body);
 
     expect(recoveredRes.statusCode).toBe(200);
-    expect(recoveredBody.planets).toHaveLength(13);
+    expect(recoveredBody.planets).toHaveLength(14);
     expect(recoveredBody.weekRange).toBeDefined();
     expect(fetchWeeklyTransitsMock).toHaveBeenCalledTimes(2);
   });
