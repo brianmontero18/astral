@@ -106,7 +106,9 @@ test.describe("Transits — Experience view", () => {
     await expect(page.getByText(/cada día/)).not.toBeVisible();
   });
 
-  test("opens the bodygraph map view from the hero miniature and returns to ritual", async ({ page }) => {
+  // Disabled while the bodygraph miniature + map view are hidden in TransitViewer.
+  // The underlying components and adapter snapshot stay live for the next iteration.
+  test.skip("opens the bodygraph map view from the hero miniature and returns to ritual", async ({ page }) => {
     await mockTransitExperienceToday(page);
 
     await page.goto("/", { waitUntil: "domcontentloaded" });

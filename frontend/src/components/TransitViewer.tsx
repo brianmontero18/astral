@@ -62,37 +62,44 @@ export function TransitViewer({
         minWidth: 0,
       }}
     >
-      <header className="transit-hero">
-        <div className="transit-hero-row">
-          <div className="transit-hero-text">
-            <div className="transit-hero-kicker">{model.header.rangeLabel}</div>
-            <h2 className="transit-hero-title">{model.header.title}</h2>
-            <p className="transit-hero-meta">{model.header.activeLabel} · {model.header.subtitle}</p>
-          </div>
-          {model.bodygraphSnapshot && onOpenMap && (
-            <button
-              type="button"
-              className="transit-hero-bodygraph"
-              onClick={onOpenMap}
-              aria-label="Ver mapa del momento"
-            >
-              <BodygraphLive
-                variant="miniature"
-                userDefinedCenters={model.bodygraphSnapshot.userDefinedCenters}
-                userActivatedGates={model.bodygraphSnapshot.userActivatedGates}
-                transitActivatedCenters={model.bodygraphSnapshot.transitActivatedCenters}
-                transitConditionedCenters={model.bodygraphSnapshot.transitConditionedCenters}
-                temporarilyDefinedCenters={model.bodygraphSnapshot.temporarilyDefinedCenters}
-                activatedChannels={model.bodygraphSnapshot.activatedChannels}
-                temporarilyDefinedChannels={model.bodygraphSnapshot.temporarilyDefinedChannels}
-                personalChannels={model.bodygraphSnapshot.personalChannels}
-                ariaLabel="Miniatura del bodygraph del momento"
-              />
-              <span className="transit-hero-bodygraph-label">Ver mapa</span>
-            </button>
-          )}
-        </div>
-      </header>
+      <div className="page-header">
+        <div className="page-header-kicker">{model.header.rangeLabel}</div>
+        <h2 className="page-header-title">{model.header.title}</h2>
+        <p className="page-header-description">
+          {model.header.activeLabel} · {model.header.subtitle}
+        </p>
+      </div>
+
+      {/*
+        Bodygraph miniature + "Ver mapa" entry to the L2 map view.
+        Hidden for now while we iterate on the bodygraph rendering. The
+        underlying components (BodygraphLive, TransitMapView) and the
+        bodygraphSnapshot model field stay live so we can re-enable this
+        once the visual treatment is finalized.
+
+        {model.bodygraphSnapshot && onOpenMap && (
+          <button
+            type="button"
+            className="transit-hero-bodygraph"
+            onClick={onOpenMap}
+            aria-label="Ver mapa del momento"
+          >
+            <BodygraphLive
+              variant="miniature"
+              userDefinedCenters={model.bodygraphSnapshot.userDefinedCenters}
+              userActivatedGates={model.bodygraphSnapshot.userActivatedGates}
+              transitActivatedCenters={model.bodygraphSnapshot.transitActivatedCenters}
+              transitConditionedCenters={model.bodygraphSnapshot.transitConditionedCenters}
+              temporarilyDefinedCenters={model.bodygraphSnapshot.temporarilyDefinedCenters}
+              activatedChannels={model.bodygraphSnapshot.activatedChannels}
+              temporarilyDefinedChannels={model.bodygraphSnapshot.temporarilyDefinedChannels}
+              personalChannels={model.bodygraphSnapshot.personalChannels}
+              ariaLabel="Miniatura del bodygraph del momento"
+            />
+            <span className="transit-hero-bodygraph-label">Ver mapa</span>
+          </button>
+        )}
+      */}
 
       <div className="transit-controls">
         <div
