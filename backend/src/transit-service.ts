@@ -97,6 +97,7 @@ export interface PersonalTransitFacts {
   educationalChannels: TransitExperienceEducationalChannel[];
   conditionedCenters: TransitExperienceConditionedCenter[];
   activatedCenters: TransitCenterFact[];
+  reinforcedCenters: TransitCenterFact[];
   temporarilyDefinedCenters: TransitCenterDefinitionFact[];
 }
 
@@ -684,6 +685,17 @@ export function analyzeTransitExperienceImpact(
   // un planeta. La frontend decide cómo mostrarlo (e.g. colapsable bajo Activados).
   const activatedCenters = snapshot.collective.activatedCenters;
 
+  // reinforcedCenters: centros del usuario (definidos permanentemente) que
+  // están recibiendo activación adicional de un tránsito. Es la lectura
+  // "qué de lo tuyo está siendo tocado hoy" — separada de activatedCenters
+  // (que es la lectura del cielo crudo sin filtro).
+  const userDefinedCenterSet = new Set(
+    (hdProfile.definedCenters ?? []).map((center) => normalizeCenter(center)),
+  );
+  const reinforcedCenters = snapshot.collective.activatedCenters.filter((center) =>
+    userDefinedCenterSet.has(normalizeCenter(center.id)),
+  );
+
   const temporarilyDefinedCenters = buildCenterDefinitionsFromChannels(
     Array.from(temporarilyDefinedChannels.values()),
   );
@@ -705,6 +717,7 @@ export function analyzeTransitExperienceImpact(
     educationalChannels,
     conditionedCenters,
     activatedCenters,
+    reinforcedCenters,
     temporarilyDefinedCenters,
   };
 }

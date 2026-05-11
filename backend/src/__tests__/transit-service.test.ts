@@ -222,6 +222,37 @@ describe("analyzeTransitExperienceImpact — ADR semantics", () => {
     expect(conditionedCenters).not.toContain("Throat");
   });
 
+  it("returns reinforcedCenters as the user's defined centers that the collective is currently touching", () => {
+    // Distinct from activatedCenters (no user filter), reinforcedCenters
+    // intersects activatedCenters with the user's permanently-defined set.
+    const userProfile: UserHDProfile = {
+      activatedGates: [],
+      definedCenters: ["Throat"],  // Sacral undefined for this user
+    };
+
+    const result = analyzeTransitExperienceImpact(snapshot([]), userProfile);
+
+    // Snapshot stub activates Throat + Sacral collectively.
+    expect(result.activatedCenters.map((c) => c.id)).toEqual(
+      expect.arrayContaining(["Throat", "Sacral"]),
+    );
+    // reinforcedCenters keeps only the centers the user actually has defined.
+    expect(result.reinforcedCenters.map((c) => c.id)).toEqual(["Throat"]);
+  });
+
+  it("returns an empty reinforcedCenters when the user has no defined centers", () => {
+    const userProfile: UserHDProfile = {
+      activatedGates: [],
+      definedCenters: [],
+    };
+
+    const result = analyzeTransitExperienceImpact(snapshot([]), userProfile);
+
+    expect(result.reinforcedCenters).toEqual([]);
+    // activatedCenters keeps its full pass-through (ADR semantics).
+    expect(result.activatedCenters.length).toBeGreaterThan(0);
+  });
+
   it("normalizes the center field on reinforced gates", () => {
     const userProfile: UserHDProfile = {
       activatedGates: [{ number: 17 }],

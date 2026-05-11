@@ -75,6 +75,7 @@ export interface PersonalTransitFacts {
   educationalChannels: TransitExperienceEducationalChannel[];
   conditionedCenters: TransitExperienceConditionedCenter[];
   activatedCenters: TransitCenterFact[];
+  reinforcedCenters: TransitCenterFact[];
   temporarilyDefinedCenters: TransitCenterDefinitionFact[];
 }
 
