@@ -2723,12 +2723,12 @@ textarea { outline: none !important; }
 }
 
 .bg-svg--miniature {
-  width: 76px;
-  height: 130px;
+  width: 78px;
+  height: 134px;
 }
 
 .bg-svg--full {
-  max-width: 360px;
+  max-width: 380px;
   height: auto;
   margin: 0 auto;
 }
@@ -2823,7 +2823,7 @@ textarea { outline: none !important; }
 
 .bg-gate-label {
   font-family: var(--font-sans);
-  font-size: 4.6px;
+  font-size: 5.6px;
   font-weight: 600;
   pointer-events: none;
   fill: rgba(33, 41, 30, 0.85);

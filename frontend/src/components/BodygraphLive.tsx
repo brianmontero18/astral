@@ -135,7 +135,7 @@ export function BodygraphLive({
                   : "is-neutral";
             return (
               <g key={`gate-${gate.gate}`} className={`bg-gate ${stateClass}`}>
-                <circle cx={gate.x} cy={gate.y} r={5.6} />
+                <circle cx={gate.x} cy={gate.y} r={6.8} />
                 <text
                   x={gate.x}
                   y={gate.y}
