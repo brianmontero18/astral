@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { getGateTheme } from "../hd-data";
-import { BodygraphLive } from "./BodygraphLive";
 import type {
-  DayKeyFact,
   TransitAskAgentPayload,
   TransitCenterGroupModel,
   TransitImpactCardModel,
@@ -20,7 +18,6 @@ interface Props {
   onTimeNow: () => void;
   onRefresh: () => void;
   onAskAgent?: (payload: TransitAskAgentPayload) => void;
-  onOpenMap?: () => void;
 }
 
 export function TransitViewer({
@@ -31,7 +28,6 @@ export function TransitViewer({
   onTimeNow,
   onRefresh,
   onAskAgent,
-  onOpenMap,
 }: Props) {
   const [expandedPlanet, setExpandedPlanet] = useState<string | null>(null);
   const [showAllPlanets, setShowAllPlanets] = useState(false);
@@ -69,37 +65,6 @@ export function TransitViewer({
           {model.header.activeLabel} · {model.header.subtitle}
         </p>
       </div>
-
-      {/*
-        Bodygraph miniature + "Ver mapa" entry to the L2 map view.
-        Hidden for now while we iterate on the bodygraph rendering. The
-        underlying components (BodygraphLive, TransitMapView) and the
-        bodygraphSnapshot model field stay live so we can re-enable this
-        once the visual treatment is finalized.
-
-        {model.bodygraphSnapshot && onOpenMap && (
-          <button
-            type="button"
-            className="transit-hero-bodygraph"
-            onClick={onOpenMap}
-            aria-label="Ver mapa del momento"
-          >
-            <BodygraphLive
-              variant="miniature"
-              userDefinedCenters={model.bodygraphSnapshot.userDefinedCenters}
-              userActivatedGates={model.bodygraphSnapshot.userActivatedGates}
-              transitActivatedCenters={model.bodygraphSnapshot.transitActivatedCenters}
-              transitConditionedCenters={model.bodygraphSnapshot.transitConditionedCenters}
-              temporarilyDefinedCenters={model.bodygraphSnapshot.temporarilyDefinedCenters}
-              activatedChannels={model.bodygraphSnapshot.activatedChannels}
-              temporarilyDefinedChannels={model.bodygraphSnapshot.temporarilyDefinedChannels}
-              personalChannels={model.bodygraphSnapshot.personalChannels}
-              ariaLabel="Miniatura del bodygraph del momento"
-            />
-            <span className="transit-hero-bodygraph-label">Ver mapa</span>
-          </button>
-        )}
-      */}
 
       <div className="transit-controls">
         <div
@@ -212,10 +177,6 @@ export function TransitViewer({
         </section>
       )}
 
-      {model.dayKeyFacts && model.dayKeyFacts.length > 0 && (
-        <DayKeyFactsSection facts={model.dayKeyFacts} />
-      )}
-
       {model.personalSections.map((section) => (
         <ImpactSection key={section.id} section={section} />
       ))}
@@ -314,35 +275,6 @@ function ImpactRow({ item, kind }: ImpactRowProps) {
         {item.meta && <div className="transit-impact-row-meta">{item.meta}</div>}
       </div>
     </li>
-  );
-}
-
-interface DayKeyFactsSectionProps {
-  facts: DayKeyFact[];
-}
-
-function DayKeyFactsSection({ facts }: DayKeyFactsSectionProps) {
-  return (
-    <section className="transit-days-key" aria-label="Días clave de la semana">
-      <div className="transit-days-key-kicker">DÍAS CLAVE</div>
-      <ul className="transit-days-key-list">
-        {facts.map((fact, index) => (
-          <li key={fact.id} className={`transit-days-key-row transit-days-key-row--${fact.kind}`}>
-            <span
-              className={`transit-days-key-dot${index === 0 ? " is-today" : ""}`}
-              aria-hidden="true"
-            />
-            <div className="transit-days-key-body">
-              <div className="transit-days-key-label">{fact.dayLabel}</div>
-              <div className="transit-days-key-summary">{fact.summary}</div>
-              {fact.impactLabel && (
-                <div className="transit-days-key-impact">{fact.impactLabel}</div>
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
-    </section>
   );
 }
 

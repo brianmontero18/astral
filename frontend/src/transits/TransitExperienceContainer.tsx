@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { TransitViewer } from "../components/TransitViewer";
-import { TransitMapView } from "../components/TransitMapView";
 import { getTransitFailureMessage } from "../transit-errors";
 import { buildTransitScreenModel } from "./adapter";
 import { fetchTransitExperience } from "./api";
@@ -9,22 +8,17 @@ import type {
   TransitExperienceResponse,
   TransitMode,
 } from "./types";
-import type { UserProfile } from "../types";
-
-type ViewLevel = "ritual" | "map";
 
 interface Props {
-  profile?: UserProfile;
   onAskAgent?: (payload: TransitAskAgentPayload) => void;
 }
 
-export function TransitExperienceContainer({ profile, onAskAgent }: Props) {
+export function TransitExperienceContainer({ onAskAgent }: Props) {
   const [mode, setMode] = useState<TransitMode>("today");
   const [response, setResponse] = useState<TransitExperienceResponse | null>(null);
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
   const [loadingState, setLoadingState] = useState<"ready" | "refreshing" | "timelineLoading" | "error">("refreshing");
   const [error, setError] = useState<string | null>(null);
-  const [viewLevel, setViewLevel] = useState<ViewLevel>("ritual");
   const initialLoadStartedRef = useRef(false);
   const latestRequestIdRef = useRef(0);
   const mountedRef = useRef(false);
@@ -80,9 +74,8 @@ export function TransitExperienceContainer({ profile, onAskAgent }: Props) {
       response,
       selectedSnapshotId ?? response.selectedSnapshotId,
       loadingState,
-      profile,
     );
-  }, [response, selectedSnapshotId, loadingState, profile]);
+  }, [response, selectedSnapshotId, loadingState]);
 
   if (loadingState === "refreshing" && !model) {
     return (
@@ -115,17 +108,6 @@ export function TransitExperienceContainer({ profile, onAskAgent }: Props) {
 
   if (!model) return null;
 
-  if (viewLevel === "map") {
-    return (
-      <TransitMapView
-        model={model}
-        onBack={() => setViewLevel("ritual")}
-        onAskAgent={onAskAgent}
-        onRefresh={() => void loadExperience(mode)}
-      />
-    );
-  }
-
   return (
     <TransitViewer
       model={model}
@@ -139,7 +121,6 @@ export function TransitExperienceContainer({ profile, onAskAgent }: Props) {
       onTimeNow={() => void loadExperience("today")}
       onRefresh={() => void loadExperience(mode)}
       onAskAgent={onAskAgent}
-      onOpenMap={() => setViewLevel("map")}
     />
   );
 }
