@@ -1,7 +1,7 @@
 # ADR: Tránsitos en tiempo actual y selector diario/semanal
 
-Estado: Propuesto  
-Fecha: 2026-05-09  
+Estado: Propuesto
+Fecha: 2026-05-09
 Área: Tránsitos, chat, lectura de impacto HD
 
 ## Documentos relacionados
@@ -413,11 +413,6 @@ Wireframe conceptual:
 ├─────────────────────────────────────┤
 │ Tema de la semana                   │
 │ Garganta y Raíz toman protagonismo  │
-├─────────────────────────────────────┤
-│ Días clave                          │
-│ Hoy        Sacral condicionado      │
-│ Lunes      Canal temporal 20-34     │
-│ Jueves     Puertas mentales activas │
 ├─────────────────────────────────────┤
 │ Centros relevantes                  │
 ├─────────────────────────────────────┤

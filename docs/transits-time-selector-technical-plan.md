@@ -1,7 +1,7 @@
 # Tránsitos v2 — Plan técnico
 
-Estado: Propuesto  
-Fecha: 2026-05-09  
+Estado: Propuesto
+Fecha: 2026-05-09
 Documento padre: `docs/transits-time-selector-adr.md`
 
 ## Objetivo
@@ -54,9 +54,9 @@ Reglas:
   si existe; si no, de `clientNow`.
 - `mode=today&includeTimeline=true`: devuelve la foto seleccionada + 24 muestras
   horarias del día local.
-- `mode=next7Days`: MVP puede devolver un panorama de siete días basado en la
-  lógica actual, pero debe marcar `range.step = "panorama"` para no prometer
-  muestras diarias reales.
+- `mode=next7Days`: devuelve un único panorama rolling del rango visible. Debe
+  marcar `range.step = "panorama"` y no incluir snapshots `day:*` ni
+  `dayKeyFacts`.
 - Si `timeZone` es inválido, responder `400 invalid_time_zone`.
 - Si `clientNow/selectedAt` no son timestamps válidos, responder
   `400 invalid_time`.
@@ -124,6 +124,8 @@ Reglas:
 - Si `transitContext` no llega, chat usa `clientNow/serverNow` como "Ahora".
 - Si llega `transitContext`, chat calcula el tránsito para `targetAt` y esa
   `timeZone`.
+- `mode=today` acepta snapshots `instant:*` u `hour:*`; `mode=next7Days` acepta
+  solo `panorama:*`.
 - No confiar en texto prefill para determinar hora de tránsito.
 - Guardar `transits_used` como el `targetAt/calculatedAt` efectivo que recibió
   el LLM.
@@ -178,7 +180,7 @@ Reglas de cache:
 - `instant` para "Ahora" puede omitirse o cachearse por minuto; recomendación MVP:
   no cachear "Ahora" exacto, sí cachear muestras horarias.
 - `hour` usa bucket local por hora.
-- `panorama` usa bucket por semana local.
+- `panorama` usa bucket por inicio del día local del rango visible.
 
 ## Refactor backend esperado
 

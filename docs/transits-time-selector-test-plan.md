@@ -1,8 +1,8 @@
 # Tránsitos v2 — Plan de tests
 
-Estado: Propuesto  
-Fecha: 2026-05-09  
-Documento padre: `docs/transits-time-selector-adr.md`  
+Estado: Propuesto
+Fecha: 2026-05-09
+Documento padre: `docs/transits-time-selector-adr.md`
 Plan técnico: `docs/transits-time-selector-technical-plan.md`
 
 ## Objetivo
@@ -36,7 +36,8 @@ Casos requeridos:
 6. Usuario pending/no autenticado recibe `collective` pero no `personal`.
 7. `activatedCenters` no se mezcla con `temporarilyDefinedCenters`.
 8. `temporarilyDefinedCenters` aparece solo cuando hay canal completo.
-9. `mode=next7Days` devuelve `range.step="panorama"` en MVP.
+9. `mode=next7Days` devuelve `range.step="panorama"` con un solo snapshot
+   `panorama:*`, sin snapshots `day:*` ni `dayKeyFacts`.
 10. `timeZone` inválido devuelve `400 invalid_time_zone`.
 11. `clientNow` inválido devuelve `400 invalid_time`.
 12. `POST /api/chat/stream` sin `transitContext` usa tránsito actual.
