@@ -104,45 +104,39 @@ test.describe("Transits — Experience view", () => {
     await expect(page.getByText("10 may - 16 may · panorama colectivo")).toBeVisible();
     await expect(page.getByText(/sin prometer precisión diaria/)).toBeVisible();
     await expect(page.getByText(/cada día/)).not.toBeVisible();
+    await expect(page.getByText("DÍAS CLAVE")).not.toBeVisible();
   });
 
-  // Disabled while the bodygraph miniature + map view are hidden in TransitViewer.
-  // The underlying components and adapter snapshot stay live for the next iteration.
-  test.skip("opens the bodygraph map view from the hero miniature and returns to ritual", async ({ page }) => {
-    await mockTransitExperienceToday(page);
-
-    await page.goto("/", { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: "Tránsitos" }).click();
-
-    await expect(page.getByRole("heading", { name: "Tránsitos" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Ver mapa del momento" })).toBeVisible();
-
-    await page.getByRole("button", { name: "Ver mapa del momento" }).click();
-
-    await expect(page.getByRole("img", { name: "Bodygraph del momento (vista completa)" })).toBeVisible();
-    await expect(page.getByText("Tu definición permanente")).toBeVisible();
-    await expect(page.getByText("EN TU DISEÑO")).toBeVisible();
-
-    await page.getByRole("button", { name: "Volver a la lectura" }).click();
-
-    await expect(page.getByText("LO PRINCIPAL AHORA")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Ver mapa del momento" })).toBeVisible();
-  });
-
-  test("renders Días clave with chronological summaries in panorama", async ({ page }) => {
+  test("sends next7Days panorama transitContext to chat", async ({ page }) => {
+    let chatPayload: unknown = null;
     await mockTransitExperienceToday(page);
     await mockTransitExperienceNext7Days(page);
+    await page.route("**/api/chat/stream", async (route) => {
+      chatPayload = route.request().postDataJSON();
+      await route.fulfill({
+        status: 200,
+        headers: { "Content-Type": "text/event-stream" },
+        body: `data: ${JSON.stringify({ content: "Respuesta semanal." })}\n\ndata: ${JSON.stringify({ done: true, transits_used: "2026-05-10T00:00:00.000Z", userMsgId: 52, assistantMsgId: 53 })}\n\n`,
+      });
+    });
 
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "Tránsitos" }).click();
     await page.getByRole("button", { name: "Próximos 7 días" }).click();
+    await page.getByRole("button", { name: /Preguntale al agente/ }).click();
 
-    await expect(page.getByText("DÍAS CLAVE")).toBeVisible();
-    await expect(page.getByText("Canal de lo Transitorio ya está activo.")).toBeVisible();
-    await expect(page.getByText("Cierra Canal de lo Transitorio.")).toBeVisible();
-    await expect(page.getByText("Marte cambia a Puerta 40.")).toBeVisible();
-    await expect(page.getByText("Hoy dom")).toBeVisible();
-    await expect(page.getByText("jue 14")).toBeVisible();
+    await expect(page.getByPlaceholder(/Preguntá al oráculo/)).toBeVisible();
+    await page.getByRole("button", { name: "Enviar" }).click();
+
+    await expect(page.getByText("Respuesta semanal.")).toBeVisible();
+    expect(chatPayload).toMatchObject({
+      transitContext: {
+        source: "transitScreen",
+        mode: "next7Days",
+        snapshotId: "panorama:2026-05-10T00:00:00.000Z",
+        targetAt: "2026-05-10T00:00:00.000Z",
+      },
+    });
   });
 
   test("sends transitContext.targetAt to chat from a selected hour CTA", async ({ page }) => {

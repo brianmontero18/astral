@@ -548,31 +548,13 @@ export const TRANSIT_EXPERIENCE_NEXT7_PANORAMA: TransitExperienceResponse = {
     endsAt: "2026-05-16T23:59:59.999Z",
     step: "panorama",
   },
-  selectedSnapshotId: "instant:2026-05-10T08:15:00.000Z",
-  snapshots: [TRANSIT_EXPERIENCE_TODAY_TIMELINE.snapshots[0]],
-  dayKeyFacts: [
+  selectedSnapshotId: "panorama:2026-05-10T00:00:00.000Z",
+  snapshots: [
     {
-      id: "day:2026-05-10:today",
-      atTargetIso: "2026-05-10T12:00:00.000Z",
-      dayLabel: "Hoy dom",
-      kind: "today",
-      summary: "Canal de lo Transitorio ya está activo.",
-      impactLabel: "Garganta",
-    },
-    {
-      id: "day:2026-05-12:channelClose",
-      atTargetIso: "2026-05-12T12:00:00.000Z",
-      dayLabel: "mar 12",
-      kind: "channelClose",
-      summary: "Cierra Canal de lo Transitorio.",
-      impactLabel: "Garganta + Plexo Solar",
-    },
-    {
-      id: "day:2026-05-14:planetMove",
-      atTargetIso: "2026-05-14T12:00:00.000Z",
-      dayLabel: "jue 14",
-      kind: "planetMove",
-      summary: "Marte cambia a Puerta 40.",
+      ...TRANSIT_EXPERIENCE_TODAY_TIMELINE.snapshots[0],
+      id: "panorama:2026-05-10T00:00:00.000Z",
+      targetAt: "2026-05-10T00:00:00.000Z",
+      label: "Panorama",
     },
   ],
 };
