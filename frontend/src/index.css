@@ -2714,7 +2714,7 @@ textarea { outline: none !important; }
   letter-spacing: 0.02em;
 }
 
-/* ─── Bodygraph SVG (Slice 3) ─────────────────────────────────────────────── */
+/* ─── Bodygraph SVG (Slice 3 — full layout with gates) ────────────────────── */
 
 .bg-svg {
   display: block;
@@ -2723,40 +2723,46 @@ textarea { outline: none !important; }
 }
 
 .bg-svg--miniature {
-  width: 64px;
-  height: 110px;
+  width: 76px;
+  height: 130px;
 }
 
 .bg-svg--full {
-  max-width: 320px;
+  max-width: 360px;
   height: auto;
   margin: 0 auto;
 }
 
+/* Channels */
+
 .bg-channel {
   fill: none;
   stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .bg-channel--inactive {
-  stroke: rgba(33, 41, 30, 0.12);
-  stroke-width: 1;
+  stroke: rgba(33, 41, 30, 0.14);
+  stroke-width: 0.9;
 }
 
 .bg-channel--active {
   stroke: var(--color-gold);
-  stroke-width: 2;
+  stroke-width: 2.4;
 }
 
 .bg-channel--personal {
-  stroke: #e0c081;
-  stroke-width: 2.5;
+  stroke: #f0c97a;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 1.5px rgba(240, 201, 122, 0.5));
 }
 
+/* Centers */
+
 .bg-center path {
-  stroke: rgba(33, 41, 30, 0.4);
-  stroke-width: 0.6;
-  fill: transparent;
+  stroke: rgba(33, 41, 30, 0.55);
+  stroke-width: 0.8;
+  fill: rgba(248, 244, 232, 0.18);
   transition: fill 0.25s ease, stroke 0.25s ease;
 }
 
@@ -2766,46 +2772,70 @@ textarea { outline: none !important; }
 }
 
 .bg-center.is-temp-defined path {
-  fill: var(--color-gold);
+  fill: rgba(207, 172, 108, 0.75);
   stroke: var(--color-gold-deep);
+  stroke-width: 1;
 }
 
 .bg-center.is-conditioned path {
-  fill: rgba(215, 199, 173, 0.55);
+  fill: rgba(215, 199, 173, 0.42);
   stroke: var(--color-accent);
   stroke-width: 1;
 }
 
 .bg-center.is-activated path {
-  fill: rgba(207, 172, 108, 0.22);
+  fill: rgba(207, 172, 108, 0.18);
   stroke: var(--color-gold-deep);
 }
 
 .bg-center.is-neutral path {
-  fill: transparent;
-  stroke: rgba(33, 41, 30, 0.32);
+  fill: rgba(248, 244, 232, 0.12);
+  stroke: rgba(33, 41, 30, 0.45);
 }
 
-.bg-center[role="button"] {
-  cursor: pointer;
+/* Gates */
+
+.bg-gate circle {
+  stroke-width: 0.6;
+  transition: fill 0.25s ease, stroke 0.25s ease;
 }
 
-.bg-center[role="button"]:hover path,
-.bg-center[role="button"]:focus-visible path {
-  stroke: var(--color-gold);
+.bg-gate.is-neutral circle {
+  fill: rgba(248, 244, 232, 0.85);
+  stroke: rgba(33, 41, 30, 0.4);
+}
+
+.bg-gate.is-user circle {
+  fill: var(--surface-dark);
+  stroke: var(--surface-deeper);
+}
+
+.bg-gate.is-transit circle {
+  fill: var(--color-gold);
+  stroke: var(--color-gold-deep);
+}
+
+.bg-gate.is-both circle {
+  fill: #f0c97a;
+  stroke: var(--color-gold-deep);
   stroke-width: 1.2;
 }
 
-.bg-center-label {
+.bg-gate-label {
   font-family: var(--font-sans);
-  font-size: 5.5px;
-  font-weight: 700;
-  fill: rgba(33, 41, 30, 0.75);
+  font-size: 4.6px;
+  font-weight: 600;
   pointer-events: none;
+  fill: rgba(33, 41, 30, 0.85);
 }
 
-.bg-center.is-user-defined .bg-center-label,
-.bg-center.is-temp-defined .bg-center-label {
+.bg-gate.is-user .bg-gate-label,
+.bg-gate.is-transit .bg-gate-label,
+.bg-gate.is-both .bg-gate-label {
+  fill: var(--surface-deeper);
+}
+
+.bg-gate.is-user .bg-gate-label {
   fill: var(--text-main);
 }
 
