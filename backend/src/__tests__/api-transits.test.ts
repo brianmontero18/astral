@@ -55,7 +55,7 @@ afterEach(() => {
 });
 
 describe("GET /api/transits", () => {
-  it("returns 13 planets with HD gate data", async () => {
+  it("returns 14 planets with HD gate data", async () => {
     const res = await app.inject({ method: "GET", url: "/api/transits" });
 
     expect(res.statusCode).toBe(200);
@@ -472,10 +472,13 @@ describe("GET /api/transits/experience", () => {
     expect(res.statusCode).toBe(200);
     expect(body.version).toBe("transits.v2");
     expect(body.mode).toBe("next7Days");
+    expect(body.selectedAt).toBe("2026-05-10T00:00:00.000Z");
     expect(body.range.step).toBe("panorama");
+    expect(body.range.startsAt).toBe("2026-05-10T00:00:00.000Z");
+    expect(body.selectedSnapshotId).toBe("panorama:2026-05-10T00:00:00.000Z");
   });
 
-  it("includes 7 daily snapshots in next7Days alongside the panorama snapshot", async () => {
+  it("returns a single rolling panorama snapshot for next7Days", async () => {
     const res = await app.inject({
       method: "GET",
       url: `/api/transits/experience?mode=next7Days&timeZone=Etc%2FUTC&clientNow=${clientNow}`,
@@ -484,30 +487,24 @@ describe("GET /api/transits/experience", () => {
 
     expect(res.statusCode).toBe(200);
     expect(Array.isArray(body.snapshots)).toBe(true);
-    expect(body.snapshots.length).toBeGreaterThanOrEqual(8);
-    const daySnapshots = body.snapshots.filter((s: { id: string }) => s.id.startsWith("day:"));
-    expect(daySnapshots).toHaveLength(7);
+    expect(body.snapshots).toHaveLength(1);
+    expect(body.snapshots[0].id).toBe("panorama:2026-05-10T00:00:00.000Z");
+    expect(body.snapshots[0].targetAt).toBe("2026-05-10T00:00:00.000Z");
+    expect(body.snapshots.some((s: { id: string }) => s.id.startsWith("day:"))).toBe(false);
+    expect(body.dayKeyFacts).toBeUndefined();
   });
 
-  it("includes a chronological dayKeyFacts array in next7Days", async () => {
+  it("does not bucket next7Days panorama to the previous Monday", async () => {
     const res = await app.inject({
       method: "GET",
       url: `/api/transits/experience?mode=next7Days&timeZone=Etc%2FUTC&clientNow=${clientNow}`,
     });
     const body = JSON.parse(res.body);
 
-    expect(Array.isArray(body.dayKeyFacts)).toBe(true);
-    expect(body.dayKeyFacts.length).toBeGreaterThanOrEqual(1);
-    expect(body.dayKeyFacts.length).toBeLessThanOrEqual(6);
-
-    const firstFact = body.dayKeyFacts[0];
-    expect(firstFact.kind).toBe("today");
-    expect(firstFact.dayLabel).toMatch(/^Hoy /);
-    expect(typeof firstFact.summary).toBe("string");
-
-    const isoTimestamps = body.dayKeyFacts.map((f: { atTargetIso: string }) => f.atTargetIso);
-    const sorted = [...isoTimestamps].sort();
-    expect(isoTimestamps).toEqual(sorted);
+    expect(res.statusCode).toBe(200);
+    expect(body.range.label).toBe("10 may - 16 may");
+    expect(body.range.startsAt).toBe("2026-05-10T00:00:00.000Z");
+    expect(body.selectedSnapshotId).not.toBe("panorama:2026-05-04T00:00:00.000Z");
   });
 
   it("does not emit dayKeyFacts for the today mode", async () => {
