@@ -2714,6 +2714,360 @@ textarea { outline: none !important; }
   letter-spacing: 0.02em;
 }
 
+/* ─── Bodygraph SVG (Slice 3) ─────────────────────────────────────────────── */
+
+.bg-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.bg-svg--miniature {
+  width: 64px;
+  height: 110px;
+}
+
+.bg-svg--full {
+  max-width: 320px;
+  height: auto;
+  margin: 0 auto;
+}
+
+.bg-channel {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.bg-channel--inactive {
+  stroke: rgba(33, 41, 30, 0.12);
+  stroke-width: 1;
+}
+
+.bg-channel--active {
+  stroke: var(--color-gold);
+  stroke-width: 2;
+}
+
+.bg-channel--personal {
+  stroke: #e0c081;
+  stroke-width: 2.5;
+}
+
+.bg-center path {
+  stroke: rgba(33, 41, 30, 0.4);
+  stroke-width: 0.6;
+  fill: transparent;
+  transition: fill 0.25s ease, stroke 0.25s ease;
+}
+
+.bg-center.is-user-defined path {
+  fill: var(--surface-dark);
+  stroke: var(--surface-deeper);
+}
+
+.bg-center.is-temp-defined path {
+  fill: var(--color-gold);
+  stroke: var(--color-gold-deep);
+}
+
+.bg-center.is-conditioned path {
+  fill: rgba(215, 199, 173, 0.55);
+  stroke: var(--color-accent);
+  stroke-width: 1;
+}
+
+.bg-center.is-activated path {
+  fill: rgba(207, 172, 108, 0.22);
+  stroke: var(--color-gold-deep);
+}
+
+.bg-center.is-neutral path {
+  fill: transparent;
+  stroke: rgba(33, 41, 30, 0.32);
+}
+
+.bg-center[role="button"] {
+  cursor: pointer;
+}
+
+.bg-center[role="button"]:hover path,
+.bg-center[role="button"]:focus-visible path {
+  stroke: var(--color-gold);
+  stroke-width: 1.2;
+}
+
+.bg-center-label {
+  font-family: var(--font-sans);
+  font-size: 5.5px;
+  font-weight: 700;
+  fill: rgba(33, 41, 30, 0.75);
+  pointer-events: none;
+}
+
+.bg-center.is-user-defined .bg-center-label,
+.bg-center.is-temp-defined .bg-center-label {
+  fill: var(--text-main);
+}
+
+.bg-legend-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  margin-right: 8px;
+  vertical-align: -2px;
+  border: 1px solid rgba(33, 41, 30, 0.3);
+}
+
+.bg-legend-swatch--user {
+  background: var(--surface-dark);
+  border-color: var(--surface-deeper);
+}
+
+.bg-legend-swatch--temp {
+  background: var(--color-gold);
+  border-color: var(--color-gold-deep);
+}
+
+.bg-legend-swatch--conditioned {
+  background: rgba(215, 199, 173, 0.55);
+  border-color: var(--color-accent);
+}
+
+.bg-legend-swatch--activated {
+  background: rgba(207, 172, 108, 0.22);
+  border-color: var(--color-gold-deep);
+}
+
+/* ─── Hero miniature in TransitViewer ─────────────────────────────────────── */
+
+.transit-hero-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.transit-hero-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.transit-hero-bodygraph {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 8px;
+  border: 1px solid rgba(33, 41, 30, 0.12);
+  border-radius: 12px;
+  background: rgba(248, 244, 232, 0.4);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.transit-hero-bodygraph:hover,
+.transit-hero-bodygraph:focus-visible {
+  border-color: var(--color-gold);
+  background: rgba(248, 244, 232, 0.65);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.transit-hero-bodygraph-label {
+  color: var(--color-gold-deep);
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+/* ─── Transit Map View (L2) ───────────────────────────────────────────────── */
+
+.transit-map-view {
+  color: var(--text-on-light);
+}
+
+.transit-map-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(33, 41, 30, 0.08);
+}
+
+.transit-map-back {
+  appearance: none;
+  background: transparent;
+  border: 1px solid rgba(33, 41, 30, 0.2);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-on-light);
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.transit-map-back:hover {
+  background: rgba(33, 41, 30, 0.06);
+  border-color: rgba(33, 41, 30, 0.4);
+}
+
+.transit-map-meta {
+  flex: 1;
+  text-align: center;
+  min-width: 0;
+}
+
+.transit-map-meta-kicker {
+  color: var(--color-gold-deep);
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+
+.transit-map-meta-label {
+  color: var(--text-on-light);
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.transit-map-chart {
+  display: flex;
+  justify-content: center;
+  padding: 14px 0 24px;
+}
+
+.transit-map-legend {
+  list-style: none;
+  margin: 0 0 22px;
+  padding: 14px 18px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px 16px;
+  background: rgba(248, 244, 232, 0.45);
+  border: 1px solid rgba(33, 41, 30, 0.06);
+  border-radius: 10px;
+  color: var(--text-on-light-muted);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.transit-map-summary {
+  padding: 14px 0 18px;
+  border-bottom: 1px solid rgba(33, 41, 30, 0.08);
+  margin-bottom: 18px;
+}
+
+.transit-map-kicker {
+  color: var(--color-gold-deep);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.transit-map-title {
+  margin: 0 0 8px;
+  color: var(--text-on-light);
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.transit-map-headline {
+  margin: 0 0 6px;
+  color: var(--color-gold-deep);
+  font-family: var(--font-sans);
+  font-size: 13px;
+}
+
+.transit-map-attribution {
+  margin: 0;
+  color: var(--text-on-light-muted);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+}
+
+.transit-map-section {
+  margin-bottom: 22px;
+}
+
+.transit-map-channel-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.transit-map-channel {
+  padding: 12px 0;
+  border-top: 1px solid rgba(33, 41, 30, 0.08);
+}
+
+.transit-map-channel:first-child {
+  border-top: none;
+  padding-top: 4px;
+}
+
+.transit-map-channel-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(207, 172, 108, 0.45);
+  background: rgba(207, 172, 108, 0.1);
+  color: var(--color-gold-deep);
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.transit-map-channel-name {
+  color: var(--text-on-light);
+  font-family: var(--font-serif);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.transit-map-channel-meta {
+  color: var(--text-on-light-muted);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 2px;
+}
+
+@media (max-width: 640px) {
+  .transit-hero-bodygraph {
+    padding: 4px 6px 6px;
+  }
+
+  .bg-svg--miniature {
+    width: 52px;
+    height: 92px;
+  }
+
+  .transit-map-legend {
+    grid-template-columns: 1fr;
+  }
+}
+
 .transit-insight-body {
   margin: 0 0 16px;
   color: var(--text-muted);

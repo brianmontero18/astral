@@ -1,5 +1,7 @@
 import { CENTER_DISPLAY } from "../utils";
+import type { UserProfile } from "../types";
 import type {
+  BodygraphSnapshot,
   TransitAskAgentPayload,
   TransitCenterDefinitionFact,
   TransitCenterFact,
@@ -31,6 +33,7 @@ export function buildTransitScreenModel(
   response: TransitExperienceResponse,
   selectedSnapshotId = response.selectedSnapshotId,
   loadingState: TransitScreenModel["loadingState"] = "ready",
+  userProfile?: UserProfile,
 ): TransitScreenModel {
   const selected = findSelectedSnapshot(response, selectedSnapshotId);
   const timelineSnapshots = response.snapshots.filter((snapshot) => snapshot.id.startsWith("hour:"));
@@ -63,6 +66,7 @@ export function buildTransitScreenModel(
     primaryInsight: buildPrimaryInsight(response, selected, timelineSnapshots),
     nextChange: buildNextChange(selected, timelineSnapshots, response.timeZone),
     dayKeyFacts: response.mode === "next7Days" ? response.dayKeyFacts : undefined,
+    bodygraphSnapshot: buildBodygraphSnapshot(selected, userProfile),
     personalSections: buildPersonalSections(selected),
     centerGroups: buildCenterGroups(selected),
     planetDetails: buildPlanetDetails(selected),
@@ -632,4 +636,42 @@ function formatDateTime(value: string, timeZone: string): string {
     minute: "2-digit",
     hourCycle: "h23",
   }).format(new Date(value));
+}
+
+function buildBodygraphSnapshot(
+  snapshot: TransitSnapshot,
+  userProfile?: UserProfile,
+): BodygraphSnapshot {
+  const userDefinedCenters = userProfile?.humanDesign?.definedCenters ?? [];
+  const userActivatedGates =
+    userProfile?.humanDesign?.activatedGates?.map((gate) => gate.number) ?? [];
+
+  const transitActivatedCenters = snapshot.collective.activatedCenters.map((center) => center.id);
+  const transitConditionedCenters =
+    snapshot.personal?.conditionedCenters.map((center) => center.center) ?? [];
+  const temporarilyDefinedCenters = (
+    snapshot.personal?.temporarilyDefinedCenters.length
+      ? snapshot.personal.temporarilyDefinedCenters
+      : snapshot.collective.temporarilyDefinedCenters
+  ).map((center) => center.id);
+
+  const activatedChannels = snapshot.collective.activatedChannels.map((channel) => ({ id: channel.id }));
+  const temporarilyDefinedChannels = (
+    snapshot.personal?.temporarilyDefinedCenters.length
+      ? snapshot.personal.temporarilyDefinedCenters.flatMap((center) => center.channels)
+      : snapshot.collective.temporarilyDefinedCenters.flatMap((center) => center.channels)
+  ).map((channel) => ({ id: channel.id }));
+  const personalChannels =
+    snapshot.personal?.personalChannels.map((channel) => ({ id: channel.channelId })) ?? [];
+
+  return {
+    userDefinedCenters,
+    userActivatedGates,
+    transitActivatedCenters,
+    transitConditionedCenters,
+    temporarilyDefinedCenters,
+    activatedChannels,
+    temporarilyDefinedChannels,
+    personalChannels,
+  };
 }

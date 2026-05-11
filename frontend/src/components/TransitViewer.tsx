@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { getGateTheme } from "../hd-data";
+import { BodygraphLive } from "./BodygraphLive";
 import type {
   DayKeyFact,
   TransitAskAgentPayload,
@@ -19,6 +20,7 @@ interface Props {
   onTimeNow: () => void;
   onRefresh: () => void;
   onAskAgent?: (payload: TransitAskAgentPayload) => void;
+  onOpenMap?: () => void;
 }
 
 export function TransitViewer({
@@ -29,6 +31,7 @@ export function TransitViewer({
   onTimeNow,
   onRefresh,
   onAskAgent,
+  onOpenMap,
 }: Props) {
   const [expandedPlanet, setExpandedPlanet] = useState<string | null>(null);
   const [showAllPlanets, setShowAllPlanets] = useState(false);
@@ -60,9 +63,35 @@ export function TransitViewer({
       }}
     >
       <header className="transit-hero">
-        <div className="transit-hero-kicker">{model.header.rangeLabel}</div>
-        <h2 className="transit-hero-title">{model.header.title}</h2>
-        <p className="transit-hero-meta">{model.header.activeLabel} · {model.header.subtitle}</p>
+        <div className="transit-hero-row">
+          <div className="transit-hero-text">
+            <div className="transit-hero-kicker">{model.header.rangeLabel}</div>
+            <h2 className="transit-hero-title">{model.header.title}</h2>
+            <p className="transit-hero-meta">{model.header.activeLabel} · {model.header.subtitle}</p>
+          </div>
+          {model.bodygraphSnapshot && onOpenMap && (
+            <button
+              type="button"
+              className="transit-hero-bodygraph"
+              onClick={onOpenMap}
+              aria-label="Ver mapa del momento"
+            >
+              <BodygraphLive
+                variant="miniature"
+                userDefinedCenters={model.bodygraphSnapshot.userDefinedCenters}
+                userActivatedGates={model.bodygraphSnapshot.userActivatedGates}
+                transitActivatedCenters={model.bodygraphSnapshot.transitActivatedCenters}
+                transitConditionedCenters={model.bodygraphSnapshot.transitConditionedCenters}
+                temporarilyDefinedCenters={model.bodygraphSnapshot.temporarilyDefinedCenters}
+                activatedChannels={model.bodygraphSnapshot.activatedChannels}
+                temporarilyDefinedChannels={model.bodygraphSnapshot.temporarilyDefinedChannels}
+                personalChannels={model.bodygraphSnapshot.personalChannels}
+                ariaLabel="Miniatura del bodygraph del momento"
+              />
+              <span className="transit-hero-bodygraph-label">Ver mapa</span>
+            </button>
+          )}
+        </div>
       </header>
 
       <div className="transit-controls">

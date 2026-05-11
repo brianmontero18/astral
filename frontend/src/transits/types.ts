@@ -121,6 +121,17 @@ export interface DayKeyFact {
   impactLabel?: string;
 }
 
+export interface BodygraphSnapshot {
+  userDefinedCenters: string[];
+  userActivatedGates: number[];
+  transitActivatedCenters: string[];
+  transitConditionedCenters: string[];
+  temporarilyDefinedCenters: string[];
+  activatedChannels: Array<{ id: string }>;
+  temporarilyDefinedChannels: Array<{ id: string }>;
+  personalChannels: Array<{ id: string }>;
+}
+
 export interface TransitChatContext {
   source: "transitScreen";
   mode: TransitMode;
@@ -172,6 +183,7 @@ export interface TransitScreenModel {
     atTargetIso: string;
   };
   dayKeyFacts?: DayKeyFact[];
+  bodygraphSnapshot?: BodygraphSnapshot;
   personalSections: TransitImpactSectionModel[];
   centerGroups: TransitCenterGroupModel[];
   planetDetails: TransitPlanetDetailModel[];

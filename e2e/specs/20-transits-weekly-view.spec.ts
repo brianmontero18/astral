@@ -106,6 +106,27 @@ test.describe("Transits — Experience view", () => {
     await expect(page.getByText(/cada día/)).not.toBeVisible();
   });
 
+  test("opens the bodygraph map view from the hero miniature and returns to ritual", async ({ page }) => {
+    await mockTransitExperienceToday(page);
+
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "Tránsitos" }).click();
+
+    await expect(page.getByRole("heading", { name: "Tránsitos" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Ver mapa del momento" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Ver mapa del momento" }).click();
+
+    await expect(page.getByRole("img", { name: "Bodygraph del momento (vista completa)" })).toBeVisible();
+    await expect(page.getByText("Tu definición permanente")).toBeVisible();
+    await expect(page.getByText("EN TU DISEÑO")).toBeVisible();
+
+    await page.getByRole("button", { name: "Volver a la lectura" }).click();
+
+    await expect(page.getByText("LO PRINCIPAL AHORA")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Ver mapa del momento" })).toBeVisible();
+  });
+
   test("renders Días clave with chronological summaries in panorama", async ({ page }) => {
     await mockTransitExperienceToday(page);
     await mockTransitExperienceNext7Days(page);

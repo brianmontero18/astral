@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { buildTransitScreenModel } from "../../../frontend/src/transits/adapter";
 import type { TransitExperienceResponse, TransitSnapshot } from "../../../frontend/src/transits/types";
+import type { UserProfile } from "../../../frontend/src/types";
 
 function buildExperience(overrides: Partial<TransitExperienceResponse> = {}): TransitExperienceResponse {
   const base: TransitExperienceResponse = {
@@ -260,5 +261,57 @@ describe("frontend transit experience adapter", () => {
     const model = buildTransitScreenModel(flatExperience);
 
     expect(model.nextChange).toBeUndefined();
+  });
+
+  it("builds bodygraphSnapshot merging user definition with transit facts", () => {
+    const profile = {
+      humanDesign: {
+        type: "Generador",
+        strategy: "Esperar a responder",
+        authority: "Sacral",
+        profile: "5/1",
+        definition: "Single",
+        incarnationCross: "RAX of the Sphinx",
+        notSelfTheme: "Frustración",
+        variable: "PRR-LLR",
+        digestion: "",
+        environment: "",
+        strongestSense: "",
+        channels: [],
+        activatedGates: [
+          { number: 35, line: 2, planet: "Sol", isPersonality: true },
+        ],
+        definedCenters: ["Sacral", "Throat", "G"],
+        undefinedCenters: ["Head", "Ajna", "Heart", "Spleen", "SolarPlexus", "Root"],
+      },
+    } as unknown as UserProfile;
+
+    const model = buildTransitScreenModel(
+      buildExperience(),
+      undefined,
+      "ready",
+      profile,
+    );
+
+    expect(model.bodygraphSnapshot).toBeDefined();
+    expect(model.bodygraphSnapshot?.userDefinedCenters).toEqual(["Sacral", "Throat", "G"]);
+    expect(model.bodygraphSnapshot?.userActivatedGates).toEqual([35]);
+    expect(model.bodygraphSnapshot?.temporarilyDefinedCenters).toContain("Throat");
+    expect(model.bodygraphSnapshot?.transitConditionedCenters).toContain("SolarPlexus");
+    expect(model.bodygraphSnapshot?.activatedChannels).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: "35-36" })]),
+    );
+    expect(model.bodygraphSnapshot?.personalChannels).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: "35-36" })]),
+    );
+  });
+
+  it("produces a bodygraphSnapshot even without user profile (collective only)", () => {
+    const model = buildTransitScreenModel(buildExperience());
+
+    expect(model.bodygraphSnapshot).toBeDefined();
+    expect(model.bodygraphSnapshot?.userDefinedCenters).toEqual([]);
+    expect(model.bodygraphSnapshot?.userActivatedGates).toEqual([]);
+    expect(model.bodygraphSnapshot?.temporarilyDefinedCenters).toContain("Throat");
   });
 });

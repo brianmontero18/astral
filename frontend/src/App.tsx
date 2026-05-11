@@ -507,6 +507,7 @@ export default function App() {
                 {currentView === "transits" && (
                   <TransitExperienceContainer
                     key={profileRevision}
+                    profile={profile ?? undefined}
                     onAskAgent={(payload) => {
                       setChatPrefill(payload.prefill);
                       setTransitChatContext({
