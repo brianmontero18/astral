@@ -187,6 +187,71 @@ describe("POST /api/chat/stream — validation", () => {
       error: "authentication_required",
     });
   });
+
+  it.each([
+    {
+      name: "next7Days with hour snapshot",
+      transitContext: {
+        source: "transitScreen",
+        mode: "next7Days",
+        snapshotId: "hour:2026-05-10T17:00:00.000Z",
+        targetAt: "2026-05-10T17:00:00.000Z",
+        timeZone: "Etc/UTC",
+      },
+    },
+    {
+      name: "today with panorama snapshot",
+      transitContext: {
+        source: "transitScreen",
+        mode: "today",
+        snapshotId: "panorama:2026-05-10T00:00:00.000Z",
+        targetAt: "2026-05-10T00:00:00.000Z",
+        timeZone: "Etc/UTC",
+      },
+    },
+    {
+      name: "invalid targetAt date",
+      transitContext: {
+        source: "transitScreen",
+        mode: "today",
+        snapshotId: "hour:2026-05-10T17:00:00.000Z",
+        targetAt: "not-a-date",
+        timeZone: "Etc/UTC",
+      },
+    },
+    {
+      name: "invalid snapshot date",
+      transitContext: {
+        source: "transitScreen",
+        mode: "today",
+        snapshotId: "hour:not-a-date",
+        targetAt: "2026-05-10T17:00:00.000Z",
+        timeZone: "Etc/UTC",
+      },
+    },
+    {
+      name: "invalid timezone",
+      transitContext: {
+        source: "transitScreen",
+        mode: "today",
+        snapshotId: "hour:2026-05-10T17:00:00.000Z",
+        targetAt: "2026-05-10T17:00:00.000Z",
+        timeZone: "Nope/Nowhere",
+      },
+    },
+  ])("rejects invalid transitContext: $name", async ({ transitContext }) => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/chat/stream",
+      payload: {
+        messages: [{ role: "user", content: "hello" }],
+        transitContext,
+      },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(JSON.parse(res.body)).toEqual({ error: "invalid_transit_context" });
+  });
 });
 
 describe("Chat history routes", () => {
@@ -533,7 +598,7 @@ describe("Freemium message limit", () => {
     const targetAt = "2026-05-10T17:00:00.000Z";
     getTransitSnapshotCachedMock.mockResolvedValueOnce({
       ...MOCK_TRANSIT_SNAPSHOT,
-      id: `instant:${targetAt}`,
+      id: `hour:${targetAt}`,
       targetAt,
       label: "Tránsito seleccionado",
     });
@@ -560,10 +625,49 @@ describe("Freemium message limit", () => {
     expect(res.statusCode).toBe(200);
     expect(res.body).toContain(`"transits_used":"${targetAt}"`);
     expect(getTransitSnapshotCachedMock).toHaveBeenCalledWith(
-      "instant",
+      "hour",
       new Date(targetAt),
       "America/Argentina/Buenos_Aires",
       "Tránsito seleccionado",
+    );
+  });
+
+  it("POST /api/chat/stream preserves next7Days panorama transit context", async () => {
+    await createLinkedTestUser(app, "st-chat-stream-transit-panorama");
+    const targetAt = "2026-05-10T00:00:00.000Z";
+    getTransitSnapshotCachedMock.mockResolvedValueOnce({
+      ...MOCK_TRANSIT_SNAPSHOT,
+      id: `panorama:${targetAt}`,
+      targetAt,
+      label: "Panorama",
+    });
+    runAstralAgentStreamMock.mockImplementationOnce(async function* streamReply() {
+      yield "Respuesta semanal";
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/chat/stream",
+      headers: sessionHeaders("st-chat-stream-transit-panorama"),
+      payload: {
+        messages: [{ role: "user", content: "¿Cómo uso esta semana?" }],
+        transitContext: {
+          source: "transitScreen",
+          mode: "next7Days",
+          snapshotId: "panorama:2026-05-10T00:00:00.000Z",
+          targetAt,
+          timeZone: "America/Argentina/Buenos_Aires",
+        },
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toContain(`"transits_used":"${targetAt}"`);
+    expect(getTransitSnapshotCachedMock).toHaveBeenCalledWith(
+      "panorama",
+      new Date(targetAt),
+      "America/Argentina/Buenos_Aires",
+      "Panorama",
     );
   });
 

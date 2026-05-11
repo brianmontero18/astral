@@ -28,6 +28,7 @@ import {
   getTransitSnapshotCached,
   isValidTimeZone,
   transitSnapshotToWeeklyTransits,
+  type TransitSnapshotKind,
   type WeeklyTransits,
 } from "../transit-service.js";
 import { type AuthenticatedRequest } from "../auth/session.js";
@@ -158,6 +159,13 @@ export async function chatRoutes(app: FastifyInstance) {
     timeZone: string;
   }
 
+  type TransitChatSnapshotKind = Extract<TransitSnapshotKind, "instant" | "hour" | "panorama">;
+
+  interface ParsedTransitChatContext extends TransitChatContext {
+    snapshotKind: TransitChatSnapshotKind;
+    targetAtDate: Date;
+  }
+
   async function getPersistedChatUsage(
     userId: string,
     plan: "free" | "basic" | "premium",
@@ -169,7 +177,7 @@ export async function chatRoutes(app: FastifyInstance) {
 
   function parseTransitChatContext(
     context: TransitChatContext | undefined,
-  ): { context?: TransitChatContext; error?: undefined } | { context?: undefined; error: string } {
+  ): { context?: ParsedTransitChatContext; error?: undefined } | { context?: undefined; error: string } {
     if (!context) {
       return {};
     }
@@ -185,22 +193,71 @@ export async function chatRoutes(app: FastifyInstance) {
       return { error: "invalid_transit_context" };
     }
 
-    const targetAt = new Date(context.targetAt);
-    if (Number.isNaN(targetAt.getTime())) {
+    const targetAtDate = parseDate(context.targetAt);
+    const snapshot = parseTransitSnapshotId(context.snapshotId);
+
+    if (!targetAtDate || !snapshot) {
       return { error: "invalid_transit_context" };
     }
 
-    return { context };
+    if (snapshot.targetAt.getTime() !== targetAtDate.getTime()) {
+      return { error: "invalid_transit_context" };
+    }
+
+    if (context.mode === "today" && snapshot.kind === "panorama") {
+      return { error: "invalid_transit_context" };
+    }
+
+    if (context.mode === "next7Days" && snapshot.kind !== "panorama") {
+      return { error: "invalid_transit_context" };
+    }
+
+    return { context: { ...context, snapshotKind: snapshot.kind, targetAtDate } };
   }
 
   async function getTransitsForChat(
-    context?: TransitChatContext,
+    context?: ParsedTransitChatContext,
   ): Promise<WeeklyTransits> {
-    const targetAt = context ? new Date(context.targetAt) : new Date();
-    const timeZone = context?.timeZone ?? "UTC";
-    const label = context ? "Tránsito seleccionado" : "Ahora";
-    const snapshot = await getTransitSnapshotCached("instant", targetAt, timeZone, label);
+    if (!context) {
+      const snapshot = await getTransitSnapshotCached("instant", new Date(), "UTC", "Ahora");
+      return transitSnapshotToWeeklyTransits(snapshot);
+    }
+
+    const label = context.mode === "next7Days"
+      ? "Panorama"
+      : context.snapshotKind === "hour"
+        ? "Tránsito seleccionado"
+        : "Ahora";
+    const snapshot = await getTransitSnapshotCached(
+      context.snapshotKind,
+      context.targetAtDate,
+      context.timeZone,
+      label,
+    );
     return transitSnapshotToWeeklyTransits(snapshot);
+  }
+
+  function parseTransitSnapshotId(
+    snapshotId: string,
+  ): { kind: TransitChatSnapshotKind; targetAt: Date } | null {
+    const match = /^(instant|hour|panorama):(.+)$/.exec(snapshotId);
+    if (!match) return null;
+
+    const targetAt = parseDate(match[2]);
+    if (!targetAt) return null;
+
+    return {
+      kind: match[1] as TransitChatSnapshotKind,
+      targetAt,
+    };
+  }
+
+  function parseDate(value: string): Date | null {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return null;
+    }
+    return date;
   }
 
   app.post<{ Body: ChatBody }>("/chat", async (req, reply) => {
