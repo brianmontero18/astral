@@ -1,8 +1,8 @@
 # Bodygraph Relacional
 
-**Fecha:** 2026-05-10
-**Estado:** hipótesis producto v2, dirección recomendada para discovery
-**Documentos conectados:** [competencia.md](./competencia.md), [context-workspace-ux.md](./context-workspace-ux.md), [context-workspace-architecture.md](./context-workspace-architecture.md), [context-workspace-e2e-plan.md](./context-workspace-e2e-plan.md), [context-workspace-migration-plan.md](./context-workspace-migration-plan.md)
+- **Fecha:** 2026-05-10
+- **Estado:** hipótesis producto v2, dirección recomendada para discovery
+- **Documentos conectados:** [competencia.md](./competencia.md), [context-workspace-ux.md](./context-workspace-ux.md), [context-workspace-architecture.md](./context-workspace-architecture.md), [context-workspace-e2e-plan.md](./context-workspace-e2e-plan.md), [context-workspace-migration-plan.md](./context-workspace-migration-plan.md)
 
 Este documento captura la intención de producto para pasar de un modelo centrado en una sola carta a un modelo relacional de bodygraphs. No define implementación. La intención es que otro agente pueda retomar el discovery, entender la abstracción y luego bajar a UX, arquitectura, E2E o migración sin reconstruir el hilo.
 
@@ -96,7 +96,7 @@ La unidad de valor ya no sería solo "mi informe" o "mi chat", sino:
 | Cuenta | La identidad autenticada que paga, guarda datos y administra su espacio privado. |
 | Workspace | El espacio privado del usuario donde vive su universo de cartas, personas, entidades, conexiones, chats e informes. |
 | Persona / Sujeto | Cualquier entidad nombrable con una carta/bodygraph: el usuario, un cliente, una pareja, una madre, un socio, una celebridad, un negocio, una mascota o una entidad simbólica. |
-| Mi carta | El sujeto principal del usuario. Sigue siendo el punto de entrada default. |
+| Mi carta | El sujeto principal del usuario. Sigue siendo el punto de entrada por defecto. |
 | Bodygraph | La representación de Diseño Humano asociada a un sujeto. Puede venir de PDF, carga manual o cálculo futuro. |
 | Conexión | Objeto relacional guardado que combina dos sujetos para analizar interacción. Internamente puede seguir llamándose "cruce". |
 | Contexto activo | El objeto sobre el que trabaja la app en este momento. Puede ser un sujeto individual o una conexión A+B. |
@@ -109,7 +109,7 @@ La unidad de valor ya no sería solo "mi informe" o "mi chat", sino:
 ## Principios De Producto
 
 1. **Contexto antes que superficie.** La app debe resolver "sobre qué estamos trabajando" antes de abrir Chat, Informe o Tránsitos.
-2. **Mi carta sigue siendo default.** La experiencia actual no se reemplaza de golpe; se convierte en el primer sujeto del workspace.
+2. **Mi carta sigue siendo la entrada por defecto.** La experiencia actual no se reemplaza de golpe; se convierte en el primer sujeto del workspace.
 3. **Conexión es objeto persistente.** No es un cálculo temporal A+B ni dos informes pegados.
 4. **Chat por contexto.** El monothread actual no escala. Cada sujeto/conexión necesita conversación propia.
 5. **Informe por contexto.** Informe individual e informe relacional son productos distintos.
@@ -131,7 +131,7 @@ Avanzar hacia un **Context Workspace**, empezando por una versión conservadora,
 6. Separar chats por contexto: sujeto individual o conexión.
 7. Separar informes por contexto: informe individual o informe relacional.
 8. Evitar scores, rankings o claims deterministas.
-9. Mantener privacy-by-default y copy liviana de responsabilidad al cargar terceros.
+9. Mantener privacidad por defecto y copy liviana de responsabilidad al cargar terceros.
 
 La experiencia objetivo:
 
@@ -150,9 +150,9 @@ Biblioteca
 | ¿El selector de contexto vive solo en Tránsitos? | No. Debe ser patrón de workspace. Tránsitos consume contexto, no lo inventa. |
 | ¿Crear conexión desde Tránsitos alcanza? | No. Debe existir biblioteca mínima. Tránsitos puede ofrecer un atajo. |
 | ¿Primer caso de uso a optimizar? | Mi carta + otra entidad. Tercero + tercero debe existir, pero no ser happy path inicial. |
-| ¿`Dinámica` como tab o sección? | El resumen debe ser relacional por default. Luego capas: A, B, Dinámica. |
+| ¿`Dinámica` como tab o sección? | El resumen debe ser relacional por defecto. Luego capas: A, B, Dinámica. |
 | ¿Chat automático al crear conexión? | No. Crear conexión abre workspace. El thread se crea al entrar al Chat o enviar primer mensaje. |
-| ¿Cartas temporales? | Temporales por default. Para chat, informe o volver luego, pedir guardar/nombar. |
+| ¿Cartas temporales? | No bloquean V1 inicial. Si existen, son temporales por defecto. Para chat, informe o volver luego, pedir guardar/nombrar. |
 | ¿Copy legal mínima? | "Usá alias si corresponde. Cargá datos que tengas permiso de usar. Todo queda privado y podés borrarlo cuando quieras." |
 
 ## Producto Que Habría Que Cambiar
@@ -267,7 +267,7 @@ Ver [transits-relational-ux.md](./transits-relational-ux.md) para la pantalla es
 
 La hipótesis actual no es "bloquear todo hasta tener consentimiento verificable". El mercado no parece operar así. La hipótesis prudente es:
 
-- private by default;
+- privado por defecto;
 - alias permitidos;
 - no exponer datos de nacimiento exactos innecesariamente;
 - borrar sujeto/bodygraph/conexión fácilmente;
@@ -325,7 +325,7 @@ La dirección recomendada al 2026-05-10 es avanzar conceptualmente hacia **Conte
 
 No cerrar aún:
 
-- nombre final de la feature;
+- nombre comercial final de la feature;
 - pricing;
 - profundidad legal;
 - modo coach;

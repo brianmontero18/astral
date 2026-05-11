@@ -1,9 +1,9 @@
 # Context Workspace Migration Plan
 
-**Fecha:** 2026-05-10
-**Estado:** plan de migración v0 para agentes
-**Capa:** orden de ejecución, dependencias y gates
-**Leer antes:** [bodygraph-relacional.md](./bodygraph-relacional.md), [context-workspace-ux.md](./context-workspace-ux.md), [context-workspace-architecture.md](./context-workspace-architecture.md), [context-workspace-e2e-plan.md](./context-workspace-e2e-plan.md)
+- **Fecha:** 2026-05-10
+- **Estado:** plan de migración v0 para agentes
+- **Capa:** orden de ejecución, dependencias y gates
+- **Leer antes:** [bodygraph-relacional.md](./bodygraph-relacional.md), [context-workspace-ux.md](./context-workspace-ux.md), [context-workspace-architecture.md](./context-workspace-architecture.md), [context-workspace-e2e-plan.md](./context-workspace-e2e-plan.md)
 
 Este documento orquesta los assets de discovery en un plan incremental. No es una spec técnica cerrada. Sirve para que futuros agentes no intenten implementar todo de una vez ni metan contexto solo en una pantalla.
 
@@ -83,25 +83,25 @@ Tareas:
 Gate:
 
 - los tests nuevos fallan por funcionalidad faltante, no por errores de setup;
-- los tests verifican que viaja context id;
+- los tests verifican que viaja `contextId`;
 - los tests no dependen de LLM real.
 
-## Fase 2: Introducir Subject Primario Como Sombra
+## Fase 2: Introducir Sujeto Primario Como Sombra
 
 **Objetivo:** crear el puente entre `users.profile` y el nuevo modelo sin cambiar la UI.
 
 Tareas:
 
 - agregar modelo persistente de `subjects` o equivalente;
-- crear subject primario para usuarios existentes;
-- mapear `users.profile` al subject primario;
-- asociar asset activo legacy al subject primario;
+- crear sujeto primario para usuarios existentes;
+- mapear `users.profile` al sujeto primario;
+- asociar asset activo legacy al sujeto primario;
 - mantener `/api/me` funcionando.
 
 Gate:
 
 - app actual se comporta igual;
-- existe subject primario para usuarios migrados;
+- existe sujeto primario para usuarios migrados;
 - reportes/chat/tránsitos legacy siguen leyendo datos correctos;
 - no se crean sujetos duplicados en reintentos.
 
@@ -112,7 +112,7 @@ Gate:
 Tareas:
 
 - crear `GET /api/contexts` o endpoint equivalente;
-- mostrar subject primario;
+- mostrar sujeto primario;
 - listar sujetos adicionales;
 - listar conexiones si existen;
 - crear sujeto tercero;
@@ -152,11 +152,11 @@ Gate:
 
 Tareas:
 
-- crear threads por context;
-- migrar historial legacy al subject primario;
-- crear endpoints de chat por context;
-- adaptar prompts para subject vs connection;
-- separar memoria por context o bloquear memoria relacional hasta tener scope seguro.
+- crear threads por contexto;
+- migrar historial legacy al sujeto primario;
+- crear endpoints de chat por contexto;
+- adaptar prompts para sujeto vs conexión;
+- separar memoria por contexto o bloquear memoria relacional hasta tener scope seguro.
 
 Gate:
 
@@ -172,19 +172,19 @@ Gate:
 
 Tareas:
 
-- crear reportes por context;
-- mapear reporte legacy al subject primario;
+- crear reportes por contexto;
+- mapear reporte legacy al sujeto primario;
 - definir hash individual;
 - definir hash relacional;
 - crear plantilla relacional mínima;
-- mantener report stale por context.
+- mantener report stale por contexto.
 
 Gate:
 
 - informe individual no se sirve para conexión;
 - informe relacional no se invalida por cambios ajenos;
 - regenerar un informe no pisa otro contexto;
-- PDF/share, si siguen activos, respetan context o quedan fuera de V1.
+- PDF/share, si siguen activos, respetan contexto o quedan fuera de V1.
 
 ## Fase 7: Tránsitos Contextuales
 
@@ -193,10 +193,10 @@ Gate:
 Tareas:
 
 - mantener ADR de hoy/slider/7 días;
-- crear endpoint o adapter de tránsitos por context;
-- subject: impacto individual;
-- connection: resumen, A, B, dinámica;
-- CTA al agente incluye context + time + layer.
+- crear endpoint o adapter de tránsitos por contexto;
+- sujeto: impacto individual;
+- conexión: resumen, A, B, dinámica;
+- CTA al agente incluye contexto + hora + capa.
 
 Gate:
 
@@ -212,10 +212,10 @@ Gate:
 
 Tareas:
 
-- asociar assets a subject;
-- reemplazar bodygraph de subject específico;
-- actualizar profile hash del subject;
-- invalidar reportes y transits derivados del context correcto;
+- asociar assets a sujeto;
+- reemplazar bodygraph de sujeto específico;
+- actualizar profile hash del sujeto;
+- invalidar reportes y tránsitos derivados del contexto correcto;
 - preservar comportamiento de `Mi carta`.
 
 Gate:
@@ -223,24 +223,24 @@ Gate:
 - reemplazar carta de `Cliente X` no cambia `Brian`;
 - reemplazar `Mi carta` sigue funcionando como hoy;
 - connections dependientes quedan stale o recalculan según contrato;
-- E2E de assets por subject pasa.
+- E2E de assets por sujeto pasa.
 
 ## Fase 9: Limpieza Legacy
 
-**Objetivo:** reducir deuda después de que flujos por context estén estables.
+**Objetivo:** reducir deuda después de que flujos por contexto estén estables.
 
 Tareas:
 
 - convertir `/api/me/*` en wrappers o deprecarlos;
 - remover dependencias frontend directas de `profile` global;
-- migrar `users.intake` a subject intake;
-- migrar `users.memory_md` a context memory o global memory explícita;
+- migrar `users.intake` a intake de sujeto;
+- migrar `users.memory_md` a memoria por contexto o memoria global explícita;
 - actualizar `ARCHITECTURE.md`.
 
 Gate:
 
 - ningún flujo nuevo depende de `users.profile` como carta global;
-- docs de arquitectura reflejan source of truth real;
+- docs de arquitectura reflejan la fuente de verdad real;
 - tests legacy ajustados o eliminados con intención.
 
 ## Rollout Recomendado
@@ -258,7 +258,7 @@ Rollout:
 3. cohort pequeña;
 4. nuevos usuarios;
 5. usuarios existentes migrados;
-6. default general.
+6. activación por defecto.
 
 ## Estrategia De Commits
 
@@ -299,11 +299,11 @@ No saltar Fase 4. Sin Context Shell, cada superficie va a inventar su propio con
 | Riesgo | Señal temprana | Mitigación |
 |---|---|---|
 | Se implementa solo en Tránsitos | Chat/Informe siguen monocontexto | Bloquear specs que no pasen por Context Workspace. |
-| Se rompe `Mi carta` | Usuario existente no encuentra su chat/informe | Subject primario como sombra antes de cambiar UI. |
-| Memoria contaminada | Chat de conexión usa hechos personales como si fueran de un tercero | Scope de memoria por context o memoria desactivada en conexiones al inicio. |
-| DB demasiado ambiciosa | Migración grande y frágil | Introducir shadow model y compat wrappers. |
+| Se rompe `Mi carta` | Usuario existente no encuentra su chat/informe | Sujeto primario como sombra antes de cambiar UI. |
+| Memoria contaminada | Chat de conexión usa hechos personales como si fueran de un tercero | Scope de memoria por contexto o memoria desactivada en conexiones al inicio. |
+| DB demasiado ambiciosa | Migración grande y frágil | Introducir modelo sombra y compat wrappers. |
 | UX demasiado densa | Header lleno de controles | Biblioteca como navegación primaria, selector como cambio rápido. |
-| Informes stale cruzados | Reporte de Brian aparece en Brian+AUREA | Hash por context y tests E2E. |
+| Informes stale cruzados | Reporte de Brian aparece en Brian+AUREA | Hash por contexto y tests E2E. |
 | Legal sobreactuado | Crear sujeto se vuelve formulario pesado | Alias + copy breve + delete fácil en V1. |
 
 ## Definition Of Done Del Programa
@@ -318,7 +318,7 @@ El programa se considera migrado cuando:
 - Tránsitos soporta individual y conexión;
 - assets se reemplazan por sujeto;
 - E2E cubre cambio de contexto y no mezcla historiales;
-- `ARCHITECTURE.md` está actualizado con la nueva source of truth;
+- `ARCHITECTURE.md` está actualizado con la nueva fuente de verdad;
 - los docs legacy indican qué quedó reemplazado o compatibilizado.
 
 ## Próxima Acción Recomendada
@@ -326,7 +326,7 @@ El programa se considera migrado cuando:
 Convertir este plan en specs por fase, empezando por:
 
 1. Fase 0/1: E2E baseline + mocks de Context Workspace.
-2. Fase 2: subject primario shadow model.
+2. Fase 2: sujeto primario como modelo sombra.
 3. Fase 3/4: Biblioteca mínima + Context Shell.
 
 No empezar por Tránsitos relacionales. Tránsitos debe llegar después de que exista el contexto global.

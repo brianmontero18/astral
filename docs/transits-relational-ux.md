@@ -1,8 +1,8 @@
 # Tránsitos Relacionales UX
 
-**Fecha:** 2026-05-10
-**Estado:** propuesta UX de superficie, subordinada a Context Workspace
-**Documentos base:** [transits-time-selector-adr.md](./transits-time-selector-adr.md), [bodygraph-relacional.md](./bodygraph-relacional.md), [context-workspace-ux.md](./context-workspace-ux.md), [context-workspace-architecture.md](./context-workspace-architecture.md), [competencia.md](./competencia.md)
+- **Fecha:** 2026-05-10
+- **Estado:** propuesta UX de superficie, subordinada a Context Workspace
+- **Documentos base:** [transits-time-selector-adr.md](./transits-time-selector-adr.md), [bodygraph-relacional.md](./bodygraph-relacional.md), [context-workspace-ux.md](./context-workspace-ux.md), [context-workspace-architecture.md](./context-workspace-architecture.md), [competencia.md](./competencia.md)
 
 Este documento propone cómo extender la experiencia de Tránsitos para soportar una lectura relacional entre dos bodygraphs, sin reemplazar el ADR actual. El ADR resuelve la pregunta "qué tránsito me afecta ahora" para una carta individual. Esta propuesta agrega una capa previa: "sobre qué carta o conexión estoy mirando ese tránsito".
 
@@ -442,7 +442,7 @@ Incluido:
 - header de contexto activo heredado del workspace;
 - carta individual como modo compatible con el ADR actual;
 - conexión de dos bodygraphs como modo relacional;
-- `Hoy` default con `Ahora`;
+- `Hoy` por defecto con `Ahora`;
 - slider diario heredado del ADR;
 - `Próximos 7 días` como vista secundaria;
 - capas `Resumen`, `En A`, `En B`, `Dinámica`;
@@ -467,7 +467,7 @@ Fuera de alcance:
 
 | Decisión | Recomendación |
 |---|---|
-| Entrada default | `Mi carta` + `Hoy` + `Ahora` |
+| Entrada por defecto | `Mi carta` + `Hoy` + `Ahora` |
 | Ubicación del contexto | Encima del selector temporal |
 | Nombre del objeto relacional | Usar `Conexión` de cara al usuario y `Cruce` internamente si hace falta en discovery |
 | Conexiones soportadas | Solo dos bodygraphs |
@@ -495,12 +495,12 @@ Fuera de alcance:
 4. El primer caso de uso optimizado debe ser `mi carta + otra entidad`. Tercero + tercero se permite, pero no guía la UX inicial.
 5. `Dinámica` debe ser una capa explícita. El `Resumen` inicial ya debe ser relacional y no una suma de A+B.
 6. El chat no se abre automáticamente al crear una conexión. La conexión abre un workspace; el thread se crea al entrar a Chat o enviar primer mensaje.
-7. Las cartas temporales se descartan por defecto. Para chat, informe o reabrir luego, pedir guardar/nombar.
+7. Si existen cartas temporales, se descartan por defecto. Para chat, informe o reabrir luego, pedir guardar/nombrar.
 8. Copy mínima: "Usá alias si corresponde. Cargá datos que tengas permiso de usar. Todo queda privado y podés borrarlo cuando quieras."
 
 ## Preguntas Abiertas
 
-1. ¿Qué granularidad de tránsitos relacionales entra en V1: solo hoy/ahora o también próximas 24 muestras?
+1. En `Próximos 7 días`, ¿cuánto cálculo real entra en V1 y cuánto queda como panorama editorial basado en muestras disponibles?
 2. ¿La capa `Dinámica` necesita bodygraph visual compuesto en V1 o alcanza con tarjetas semánticas?
 3. ¿Qué datos de conexión se incluyen en el prompt del agente sin volverlo demasiado largo?
 4. ¿Qué límites de plan aplican a tránsitos de conexiones si el cálculo es más caro?

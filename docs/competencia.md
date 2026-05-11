@@ -1,8 +1,8 @@
 # Competencia
 
-**Fecha de corte:** 2026-05-09  
-**Estado:** documento vivo de discovery competitivo  
-**Uso esperado:** cuando se evalúen features, pricing, privacidad, reportes, IA o workflows para coaches/practitioners, actualizar primero este mapa recorriendo los links oficiales.
+- **Fecha de corte:** 2026-05-09
+- **Estado:** documento vivo de discovery competitivo
+- **Uso esperado:** cuando se evalúen features, pricing, privacidad, reportes, IA o workflows para coaches/practitioners, actualizar primero este mapa recorriendo los links oficiales.
 
 Este documento no es asesoría legal. Es una lectura competitiva basada en fuentes públicas oficiales: webs, pricing/features, help centers, privacy policies, terms y tiendas oficiales.
 
@@ -16,24 +16,24 @@ Este documento no es asesoría legal. Es una lectura competitiva basada en fuent
 
 ## Lectura Ejecutiva
 
-El mercado maduro no trata los cruces como "subir otro PDF". Los productos fuertes modelan una biblioteca privada de personas/charts y luego agregan objetos relacionales: Connection, Partnership, Composite, Penta, Group, Business o Compatibility.
+El mercado maduro no trata las conexiones relacionales como "subir otro PDF". Los productos fuertes modelan una biblioteca privada de personas/charts y luego agregan objetos relacionales: Connection, Partnership, Composite, Penta, Group, Business o Compatibility.
 
 El estándar competitivo visible no parece ser pedir consentimiento verificable de cada tercero antes de crear un chart. El patrón real es permitir saved profiles/friends/charts, mantenerlos privados por defecto o bajo cuenta, ofrecer delete/export, limitar sharing externo y desplazar responsabilidad al usuario cuando el producto entra en modo profesional, B2B, IA o terceros.
 
-Para Astral, el insight no es "hacer compatibilidad amorosa". El insight es construir capacidad de **análisis relacional entre bodygraphs**: qué activa un bodygraph en otro, qué se completa, qué condiciona, qué se amplifica y qué contexto representa el cruce.
+Para Astral, el insight no es "hacer compatibilidad amorosa". El insight es construir capacidad de **análisis relacional entre bodygraphs**: qué activa un bodygraph en otro, qué se completa, qué condiciona, qué se amplifica y qué contexto representa la conexión.
 
 ## Patrones Del Mercado
 
 | Patrón | Qué se ve | Implicancia para Astral |
 |---|---|---|
 | Biblioteca primero | myBodyGraph, Maia, 64keys, BodyGraph y Astro.com guardan múltiples charts/personas. | "Mis cartas" debería evolucionar a "Personas" o "Bodygraphs guardados", no solo reemplazar la carta actual. |
-| Relación como objeto | The Pattern usa Bonds; myBodyGraph usa Partnership; Maia/Genetic Matrix usan Connection; astrología usa Composite/Synastry. | Astral necesita un objeto "Cruce" persistente, no solo un cálculo temporal A+B. |
+| Relación como objeto | The Pattern usa Bonds; myBodyGraph usa Partnership; Maia/Genetic Matrix usan Connection; astrología usa Composite/Synastry. | Astral necesita un objeto "Conexión" persistente, no solo un cálculo temporal A+B. |
 | Practitioner workflow | BodyGraph, 64keys, Maia y Genetic Matrix apuntan a coaches, consultores o profesionales. | El valor está en organizar clientes, reportes, notas, exportables y límites por plan. |
-| Freemium útil | Varias apps dejan crear charts gratis y cobran profundidad, reportes, export, IA, volumen o workflows pro. | Conviene permitir probar cruces antes de cobrar todo. |
-| Privacidad por cuenta | Saved profiles suelen vivir en la cuenta del usuario, con delete/export y poca exposición social. | Default: perfiles privados, no buscables, no compartidos. |
+| Freemium útil | Varias apps dejan crear charts gratis y cobran profundidad, reportes, export, IA, volumen o workflows pro. | Conviene permitir probar conexiones antes de cobrar todo. |
+| Privacidad por cuenta | Saved profiles suelen vivir en la cuenta del usuario, con delete/export y poca exposición social. | Por defecto: perfiles privados, no buscables, no compartidos. |
 | Responsabilidad del usuario | 64keys, The Pattern y BodyGraph son referencias para cláusulas de permisos/datos de terceros. | Astral puede pedir confirmación liviana sin bloquear el uso normal de coaches. |
 
-## Ranking De Relevancia
+## Mapa De Relevancia
 
 | Prioridad | Producto | Por qué importa |
 |---|---|---|
@@ -114,7 +114,7 @@ Para Astral, el insight no es "hacer compatibilidad amorosa". El insight es cons
 
 **Aprendizaje para Astral**
 - Si Astral va hacia coaches, necesita pensar en "cliente del usuario" y no solo "amigo guardado".
-- Buen modelo de responsabilidad delegada + derechos GDPR + private-by-default.
+- Buen modelo de responsabilidad delegada + derechos GDPR + privacidad por defecto.
 
 ### myBodyGraph
 
@@ -148,7 +148,7 @@ Para Astral, el insight no es "hacer compatibilidad amorosa". El insight es cons
 
 **Aprendizaje para Astral**
 - Excelente referencia para separar chart library gratis de análisis profundo pago.
-- Partnership como producto premium confirma que el cruce puede monetizarse por profundidad, no por mero cálculo.
+- Partnership como producto premium confirma que la conexión puede monetizarse por profundidad, no por mero cálculo.
 
 ### Maia Mechanics
 
@@ -299,7 +299,7 @@ Para Astral, el insight no es "hacer compatibilidad amorosa". El insight es cons
 - Revisar aviso legal / privacidad de la web y store privacy en cada actualización.
 
 **Aprendizaje para Astral**
-- Hay oportunidad en español para un producto más profesional: personas, cruces, informes, tránsitos, chat/memoria y workflows de coaches.
+- Hay oportunidad en español para un producto más profesional: personas, conexiones, informes, tránsitos, chat/memoria y workflows de coaches.
 
 ## Watchlist HD
 
@@ -436,7 +436,7 @@ Para Astral, el insight no es "hacer compatibilidad amorosa". El insight es cons
 
 **Aprendizaje para Astral**
 - Separar persona conectada de perfil privado/manual.
-- No exponer birth data exacto en links/reportes por default.
+- No exponer birth data exacto en links/reportes por defecto.
 
 ### TimePassages / AstroGraph
 
@@ -541,12 +541,12 @@ Para Astral, el insight no es "hacer compatibilidad amorosa". El insight es cons
 
 ### Hipótesis Prudente Para Astral
 
-Astral puede permitir saved profiles/bodygraphs y cruces relacionales porque es norma competitiva. La postura prudente no es bloquear el flujo con consentimiento verificable desde v1; es:
+Astral puede permitir saved profiles/bodygraphs y conexiones relacionales porque es norma competitiva. La postura prudente no es bloquear el flujo con consentimiento verificable desde V1; es:
 
 - perfiles privados por defecto;
 - alias permitido y recomendado para terceros;
 - no exponer birth data crudo en reportes compartidos;
-- delete por persona/bodygraph/cruce;
+- delete por persona/bodygraph/conexión;
 - copy liviana de responsabilidad al cargar datos de terceros;
 - cláusula más explícita cuando haya IA, export/share, workspace de coaches o datos de clientes;
 - revisión legal real antes de lanzar B2B/coach workspace o sharing público.
@@ -555,7 +555,7 @@ Astral puede permitir saved profiles/bodygraphs y cruces relacionales porque es 
 
 1. ¿Astral va a almacenar birth data crudo o solo el bodygraph extraído/calculado?
 2. ¿El usuario podrá usar alias sin email ni identificador real?
-3. ¿Los cruces se podrán compartir/exportar?
+3. ¿Las conexiones se podrán compartir/exportar?
 4. ¿Qué se manda a IA: birth data, bodygraph, alias, notas, chat completo?
 5. ¿Habrá modo coach con clientes reales y reportes comerciales?
 6. ¿Habrá menores, hijos, animales o negocios como entidades permitidas?

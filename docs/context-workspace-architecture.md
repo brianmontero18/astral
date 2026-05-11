@@ -1,10 +1,10 @@
 # Context Workspace Architecture
 
-**Fecha:** 2026-05-10
-**Estado:** arquitectura conceptual v0, no implementación final
-**Capa:** modelo de datos, endpoints y contratos frontend
-**Leer antes:** [bodygraph-relacional.md](./bodygraph-relacional.md), [context-workspace-ux.md](./context-workspace-ux.md)
-**Leer después:** [context-workspace-e2e-plan.md](./context-workspace-e2e-plan.md), [context-workspace-migration-plan.md](./context-workspace-migration-plan.md)
+- **Fecha:** 2026-05-10
+- **Estado:** arquitectura conceptual v0, no implementación final
+- **Capa:** modelo de datos, endpoints y contratos frontend
+- **Leer antes:** [bodygraph-relacional.md](./bodygraph-relacional.md), [context-workspace-ux.md](./context-workspace-ux.md)
+- **Leer después:** [context-workspace-e2e-plan.md](./context-workspace-e2e-plan.md), [context-workspace-migration-plan.md](./context-workspace-migration-plan.md)
 
 Este documento baja la intención y la UX a contratos de producto/arquitectura. No es una spec ejecutable final. Su objetivo es darle a futuros agentes un mapa claro para diseñar migraciones sin romper la app actual.
 
@@ -41,18 +41,62 @@ Superficie activa
 6. **La migración debe mantener compatibilidad con `users.profile` hasta completar el cambio.**
 7. **E2E define el contrato antes del refactor.**
 
+## Convención De Términos
+
+Usar español para producto y UI:
+
+- `Sujeto`;
+- `Conexión`;
+- `Contexto activo`;
+- `Biblioteca`;
+- `Dinámica`.
+
+Usar inglés solo para contratos técnicos:
+
+- `subject`;
+- `connection`;
+- `contextId`;
+- `ContextRef`;
+- `ScreenModel`.
+
+Esto evita que el usuario vea jerga técnica y permite que los agentes diseñen endpoints/modelos sin traducir cada vez.
+
+## V1 Mínimo Vs Evolución
+
+No todo este documento debe implementarse en el primer slice. El modelo completo existe para evitar callejones sin salida, no para forzar un big bang.
+
+V1 mínimo recomendado:
+
+- sujeto primario como sombra de `users.profile`;
+- biblioteca mínima de sujetos y conexiones;
+- `ContextRef`/`contextId` en la UI;
+- chat por contexto;
+- reportes por contexto si se aborda Informe;
+- tránsitos por contexto si se aborda Tránsitos.
+
+Puede esperar:
+
+- versionado completo de bodygraphs;
+- memoria contextual en conexiones;
+- PDF/share por contexto;
+- cartas temporales;
+- historial completo de cambios;
+- modo coach/CRM.
+
 ## ContextRef
 
 La abstracción central:
 
 ```ts
-type ContextKind = "subject" | "connection";
+type ContextKind = 'subject' | 'connection';
 
 interface ContextRef {
   id: string;
   kind: ContextKind;
 }
 ```
+
+En este documento, `contextId` se usa como identificador opaco de transporte. La spec técnica debe decidir si internamente es un UUID global o un par `kind + id`; la UI no debería depender de esa decisión.
 
 Todo flujo debe poder responder:
 
@@ -113,10 +157,10 @@ subjects
 
 Reglas:
 
-- cada cuenta tiene exactamente un subject primario al terminar onboarding;
-- subject primario reemplaza mentalmente a `users.profile`;
+- cada cuenta tiene exactamente un sujeto primario al terminar onboarding;
+- el sujeto primario reemplaza mentalmente a `users.profile`;
 - terceros pueden usar alias;
-- borrar subject debe tener reglas claras si participa en conexiones.
+- borrar un sujeto debe tener reglas claras si participa en conexiones.
 
 ### subject_bodygraphs
 
@@ -152,7 +196,7 @@ subject_intakes
   updated_at
 ```
 
-El intake actual de negocio del usuario se migra al subject primario.
+El intake actual de negocio del usuario se migra al sujeto primario.
 
 ### connections
 
@@ -163,7 +207,7 @@ connections
   id
   user_id
   display_name
-  relationship_kind    -- business | client | partner | family | friendship | team | other
+  relationship_kind    -- business | client | partner | family | friendship | other
   subject_a_id
   subject_b_id
   notes_json
@@ -177,7 +221,7 @@ Reglas:
 - V1 soporta dos sujetos;
 - `subject_a_id` y `subject_b_id` no pueden ser iguales;
 - conexiones de tercero + tercero son permitidas, pero no happy path inicial;
-- borrar un subject debe bloquear, archivar o borrar conexiones dependientes con confirmación.
+- borrar un sujeto debe bloquear, archivar o borrar conexiones dependientes con confirmación.
 
 ### context_threads
 
@@ -195,7 +239,7 @@ context_threads
 
 ### chat_messages
 
-Evoluciona de `user_id` únicamente a thread/context.
+Evoluciona de `user_id` únicamente a thread/contexto.
 
 ```text
 chat_messages
@@ -210,7 +254,7 @@ chat_messages
 
 Compatibilidad temporal:
 
-- mensajes legacy sin thread se asignan al thread del subject primario;
+- mensajes legacy sin thread se asignan al thread del sujeto primario;
 - mientras exista legacy, no mezclar historial nuevo de conexiones con historial viejo.
 
 ### context_memories
@@ -275,7 +319,7 @@ assets
   updated_at
 ```
 
-Durante migración, assets legacy sin `subject_id` pueden mapearse al subject primario si son activos.
+Durante migración, assets legacy sin `subject_id` pueden mapearse al sujeto primario si son activos.
 
 ### transit_cache
 
@@ -352,6 +396,11 @@ El backend resuelve contexto y arma prompt según `contextKind`.
 ```text
 GET /api/contexts/:contextId/report?tier=...
 POST /api/contexts/:contextId/report
+```
+
+Capacidades opcionales/post-V1 si compartir o exportar siguen activos:
+
+```text
 POST /api/contexts/:contextId/report/share
 GET /api/contexts/:contextId/report/pdf
 ```
@@ -383,7 +432,7 @@ La UI no debería consumir respuestas crudas de DB/API. Debe consumir modelos de
 ### WorkspaceContextModel
 
 ```ts
-type WorkspaceContextKind = "subject" | "connection";
+type WorkspaceContextKind = 'subject' | 'connection';
 
 interface WorkspaceContextModel {
   id: string;
@@ -392,7 +441,7 @@ interface WorkspaceContextModel {
   subtitle: string;
   badge: string;
   isPrimary: boolean;
-  availableSurfaces: Array<"chat" | "report" | "transits" | "chart" | "dynamics">;
+  availableSurfaces: Array<'chat' | 'report' | 'transits' | 'chart' | 'dynamics'>;
   privacyHint?: string;
 }
 ```
@@ -402,9 +451,9 @@ interface WorkspaceContextModel {
 ```ts
 interface ContextLibraryModel {
   primarySubject: WorkspaceContextModel;
-  subjects: WorkspaceContextModel[];
-  connections: WorkspaceContextModel[];
-  recent: WorkspaceContextModel[];
+  subjects: Array<WorkspaceContextModel>;
+  connections: Array<WorkspaceContextModel>;
+  recent: Array<WorkspaceContextModel>;
   actions: {
     canCreateSubject: boolean;
     canCreateConnection: boolean;
@@ -418,7 +467,7 @@ interface ContextLibraryModel {
 interface ContextShellModel {
   activeContext: WorkspaceContextModel;
   navItems: Array<{
-    id: "chat" | "report" | "transits" | "chart" | "dynamics";
+    id: 'chat' | 'report' | 'transits' | 'chart' | 'dynamics';
     label: string;
     enabled: boolean;
   }>;
@@ -439,7 +488,7 @@ interface ChatScreenModel {
   description: string;
   messages: Array<{
     id: string;
-    role: "user" | "assistant";
+    role: 'user' | 'assistant';
     content: string;
     pending?: boolean;
   }>;
@@ -453,14 +502,14 @@ interface ChatScreenModel {
 ```ts
 interface ReportScreenModel {
   context: WorkspaceContextModel;
-  reportKind: "individual" | "relational";
-  state: "missing" | "ready" | "stale" | "generating" | "error";
+  reportKind: 'individual' | 'relational';
+  state: 'missing' | 'ready' | 'stale' | 'generating' | 'error';
   title: string;
   sections: Array<{
     id: string;
     title: string;
     body: string;
-    tier: "free" | "premium";
+    tier: 'free' | 'premium';
   }>;
   actions: Array<{ id: string; label: string }>;
 }
@@ -473,8 +522,8 @@ Debe extender el ADR actual.
 ```ts
 interface TransitScreenModel {
   context: WorkspaceContextModel;
-  mode: "today" | "next7Days";
-  layer: "summary" | "subjectA" | "subjectB" | "dynamics";
+  mode: 'today' | 'next7Days';
+  layer: 'summary' | 'subjectA' | 'subjectB' | 'dynamics';
   header: {
     title: string;
     activeTimeLabel: string;
@@ -484,12 +533,12 @@ interface TransitScreenModel {
     eyebrow: string;
     title: string;
     body: string;
-    facts: string[];
+    facts: Array<string>;
   };
   sections: Array<{
     id: string;
     title: string;
-    items: Array<{ title: string; body: string; facts: string[] }>;
+    items: Array<{ title: string; body: string; facts: Array<string> }>;
   }>;
   timeline?: unknown;
   actions: Array<{ id: string; label: string }>;
@@ -523,12 +572,12 @@ Guardrails:
 
 Durante la migración:
 
-- `users.profile` sigue siendo source of truth para la app actual;
-- se crea un subject primario que representa `users.profile`;
-- endpoints `/api/me/*` pueden seguir funcionando como wrappers del subject primario;
-- chat legacy se considera thread del subject primario;
-- report legacy se considera reporte individual del subject primario;
-- asset activo legacy se asocia al subject primario.
+- `users.profile` sigue siendo la fuente de verdad para la app actual;
+- se crea un sujeto primario que representa `users.profile`;
+- endpoints `/api/me/*` pueden seguir funcionando como wrappers del sujeto primario;
+- chat legacy se considera thread del sujeto primario;
+- report legacy se considera reporte individual del sujeto primario;
+- asset activo legacy se asocia al sujeto primario.
 
 ## Preguntas Técnicas Bloqueantes Para La Spec
 
@@ -544,7 +593,7 @@ Durante la migración:
 Diseñar la implementación como migración incremental:
 
 1. E2E congela comportamiento actual.
-2. Subject primario se introduce como sombra de `users.profile`.
+2. Sujeto primario se introduce como sombra de `users.profile`.
 3. Biblioteca usa sujetos/conexiones.
 4. Chat, reportes y tránsitos migran a `contextId`.
 5. Legacy `/api/me/*` queda como compat hasta eliminarlo con seguridad.

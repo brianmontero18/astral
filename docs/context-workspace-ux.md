@@ -1,10 +1,10 @@
 # Context Workspace UX
 
-**Fecha:** 2026-05-10
-**Estado:** wireframes UX/UI v0 para validar alcance
-**Capa:** experiencia de usuario, pantallas y flujos
-**Leer antes:** [bodygraph-relacional.md](./bodygraph-relacional.md)
-**Leer después:** [context-workspace-architecture.md](./context-workspace-architecture.md), [context-workspace-e2e-plan.md](./context-workspace-e2e-plan.md), [context-workspace-migration-plan.md](./context-workspace-migration-plan.md)
+- **Fecha:** 2026-05-10
+- **Estado:** wireframes UX/UI v0 para validar alcance
+- **Capa:** experiencia de usuario, pantallas y flujos
+- **Leer antes:** [bodygraph-relacional.md](./bodygraph-relacional.md)
+- **Leer después:** [context-workspace-architecture.md](./context-workspace-architecture.md), [context-workspace-e2e-plan.md](./context-workspace-e2e-plan.md), [context-workspace-migration-plan.md](./context-workspace-migration-plan.md)
 
 Este documento describe cómo se vería Astral si evoluciona desde una app de una sola carta hacia una app basada en contexto activo. No define DB, endpoints ni implementación. Su objetivo es alinear UX antes de escribir contratos técnicos.
 
@@ -413,6 +413,8 @@ Ver detalles en [transits-relational-ux.md](./transits-relational-ux.md).
 
 Las cartas temporales son útiles para exploración rápida, pero no deberían contaminar memoria ni generar artefactos persistentes sin confirmación.
 
+No son requisito bloqueante del primer V1 si retrasan Biblioteca + Context Shell. La regla de producto queda definida para cuando se habiliten: temporal por defecto, persistente solo con guardar/nombrar.
+
 ```text
 ┌─────────────────────────────────────────────┐
 │ Carta temporal                              │
@@ -426,6 +428,8 @@ Las cartas temporales son útiles para exploración rápida, pero no deberían c
 ```
 
 ## Flujo Coach
+
+Este flujo valida el caso de uso de una usuaria coach dentro del producto personal. No implica modo coach/CRM, clientes gestionados, permisos avanzados ni white-label en V1.
 
 ```text
 Biblioteca
@@ -482,7 +486,7 @@ Incluido:
 - crear conexión;
 - atajos desde superficies hacia biblioteca;
 - alias y copy liviana de responsabilidad;
-- mantener `Mi carta` como default.
+- mantener `Mi carta` como entrada por defecto.
 
 Fuera de alcance:
 

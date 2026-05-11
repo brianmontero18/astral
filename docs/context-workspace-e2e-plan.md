@@ -1,10 +1,10 @@
 # Context Workspace E2E Plan
 
-**Fecha:** 2026-05-10
-**Estado:** plan E2E-first v0
-**Capa:** pruebas de aceptación y contrato de migración
-**Leer antes:** [bodygraph-relacional.md](./bodygraph-relacional.md), [context-workspace-ux.md](./context-workspace-ux.md), [context-workspace-architecture.md](./context-workspace-architecture.md)
-**Leer después:** [context-workspace-migration-plan.md](./context-workspace-migration-plan.md)
+- **Fecha:** 2026-05-10
+- **Estado:** plan E2E-first v0
+- **Capa:** pruebas de aceptación y contrato de migración
+- **Leer antes:** [bodygraph-relacional.md](./bodygraph-relacional.md), [context-workspace-ux.md](./context-workspace-ux.md), [context-workspace-architecture.md](./context-workspace-architecture.md)
+- **Leer después:** [context-workspace-migration-plan.md](./context-workspace-migration-plan.md)
 
 Este documento define cómo usar E2E como primera barrera de refactor. La idea es que los tests describan la experiencia objetivo antes de mover el modelo de datos. Los agentes que implementen la migración deben leer este plan antes de tocar código.
 
@@ -41,7 +41,7 @@ Antes de cambiar producto, preservar lo que ya funciona:
 - reemplazar bodygraph actualiza tránsitos/reportes según reglas existentes;
 - `Mis Cartas` muestra asset activo.
 
-Estos tests protegen regresiones mientras se introduce el subject primario.
+Estos tests protegen regresiones mientras se introduce el sujeto primario.
 
 ## Fase B: Contrato UX Con Mocks
 
@@ -58,14 +58,14 @@ Verifica:
 
 - header muestra nombre del sujeto principal;
 - no aparece un selector ambiguo vacío;
-- `Mi carta` sigue siendo default.
+- `Mi carta` sigue siendo la entrada por defecto.
 
 ### 2. Biblioteca Muestra Sujetos Y Conexiones
 
-**Dado** un usuario con subject primario, un cliente y una conexión.
+**Dado** un usuario con sujeto primario, un cliente y una conexión.
 **Cuando** abre Biblioteca.
 **Entonces** ve secciones `Sujetos` y `Conexiones`.
-**Y** el subject primario aparece marcado.
+**Y** el sujeto primario aparece marcado.
 
 Verifica:
 
@@ -114,7 +114,7 @@ Luego:
 
 Verifica:
 
-- request de mensajes incluye context id;
+- request de mensajes incluye `contextId`;
 - quick actions cambian por tipo de contexto;
 - no se usa monothread visual.
 
@@ -131,7 +131,7 @@ Verifica:
 Verifica:
 
 - la UI dice `Chat sobre esta conexión`;
-- el request de chat usa context id de conexión;
+- el request de chat usa `contextId` de conexión;
 - no manda birth data crudo desde frontend.
 
 ### 7. Informe Individual Vs Relacional
@@ -182,11 +182,15 @@ Verifica:
 - no se renderiza una ficha individual para una conexión;
 - no se muestra birth data crudo salvo sección explícita.
 
-### 10. Carta Temporal No Persiste Sin Confirmación
+## Casos E2E Post-V1 / No Bloqueantes
+
+Estos casos no bloquean el primer V1 si retrasan Biblioteca, Context Shell o Chat contextual.
+
+### Carta Temporal No Persiste Sin Confirmación
 
 **Dado** un usuario explora una carta temporal.
 **Cuando** intenta chatear o generar informe.
-**Entonces** la app le pide guardar/nombar la carta.
+**Entonces** la app le pide guardar/nombrar la carta.
 **Y** si cancela, no queda en Biblioteca.
 
 Verifica:
@@ -206,45 +210,45 @@ Cuando existan endpoints:
 - Crear sujeto llama `POST /api/subjects`;
 - Crear conexión llama `POST /api/connections`.
 
-Los tests deben assertar que el context id correcto viaja en cada request.
+Los tests deben assertar que el `contextId` correcto viaja en cada request.
 
 ## Fase D: Tests Reales Contra Backend
 
 Cuando el backend tenga modelo persistido:
 
 1. crear usuario;
-2. crear subject tercero;
-3. crear connection;
-4. enviar mensaje en subject;
-5. enviar mensaje en connection;
+2. crear sujeto tercero;
+3. crear conexión;
+4. enviar mensaje en sujeto;
+5. enviar mensaje en conexión;
 6. verificar historiales separados;
 7. generar reporte individual;
 8. generar reporte relacional;
 9. verificar que hashes/stale no se cruzan;
-10. verificar tránsitos por context.
+10. verificar tránsitos por contexto.
 
 ## Fixtures Recomendadas
 
 ```ts
 const SUBJECT_BRIAN = {
-  id: "subject-brian",
-  kind: "subject",
-  title: "Brian",
-  badge: "Mi carta",
+  id: 'subject-brian',
+  kind: 'subject',
+  title: 'Brian',
+  badge: 'Mi carta',
 };
 
 const SUBJECT_AUREA = {
-  id: "subject-aurea",
-  kind: "subject",
-  title: "AUREA",
-  badge: "Negocio",
+  id: 'subject-aurea',
+  kind: 'subject',
+  title: 'AUREA',
+  badge: 'Negocio',
 };
 
 const CONNECTION_BRIAN_AUREA = {
-  id: "connection-brian-aurea",
-  kind: "connection",
-  title: "Brian + AUREA",
-  badge: "Conexión · Negocio",
+  id: 'connection-brian-aurea',
+  kind: 'connection',
+  title: 'Brian + AUREA',
+  badge: 'Conexión · Negocio',
 };
 ```
 
@@ -252,7 +256,7 @@ Los mocks deben usar nombres humanos, no IDs visibles, para validar UX.
 
 ## Criterios De Done E2E
 
-- Los tests fallan si Chat no manda context id.
+- Los tests fallan si Chat no manda `contextId`.
 - Los tests fallan si cambiar contexto conserva historial equivocado.
 - Los tests fallan si Informe de conexión muestra copy de informe personal.
 - Los tests fallan si Tránsitos de conexión no muestra capas relacionales.
@@ -275,7 +279,7 @@ Los mocks deben usar nombres humanos, no IDs visibles, para validar UX.
 2. Biblioteca con mocks.
 3. Crear sujeto con mocks.
 4. Crear conexión con mocks.
-5. Context shell cambia superficies.
+5. Context Shell cambia superficies.
 6. Chat separado por contexto.
 7. Informe individual vs relacional.
 8. Tránsitos individual vs relacional.
