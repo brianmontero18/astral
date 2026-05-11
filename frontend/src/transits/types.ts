@@ -102,6 +102,23 @@ export interface TransitExperienceResponse {
   };
   selectedSnapshotId: string;
   snapshots: TransitSnapshot[];
+  dayKeyFacts?: DayKeyFact[];
+}
+
+export type DayKeyFactKind =
+  | "today"
+  | "channelOpen"
+  | "channelClose"
+  | "centerConditioned"
+  | "planetMove";
+
+export interface DayKeyFact {
+  id: string;
+  atTargetIso: string;
+  dayLabel: string;
+  kind: DayKeyFactKind;
+  summary: string;
+  impactLabel?: string;
 }
 
 export interface TransitChatContext {
@@ -154,6 +171,7 @@ export interface TransitScreenModel {
     summary: string;
     atTargetIso: string;
   };
+  dayKeyFacts?: DayKeyFact[];
   personalSections: TransitImpactSectionModel[];
   centerGroups: TransitCenterGroupModel[];
   planetDetails: TransitPlanetDetailModel[];

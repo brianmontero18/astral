@@ -106,6 +106,22 @@ test.describe("Transits — Experience view", () => {
     await expect(page.getByText(/cada día/)).not.toBeVisible();
   });
 
+  test("renders Días clave with chronological summaries in panorama", async ({ page }) => {
+    await mockTransitExperienceToday(page);
+    await mockTransitExperienceNext7Days(page);
+
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "Tránsitos" }).click();
+    await page.getByRole("button", { name: "Próximos 7 días" }).click();
+
+    await expect(page.getByText("DÍAS CLAVE")).toBeVisible();
+    await expect(page.getByText("Canal de lo Transitorio ya está activo.")).toBeVisible();
+    await expect(page.getByText("Cierra Canal de lo Transitorio.")).toBeVisible();
+    await expect(page.getByText("Marte cambia a Puerta 40.")).toBeVisible();
+    await expect(page.getByText("Hoy dom")).toBeVisible();
+    await expect(page.getByText("jue 14")).toBeVisible();
+  });
+
   test("sends transitContext.targetAt to chat from a selected hour CTA", async ({ page }) => {
     let chatPayload: unknown = null;
     await mockTransitExperienceToday(page);

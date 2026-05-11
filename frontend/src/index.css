@@ -2629,6 +2629,91 @@ textarea { outline: none !important; }
   line-height: 1.45;
 }
 
+.transit-days-key {
+  margin: -4px 4px 22px;
+  padding: 18px 22px 22px;
+}
+
+.transit-days-key-kicker {
+  color: var(--color-gold-deep);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+.transit-days-key-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.transit-days-key-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 0;
+  border-top: 1px solid rgba(33, 41, 30, 0.08);
+}
+
+.transit-days-key-row:first-child {
+  border-top: none;
+  padding-top: 4px;
+}
+
+.transit-days-key-dot {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-top: 7px;
+  border: 1.5px solid rgba(33, 41, 30, 0.22);
+  background: transparent;
+}
+
+.transit-days-key-dot.is-today {
+  background: var(--color-gold);
+  border-color: var(--color-gold);
+  box-shadow: 0 0 0 3px rgba(207, 172, 108, 0.18);
+}
+
+.transit-days-key-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.transit-days-key-label {
+  color: var(--color-gold-deep);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+
+.transit-days-key-summary {
+  color: var(--text-on-light);
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.transit-days-key-impact {
+  color: var(--text-on-light-muted);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.4;
+  margin-top: 4px;
+  letter-spacing: 0.02em;
+}
+
 .transit-insight-body {
   margin: 0 0 16px;
   color: var(--text-muted);

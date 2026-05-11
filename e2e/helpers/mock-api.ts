@@ -550,6 +550,31 @@ export const TRANSIT_EXPERIENCE_NEXT7_PANORAMA: TransitExperienceResponse = {
   },
   selectedSnapshotId: "instant:2026-05-10T08:15:00.000Z",
   snapshots: [TRANSIT_EXPERIENCE_TODAY_TIMELINE.snapshots[0]],
+  dayKeyFacts: [
+    {
+      id: "day:2026-05-10:today",
+      atTargetIso: "2026-05-10T12:00:00.000Z",
+      dayLabel: "Hoy dom",
+      kind: "today",
+      summary: "Canal de lo Transitorio ya está activo.",
+      impactLabel: "Garganta",
+    },
+    {
+      id: "day:2026-05-12:channelClose",
+      atTargetIso: "2026-05-12T12:00:00.000Z",
+      dayLabel: "mar 12",
+      kind: "channelClose",
+      summary: "Cierra Canal de lo Transitorio.",
+      impactLabel: "Garganta + Plexo Solar",
+    },
+    {
+      id: "day:2026-05-14:planetMove",
+      atTargetIso: "2026-05-14T12:00:00.000Z",
+      dayLabel: "jue 14",
+      kind: "planetMove",
+      summary: "Marte cambia a Puerta 40.",
+    },
+  ],
 };
 
 export const TRANSIT_EXPERIENCE_COLLECTIVE_ONLY: TransitExperienceResponse = {

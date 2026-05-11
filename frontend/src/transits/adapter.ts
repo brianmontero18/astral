@@ -62,6 +62,7 @@ export function buildTransitScreenModel(
       : undefined,
     primaryInsight: buildPrimaryInsight(response, selected, timelineSnapshots),
     nextChange: buildNextChange(selected, timelineSnapshots, response.timeZone),
+    dayKeyFacts: response.mode === "next7Days" ? response.dayKeyFacts : undefined,
     personalSections: buildPersonalSections(selected),
     centerGroups: buildCenterGroups(selected),
     planetDetails: buildPlanetDetails(selected),

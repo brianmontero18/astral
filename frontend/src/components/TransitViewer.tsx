@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { getGateTheme } from "../hd-data";
 import type {
+  DayKeyFact,
   TransitAskAgentPayload,
   TransitCenterGroupModel,
   TransitImpactCardModel,
@@ -175,6 +176,10 @@ export function TransitViewer({
         </section>
       )}
 
+      {model.dayKeyFacts && model.dayKeyFacts.length > 0 && (
+        <DayKeyFactsSection facts={model.dayKeyFacts} />
+      )}
+
       {model.personalSections.map((section) => (
         <ImpactSection key={section.id} section={section} />
       ))}
@@ -273,6 +278,35 @@ function ImpactRow({ item, kind }: ImpactRowProps) {
         {item.meta && <div className="transit-impact-row-meta">{item.meta}</div>}
       </div>
     </li>
+  );
+}
+
+interface DayKeyFactsSectionProps {
+  facts: DayKeyFact[];
+}
+
+function DayKeyFactsSection({ facts }: DayKeyFactsSectionProps) {
+  return (
+    <section className="transit-days-key" aria-label="Días clave de la semana">
+      <div className="transit-days-key-kicker">DÍAS CLAVE</div>
+      <ul className="transit-days-key-list">
+        {facts.map((fact, index) => (
+          <li key={fact.id} className={`transit-days-key-row transit-days-key-row--${fact.kind}`}>
+            <span
+              className={`transit-days-key-dot${index === 0 ? " is-today" : ""}`}
+              aria-hidden="true"
+            />
+            <div className="transit-days-key-body">
+              <div className="transit-days-key-label">{fact.dayLabel}</div>
+              <div className="transit-days-key-summary">{fact.summary}</div>
+              {fact.impactLabel && (
+                <div className="transit-days-key-impact">{fact.impactLabel}</div>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

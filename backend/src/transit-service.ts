@@ -124,6 +124,23 @@ export interface TransitExperienceResponse {
   };
   selectedSnapshotId: string;
   snapshots: TransitSnapshot[];
+  dayKeyFacts?: DayKeyFact[];
+}
+
+export type DayKeyFactKind =
+  | "today"
+  | "channelOpen"
+  | "channelClose"
+  | "centerConditioned"
+  | "planetMove";
+
+export interface DayKeyFact {
+  id: string;
+  atTargetIso: string;
+  dayLabel: string;
+  kind: DayKeyFactKind;
+  summary: string;
+  impactLabel?: string;
 }
 
 export interface BuildTransitExperienceInput {
@@ -683,6 +700,14 @@ export async function buildTransitExperience(
       "Panorama",
     );
     const enriched = attachPersonalFacts(snapshot, profile);
+    const dailySnapshots = await calculateDailyTransitSnapshots(
+      range.startsAt,
+      input.timeZone,
+    );
+    const enrichedDailySnapshots = dailySnapshots.map((daily) =>
+      attachPersonalFacts(daily, profile),
+    );
+    const dayKeyFacts = buildDayKeyFacts(enrichedDailySnapshots, input.timeZone);
 
     return {
       version: "transits.v2",
@@ -698,7 +723,8 @@ export async function buildTransitExperience(
         step: "panorama",
       },
       selectedSnapshotId: enriched.id,
-      snapshots: [enriched],
+      snapshots: [enriched, ...enrichedDailySnapshots],
+      dayKeyFacts,
     };
   }
 
@@ -957,4 +983,208 @@ function getWeekRange(now: Date, timeZone?: string): string {
   const sunday = new Date(monday);
   sunday.setUTCDate(monday.getUTCDate() + 6);
   return formatWeekRangeEs(monday, sunday);
+}
+
+// ─── Días clave (Slice 2) ─────────────────────────────────────────────────────
+
+export async function calculateDailyTransitSnapshots(
+  weekStart: Date,
+  timeZone: string,
+): Promise<TransitSnapshot[]> {
+  const parts = getLocalDateParts(weekStart, timeZone);
+  const snapshots: TransitSnapshot[] = [];
+
+  for (let offset = 0; offset < 7; offset += 1) {
+    const targetAt = zonedTimeToUtc(
+      parts.year,
+      parts.month,
+      parts.day + offset,
+      12,
+      0,
+      0,
+      timeZone,
+    );
+    const label = formatDayLabel(targetAt, timeZone);
+    const snapshot = await getTransitSnapshotCached("day", targetAt, timeZone, label);
+    snapshots.push(snapshot);
+  }
+
+  return snapshots;
+}
+
+const SLOW_PLANETS = new Set(["Marte", "Júpiter", "Saturno", "Urano", "Neptuno", "Plutón"]);
+const MAX_DAY_KEY_FACTS = 6;
+
+export function buildDayKeyFacts(
+  dailySnapshots: TransitSnapshot[],
+  timeZone: string,
+): DayKeyFact[] {
+  if (dailySnapshots.length === 0) return [];
+
+  const facts: DayKeyFact[] = [];
+
+  for (let i = 0; i < dailySnapshots.length; i += 1) {
+    const current = dailySnapshots[i];
+    const previous = i > 0 ? dailySnapshots[i - 1] : undefined;
+    const dayLabel = formatDayLabel(new Date(current.targetAt), timeZone, i === 0);
+
+    if (i === 0) {
+      const summary = summarizeFirstDay(current);
+      if (summary) {
+        facts.push({
+          id: `day:${current.targetAt}:today`,
+          atTargetIso: current.targetAt,
+          dayLabel,
+          kind: "today",
+          summary,
+          impactLabel: impactLabelFor(current),
+        });
+      }
+      continue;
+    }
+
+    if (!previous) continue;
+
+    const prevChannels = new Map(previous.collective.activatedChannels.map((c) => [c.id, c]));
+    const currChannels = new Map(current.collective.activatedChannels.map((c) => [c.id, c]));
+
+    for (const [id, channel] of currChannels) {
+      if (!prevChannels.has(id)) {
+        facts.push({
+          id: `day:${current.targetAt}:channelOpen:${id}`,
+          atTargetIso: current.targetAt,
+          dayLabel,
+          kind: "channelOpen",
+          summary: `Se abre ${channel.name}.`,
+          impactLabel: channel.centers.map(displayCenterName).join(" + "),
+        });
+      }
+    }
+
+    for (const [id, channel] of prevChannels) {
+      if (!currChannels.has(id)) {
+        facts.push({
+          id: `day:${current.targetAt}:channelClose:${id}`,
+          atTargetIso: current.targetAt,
+          dayLabel,
+          kind: "channelClose",
+          summary: `Cierra ${channel.name}.`,
+          impactLabel: channel.centers.map(displayCenterName).join(" + "),
+        });
+      }
+    }
+
+    const planetMove = detectSlowPlanetMove(previous, current);
+    if (planetMove) {
+      facts.push({
+        id: `day:${current.targetAt}:planetMove:${planetMove.planet}`,
+        atTargetIso: current.targetAt,
+        dayLabel,
+        kind: "planetMove",
+        summary: planetMove.summary,
+      });
+    }
+
+    if (current.personal && previous.personal) {
+      const prevConditioned = new Set(
+        previous.personal.conditionedCenters.map((c) => c.center),
+      );
+      for (const center of current.personal.conditionedCenters) {
+        if (!prevConditioned.has(center.center)) {
+          facts.push({
+            id: `day:${current.targetAt}:centerConditioned:${center.center}`,
+            atTargetIso: current.targetAt,
+            dayLabel,
+            kind: "centerConditioned",
+            summary: `${center.displayName} entra en condicionamiento.`,
+          });
+        }
+      }
+    }
+  }
+
+  return facts.slice(0, MAX_DAY_KEY_FACTS);
+}
+
+function summarizeFirstDay(snapshot: TransitSnapshot): string {
+  const channels = snapshot.collective.activatedChannels;
+  const temp = snapshot.collective.temporarilyDefinedCenters;
+  if (channels.length > 0) {
+    return `${channels[0].name} ya está activo.`;
+  }
+  if (temp.length > 0) {
+    return `${temp[0].displayName} en definición temporal.`;
+  }
+  return "Clima energético sutil.";
+}
+
+function impactLabelFor(snapshot: TransitSnapshot): string | undefined {
+  const temp = snapshot.collective.temporarilyDefinedCenters;
+  if (temp.length === 0) return undefined;
+  if (temp.length === 1) return temp[0].displayName;
+  return `${temp[0].displayName} +${temp.length - 1}`;
+}
+
+function detectSlowPlanetMove(
+  previous: TransitSnapshot,
+  current: TransitSnapshot,
+): { planet: string; summary: string } | undefined {
+  const prevByPlanet = new Map(previous.collective.planets.map((p) => [p.name, p]));
+  for (const planet of current.collective.planets) {
+    if (!SLOW_PLANETS.has(planet.name)) continue;
+    const prev = prevByPlanet.get(planet.name);
+    if (!prev) continue;
+    if (prev.hdGate !== planet.hdGate) {
+      return {
+        planet: planet.name,
+        summary: `${planet.name} cambia a Puerta ${planet.hdGate}.`,
+      };
+    }
+  }
+  return undefined;
+}
+
+function displayCenterName(centerId: string): string {
+  const map: Record<string, string> = {
+    Head: "Cabeza",
+    Ajna: "Ajna",
+    Throat: "Garganta",
+    G: "Centro G",
+    Heart: "Corazón",
+    Spleen: "Bazo",
+    Sacral: "Sacral",
+    SolarPlexus: "Plexo Solar",
+    Root: "Raíz",
+  };
+  return map[centerId] ?? centerId;
+}
+
+const DAY_LABEL_FORMATTER_CACHE = new Map<string, Intl.DateTimeFormat>();
+
+function formatDayLabel(targetAt: Date, timeZone: string, isToday = false): string {
+  if (isToday) {
+    const formatter = getDayLabelFormatter(timeZone);
+    const parts = formatter.formatToParts(targetAt);
+    const weekday = parts.find((p) => p.type === "weekday")?.value ?? "";
+    return `Hoy ${weekday.slice(0, 3).toLowerCase()}`;
+  }
+  const formatter = getDayLabelFormatter(timeZone);
+  const parts = formatter.formatToParts(targetAt);
+  const weekday = parts.find((p) => p.type === "weekday")?.value ?? "";
+  const day = parts.find((p) => p.type === "day")?.value ?? "";
+  return `${weekday.slice(0, 3).toLowerCase()} ${day}`;
+}
+
+function getDayLabelFormatter(timeZone: string): Intl.DateTimeFormat {
+  const key = `day:${timeZone}`;
+  let formatter = DAY_LABEL_FORMATTER_CACHE.get(key);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("es-AR", {
+      timeZone,
+      weekday: "long",
+      day: "numeric",
+    });
+    DAY_LABEL_FORMATTER_CACHE.set(key, formatter);
+  }
+  return formatter;
 }

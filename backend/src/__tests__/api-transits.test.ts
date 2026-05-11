@@ -475,6 +475,51 @@ describe("GET /api/transits/experience", () => {
     expect(body.range.step).toBe("panorama");
   });
 
+  it("includes 7 daily snapshots in next7Days alongside the panorama snapshot", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/transits/experience?mode=next7Days&timeZone=Etc%2FUTC&clientNow=${clientNow}`,
+    });
+    const body = JSON.parse(res.body);
+
+    expect(res.statusCode).toBe(200);
+    expect(Array.isArray(body.snapshots)).toBe(true);
+    expect(body.snapshots.length).toBeGreaterThanOrEqual(8);
+    const daySnapshots = body.snapshots.filter((s: { id: string }) => s.id.startsWith("day:"));
+    expect(daySnapshots).toHaveLength(7);
+  });
+
+  it("includes a chronological dayKeyFacts array in next7Days", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/transits/experience?mode=next7Days&timeZone=Etc%2FUTC&clientNow=${clientNow}`,
+    });
+    const body = JSON.parse(res.body);
+
+    expect(Array.isArray(body.dayKeyFacts)).toBe(true);
+    expect(body.dayKeyFacts.length).toBeGreaterThanOrEqual(1);
+    expect(body.dayKeyFacts.length).toBeLessThanOrEqual(6);
+
+    const firstFact = body.dayKeyFacts[0];
+    expect(firstFact.kind).toBe("today");
+    expect(firstFact.dayLabel).toMatch(/^Hoy /);
+    expect(typeof firstFact.summary).toBe("string");
+
+    const isoTimestamps = body.dayKeyFacts.map((f: { atTargetIso: string }) => f.atTargetIso);
+    const sorted = [...isoTimestamps].sort();
+    expect(isoTimestamps).toEqual(sorted);
+  });
+
+  it("does not emit dayKeyFacts for the today mode", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/transits/experience?mode=today&timeZone=Etc%2FUTC&clientNow=${clientNow}`,
+    });
+    const body = JSON.parse(res.body);
+
+    expect(body.dayKeyFacts).toBeUndefined();
+  });
+
   it("validates timeZone and time params", async () => {
     const badTz = await app.inject({
       method: "GET",
