@@ -1,0 +1,23 @@
+.nvmrc
+  s_8f18227a2c32e1::t_15ed213b626c3a 1
+backend/package-lock.json
+  ai_agent 39,56,72,84,1908,3085,3148,3289,4253,4807,6494
+package.json
+  s_8f18227a2c32e1::t_dbb50cfcf73e97 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "96bd6dd4a79b4589e7240b035f374b1d9e2b53d9",
+  "prompts": {},
+  "sessions": {
+    "s_8f18227a2c32e1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e30d5-30f9-7653-8bdb-2afe325fa493",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
