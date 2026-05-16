@@ -200,6 +200,29 @@ export async function rebuildLegacyAssetsTableIfNeeded(c: Client): Promise<void>
  *
  * Exported for direct testing.
  */
+/**
+ * Adds the `cached_tokens` column to `llm_calls` on databases created before
+ * the prompt-cache telemetry landed. Idempotent: no-op if the column already
+ * exists or if the table is missing (fresh installs already have it via
+ * CREATE TABLE).
+ *
+ * Exported for direct testing.
+ */
+export async function addLlmCallsCachedTokensColumnIfMissing(c: Client): Promise<void> {
+  const schemaResult = await c.execute({
+    sql: "SELECT sql FROM sqlite_master WHERE type='table' AND name='llm_calls'",
+    args: [],
+  });
+  const tableSql = schemaResult.rows[0]?.sql as string | undefined;
+  if (!tableSql) return;
+  if (tableSql.includes("cached_tokens")) return;
+
+  await c.execute({
+    sql: "ALTER TABLE llm_calls ADD COLUMN cached_tokens INTEGER NOT NULL DEFAULT 0",
+    args: [],
+  });
+}
+
 export async function widenLlmCallsRouteCheckIfNeeded(c: Client): Promise<void> {
   const schemaResult = await c.execute({
     sql: "SELECT sql FROM sqlite_master WHERE type='table' AND name='llm_calls'",
@@ -295,16 +318,17 @@ export async function initDb(): Promise<void> {
         created_at     TEXT NOT NULL DEFAULT (datetime('now'))
       )`,
       `CREATE TABLE IF NOT EXISTS llm_calls (
-        id          INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        route       TEXT NOT NULL CHECK(route IN ('chat','chat_stream','report','extraction','memory_writer')),
-        model       TEXT NOT NULL,
-        tokens_in   INTEGER NOT NULL DEFAULT 0,
-        tokens_out  INTEGER NOT NULL DEFAULT 0,
-        cost_usd    REAL    NOT NULL DEFAULT 0,
-        latency_ms  INTEGER NOT NULL DEFAULT 0,
-        prompt_hash TEXT NOT NULL,
-        created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        route         TEXT NOT NULL CHECK(route IN ('chat','chat_stream','report','extraction','memory_writer')),
+        model         TEXT NOT NULL,
+        tokens_in     INTEGER NOT NULL DEFAULT 0,
+        tokens_out    INTEGER NOT NULL DEFAULT 0,
+        cached_tokens INTEGER NOT NULL DEFAULT 0,
+        cost_usd      REAL    NOT NULL DEFAULT 0,
+        latency_ms    INTEGER NOT NULL DEFAULT 0,
+        prompt_hash   TEXT NOT NULL,
+        created_at    TEXT NOT NULL DEFAULT (datetime('now'))
       )`,
       `CREATE TABLE IF NOT EXISTS hd_reports (
         id           TEXT PRIMARY KEY,
@@ -397,6 +421,7 @@ export async function initDb(): Promise<void> {
   // route value (memory_writer) requires rebuilding the table on existing
   // databases. Fresh installs already get the widened CHECK above.
   await widenLlmCallsRouteCheckIfNeeded(client);
+  await addLlmCallsCachedTokensColumnIfMissing(client);
 
   // ─── Indexes ───────────────────────────────────────────────────────────────
   // SQLite does not auto-index foreign keys. These cover the hot-path queries
@@ -1269,6 +1294,7 @@ export interface LlmCallInput {
   model: string;
   tokensIn: number;
   tokensOut: number;
+  cachedTokens?: number;
   costUsd: number;
   latencyMs: number;
   promptHash: string;
@@ -1276,14 +1302,15 @@ export interface LlmCallInput {
 
 export async function insertLlmCall(input: LlmCallInput): Promise<void> {
   await client.execute({
-    sql: `INSERT INTO llm_calls (user_id, route, model, tokens_in, tokens_out, cost_usd, latency_ms, prompt_hash)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    sql: `INSERT INTO llm_calls (user_id, route, model, tokens_in, tokens_out, cached_tokens, cost_usd, latency_ms, prompt_hash)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     args: [
       input.userId,
       input.route,
       input.model,
       input.tokensIn,
       input.tokensOut,
+      input.cachedTokens ?? 0,
       input.costUsd,
       input.latencyMs,
       input.promptHash,

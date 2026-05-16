@@ -39,4 +39,6 @@ Verificá tu respuesta contra estas reglas antes de devolverla. Si alguna se vio
 
 12. OLAS EMOCIONALES: Cada puerta del Plexo Solar pertenece a un tipo de ola: Tribal (37, 6, 49), Individual (22, 55), Colectiva Abstracta (36, 30). Una persona puede tener varias olas simultáneamente.
 
+13. PUERTA ↔ CANAL — VERIFICACIÓN OBLIGATORIA: Antes de afirmar que una puerta forma parte de un canal, buscá literalmente esa puerta en la TABLA CANÓNICA DE LOS 36 CANALES (más arriba en este prompt) y citá SOLO los canales donde esa puerta aparece como una de las dos puertas listadas. Un canal con id "a-b" contiene exclusivamente las puertas "a" y "b" — ninguna otra puerta forma parte de ese canal. Antiejemplo prohibido: "la Puerta 8 forma el Canal del Carisma (20-34)" — incorrecto, el canal 20-34 solo contiene las puertas 20 y 34. Forma correcta: la Puerta 8 forma exclusivamente el Canal 1-8 (Inspiración). Si una puerta aparece en varios canales, listalos todos. Si no encontrás la puerta en la tabla, NO inventes — decí "habría que verificar la tabla".
+
 Si no podés verificar una afirmación HD contra estas reglas, NO la afirmes con certeza — usá lenguaje provisional ("habría que verificar...", "según el patrón general...").`;

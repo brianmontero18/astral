@@ -12,12 +12,20 @@ import type { Intake } from "./report/types.js";
 import { HD_CONDENSED } from "./knowledge/hd-condensed.js";
 import { BUSINESS_PACK_V1 } from "./knowledge/business-pack-v1.js";
 import { HD_DETECTION_RULES } from "./knowledge/detection-rules.js";
+import { renderChannelsTable } from "./hd-channels.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface LlmUsage {
   promptTokens: number;
   completionTokens: number;
+  /**
+   * OpenAI prompt-cache hit count from `usage.prompt_tokens_details.cached_tokens`.
+   * 0 when the response had no cache hit (cold prefix or model without
+   * automatic caching support). Used to verify that prompt restructuring is
+   * actually activating OpenAI's automatic cache.
+   */
+  cachedTokens?: number;
 }
 
 export interface AgentCallMeta {
@@ -197,41 +205,15 @@ Esta sección te da el knowledge canónico para anclar tus respuestas. NO la cit
 
 ${HD_CONDENSED}
 
+### TABLA CANÓNICA DE LOS 36 CANALES
+
+Fuente de verdad para citar canales por nombre o por puertas. Si vas a mencionar un canal, verificá en esta tabla que las puertas coincidan exactamente con su id. Nunca asocies una puerta a un canal que no la contiene.
+
+${renderChannelsTable()}
+
 ${BUSINESS_PACK_V1}
 
 ${HD_DETECTION_RULES}
-
-# Contexto
-
-<user_profile name="${profile.name}">
-${profile.birthData ? `<birth>${profile.birthData.date}, ${profile.birthData.time} — ${profile.birthData.location}</birth>` : ""}
-<human_design>
-  <type>${hd.type}</type>${hd.strategy ? `\n  <strategy>${hd.strategy}</strategy>` : ""}
-  <authority>${hd.authority}</authority>
-  <profile>${hd.profile}</profile>
-  <definition>${hd.definition}</definition>${hd.incarnationCross ? `\n  <incarnation_cross>${hd.incarnationCross}</incarnation_cross>` : ""}${hd.notSelfTheme ? `\n  <not_self_theme>${hd.notSelfTheme}</not_self_theme>` : ""}${hasVariable ? `\n  <variable>${hd.variable || "—"}${variableDetails.length ? ` (${variableDetails.join(" | ")})` : ""}</variable>` : ""}
-  <natal_channels>${hd.channels.map(c => `${c.name} (${c.id})`).join(", ") || "—"}</natal_channels>${hasGates ? `\n  <personality_gates>${gatesPersonality.map(g => `${g.number}.${g.line} via ${g.planet}`).join(", ") || "—"}</personality_gates>\n  <design_gates>${gatesDesign.map(g => `${g.number}.${g.line} via ${g.planet}`).join(", ") || "—"}</design_gates>` : ""}
-  <defined_centers>${hd.definedCenters.join(", ") || "—"}</defined_centers>
-  <undefined_centers>${hd.undefinedCenters.join(", ") || "—"}</undefined_centers>
-</human_design>
-</user_profile>${businessContextBlock}${userMemoryBlock}
-
-<transits week="${transits.weekRange}" calculated="${transits.fetchedAt}" source="Swiss Ephemeris">
-${transits.planets.map(p => `<planet name="${p.name}" sign="${p.sign}" degree="${p.degree}" retrograde="${p.isRetrograde}" hd_gate="${p.hdGate}" hd_line="${p.hdLine}" />`).join("\n")}
-<activated_channels>${transits.activatedChannels.length ? transits.activatedChannels.join(", ") : "Ninguno esta semana"}</activated_channels>
-</transits>${impact ? `
-
-<impact>
-<personal_channels>
-${impact.personalChannels.map(c => `- ${c.channelName} (${c.channelId}): Puerta del usuario ${c.userGate} + ${c.transitPlanet} en Puerta ${c.transitGate}`).join("\n") || "- Ninguno esta semana"}
-</personal_channels>
-<conditioned_centers>
-${impact.conditionedCenters.map(c => `- ${c.center}: ${c.gates.map(g => `${g.planet} en Puerta ${g.gate}`).join(", ")}`).join("\n") || "- Ninguno esta semana"}
-</conditioned_centers>
-<reinforced_gates>
-${impact.reinforcedGates.map(r => `- Puerta ${r.gate} del usuario reforzada por ${r.planet}`).join("\n") || "- Ninguna esta semana"}
-</reinforced_gates>
-</impact>` : ""}
 
 # Formato de salida — Reporte semanal
 
@@ -264,7 +246,39 @@ Ejemplo de estructura correcta para una sección:
 
 # Recordatorio
 
-Usá ÚNICAMENTE los datos de tránsito${impact ? " e impacto" : ""} provistos arriba. Cada insight debe poder trazarse a puertas, canales o centros concretos. Si no podés anclarlo en un dato real, no lo incluyas.`;
+Usá ÚNICAMENTE los datos de tránsito e impacto provistos abajo. Cada insight debe poder trazarse a puertas, canales o centros concretos. Si no podés anclarlo en un dato real, no lo incluyas.
+
+# Contexto
+
+<user_profile name="${profile.name}">
+${profile.birthData ? `<birth>${profile.birthData.date}, ${profile.birthData.time} — ${profile.birthData.location}</birth>` : ""}
+<human_design>
+  <type>${hd.type}</type>${hd.strategy ? `\n  <strategy>${hd.strategy}</strategy>` : ""}
+  <authority>${hd.authority}</authority>
+  <profile>${hd.profile}</profile>
+  <definition>${hd.definition}</definition>${hd.incarnationCross ? `\n  <incarnation_cross>${hd.incarnationCross}</incarnation_cross>` : ""}${hd.notSelfTheme ? `\n  <not_self_theme>${hd.notSelfTheme}</not_self_theme>` : ""}${hasVariable ? `\n  <variable>${hd.variable || "—"}${variableDetails.length ? ` (${variableDetails.join(" | ")})` : ""}</variable>` : ""}
+  <natal_channels>${hd.channels.map(c => `${c.name} (${c.id})`).join(", ") || "—"}</natal_channels>${hasGates ? `\n  <personality_gates>${gatesPersonality.map(g => `${g.number}.${g.line} via ${g.planet}`).join(", ") || "—"}</personality_gates>\n  <design_gates>${gatesDesign.map(g => `${g.number}.${g.line} via ${g.planet}`).join(", ") || "—"}</design_gates>` : ""}
+  <defined_centers>${hd.definedCenters.join(", ") || "—"}</defined_centers>
+  <undefined_centers>${hd.undefinedCenters.join(", ") || "—"}</undefined_centers>
+</human_design>
+</user_profile>${businessContextBlock}${userMemoryBlock}
+
+<transits week="${transits.weekRange}" calculated="${transits.fetchedAt}" source="Swiss Ephemeris">
+${transits.planets.map(p => `<planet name="${p.name}" sign="${p.sign}" degree="${p.degree}" retrograde="${p.isRetrograde}" hd_gate="${p.hdGate}" hd_line="${p.hdLine}" />`).join("\n")}
+<activated_channels>${transits.activatedChannels.length ? transits.activatedChannels.join(", ") : "Ninguno esta semana"}</activated_channels>
+</transits>${impact ? `
+
+<impact>
+<personal_channels>
+${impact.personalChannels.map(c => `- ${c.channelName} (${c.channelId}): Puerta del usuario ${c.userGate} + ${c.transitPlanet} en Puerta ${c.transitGate}`).join("\n") || "- Ninguno esta semana"}
+</personal_channels>
+<conditioned_centers>
+${impact.conditionedCenters.map(c => `- ${c.center}: ${c.gates.map(g => `${g.planet} en Puerta ${g.gate}`).join(", ")}`).join("\n") || "- Ninguno esta semana"}
+</conditioned_centers>
+<reinforced_gates>
+${impact.reinforcedGates.map(r => `- Puerta ${r.gate} del usuario reforzada por ${r.planet}`).join("\n") || "- Ninguna esta semana"}
+</reinforced_gates>
+</impact>` : ""}`;
 }
 
 // ─── Claude API call ──────────────────────────────────────────────────────────
@@ -275,7 +289,7 @@ Usá ÚNICAMENTE los datos de tránsito${impact ? " e impacto" : ""} provistos a
 // GPT-4o      → better quality, higher cost
 
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
-const MODEL = "gpt-4o-mini"; // swap to "gpt-4o" for higher quality
+const MODEL = process.env.CHAT_MODEL ?? "gpt-4o-mini";
 
 // ─── OpenAI API call ──────────────────────────────────────────────────────────
 
@@ -312,7 +326,11 @@ async function callOpenAI(
 
   const data = await response.json() as {
     choices: Array<{ message: { content: string } }>;
-    usage?: { prompt_tokens?: number; completion_tokens?: number };
+    usage?: {
+      prompt_tokens?: number;
+      completion_tokens?: number;
+      prompt_tokens_details?: { cached_tokens?: number };
+    };
   };
 
   return {
@@ -320,6 +338,7 @@ async function callOpenAI(
     usage: {
       promptTokens: data.usage?.prompt_tokens ?? 0,
       completionTokens: data.usage?.completion_tokens ?? 0,
+      cachedTokens: data.usage?.prompt_tokens_details?.cached_tokens ?? 0,
     },
   };
 }
@@ -424,12 +443,17 @@ export async function* runAstralAgentStream(
         try {
           const parsed = JSON.parse(payload) as {
             choices: Array<{ delta: { content?: string } }>;
-            usage?: { prompt_tokens?: number; completion_tokens?: number };
+            usage?: {
+              prompt_tokens?: number;
+              completion_tokens?: number;
+              prompt_tokens_details?: { cached_tokens?: number };
+            };
           };
           if (parsed.usage) {
             usage = {
               promptTokens: parsed.usage.prompt_tokens ?? 0,
               completionTokens: parsed.usage.completion_tokens ?? 0,
+              cachedTokens: parsed.usage.prompt_tokens_details?.cached_tokens ?? 0,
             };
           }
           const content = parsed.choices[0]?.delta?.content;

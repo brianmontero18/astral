@@ -53,6 +53,21 @@ import type { Intake } from "../report/types.js";
 const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
 
 /**
+ * Cap on how many turns of conversation history travel back to the LLM per
+ * request. `users.memory_md` carries the persistent facts across the gap,
+ * so cutting older turns trims tokens without losing identity context.
+ * Default 30 (≈15 user/assistant pairs) — aligned with mainstream chat apps
+ * (ChatGPT, Claude.ai, Cursor) that use hybrid window + memory profile.
+ */
+const CHAT_HISTORY_MAX = Number(process.env.CHAT_HISTORY_TURNS) || 30;
+
+function truncateChatHistory<T>(messages: T[]): T[] {
+  return messages.length > CHAT_HISTORY_MAX
+    ? messages.slice(-CHAT_HISTORY_MAX)
+    : messages;
+}
+
+/**
  * Fire-and-forget memory writer trigger.
  *
  * Called after the chat response is sent + persisted. Awaits nothing — the
@@ -126,6 +141,7 @@ async function persistLlmCall(
       model: CHAT_MODEL,
       tokensIn: meta.usage.promptTokens,
       tokensOut: meta.usage.completionTokens,
+      cachedTokens: meta.usage.cachedTokens ?? 0,
       costUsd: calculateCost(
         CHAT_MODEL,
         meta.usage.promptTokens,
@@ -343,7 +359,7 @@ export async function chatRoutes(app: FastifyInstance) {
       const result = await runAstralAgent(
         profile,
         transits,
-        messages,
+        truncateChatHistory(messages),
         OPENAI_KEY,
         impact,
         intakeForChat,
@@ -466,7 +482,7 @@ export async function chatRoutes(app: FastifyInstance) {
       for await (const chunk of runAstralAgentStream(
         profile,
         transits,
-        messages,
+        truncateChatHistory(messages),
         OPENAI_KEY,
         impact,
         intakeForChat,

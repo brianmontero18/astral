@@ -25,7 +25,7 @@
 import type { AgentCallMeta, ChatMessage, LlmUsage } from "./agent-service.js";
 
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
-const WRITER_MODEL = "gpt-4o-mini";
+const WRITER_MODEL = process.env.MEMORY_WRITER_MODEL ?? "gpt-4o-mini";
 
 /**
  * Hard cap on the persisted markdown. The writer is told to condense if it
