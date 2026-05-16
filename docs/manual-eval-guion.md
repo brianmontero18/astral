@@ -161,4 +161,4 @@ según el patrón de falla.
 
 Este eval NO cierra el bead automáticamente — se queda en `in_progress`
 hasta que vos confirmes manualmente. Cuando confirmes, corro:
-`bd close astral-y3c.10 --reason="manual eval validated by Brian/Daniela"`.
+`bd-close.sh astral-y3c.10 --reason="manual eval validated by Brian/Daniela"`.

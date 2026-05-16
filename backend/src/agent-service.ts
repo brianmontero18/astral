@@ -12,18 +12,31 @@ import type { Intake } from "./report/types.js";
 import { HD_CONDENSED } from "./knowledge/hd-condensed.js";
 import { BUSINESS_PACK_V1 } from "./knowledge/business-pack-v1.js";
 import { HD_DETECTION_RULES } from "./knowledge/detection-rules.js";
+import { renderChannelsTable } from "./hd-channels.js";
+import {
+  buildBusinessContextBlock,
+  buildUserMemoryBlock,
+} from "./agent-prompt-helpers.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface LlmUsage {
   promptTokens: number;
   completionTokens: number;
+  /**
+   * OpenAI prompt-cache hit count from `usage.prompt_tokens_details.cached_tokens`.
+   * 0 when the response had no cache hit (cold prefix or model without
+   * automatic caching support). Used to verify that prompt restructuring is
+   * actually activating OpenAI's automatic cache.
+   */
+  cachedTokens?: number;
 }
 
 export interface AgentCallMeta {
   usage: LlmUsage;
   latencyMs: number;
   systemPrompt: string;
+  toolsUsed?: string[];
 }
 
 export interface AgentResult extends AgentCallMeta {
@@ -63,63 +76,6 @@ export interface ChatMessage {
 
 // ─── Prompt builder ───────────────────────────────────────────────────────────
 
-const TIPO_NEGOCIO_PROMPT_LABELS: Record<NonNullable<Intake["tipo_de_negocio"]>, string> = {
-  sin_negocio: "sin_negocio",
-  mentora: "mentora",
-  coach: "coach",
-  marca_personal: "marca personal",
-  servicios_premium: "servicios premium / high-ticket",
-  branding: "branding",
-  otro: "otro",
-};
-
-/**
- * Builds the optional `<business_context>` block injected into the system
- * prompt when the user has filled the intake. Returns an empty string when
- * the intake is missing or has no usable fields, so callers can interpolate
- * unconditionally without producing dangling whitespace.
- *
- * The leading `\n` is intentional: it sits right after `</user_profile>` so
- * the block visually anchors to the user's identity in the prompt.
- */
-function buildBusinessContextBlock(intake?: Intake): string {
-  if (!intake) return "";
-  const parts: string[] = [];
-  if (intake.actividad) parts.push(`  <actividad>${intake.actividad}</actividad>`);
-  if (intake.tipo_de_negocio === "sin_negocio") {
-    // User explicitly opted out of the negocio framing. Signal so the LLM
-    // avoids marketing-heavy interpretations and stays in personal / vocational
-    // language.
-    parts.push(`  <situacion>sin_emprendimiento_actualmente</situacion>`);
-  } else if (intake.tipo_de_negocio) {
-    parts.push(`  <tipo_de_negocio>${TIPO_NEGOCIO_PROMPT_LABELS[intake.tipo_de_negocio]}</tipo_de_negocio>`);
-  }
-  if (intake.desafio_actual) parts.push(`  <desafio_actual>${intake.desafio_actual}</desafio_actual>`);
-  if (intake.objetivo_12m)   parts.push(`  <objetivo_12m>${intake.objetivo_12m}</objetivo_12m>`);
-  if (intake.voz_marca)      parts.push(`  <voz_marca>${intake.voz_marca}</voz_marca>`);
-  if (parts.length === 0) return "";
-  return `\n<business_context>\n${parts.join("\n")}\n</business_context>`;
-}
-
-/**
- * Wraps the persisted Living Document markdown verbatim inside `<user_memory>`
- * so the LLM treats it as a stable, append-only source of facts. Returns ""
- * on empty input so callers can interpolate unconditionally without producing
- * an empty tag.
- *
- * Cache-friendly: this block must NOT contain timestamps or anything that
- * mutates without a real fact change. Position is also chosen for caching —
- * the block sits between the stable `<business_context>` and the volatile
- * `<transits>` so a future cache-discipline pass that splits prefix from
- * suffix needs no rework here.
- */
-function buildUserMemoryBlock(memory?: string): string {
-  if (!memory) return "";
-  const trimmed = memory.trim();
-  if (!trimmed) return "";
-  return `\n<user_memory>\n${trimmed}\n</user_memory>`;
-}
-
 export function hashSystemPrompt(systemPrompt: string): string {
   return createHash("sha256").update(systemPrompt).digest("hex").slice(0, 16);
 }
@@ -144,10 +100,7 @@ export function buildSystemPrompt(
   const hasVariable = variableDetails.length > 0 || !!hd.variable;
 
   const businessContextBlock = buildBusinessContextBlock(intake);
-  const hasBusinessContext = businessContextBlock.length > 0;
-
   const userMemoryBlock = buildUserMemoryBlock(memory);
-  const hasUserMemory = userMemoryBlock.length > 0;
 
   return `# Rol y objetivo
 
@@ -173,7 +126,10 @@ Tu función: leer la energía disponible en los tránsitos, cruzarla con el body
 
 ## Reglas de datos
 
-- Usá ÚNICAMENTE los tránsitos reales provistos en <transits>. No inventes ni asumas posiciones planetarias.${impact ? `\n- Usá los datos de IMPACTO provistos en <impact>. Son pre-calculados — no los recalcules ni contradigas.` : ""}${hasBusinessContext ? `\n- Si hay <business_context>, integrá los campos disponibles del usuario (actividad, tipo de negocio, desafío actual, objetivo a 12 meses, voz de marca) en cada respuesta concreta. El consejo aterriza en su negocio; no es decoración.` : ""}${hasUserMemory ? `\n- Si hay <user_memory>, considéralo como hechos verificados sobre la persona que aprendiste en sesiones anteriores. Referenciá estos hechos cuando sea relevante (sin re-preguntar lo que ya sabés). Si un hecho del memory contradice lo que la persona acaba de decir, priorizá el mensaje actual y notalo en tu próxima oportunidad.` : ""}
+- Usá ÚNICAMENTE los tránsitos reales provistos en <transits>. No inventes ni asumas posiciones planetarias.
+- Si existe <impact> abajo, usá esos datos de impacto. Son pre-calculados — no los recalcules ni contradigas.
+- Si existe <business_context> abajo, integrá los campos disponibles del usuario (actividad, tipo de negocio, desafío actual, objetivo a 12 meses, voz de marca) en cada respuesta concreta. El consejo aterriza en su negocio; no es decoración.
+- Si existe <user_memory> abajo, considéralo como hechos verificados sobre la persona que aprendiste en sesiones anteriores. Referenciá estos hechos cuando sea relevante (sin re-preguntar lo que ya sabés). Si un hecho del memory contradice lo que la persona acaba de decir, priorizá el mensaje actual y notalo en tu próxima oportunidad.
 - Cuando un tránsito active una puerta del usuario o complete un canal, destacalo y conectá con qué significa para su comunicación, su oferta o su energía de marca.
 - Cuando un tránsito toque un centro indefinido, mencioná el condicionamiento potencial y cómo evitar decisiones de negocio desde el no-self.
 - Integrá la Cruz de Encarnación, la estrategia y el tema del No-Self cuando sean relevantes para el propósito y posicionamiento.
@@ -197,41 +153,15 @@ Esta sección te da el knowledge canónico para anclar tus respuestas. NO la cit
 
 ${HD_CONDENSED}
 
+### TABLA CANÓNICA DE LOS 36 CANALES
+
+Fuente de verdad para citar canales por nombre o por puertas. Si vas a mencionar un canal, verificá en esta tabla que las puertas coincidan exactamente con su id. Nunca asocies una puerta a un canal que no la contiene.
+
+${renderChannelsTable()}
+
 ${BUSINESS_PACK_V1}
 
 ${HD_DETECTION_RULES}
-
-# Contexto
-
-<user_profile name="${profile.name}">
-${profile.birthData ? `<birth>${profile.birthData.date}, ${profile.birthData.time} — ${profile.birthData.location}</birth>` : ""}
-<human_design>
-  <type>${hd.type}</type>${hd.strategy ? `\n  <strategy>${hd.strategy}</strategy>` : ""}
-  <authority>${hd.authority}</authority>
-  <profile>${hd.profile}</profile>
-  <definition>${hd.definition}</definition>${hd.incarnationCross ? `\n  <incarnation_cross>${hd.incarnationCross}</incarnation_cross>` : ""}${hd.notSelfTheme ? `\n  <not_self_theme>${hd.notSelfTheme}</not_self_theme>` : ""}${hasVariable ? `\n  <variable>${hd.variable || "—"}${variableDetails.length ? ` (${variableDetails.join(" | ")})` : ""}</variable>` : ""}
-  <natal_channels>${hd.channels.map(c => `${c.name} (${c.id})`).join(", ") || "—"}</natal_channels>${hasGates ? `\n  <personality_gates>${gatesPersonality.map(g => `${g.number}.${g.line} via ${g.planet}`).join(", ") || "—"}</personality_gates>\n  <design_gates>${gatesDesign.map(g => `${g.number}.${g.line} via ${g.planet}`).join(", ") || "—"}</design_gates>` : ""}
-  <defined_centers>${hd.definedCenters.join(", ") || "—"}</defined_centers>
-  <undefined_centers>${hd.undefinedCenters.join(", ") || "—"}</undefined_centers>
-</human_design>
-</user_profile>${businessContextBlock}${userMemoryBlock}
-
-<transits week="${transits.weekRange}" calculated="${transits.fetchedAt}" source="Swiss Ephemeris">
-${transits.planets.map(p => `<planet name="${p.name}" sign="${p.sign}" degree="${p.degree}" retrograde="${p.isRetrograde}" hd_gate="${p.hdGate}" hd_line="${p.hdLine}" />`).join("\n")}
-<activated_channels>${transits.activatedChannels.length ? transits.activatedChannels.join(", ") : "Ninguno esta semana"}</activated_channels>
-</transits>${impact ? `
-
-<impact>
-<personal_channels>
-${impact.personalChannels.map(c => `- ${c.channelName} (${c.channelId}): Puerta del usuario ${c.userGate} + ${c.transitPlanet} en Puerta ${c.transitGate}`).join("\n") || "- Ninguno esta semana"}
-</personal_channels>
-<conditioned_centers>
-${impact.conditionedCenters.map(c => `- ${c.center}: ${c.gates.map(g => `${g.planet} en Puerta ${g.gate}`).join(", ")}`).join("\n") || "- Ninguno esta semana"}
-</conditioned_centers>
-<reinforced_gates>
-${impact.reinforcedGates.map(r => `- Puerta ${r.gate} del usuario reforzada por ${r.planet}`).join("\n") || "- Ninguna esta semana"}
-</reinforced_gates>
-</impact>` : ""}
 
 # Formato de salida — Reporte semanal
 
@@ -264,7 +194,39 @@ Ejemplo de estructura correcta para una sección:
 
 # Recordatorio
 
-Usá ÚNICAMENTE los datos de tránsito${impact ? " e impacto" : ""} provistos arriba. Cada insight debe poder trazarse a puertas, canales o centros concretos. Si no podés anclarlo en un dato real, no lo incluyas.`;
+Usá ÚNICAMENTE los datos de tránsito e impacto provistos abajo. Cada insight debe poder trazarse a puertas, canales o centros concretos. Si no podés anclarlo en un dato real, no lo incluyas.
+
+# Contexto
+
+<user_profile name="${profile.name}">
+${profile.birthData ? `<birth>${profile.birthData.date}, ${profile.birthData.time} — ${profile.birthData.location}</birth>` : ""}
+<human_design>
+  <type>${hd.type}</type>${hd.strategy ? `\n  <strategy>${hd.strategy}</strategy>` : ""}
+  <authority>${hd.authority}</authority>
+  <profile>${hd.profile}</profile>
+  <definition>${hd.definition}</definition>${hd.incarnationCross ? `\n  <incarnation_cross>${hd.incarnationCross}</incarnation_cross>` : ""}${hd.notSelfTheme ? `\n  <not_self_theme>${hd.notSelfTheme}</not_self_theme>` : ""}${hasVariable ? `\n  <variable>${hd.variable || "—"}${variableDetails.length ? ` (${variableDetails.join(" | ")})` : ""}</variable>` : ""}
+  <natal_channels>${hd.channels.map(c => `${c.name} (${c.id})`).join(", ") || "—"}</natal_channels>${hasGates ? `\n  <personality_gates>${gatesPersonality.map(g => `${g.number}.${g.line} via ${g.planet}`).join(", ") || "—"}</personality_gates>\n  <design_gates>${gatesDesign.map(g => `${g.number}.${g.line} via ${g.planet}`).join(", ") || "—"}</design_gates>` : ""}
+  <defined_centers>${hd.definedCenters.join(", ") || "—"}</defined_centers>
+  <undefined_centers>${hd.undefinedCenters.join(", ") || "—"}</undefined_centers>
+</human_design>
+</user_profile>${businessContextBlock}${userMemoryBlock}
+
+<transits week="${transits.weekRange}" calculated="${transits.fetchedAt}" source="Swiss Ephemeris">
+${transits.planets.map(p => `<planet name="${p.name}" sign="${p.sign}" degree="${p.degree}" retrograde="${p.isRetrograde}" hd_gate="${p.hdGate}" hd_line="${p.hdLine}" />`).join("\n")}
+<activated_channels>${transits.activatedChannels.length ? transits.activatedChannels.join(", ") : "Ninguno esta semana"}</activated_channels>
+</transits>${impact ? `
+
+<impact>
+<personal_channels>
+${impact.personalChannels.map(c => `- ${c.channelName} (${c.channelId}): Puerta del usuario ${c.userGate} + ${c.transitPlanet} en Puerta ${c.transitGate}`).join("\n") || "- Ninguno esta semana"}
+</personal_channels>
+<conditioned_centers>
+${impact.conditionedCenters.map(c => `- ${c.center}: ${c.gates.map(g => `${g.planet} en Puerta ${g.gate}`).join(", ")}`).join("\n") || "- Ninguno esta semana"}
+</conditioned_centers>
+<reinforced_gates>
+${impact.reinforcedGates.map(r => `- Puerta ${r.gate} del usuario reforzada por ${r.planet}`).join("\n") || "- Ninguna esta semana"}
+</reinforced_gates>
+</impact>` : ""}`;
 }
 
 // ─── Claude API call ──────────────────────────────────────────────────────────
@@ -275,7 +237,7 @@ Usá ÚNICAMENTE los datos de tránsito${impact ? " e impacto" : ""} provistos a
 // GPT-4o      → better quality, higher cost
 
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
-const MODEL = "gpt-4o-mini"; // swap to "gpt-4o" for higher quality
+const MODEL = process.env.CHAT_MODEL ?? "gpt-4o-mini";
 
 // ─── OpenAI API call ──────────────────────────────────────────────────────────
 
@@ -312,7 +274,11 @@ async function callOpenAI(
 
   const data = await response.json() as {
     choices: Array<{ message: { content: string } }>;
-    usage?: { prompt_tokens?: number; completion_tokens?: number };
+    usage?: {
+      prompt_tokens?: number;
+      completion_tokens?: number;
+      prompt_tokens_details?: { cached_tokens?: number };
+    };
   };
 
   return {
@@ -320,6 +286,7 @@ async function callOpenAI(
     usage: {
       promptTokens: data.usage?.prompt_tokens ?? 0,
       completionTokens: data.usage?.completion_tokens ?? 0,
+      cachedTokens: data.usage?.prompt_tokens_details?.cached_tokens ?? 0,
     },
   };
 }
@@ -424,12 +391,17 @@ export async function* runAstralAgentStream(
         try {
           const parsed = JSON.parse(payload) as {
             choices: Array<{ delta: { content?: string } }>;
-            usage?: { prompt_tokens?: number; completion_tokens?: number };
+            usage?: {
+              prompt_tokens?: number;
+              completion_tokens?: number;
+              prompt_tokens_details?: { cached_tokens?: number };
+            };
           };
           if (parsed.usage) {
             usage = {
               promptTokens: parsed.usage.prompt_tokens ?? 0,
               completionTokens: parsed.usage.completion_tokens ?? 0,
+              cachedTokens: parsed.usage.prompt_tokens_details?.cached_tokens ?? 0,
             };
           }
           const content = parsed.choices[0]?.delta?.content;

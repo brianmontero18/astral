@@ -9,18 +9,24 @@
 
 interface ModelPricing {
   inputPerMillion: number;
+  cachedInputPerMillion?: number;
   outputPerMillion: number;
 }
 
 const PRICING: Record<string, ModelPricing> = {
-  "gpt-4o-mini": { inputPerMillion: 0.15, outputPerMillion: 0.60 },
-  "gpt-4o":      { inputPerMillion: 2.50, outputPerMillion: 10.00 },
+  "gpt-4o-mini": { inputPerMillion: 0.15, cachedInputPerMillion: 0.075, outputPerMillion: 0.60 },
+  "gpt-4o":      { inputPerMillion: 2.50, cachedInputPerMillion: 1.25, outputPerMillion: 10.00 },
 };
+
+interface CostOptions {
+  cachedInputTokens?: number;
+}
 
 export function calculateCost(
   model: string,
   tokensIn: number,
   tokensOut: number,
+  options: CostOptions = {},
 ): number {
   const pricing = PRICING[model];
   if (!pricing) {
@@ -28,9 +34,18 @@ export function calculateCost(
     // The call-site should still log `model` so we can extend the table.
     return 0;
   }
+  const cachedInputTokens = Math.min(
+    Math.max(options.cachedInputTokens ?? 0, 0),
+    Math.max(tokensIn, 0),
+  );
+  const normalInputTokens = Math.max(tokensIn - cachedInputTokens, 0);
+  const cachedInputPerMillion =
+    pricing.cachedInputPerMillion ?? pricing.inputPerMillion;
+
   return (
-    (tokensIn  * pricing.inputPerMillion +
-     tokensOut * pricing.outputPerMillion) / 1_000_000
+    (normalInputTokens * pricing.inputPerMillion +
+     cachedInputTokens * cachedInputPerMillion +
+     tokensOut         * pricing.outputPerMillion) / 1_000_000
   );
 }
 

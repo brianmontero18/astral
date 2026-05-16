@@ -10,6 +10,10 @@ import {
   type UserProfile,
 } from "../agent-service.js";
 import {
+  runAstralAgentV2,
+  runAstralAgentStreamV2,
+} from "../agent-service-v2.js";
+import {
   deleteChatMessagesFrom,
   getChatMessages,
   getRecentChatMessages,
@@ -53,6 +57,39 @@ import type { Intake } from "../report/types.js";
 const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
 
 /**
+ * Cap on how many turns of conversation history travel back to the LLM per
+ * request. `users.memory_md` carries the persistent facts across the gap,
+ * so cutting older turns trims tokens without losing identity context.
+ *
+ * Default 60 (≈30 user/assistant pairs). Set via sparring + architect
+ * deliberation 2026-05-16: bumped from 30 → 60 to push the cliff from
+ * ~5 weeks of intensive use to ~10 weeks. The marginal cost is ~$0.11/mo
+ * in the current beta (10 users), justified by zero observed cases of
+ * truncation in production. Counter below tracks when the cap is hit so
+ * we can decide on compaction (B/C/D) only if real data demands it.
+ * See `docs/architecture/refactor-2026-05-decisions.md`.
+ */
+const CHAT_HISTORY_MAX = Number(process.env.CHAT_HISTORY_TURNS) || 60;
+
+function truncateChatHistory<T>(
+  messages: T[],
+  app?: FastifyInstance,
+  userId?: string,
+): T[] {
+  if (messages.length <= CHAT_HISTORY_MAX) {
+    return messages;
+  }
+  // Observability counter: log every truncation so we can query
+  // `chat_history_truncated` events in prod. When this fires consistently,
+  // re-open the compaction discussion with real data instead of speculation.
+  app?.log.info(
+    { userId, total: messages.length, cap: CHAT_HISTORY_MAX },
+    "chat_history_truncated",
+  );
+  return messages.slice(-CHAT_HISTORY_MAX);
+}
+
+/**
  * Fire-and-forget memory writer trigger.
  *
  * Called after the chat response is sent + persisted. Awaits nothing — the
@@ -90,10 +127,12 @@ function triggerMemoryWriterAsync(
             model: MEMORY_WRITER_MODEL,
             tokensIn: result.meta.usage.promptTokens,
             tokensOut: result.meta.usage.completionTokens,
+            cachedTokens: result.meta.usage.cachedTokens ?? 0,
             costUsd: calculateCost(
               MEMORY_WRITER_MODEL,
               result.meta.usage.promptTokens,
               result.meta.usage.completionTokens,
+              { cachedInputTokens: result.meta.usage.cachedTokens ?? 0 },
             ),
             latencyMs: result.meta.latencyMs,
             promptHash: hashSystemPrompt(result.meta.systemPrompt),
@@ -126,10 +165,12 @@ async function persistLlmCall(
       model: CHAT_MODEL,
       tokensIn: meta.usage.promptTokens,
       tokensOut: meta.usage.completionTokens,
+      cachedTokens: meta.usage.cachedTokens ?? 0,
       costUsd: calculateCost(
         CHAT_MODEL,
         meta.usage.promptTokens,
         meta.usage.completionTokens,
+        { cachedInputTokens: meta.usage.cachedTokens ?? 0 },
       ),
       latencyMs: meta.latencyMs,
       promptHash: hashSystemPrompt(meta.systemPrompt),
@@ -340,10 +381,11 @@ export async function chatRoutes(app: FastifyInstance) {
       });
       const intakeForChat = FLAGS.CHAT_INTAKE_CONTEXT && userIntake ? userIntake : undefined;
       const memoryForChat = FLAGS.MEMORY_LIVING_DOCUMENT && userMemory ? userMemory : undefined;
-      const result = await runAstralAgent(
+      const runAgent = FLAGS.CHAT_USE_TOOLS ? runAstralAgentV2 : runAstralAgent;
+      const result = await runAgent(
         profile,
         transits,
-        messages,
+        truncateChatHistory(messages, app, persistedUserId),
         OPENAI_KEY,
         impact,
         intakeForChat,
@@ -463,10 +505,13 @@ export async function chatRoutes(app: FastifyInstance) {
       let fullText = "";
       let captured: AgentCallMeta | null = null;
 
-      for await (const chunk of runAstralAgentStream(
+      const runAgentStream = FLAGS.CHAT_USE_TOOLS
+        ? runAstralAgentStreamV2
+        : runAstralAgentStream;
+      for await (const chunk of runAgentStream(
         profile,
         transits,
-        messages,
+        truncateChatHistory(messages, app, persistedUserId),
         OPENAI_KEY,
         impact,
         intakeForChat,

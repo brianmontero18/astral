@@ -120,6 +120,32 @@ describe("POST /api/chat — telemetry write", () => {
     expect(usage.totalCostUsd).toBeCloseTo(9e-5, 8);
   });
 
+  it("prices cached input tokens at the cached-input rate", async () => {
+    const userId = await createLinkedTestUser(app, "tel-chat-cached-cost");
+
+    runAstralAgentMock.mockResolvedValueOnce({
+      content: "respuesta cacheada",
+      usage: { promptTokens: 1000, completionTokens: 100, cachedTokens: 600 },
+      latencyMs: 875,
+      systemPrompt: "TEST_PROMPT_CACHE",
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/chat",
+      headers: sessionHeaders("tel-chat-cached-cost"),
+      payload: { messages: [{ role: "user", content: "hola" }] },
+    });
+
+    expect(res.statusCode).toBe(200);
+
+    const usage = await getLlmUsageForUser(userId, SINCE_BEGINNING);
+    expect(usage.totalCallCount).toBe(1);
+    expect(usage.totalTokensIn).toBe(1000);
+    expect(usage.totalTokensOut).toBe(100);
+    expect(usage.totalCostUsd).toBeCloseTo(0.000165, 8);
+  });
+
   it("does not persist telemetry when the agent throws", async () => {
     const userId = await createLinkedTestUser(app, "tel-chat-fail");
 

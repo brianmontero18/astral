@@ -17,7 +17,7 @@ import {
 } from "./prompts.js";
 
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
-const MODEL = "gpt-4o-mini";
+const MODEL = process.env.REPORT_MODEL ?? "gpt-4o-mini";
 
 export function computeProfileHash(profile: UserProfile, intake?: Intake): string {
   const data = JSON.stringify({ profile: profile.humanDesign, intake: intake ?? null });

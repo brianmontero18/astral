@@ -25,7 +25,7 @@
 import type { AgentCallMeta, ChatMessage, LlmUsage } from "./agent-service.js";
 
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
-const WRITER_MODEL = "gpt-4o-mini";
+const WRITER_MODEL = process.env.MEMORY_WRITER_MODEL ?? "gpt-4o-mini";
 
 /**
  * Hard cap on the persisted markdown. The writer is told to condense if it
@@ -81,7 +81,11 @@ Devolvé la memoria actualizada o "NOOP".`;
 
 interface OpenAIChatResponse {
   choices: Array<{ message: { content: string } }>;
-  usage?: { prompt_tokens?: number; completion_tokens?: number };
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    prompt_tokens_details?: { cached_tokens?: number };
+  };
 }
 
 /**
@@ -124,6 +128,7 @@ export async function runMemoryWriter(
   const usage: LlmUsage = {
     promptTokens: data.usage?.prompt_tokens ?? 0,
     completionTokens: data.usage?.completion_tokens ?? 0,
+    cachedTokens: data.usage?.prompt_tokens_details?.cached_tokens ?? 0,
   };
   const meta: AgentCallMeta = {
     usage,

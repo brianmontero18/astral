@@ -17,7 +17,7 @@ import { extractPdfText } from "./hd-pdf/pdf-text.js";
 import { deriveChannelsAndCenters } from "./hd-pdf/validate.js";
 
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
-const MODEL = "gpt-4o";
+const MODEL = process.env.EXTRACTION_MODEL ?? "gpt-4o";
 
 const PDF_ONLY_MESSAGE =
   "Subi un PDF exportado desde MyHumanDesign o Genetic Matrix. No aceptamos imagenes ni capturas.";
