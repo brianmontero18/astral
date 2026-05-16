@@ -18,7 +18,6 @@ import { createOpenAI } from "@ai-sdk/openai";
 import type { WeeklyTransits, TransitImpact } from "./transit-service.js";
 import type { Intake } from "./report/types.js";
 import {
-  buildSystemPrompt,
   CHAT_MODEL,
   type AgentCallMeta,
   type AgentResult,
@@ -28,6 +27,7 @@ import {
   type UserProfile,
 } from "./agent-service.js";
 import { hdTools } from "./hd-tools/index.js";
+import { buildSystemPromptV2 } from "./agent-service-v2-prompt.js";
 
 /**
  * Maximum number of agent loop steps. One step = one LLM call (initial draft
@@ -56,7 +56,7 @@ export async function runAstralAgentV2(
   intake?: Intake,
   memory?: string,
 ): Promise<AgentResult> {
-  const systemPrompt = buildSystemPrompt(profile, transits, impact, intake, memory);
+  const systemPrompt = buildSystemPromptV2(profile, transits, impact, intake, memory);
   const openai = createOpenAIProvider(openaiKey);
   const start = Date.now();
 
@@ -97,7 +97,7 @@ export async function* runAstralAgentStreamV2(
   memory?: string,
   onComplete?: AgentStreamCompleteHandler,
 ): AsyncGenerator<string> {
-  const systemPrompt = buildSystemPrompt(profile, transits, impact, intake, memory);
+  const systemPrompt = buildSystemPromptV2(profile, transits, impact, intake, memory);
   const openai = createOpenAIProvider(openaiKey);
   const start = Date.now();
 
