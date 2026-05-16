@@ -26,7 +26,10 @@ vi.mock("../extraction-service.js", () => ({
 
 const {
   createAsset,
+  getAsset,
   getUser,
+  getUserAssets,
+  updateUserBodygraph,
   updateUserProfile,
 } = await import("../db.js");
 const {
@@ -262,6 +265,146 @@ describe("POST /api/me/bodygraph", () => {
       desafio_actual: "Foco",
     });
     expect(extractProfileFromAssets).toHaveBeenCalledTimes(1);
+  });
+
+  it("replaces the previously active asset (deletes old DB row + storage) — astral-j8f regression", async () => {
+    const subject = "st-bodygraph-replaces-old-asset";
+    const userId = await createLinkedTestUser(app, subject, "Repeat Uploader", {
+      name: "Repeat Uploader",
+      humanDesign: { type: "Projector" },
+    });
+
+    const previousAssetId = await createAsset(
+      userId,
+      "old-chart.pdf",
+      "application/pdf",
+      "hd",
+      Buffer.from("%PDF-old-content"),
+    );
+    await updateUserBodygraph(
+      userId,
+      { humanDesign: { type: "Projector" } },
+      previousAssetId,
+    );
+
+    const userBefore = await getUser(userId);
+    expect(userBefore?.profile_asset_id).toBe(previousAssetId);
+    const assetsBefore = await getUserAssets(userId);
+    expect(assetsBefore.map((a) => a.id)).toEqual([previousAssetId]);
+
+    extractProfileFromAssets.mockResolvedValueOnce({
+      humanDesign: { type: "Generator" },
+    });
+
+    const { headers, body } = multipartPayload(
+      "new-chart.pdf",
+      "%PDF-new-content",
+      "application/pdf",
+    );
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/me/bodygraph",
+      headers: {
+        ...headers,
+        ...sessionHeaders(subject),
+      },
+      body,
+    });
+
+    expect(res.statusCode).toBe(201);
+    const newAssetId = JSON.parse(res.body).asset.id as string;
+    expect(newAssetId).not.toBe(previousAssetId);
+
+    const userAfter = await getUser(userId);
+    expect(userAfter?.profile_asset_id).toBe(newAssetId);
+
+    const assetsAfter = await getUserAssets(userId);
+    expect(assetsAfter.map((a) => a.id)).toEqual([newAssetId]);
+
+    const oldRow = await getAsset(previousAssetId);
+    expect(oldRow).toBeUndefined();
+  });
+
+  it("first-time bodygraph upload does not attempt to delete a previous asset", async () => {
+    const subject = "st-bodygraph-first-upload";
+    const userId = await createLinkedTestUser(app, subject);
+
+    const userBefore = await getUser(userId);
+    expect(userBefore?.profile_asset_id).toBeNull();
+
+    extractProfileFromAssets.mockResolvedValueOnce({
+      humanDesign: { type: "Manifestor" },
+    });
+
+    const { headers, body } = multipartPayload(
+      "first.pdf",
+      "%PDF-first",
+      "application/pdf",
+    );
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/me/bodygraph",
+      headers: {
+        ...headers,
+        ...sessionHeaders(subject),
+      },
+      body,
+    });
+
+    expect(res.statusCode).toBe(201);
+    const newAssetId = JSON.parse(res.body).asset.id as string;
+
+    const assetsAfter = await getUserAssets(userId);
+    expect(assetsAfter.map((a) => a.id)).toEqual([newAssetId]);
+    const userAfter = await getUser(userId);
+    expect(userAfter?.profile_asset_id).toBe(newAssetId);
+  });
+
+  it("does not delete the previous asset when extraction fails", async () => {
+    const subject = "st-bodygraph-extraction-fails";
+    const userId = await createLinkedTestUser(app, subject);
+
+    const previousAssetId = await createAsset(
+      userId,
+      "preserved.pdf",
+      "application/pdf",
+      "hd",
+      Buffer.from("%PDF-preserved"),
+    );
+    await updateUserBodygraph(
+      userId,
+      { humanDesign: { type: "Projector" } },
+      previousAssetId,
+    );
+
+    extractProfileFromAssets.mockRejectedValueOnce(
+      new MockUserFacingError("Unreadable PDF", 400),
+    );
+
+    const { headers, body } = multipartPayload(
+      "broken.pdf",
+      "%PDF-broken",
+      "application/pdf",
+    );
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/me/bodygraph",
+      headers: {
+        ...headers,
+        ...sessionHeaders(subject),
+      },
+      body,
+    });
+
+    expect(res.statusCode).toBe(400);
+
+    const assetsAfter = await getUserAssets(userId);
+    expect(assetsAfter.map((a) => a.id)).toEqual([previousAssetId]);
+    const userAfter = await getUser(userId);
+    expect(userAfter?.profile_asset_id).toBe(previousAssetId);
   });
 
   it("rejects non-PDF bodygraph replacements", async () => {
