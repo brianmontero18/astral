@@ -9,8 +9,8 @@
 
 Si entrás al proyecto por primera vez (humano o AI agent):
 
-1. **[`/Users/brmontero/astral/CLAUDE.md`](../CLAUDE.md)** — stack, arquitectura general, flujo de datos, layout crítico del frontend.
-2. **[`/Users/brmontero/astral/AGENTS.md`](../AGENTS.md)** — skills + workflow para AI agents.
+1. **[`/Users/brmontero/astral/AGENTS.md`](../AGENTS.md)** — fuente de verdad para AI agents (reglas Astral, skills, workflow, prohibiciones).
+2. **[`architecture/project-overview.md`](architecture/project-overview.md)** — stack, estructura del repo, flujo de datos, API, decisiones técnicas, layout crítico.
 3. **[`architecture/chat-llm-system.md`](architecture/chat-llm-system.md)** — cómo funciona la capa de IA *hoy* (diagrama ASCII + capas).
 4. **[`human-design-reference.md`](human-design-reference.md)** — referencia técnica HD (puertas, canales, centros, tránsitos).
 
@@ -20,6 +20,7 @@ Si entrás al proyecto por primera vez (humano o AI agent):
 
 | Doc | Qué tiene |
 |---|---|
+| [`architecture/project-overview.md`](architecture/project-overview.md) | Stack, estructura del repo, flujo de datos, API endpoints, decisiones técnicas, layout crítico del frontend, design system. **Punto de entrada técnico para el proyecto**. |
 | [`architecture/chat-llm-system.md`](architecture/chat-llm-system.md) | Diagrama del flujo turn-by-turn del chat con LLM, capas de abstracción, comparación con industria 2026. **Lectura obligada para PM o engineer que toca AI**. |
 | [`architecture/refactor-2026-05-decisions.md`](architecture/refactor-2026-05-decisions.md) | Decisiones técnicas del refactor AI (mayo 2026): por qué tools y no post-validator, por qué Vercel AI SDK, por qué mini y no 4o. |
 | [`architecture/bug-investigation-daniela-2026-05.md`](architecture/bug-investigation-daniela-2026-05.md) | Caso real que motivó el refactor: profile contaminado, file_type natal vs hd, root cause analysis. |

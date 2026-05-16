@@ -27,7 +27,6 @@ dummy.txt
 .codex/
 .playwright-mcp/
 **/.claude/settings.local.json
-AGENTS.md
 
 # OS
 .DS_Store

@@ -166,7 +166,7 @@ Para Astral en beta con un solo provider (OpenAI), automático es suficiente. Cu
 | TBD | P2 | Multi-provider abstraction (Anthropic + OpenAI swap por env var) |
 | TBD | P2 | Retry con exponential backoff + parse `Retry-After` |
 | TBD | P3 | Batch API para `memory_writer` (-50% costo, latencia no importa) |
-| TBD | P2 | Compaction de history viejo (preserva info importante de mensaje 35+) |
+| `astral-7i8` | P4 | Compaction de history — **DIFERIDO** hasta que el counter `chat_history_truncated` supere 0 por ≥7 días en prod. Mitigación intermedia: bump `CHAT_HISTORY_TURNS` de 30 → 60 (commit del 2026-05-16). Veredicto sparring+architect en sección H abajo. |
 
 ---
 
@@ -183,6 +183,34 @@ Una vez `FEATURE_CHAT_USE_TOOLS=true` por 7 días, los thresholds:
 | Smoke `npm run smoke:chat-v2 -- 5` | 5/5 sostenido en 3 corridas distintas del día | exit code |
 
 Si todas verde por 7 días, cerrar `astral-typ` y `astral-owv`. Empezar Etapa Cleanup del legacy v1.
+
+---
+
+## H — Deliberación 2026-05-16: compaction de history (DIFERIDO)
+
+**Trigger**: el founder propuso 4 opciones (A/B/C/D) para resolver "si una conversación cruza 30 mensajes, los mensajes 31+ se cortan y se pierde info que no esté en memory_md". Inclinación inicial: opción C (rolling summary, mainstream pattern de ChatGPT/Claude).
+
+**Proceso**: deliberación paralela con sub-agents `sparring` y `architect`.
+
+**Sparring detectó**:
+1. El problema no existe en data real — ningún user cruzó 30 turns en prod. Daniela (la más activa, 0.86 msg/día) necesitaría 35 días seguidos para tocar el límite.
+2. "Industry standard 2026" no es la industry de Astral — ChatGPT/Claude son long-thread genéricos; Astral es coaching app donde los users mezclan 4 temas en 7 días (NO long thread).
+3. memory_writer no fue auditado — agregar compaction encima de un writer no validado es "dos cosas rotas en cascada".
+4. Compaction "fire-and-forget" agrega race conditions no modeladas.
+5. Inclinación por C viene de leer que ChatGPT lo hace, no de data de Astral — mismo error que llevó al post-output validator descartado.
+
+**Architect cuantificó**:
+- Opción C: costo permanente +$0.0002/turn pero **rompe cache hit >0.5** del prefix static → costo REAL sube +40%. Solapamiento >90% con memory_md ya existente.
+- Opción E (no contemplada por el founder): bump `CHAT_HISTORY_TURNS` 30 → 60. Costo $0.11/mes para toda la beta. 1 línea. Empuja el cliff de 5 a 10 semanas.
+- Opción F: E + counter de truncate → recolección de data real para decidir B/C/D con evidencia.
+- Si counter sube en el futuro: D (threads) > C (compaction). El patrón observado es topic-mixing, no longitud — y C no resuelve topic-mixing, solo lo comprime.
+
+**Veredicto adoptado**:
+1. Implementado: `CHAT_HISTORY_TURNS=60` + counter `chat_history_truncated` en `routes/chat.ts:68-85`.
+2. Diferido: B/C/D hasta data real (bead `astral-7i8`, P4).
+3. Foco operativo: volver a los 4 bugs P0 (`astral-0b7`, `astral-bdt`, `astral-m25`).
+
+**Reportes completos**: ver outputs del sparring + architect en el thread de la sesión 2026-05-16.
 
 ---
 
