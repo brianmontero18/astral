@@ -109,10 +109,10 @@ describe("runMemoryWriter — telemetry meta", () => {
   it("populates AgentCallMeta with token usage from the response", async () => {
     globalThis.fetch = mockOpenAIChat("NOOP", { prompt_tokens: 250, completion_tokens: 80 });
     const result = await runMemoryWriter("", SAMPLE_MESSAGES, "fake-key");
-    expect(result.meta.usage).toEqual({ promptTokens: 250, completionTokens: 80 });
+    expect(result.meta.usage).toEqual({ promptTokens: 250, completionTokens: 80, cachedTokens: 0 });
   });
 
-  it("uses defaults (0/0) when usage is missing from the response", async () => {
+  it("uses defaults (0/0/0) when usage is missing from the response", async () => {
     globalThis.fetch = vi.fn(async () => ({
       ok: true,
       text: async () => "",
@@ -122,7 +122,7 @@ describe("runMemoryWriter — telemetry meta", () => {
       }),
     }) as unknown as Response);
     const result = await runMemoryWriter("", SAMPLE_MESSAGES, "fake-key");
-    expect(result.meta.usage).toEqual({ promptTokens: 0, completionTokens: 0 });
+    expect(result.meta.usage).toEqual({ promptTokens: 0, completionTokens: 0, cachedTokens: 0 });
   });
 
   it("captures latencyMs as a non-negative number", async () => {

@@ -17,39 +17,10 @@ import type { Intake } from "./report/types.js";
 import type { UserProfile } from "./agent-service.js";
 import { HD_CONDENSED } from "./knowledge/hd-condensed.js";
 import { BUSINESS_PACK_V1 } from "./knowledge/business-pack-v1.js";
-
-const TIPO_NEGOCIO_PROMPT_LABELS: Record<NonNullable<Intake["tipo_de_negocio"]>, string> = {
-  sin_negocio: "sin_negocio",
-  mentora: "mentora",
-  coach: "coach",
-  marca_personal: "marca personal",
-  servicios_premium: "servicios premium / high-ticket",
-  branding: "branding",
-  otro: "otro",
-};
-
-function buildBusinessContextBlock(intake?: Intake): string {
-  if (!intake) return "";
-  const parts: string[] = [];
-  if (intake.actividad) parts.push(`  <actividad>${intake.actividad}</actividad>`);
-  if (intake.tipo_de_negocio === "sin_negocio") {
-    parts.push(`  <situacion>sin_emprendimiento_actualmente</situacion>`);
-  } else if (intake.tipo_de_negocio) {
-    parts.push(`  <tipo_de_negocio>${TIPO_NEGOCIO_PROMPT_LABELS[intake.tipo_de_negocio]}</tipo_de_negocio>`);
-  }
-  if (intake.desafio_actual) parts.push(`  <desafio_actual>${intake.desafio_actual}</desafio_actual>`);
-  if (intake.objetivo_12m)   parts.push(`  <objetivo_12m>${intake.objetivo_12m}</objetivo_12m>`);
-  if (intake.voz_marca)      parts.push(`  <voz_marca>${intake.voz_marca}</voz_marca>`);
-  if (parts.length === 0) return "";
-  return `\n<business_context>\n${parts.join("\n")}\n</business_context>`;
-}
-
-function buildUserMemoryBlock(memory?: string): string {
-  if (!memory) return "";
-  const trimmed = memory.trim();
-  if (!trimmed) return "";
-  return `\n<user_memory>\n${trimmed}\n</user_memory>`;
-}
+import {
+  buildBusinessContextBlock,
+  buildUserMemoryBlock,
+} from "./agent-prompt-helpers.js";
 
 /**
  * HD_CONDENSED without the "### CANALES" section. That section listed the 36

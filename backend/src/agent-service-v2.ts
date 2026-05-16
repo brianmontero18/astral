@@ -12,7 +12,12 @@
  * al modelo a consultar las tools sistemáticamente.
  */
 
-import { generateText, stepCountIs, streamText } from "ai";
+import {
+  generateText,
+  stepCountIs,
+  streamText,
+  type LanguageModelUsage,
+} from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 
 import type { WeeklyTransits, TransitImpact } from "./transit-service.js";
@@ -31,9 +36,9 @@ import { buildSystemPromptV2 } from "./agent-service-v2-prompt.js";
 
 /**
  * Maximum number of agent loop steps. One step = one LLM call (initial draft
- * or follow-up after tool results). With 4 HD tools we expect 1-3 tool calls
- * per turn in practice. 5 is a safe ceiling — runaway loops bail out instead
- * of consuming tokens.
+ * or follow-up after tool results). With 5 HD tools registered we expect 1-3
+ * tool calls per turn in practice. 5 is a safe ceiling — runaway loops bail
+ * out instead of consuming tokens.
  */
 const MAX_AGENT_STEPS = 5;
 
@@ -134,21 +139,16 @@ export async function* runAstralAgentStreamV2(
 /**
  * Maps the Vercel AI SDK usage shape into our internal `LlmUsage`. The SDK
  * normalizes provider-specific token names so we work in one vocabulary; we
- * preserve `cachedTokens` (read via the `cachedInputTokens` field exposed by
- * the OpenAI provider) for the cache-hit telemetry introduced in Fase 1.
+ * preserve `cachedTokens` (read via `cachedInputTokens` exposed by the
+ * OpenAI provider) for the cache-hit telemetry introduced in Fase 1.
+ *
+ * Any field can be `undefined` if the provider failed to report it — we
+ * coalesce to 0 to keep telemetry consistent with the v1 path.
  */
-function mapUsage(usage: Awaited<ReturnType<typeof streamText>["usage"]>): LlmUsage {
-  // The AI SDK uses `inputTokens` / `outputTokens` in v6 (replacing
-  // `promptTokens` / `completionTokens` from v3). Defensive `?? 0` because
-  // streaming usage may arrive partial.
-  const inputTokens = (usage as { inputTokens?: number }).inputTokens ?? 0;
-  const outputTokens = (usage as { outputTokens?: number }).outputTokens ?? 0;
-  const cachedInputTokens =
-    (usage as { cachedInputTokens?: number }).cachedInputTokens ?? 0;
-
+function mapUsage(usage: LanguageModelUsage): LlmUsage {
   return {
-    promptTokens: inputTokens,
-    completionTokens: outputTokens,
-    cachedTokens: cachedInputTokens,
+    promptTokens: usage.inputTokens ?? 0,
+    completionTokens: usage.outputTokens ?? 0,
+    cachedTokens: usage.cachedInputTokens ?? 0,
   };
 }

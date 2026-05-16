@@ -109,6 +109,7 @@ function triggerMemoryWriterAsync(
             model: MEMORY_WRITER_MODEL,
             tokensIn: result.meta.usage.promptTokens,
             tokensOut: result.meta.usage.completionTokens,
+            cachedTokens: result.meta.usage.cachedTokens ?? 0,
             costUsd: calculateCost(
               MEMORY_WRITER_MODEL,
               result.meta.usage.promptTokens,

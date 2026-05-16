@@ -13,6 +13,10 @@ import { HD_CONDENSED } from "./knowledge/hd-condensed.js";
 import { BUSINESS_PACK_V1 } from "./knowledge/business-pack-v1.js";
 import { HD_DETECTION_RULES } from "./knowledge/detection-rules.js";
 import { renderChannelsTable } from "./hd-channels.js";
+import {
+  buildBusinessContextBlock,
+  buildUserMemoryBlock,
+} from "./agent-prompt-helpers.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -70,63 +74,6 @@ export interface ChatMessage {
 }
 
 // ─── Prompt builder ───────────────────────────────────────────────────────────
-
-const TIPO_NEGOCIO_PROMPT_LABELS: Record<NonNullable<Intake["tipo_de_negocio"]>, string> = {
-  sin_negocio: "sin_negocio",
-  mentora: "mentora",
-  coach: "coach",
-  marca_personal: "marca personal",
-  servicios_premium: "servicios premium / high-ticket",
-  branding: "branding",
-  otro: "otro",
-};
-
-/**
- * Builds the optional `<business_context>` block injected into the system
- * prompt when the user has filled the intake. Returns an empty string when
- * the intake is missing or has no usable fields, so callers can interpolate
- * unconditionally without producing dangling whitespace.
- *
- * The leading `\n` is intentional: it sits right after `</user_profile>` so
- * the block visually anchors to the user's identity in the prompt.
- */
-function buildBusinessContextBlock(intake?: Intake): string {
-  if (!intake) return "";
-  const parts: string[] = [];
-  if (intake.actividad) parts.push(`  <actividad>${intake.actividad}</actividad>`);
-  if (intake.tipo_de_negocio === "sin_negocio") {
-    // User explicitly opted out of the negocio framing. Signal so the LLM
-    // avoids marketing-heavy interpretations and stays in personal / vocational
-    // language.
-    parts.push(`  <situacion>sin_emprendimiento_actualmente</situacion>`);
-  } else if (intake.tipo_de_negocio) {
-    parts.push(`  <tipo_de_negocio>${TIPO_NEGOCIO_PROMPT_LABELS[intake.tipo_de_negocio]}</tipo_de_negocio>`);
-  }
-  if (intake.desafio_actual) parts.push(`  <desafio_actual>${intake.desafio_actual}</desafio_actual>`);
-  if (intake.objetivo_12m)   parts.push(`  <objetivo_12m>${intake.objetivo_12m}</objetivo_12m>`);
-  if (intake.voz_marca)      parts.push(`  <voz_marca>${intake.voz_marca}</voz_marca>`);
-  if (parts.length === 0) return "";
-  return `\n<business_context>\n${parts.join("\n")}\n</business_context>`;
-}
-
-/**
- * Wraps the persisted Living Document markdown verbatim inside `<user_memory>`
- * so the LLM treats it as a stable, append-only source of facts. Returns ""
- * on empty input so callers can interpolate unconditionally without producing
- * an empty tag.
- *
- * Cache-friendly: this block must NOT contain timestamps or anything that
- * mutates without a real fact change. Position is also chosen for caching —
- * the block sits between the stable `<business_context>` and the volatile
- * `<transits>` so a future cache-discipline pass that splits prefix from
- * suffix needs no rework here.
- */
-function buildUserMemoryBlock(memory?: string): string {
-  if (!memory) return "";
-  const trimmed = memory.trim();
-  if (!trimmed) return "";
-  return `\n<user_memory>\n${trimmed}\n</user_memory>`;
-}
 
 export function hashSystemPrompt(systemPrompt: string): string {
   return createHash("sha256").update(systemPrompt).digest("hex").slice(0, 16);

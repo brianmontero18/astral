@@ -1,0 +1,131 @@
+/**
+ * Migration test for `addLlmCallsCachedTokensColumnIfMissing`.
+ *
+ * Exercises three states of `llm_calls`:
+ *   1. Legacy shape (no `cached_tokens` column) → must add the column.
+ *   2. Already migrated shape → must be a no-op (idempotent).
+ *   3. Table missing → must not throw (fresh install path, schema
+ *      creates the table later with the column already present).
+ */
+
+import { afterEach, describe, expect, it } from "vitest";
+import { createClient, type Client } from "@libsql/client";
+
+import { addLlmCallsCachedTokensColumnIfMissing } from "../db.js";
+
+const clients: Array<Client> = [];
+
+afterEach(() => {
+  while (clients.length > 0) {
+    clients.pop()?.close();
+  }
+});
+
+function makeClient(): Client {
+  const client = createClient({ url: "file::memory:" });
+  clients.push(client);
+  return client;
+}
+
+async function readLlmCallsColumns(client: Client): Promise<string[]> {
+  const res = await client.execute({
+    sql: "SELECT name FROM pragma_table_info('llm_calls')",
+    args: [],
+  });
+  return res.rows.map((r) => String((r as { name: string }).name));
+}
+
+async function createLegacyLlmCallsTable(client: Client) {
+  await client.execute(`
+    CREATE TABLE llm_calls (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id     TEXT NOT NULL,
+      route       TEXT NOT NULL,
+      model       TEXT NOT NULL,
+      tokens_in   INTEGER NOT NULL DEFAULT 0,
+      tokens_out  INTEGER NOT NULL DEFAULT 0,
+      cost_usd    REAL    NOT NULL DEFAULT 0,
+      latency_ms  INTEGER NOT NULL DEFAULT 0,
+      prompt_hash TEXT NOT NULL,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+}
+
+async function createMigratedLlmCallsTable(client: Client) {
+  await client.execute(`
+    CREATE TABLE llm_calls (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id       TEXT NOT NULL,
+      route         TEXT NOT NULL,
+      model         TEXT NOT NULL,
+      tokens_in     INTEGER NOT NULL DEFAULT 0,
+      tokens_out    INTEGER NOT NULL DEFAULT 0,
+      cached_tokens INTEGER NOT NULL DEFAULT 0,
+      cost_usd      REAL    NOT NULL DEFAULT 0,
+      latency_ms    INTEGER NOT NULL DEFAULT 0,
+      prompt_hash   TEXT NOT NULL,
+      created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+}
+
+describe("addLlmCallsCachedTokensColumnIfMissing", () => {
+  it("adds cached_tokens column on legacy schema", async () => {
+    const client = makeClient();
+    await createLegacyLlmCallsTable(client);
+
+    const before = await readLlmCallsColumns(client);
+    expect(before).not.toContain("cached_tokens");
+
+    await addLlmCallsCachedTokensColumnIfMissing(client);
+
+    const after = await readLlmCallsColumns(client);
+    expect(after).toContain("cached_tokens");
+  });
+
+  it("preserves existing rows when adding the column", async () => {
+    const client = makeClient();
+    await createLegacyLlmCallsTable(client);
+    await client.execute({
+      sql: "INSERT INTO llm_calls (user_id, route, model, tokens_in, tokens_out, cost_usd, latency_ms, prompt_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      args: ["u1", "chat_stream", "gpt-4o-mini", 100, 50, 0.001, 1000, "hash"],
+    });
+
+    await addLlmCallsCachedTokensColumnIfMissing(client);
+
+    const res = await client.execute(
+      "SELECT user_id, tokens_in, tokens_out, cached_tokens FROM llm_calls",
+    );
+    expect(res.rows).toHaveLength(1);
+    const row = res.rows[0] as {
+      user_id: string;
+      tokens_in: number;
+      tokens_out: number;
+      cached_tokens: number;
+    };
+    expect(row.user_id).toBe("u1");
+    expect(row.tokens_in).toBe(100);
+    expect(row.tokens_out).toBe(50);
+    expect(row.cached_tokens).toBe(0);
+  });
+
+  it("is a no-op when the column already exists (idempotent)", async () => {
+    const client = makeClient();
+    await createMigratedLlmCallsTable(client);
+
+    await addLlmCallsCachedTokensColumnIfMissing(client);
+    // Calling twice must not throw.
+    await addLlmCallsCachedTokensColumnIfMissing(client);
+
+    const columns = await readLlmCallsColumns(client);
+    expect(columns.filter((c) => c === "cached_tokens")).toHaveLength(1);
+  });
+
+  it("does not throw when llm_calls table is missing (fresh install path)", async () => {
+    const client = makeClient();
+    await expect(
+      addLlmCallsCachedTokensColumnIfMissing(client),
+    ).resolves.not.toThrow();
+  });
+});

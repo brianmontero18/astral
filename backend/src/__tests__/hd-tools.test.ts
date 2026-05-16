@@ -70,11 +70,10 @@ describe("findChannelsByGateTool", () => {
     expect(ids).toEqual(["10-20", "10-34", "10-57"]);
   });
 
-  it("returns empty array for a gate that is in no channel (no such gate exists in HD, but the helper must handle it)", async () => {
-    // En HD las 64 puertas TODAS forman al menos un canal — pero el contrato
-    // tiene que tolerar el caso defensivamente.
+  it("returns a single-element array for a gate that participates in exactly one channel (Gate 64 → 47-64)", async () => {
     const result = await runTool(findChannelsByGateTool, { gate: 64 });
-    expect(Array.isArray(result)).toBe(true);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("47-64");
   });
 });
 
