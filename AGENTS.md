@@ -36,7 +36,7 @@
 
 ### Beads (task tracking)
 
-- **Usar beads** para TODO task tracking: `bd ready`, `bd create`, `bd update --claim`, `bd close`.
+- **Usar beads** para TODO task tracking: `bd ready`, `bd create`, `bd update --claim`, `bd-close.sh <id>`.
 - **Prohibido**: TodoWrite, TaskCreate, markdown files para tasks.
 - Memoria de sesión: `bd remember "..."` para insights persistentes.
 - Antes de empezar una task: leer parent epic con `bd show <epic-id>` si aplica.
@@ -107,7 +107,7 @@ Para skills no listadas: `bd help`, `~/.claude/skills/`, o `/find-skills`.
 10. git add specific-files
 11. git commit (Conventional Commits + Co-Authored-By si aplica)
 12. git push (a feature branch, NO main)
-13. bd close <id>
+13. bd-close.sh <id>
 ```
 
 ---

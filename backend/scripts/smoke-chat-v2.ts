@@ -24,6 +24,7 @@ import {
 } from "../src/agent-service-v2.js";
 import { buildSystemPromptV2 } from "../src/agent-service-v2-prompt.js";
 import type { UserProfile } from "../src/agent-service.js";
+import type { AgentCallMeta } from "../src/agent-service.js";
 import type { WeeklyTransits } from "../src/transit-service.js";
 
 const openaiKey = process.env.OPENAI_API_KEY;
@@ -81,6 +82,7 @@ interface RunResult {
   run: number;
   pass: boolean;
   text: string;
+  toolsUsed: string[];
   reason?: string;
 }
 
@@ -100,11 +102,17 @@ const knownWrongAssociations = [
   /canal\s+(del?|de\s+la)\s+apertura[\s\S]{0,160}puerta\s*8|puerta\s*8[\s\S]{0,160}canal\s+(del?|de\s+la)\s+apertura/i,
 ];
 
-function evaluate(text: string): { pass: boolean; reason?: string } {
+function evaluate(
+  text: string,
+  toolsUsed: string[],
+): { pass: boolean; reason?: string } {
   // Strip markdown emphasis (`**bold**`, `*italic*`) so regex anchored to
   // word boundaries still matches when the model wraps tokens in bold.
   const clean = text.replace(/\*+/g, "");
 
+  if (toolsUsed.length === 0) {
+    return { pass: false, reason: "No hay evidencia de uso de HD tool." };
+  }
   for (const wrong of knownWrongAssociations) {
     if (wrong.test(clean)) {
       return { pass: false, reason: "Asocia la Puerta 8 con un canal incorrecto." };
@@ -135,30 +143,39 @@ const results: RunResult[] = [];
 
 for (let i = 1; i <= N; i++) {
   let text = "";
+  let meta: AgentCallMeta | null = null;
   try {
     for await (const chunk of runAstralAgentStreamV2(
       profile,
       transits,
       [{ role: "user", content: userMessage }],
       openaiKey,
+      undefined,
+      undefined,
+      undefined,
+      (completedMeta) => {
+        meta = completedMeta;
+      },
     )) {
       text += chunk;
     }
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     console.log(`Run ${i}: ✘ ERROR — ${message}`);
-    results.push({ run: i, pass: false, text: "", reason: `stream error: ${message}` });
+    results.push({ run: i, pass: false, text: "", toolsUsed: [], reason: `stream error: ${message}` });
     continue;
   }
 
-  const verdict = evaluate(text);
+  const toolsUsed = meta?.toolsUsed ?? [];
+  const verdict = evaluate(text, toolsUsed);
   const firstLine = text.split("\n").find((l) => l.trim().length > 0)?.slice(0, 140) ?? "(empty)";
   const icon = verdict.pass ? "✓" : "✘";
-  console.log(`Run ${i}: ${icon} ${verdict.pass ? "PASS" : "FAIL"} — ${firstLine}`);
+  const toolSummary = toolsUsed.length ? `tools=${toolsUsed.join(",")}` : "tools=none";
+  console.log(`Run ${i}: ${icon} ${verdict.pass ? "PASS" : "FAIL"} (${toolSummary}) — ${firstLine}`);
   if (!verdict.pass && verdict.reason) {
     console.log(`        Reason: ${verdict.reason}`);
   }
-  results.push({ run: i, pass: verdict.pass, text, reason: verdict.reason });
+  results.push({ run: i, pass: verdict.pass, text, toolsUsed, reason: verdict.reason });
 }
 
 const passed = results.filter((r) => r.pass).length;

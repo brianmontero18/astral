@@ -116,7 +116,7 @@ POST /api/users (crea user)
 POST /api/chat/stream { messages }
   → Backend carga profile + intake + memory_md de DB
   → Calcula transits semanales + analyzeTransitImpact() deterministic
-  → Trunca history a últimos CHAT_HISTORY_TURNS (default 30)
+  → Trunca history a últimos CHAT_HISTORY_TURNS (default 60)
   → Branch por flag FEATURE_CHAT_USE_TOOLS:
       false (default) → agent-service.ts v1: fetch directo OpenAI
       true            → agent-service-v2.ts: Vercel AI SDK + 5 HD tools

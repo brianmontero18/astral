@@ -14,7 +14,7 @@ El chat de Astral mezcla 3 cosas para responder:
 2. **Datos canónicos verificables** (qué puerta forma qué canal, qué centro tiene qué puerta — tabla cerrada).
 3. **Contexto del usuario** (su perfil HD, su intake de negocio, su memoria persistente, los tránsitos de la semana).
 
-El LLM **lee** lo curado, **consulta** los datos canónicos vía tools (no los recuerda), y **aterriza** todo en el contexto del usuario para responder. El historial de la conversación se trunca a los últimos 30 mensajes — el resto vive como memoria estructurada (`users.memory_md`) que se actualiza después de cada turn.
+El LLM **lee** lo curado, **consulta** los datos canónicos vía tools (no los recuerda), y **aterriza** todo en el contexto del usuario para responder. El historial de la conversación se trunca a los últimos 60 mensajes — el resto vive como memoria estructurada (`users.memory_md`) que se actualiza después de cada turn.
 
 Default actual: `gpt-4o-mini` vía OpenAI directo. Listo para flippear a tool use via Vercel AI SDK con `FEATURE_CHAT_USE_TOOLS=true`.
 
@@ -41,7 +41,7 @@ Default actual: `gpt-4o-mini` vía OpenAI directo. Listo para flippear a tool us
 │     • Tránsitos de la semana (Swiss Ephemeris WASM)                  │
 │     • analyzeTransitImpact() → canales/centros activados             │
 │                                                                       │
-│  3. Trunca historial a últimos 30 mensajes (CHAT_HISTORY_TURNS)      │
+│  3. Trunca historial a últimos 60 mensajes (CHAT_HISTORY_TURNS)      │
 │                                                                       │
 │  4. Routing por feature flag:                                        │
 │     FEATURE_CHAT_USE_TOOLS=false → v1 (legacy, default actual)       │
@@ -84,7 +84,7 @@ Default actual: `gpt-4o-mini` vía OpenAI directo. Listo para flippear a tool us
 │  Llama a streamText({                                                │
 │    model: openai(CHAT_MODEL),    ← gpt-4o-mini por default           │
 │    system: <prompt 10K tokens>,                                      │
-│    messages: [...history (últimos 30), { user: "qué luna..." }],    │
+│    messages: [...history (últimos 60), { user: "qué luna..." }],    │
 │    tools: hdTools,                                                   │
 │    stopWhen: stepCountIs(5)      ← max 5 iteraciones agentic loop   │
 │  })                                                                  │
@@ -141,7 +141,7 @@ Default actual: `gpt-4o-mini` vía OpenAI directo. Listo para flippear a tool us
   │                                                                  │
   │   messages: [                                                    │
   │     system: <10K tokens, mayoría cacheado>,                     │
-  │     ...últimos 30 msgs (truncated, ~3-5K tokens history),       │
+  │     ...últimos 60 msgs (truncated, ~6-10K tokens history),      │
   │     { user: "ok y cómo aprovecho eso?" }                        │
   │   ]                                                              │
   │                                                                  │
@@ -224,7 +224,7 @@ Default actual: `gpt-4o-mini` vía OpenAI directo. Listo para flippear a tool us
 | Knowledge HD | inline 11K tokens fijos | tools que se consultan |
 | Tabla canales | inline en prompt | tool `findChannelByGates` |
 | Cache OpenAI | roto (static+dynamic mix) | activo (orden fijo) |
-| Historial enviado | completo (crece lineal) | últimos 30 (constante) |
+| Historial enviado | completo (crece lineal) | últimos 60 (constante) |
 | Memory | `memory_md` (correcto) | `memory_md` (igual) |
 | Anti-alucinación | nada | 5 tools + regla obligatoria |
 | Validación HD | el LLM se acuerda mal | consulta tabla canónica |
@@ -250,7 +250,7 @@ Fuentes detalladas en `docs/research/2026-05-*.md`.
 | **Tool choice = 'required'** (forzar SIEMPRE tool calls) | ❌ | Híbrido por instrucción funciona |
 | **Structured outputs (Zod)** para steps internos | ⚠️ | Los inputs de tools sí (Zod). El output final es texto natural |
 | **Memory pattern Mem0** (Living Document) | ✅ | `users.memory_md` desde antes |
-| **Sliding window de history** (10-20 turns) | ✅ | `CHAT_HISTORY_TURNS=30` (~15 pares) |
+| **Sliding window de history** (30 turns) | ✅ | `CHAT_HISTORY_TURNS=60` (~30 pares) |
 | **Compaction de history viejo** | ⚠️ | No comprimimos historial viejo. Lo cortamos. Memory_md compensa |
 | **Threads / `conversation_id`** | ❌ | Aún no. Decidido prematuro en beta (<10 users) |
 | **Multi-provider abstraction** (Anthropic + OpenAI) | ⚠️ | Vercel AI SDK lo permite con 1 línea, no lo usamos hoy |
@@ -296,7 +296,7 @@ Desde el dashboard de Render, editar la env var:
 | `REPORT_MODEL` | `gpt-4o-mini` | Subir si las usuarias piden mejor reporte |
 | `EXTRACTION_MODEL` | `gpt-4o` | Vision; mini no soporta multimodal con la misma calidad |
 | `FEATURE_CHAT_USE_TOOLS` | `false` | `true` para activar el path v2 con tools |
-| `CHAT_HISTORY_TURNS` | `30` | Bajar a 20 si los costos suben; subir a 50 si hay quejas de "no se acuerda" |
+| `CHAT_HISTORY_TURNS` | `60` | Bajar si los costos suben; reabrir compaction si hay quejas de "no se acuerda" |
 
 Cualquier cambio requiere redeploy de Render (pero NO de código).
 

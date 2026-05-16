@@ -11,7 +11,10 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { createClient, type Client } from "@libsql/client";
 
-import { addLlmCallsCachedTokensColumnIfMissing } from "../db.js";
+import {
+  addLlmCallsCachedTokensColumnIfMissing,
+  widenLlmCallsRouteCheckIfNeeded,
+} from "../db.js";
 
 const clients: Array<Client> = [];
 
@@ -58,6 +61,29 @@ async function createMigratedLlmCallsTable(client: Client) {
       id            INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id       TEXT NOT NULL,
       route         TEXT NOT NULL,
+      model         TEXT NOT NULL,
+      tokens_in     INTEGER NOT NULL DEFAULT 0,
+      tokens_out    INTEGER NOT NULL DEFAULT 0,
+      cached_tokens INTEGER NOT NULL DEFAULT 0,
+      cost_usd      REAL    NOT NULL DEFAULT 0,
+      latency_ms    INTEGER NOT NULL DEFAULT 0,
+      prompt_hash   TEXT NOT NULL,
+      created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+}
+
+async function createCachedTokensWithOldRouteCheckTable(client: Client) {
+  await client.execute("CREATE TABLE users (id TEXT PRIMARY KEY)");
+  await client.execute({
+    sql: "INSERT INTO users (id) VALUES (?)",
+    args: ["u1"],
+  });
+  await client.execute(`
+    CREATE TABLE llm_calls (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id       TEXT NOT NULL,
+      route         TEXT NOT NULL CHECK(route IN ('chat','chat_stream','report','extraction')),
       model         TEXT NOT NULL,
       tokens_in     INTEGER NOT NULL DEFAULT 0,
       tokens_out    INTEGER NOT NULL DEFAULT 0,
@@ -127,5 +153,38 @@ describe("addLlmCallsCachedTokensColumnIfMissing", () => {
     await expect(
       addLlmCallsCachedTokensColumnIfMissing(client),
     ).resolves.not.toThrow();
+  });
+});
+
+describe("widenLlmCallsRouteCheckIfNeeded", () => {
+  it("preserves cached_tokens when rebuilding the old route CHECK table", async () => {
+    const client = makeClient();
+    await createCachedTokensWithOldRouteCheckTable(client);
+    await client.execute({
+      sql: `INSERT INTO llm_calls
+        (user_id, route, model, tokens_in, tokens_out, cached_tokens, cost_usd, latency_ms, prompt_hash)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: ["u1", "chat_stream", "gpt-4o-mini", 1000, 100, 768, 0.001, 1000, "hash"],
+    });
+
+    await widenLlmCallsRouteCheckIfNeeded(client);
+
+    const res = await client.execute(
+      "SELECT route, tokens_in, tokens_out, cached_tokens FROM llm_calls",
+    );
+    expect(res.rows).toHaveLength(1);
+    expect(res.rows[0]).toMatchObject({
+      route: "chat_stream",
+      tokens_in: 1000,
+      tokens_out: 100,
+      cached_tokens: 768,
+    });
+
+    await expect(client.execute({
+      sql: `INSERT INTO llm_calls
+        (user_id, route, model, tokens_in, tokens_out, cached_tokens, cost_usd, latency_ms, prompt_hash)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: ["u1", "memory_writer", "gpt-4o-mini", 10, 5, 3, 0.001, 100, "hash2"],
+    })).resolves.not.toThrow();
   });
 });

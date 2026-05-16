@@ -55,7 +55,6 @@ Reports de sub-agents que investigaron contra docs oficiales (Anthropic, OpenAI,
 | [`transits-relational-ux.md`](transits-relational-ux.md) | UX de tránsitos relacionales. |
 | [`premium-report-v2-spec.md`](premium-report-v2-spec.md) | Spec del informe premium v2. |
 | [`freemium-spec.md`](freemium-spec.md) | Spec del modelo freemium. |
-| [`credits-pricing-intent.md`](credits-pricing-intent.md) | Levantamiento de migración a modelo de créditos. |
 | [`context-workspace-architecture.md`](context-workspace-architecture.md) | Arquitectura del context workspace. |
 | [`context-workspace-e2e-plan.md`](context-workspace-e2e-plan.md) | Plan E2E del context workspace. |
 | [`context-workspace-migration-plan.md`](context-workspace-migration-plan.md) | Plan de migración del context workspace. |
@@ -74,7 +73,6 @@ Reports de sub-agents que investigaron contra docs oficiales (Anthropic, OpenAI,
 | [`bodygraph-relacional.md`](bodygraph-relacional.md) | Bodygraph relacional (compatibilidad entre cartas). |
 | [`competencia.md`](competencia.md) | Análisis de competencia (HumanDesign.ai, humandesign.io, etc). |
 | [`r2-setup.md`](r2-setup.md) | Setup de Cloudflare R2 (storage de assets). |
-| [`supertokens-research-summary.md`](supertokens-research-summary.md) | Research de SuperTokens (auth managed). |
 
 ---
 
@@ -84,7 +82,6 @@ Reports de sub-agents que investigaron contra docs oficiales (Anthropic, OpenAI,
 |---|---|
 | [`admin-invite-runbook.md`](admin-invite-runbook.md) | Cómo invitar usuarios premium/basic vía admin. |
 | [`admin-auth-invite-handoff.md`](admin-auth-invite-handoff.md) | Handoff del flujo admin/auth invite. |
-| [`auth-admin-research-handoff.md`](auth-admin-research-handoff.md) | Research auth/admin. |
 | [`codebase-recon-ux-refactor.md`](codebase-recon-ux-refactor.md) | Reconocimiento del codebase para el refactor UX. |
 
 ---
@@ -112,15 +109,6 @@ Sub-directorio dedicado al refactor AI completo (precede al refactor 2026-05):
 - [`ai-refactor/04-research-holistic-competitors.md`](ai-refactor/04-research-holistic-competitors.md) — competidores holísticos.
 - [`ai-refactor/05-plan.md`](ai-refactor/05-plan.md) — plan general del refactor.
 - [`ai-refactor/README.md`](ai-refactor/README.md) — README del knowledge pack.
-
----
-
-## 🗒️ Handoffs y session prompts
-
-Notas para retomar trabajo entre sesiones. **No son referencias canónicas**; son contexto histórico.
-
-- [`astral-brk-1-next-session-prompt.md`](astral-brk-1-next-session-prompt.md)
-- [`astral-brk-5-next-session-prompt.md`](astral-brk-5-next-session-prompt.md)
 
 ---
 

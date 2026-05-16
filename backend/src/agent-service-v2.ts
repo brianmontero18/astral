@@ -6,10 +6,9 @@
  * que el route handler pueda elegir entre v1 y v2 via FLAGS.CHAT_USE_TOOLS
  * sin rewriting.
  *
- * En esta etapa (Fase 2 — Etapa B) el system prompt sigue siendo el mismo de
- * v1 (knowledge HD inline) y las HD tools quedan REGISTRADAS pero no son
- * obligatorias para el modelo. Etapa C reducirá el system prompt y empujará
- * al modelo a consultar las tools sistemáticamente.
+ * En esta etapa el prompt v2 ya obliga a consultar tools para relaciones
+ * puerta-canal y puerta-centro. La ruta sigue siendo paralela y reversible:
+ * v1 queda como default legacy; v2 se activa con FEATURE_CHAT_USE_TOOLS.
  */
 
 import {
@@ -81,6 +80,7 @@ export async function runAstralAgentV2(
     usage,
     latencyMs,
     systemPrompt,
+    toolsUsed: getToolsUsedFromSteps(result.steps),
   };
 }
 
@@ -123,6 +123,7 @@ export async function* runAstralAgentStreamV2(
       usage,
       latencyMs: Date.now() - start,
       systemPrompt,
+      toolsUsed: getToolsUsedFromSteps(await result.steps),
     };
     onComplete?.(meta);
   };
@@ -149,6 +150,17 @@ function mapUsage(usage: LanguageModelUsage): LlmUsage {
   return {
     promptTokens: usage.inputTokens ?? 0,
     completionTokens: usage.outputTokens ?? 0,
-    cachedTokens: usage.cachedInputTokens ?? 0,
+    cachedTokens:
+      usage.inputTokenDetails.cacheReadTokens ??
+      usage.cachedInputTokens ??
+      0,
   };
+}
+
+function getToolsUsedFromSteps(
+  steps: Array<{ toolCalls: Array<{ toolName: string }> }>,
+): string[] {
+  return [...new Set(
+    steps.flatMap((step) => step.toolCalls.map((call) => call.toolName)),
+  )];
 }

@@ -12,6 +12,8 @@ import { mockSessionModule } from "./session-mock.js";
 
 const runAstralAgentMock = vi.fn();
 const runAstralAgentStreamMock = vi.fn();
+const runAstralAgentV2Mock = vi.fn();
+const runAstralAgentStreamV2Mock = vi.fn();
 const analyzeTransitImpactMock = vi.fn();
 const getTransitSnapshotCachedMock = vi.fn();
 
@@ -33,6 +35,11 @@ vi.mock("../agent-service.js", () => ({
   CHAT_MODEL: "gpt-4o-mini",
 }));
 
+vi.mock("../agent-service-v2.js", () => ({
+  runAstralAgentV2: runAstralAgentV2Mock,
+  runAstralAgentStreamV2: runAstralAgentStreamV2Mock,
+}));
+
 vi.mock("../transit-service.js", async () => {
   const actual = await vi.importActual<typeof import("../transit-service.js")>("../transit-service.js");
 
@@ -51,6 +58,7 @@ const {
   sessionHeaders,
 } = await import("./helpers.js");
 const { getChatMessages } = await import("../db.js");
+const { FLAGS } = await import("../config/flags.js");
 
 let app: FastifyInstance;
 
@@ -96,8 +104,11 @@ beforeAll(() => {
 afterEach(() => {
   runAstralAgentMock.mockReset();
   runAstralAgentStreamMock.mockReset();
+  runAstralAgentV2Mock.mockReset();
+  runAstralAgentStreamV2Mock.mockReset();
   getTransitSnapshotCachedMock.mockReset();
   analyzeTransitImpactMock.mockReset();
+  (FLAGS as { CHAT_USE_TOOLS: boolean }).CHAT_USE_TOOLS = false;
 
   getTransitSnapshotCachedMock.mockResolvedValue(MOCK_TRANSIT_SNAPSHOT);
   analyzeTransitImpactMock.mockReturnValue({
@@ -105,6 +116,54 @@ afterEach(() => {
     conditionedCenters: [],
     reinforcedGates: [],
     educationalChannels: [],
+  });
+});
+
+describe("POST /api/chat — agent route selection", () => {
+  it("routes to v2 when FEATURE_CHAT_USE_TOOLS is enabled", async () => {
+    (FLAGS as { CHAT_USE_TOOLS: boolean }).CHAT_USE_TOOLS = true;
+    await createLinkedTestUser(app, "st-chat-v2-route");
+    runAstralAgentV2Mock.mockResolvedValueOnce(mockAgentResult("Respuesta v2"));
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/chat",
+      headers: sessionHeaders("st-chat-v2-route"),
+      payload: {
+        messages: [{ role: "user", content: "Necesito precision HD" }],
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body).reply).toBe("Respuesta v2");
+    expect(runAstralAgentV2Mock).toHaveBeenCalledTimes(1);
+    expect(runAstralAgentMock).not.toHaveBeenCalled();
+  });
+
+  it("slices long history before passing it to the selected v2 agent", async () => {
+    (FLAGS as { CHAT_USE_TOOLS: boolean }).CHAT_USE_TOOLS = true;
+    await createLinkedTestUser(app, "st-chat-v2-history");
+    runAstralAgentV2Mock.mockResolvedValueOnce(mockAgentResult("Respuesta con historia truncada"));
+
+    const messages = Array.from({ length: 65 }, (_, index) => ({
+      role: index % 2 === 0 ? "user" as const : "assistant" as const,
+      content: `msg-${index + 1}`,
+    }));
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/chat",
+      headers: sessionHeaders("st-chat-v2-history"),
+      payload: { messages },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(runAstralAgentV2Mock).toHaveBeenCalledTimes(1);
+    const passedMessages = runAstralAgentV2Mock.mock.calls[0]?.[2];
+    expect(passedMessages).toHaveLength(60);
+    expect(passedMessages[0]).toEqual({ role: "assistant", content: "msg-6" });
+    expect(passedMessages.at(-1)).toEqual({ role: "user", content: "msg-65" });
+    expect(runAstralAgentMock).not.toHaveBeenCalled();
   });
 });
 

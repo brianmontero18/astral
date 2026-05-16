@@ -26,7 +26,7 @@ Cambios:
 - Tabla canónica de 36 canales HD (`HD_CHANNELS_FULL` + helpers).
 - Inyección de la tabla en el system prompt + regla #13 detection ("verificá puerta-canal contra tabla").
 - Reorden del system prompt: TODO static al inicio, dynamic al final → activa OpenAI prompt caching automático.
-- Truncate de historial a `CHAT_HISTORY_TURNS=30` mensajes.
+- Truncate de historial a `CHAT_HISTORY_TURNS=60` mensajes.
 - Persistencia de `cached_tokens` en `llm_calls` para medir si el cache realmente se activa.
 
 Resultado medido localmente:
@@ -122,9 +122,9 @@ Rollback: en producción Render, si v2 explota por algo no anticipado, `FEATURE_
 
 Costo de mantener v1: ~250 líneas de código que nadie toca. Aceptable durante el rollout (1-2 semanas). Se borra cuando v2 esté en 100% y estable por 14 días.
 
-### B.6 — ¿Por qué `CHAT_HISTORY_TURNS=30` y no 10 o 50?
+### B.6 — ¿Por qué `CHAT_HISTORY_TURNS=60` y no compaction ahora?
 
-Mainstream (ChatGPT, Claude.ai, Cursor): 10-20 turns. Pero Astral tiene `memory_md` que captura los hechos persistentes → podemos cortar más agresivo sin perder identity. 30 = ~15 pares user/assistant = una conversación reciente completa.
+Mainstream (ChatGPT, Claude.ai, Cursor): 10-20 turns. Pero Astral tiene `memory_md` que captura los hechos persistentes → podemos cortar más agresivo sin perder identity. 60 = ~30 pares user/assistant = una conversación reciente completa para la beta actual.
 
 Si emerge feedback "no se acuerda lo que dije hace 5 mensajes", subir. Si el costo escala mal, bajar. Es un knob env var.
 

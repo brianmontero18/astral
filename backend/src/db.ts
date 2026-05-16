@@ -192,15 +192,6 @@ export async function rebuildLegacyAssetsTableIfNeeded(c: Client): Promise<void>
 }
 
 /**
- * Detects an `llm_calls` table whose CHECK constraint pre-dates the
- * `memory_writer` route value and rebuilds it with the widened constraint.
- * Idempotent: returns immediately when the constraint already includes the
- * new value or when the table doesn't exist yet (fresh installs use the
- * widened CHECK from `CREATE TABLE` directly).
- *
- * Exported for direct testing.
- */
-/**
  * Adds the `cached_tokens` column to `llm_calls` on databases created before
  * the prompt-cache telemetry landed. Idempotent: no-op if the column already
  * exists or if the table is missing (fresh installs already have it via
@@ -223,6 +214,12 @@ export async function addLlmCallsCachedTokensColumnIfMissing(c: Client): Promise
   });
 }
 
+/**
+ * Detects an `llm_calls` table whose CHECK constraint pre-dates the
+ * `memory_writer` route value and rebuilds it with the widened constraint.
+ * Preserves `cached_tokens` when the prompt-cache telemetry migration already
+ * ran first. Exported for direct testing.
+ */
 export async function widenLlmCallsRouteCheckIfNeeded(c: Client): Promise<void> {
   const schemaResult = await c.execute({
     sql: "SELECT sql FROM sqlite_master WHERE type='table' AND name='llm_calls'",
@@ -231,23 +228,25 @@ export async function widenLlmCallsRouteCheckIfNeeded(c: Client): Promise<void> 
   const tableSql = schemaResult.rows[0]?.sql as string | undefined;
   if (!tableSql) return;
   if (tableSql.includes("'memory_writer'")) return;
+  const hasCachedTokens = tableSql.includes("cached_tokens");
 
   await c.batch(
     [
       `CREATE TABLE llm_calls_new (
-        id          INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        route       TEXT NOT NULL CHECK(route IN ('chat','chat_stream','report','extraction','memory_writer')),
-        model       TEXT NOT NULL,
-        tokens_in   INTEGER NOT NULL DEFAULT 0,
-        tokens_out  INTEGER NOT NULL DEFAULT 0,
-        cost_usd    REAL    NOT NULL DEFAULT 0,
-        latency_ms  INTEGER NOT NULL DEFAULT 0,
-        prompt_hash TEXT NOT NULL,
-        created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        route         TEXT NOT NULL CHECK(route IN ('chat','chat_stream','report','extraction','memory_writer')),
+        model         TEXT NOT NULL,
+        tokens_in     INTEGER NOT NULL DEFAULT 0,
+        tokens_out    INTEGER NOT NULL DEFAULT 0,
+        cached_tokens INTEGER NOT NULL DEFAULT 0,
+        cost_usd      REAL    NOT NULL DEFAULT 0,
+        latency_ms    INTEGER NOT NULL DEFAULT 0,
+        prompt_hash   TEXT NOT NULL,
+        created_at    TEXT NOT NULL DEFAULT (datetime('now'))
       )`,
-      `INSERT INTO llm_calls_new (id, user_id, route, model, tokens_in, tokens_out, cost_usd, latency_ms, prompt_hash, created_at)
-       SELECT id, user_id, route, model, tokens_in, tokens_out, cost_usd, latency_ms, prompt_hash, created_at
+      `INSERT INTO llm_calls_new (id, user_id, route, model, tokens_in, tokens_out, cached_tokens, cost_usd, latency_ms, prompt_hash, created_at)
+       SELECT id, user_id, route, model, tokens_in, tokens_out, ${hasCachedTokens ? "cached_tokens" : "0"}, cost_usd, latency_ms, prompt_hash, created_at
        FROM llm_calls`,
       "DROP TABLE llm_calls",
       "ALTER TABLE llm_calls_new RENAME TO llm_calls",

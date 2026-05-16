@@ -49,19 +49,22 @@ const SAMPLE_MEMORY = `## Identidad
 describe("buildSystemPrompt — user_memory injection", () => {
   it("omits <user_memory> when memory is undefined", () => {
     const prompt = buildSystemPrompt(PROFILE, TRANSITS);
-    expect(prompt).not.toContain("<user_memory>");
-    expect(prompt).not.toContain("hechos verificados sobre la persona");
+    expect(prompt).not.toContain("\n<user_memory>\n");
+    expect(prompt).not.toContain("</user_memory>");
+    expect(prompt).toContain("Si existe <user_memory> abajo");
   });
 
   it("omits <user_memory> when memory is an empty string", () => {
     const prompt = buildSystemPrompt(PROFILE, TRANSITS, undefined, undefined, "");
-    expect(prompt).not.toContain("<user_memory>");
-    expect(prompt).not.toContain("hechos verificados sobre la persona");
+    expect(prompt).not.toContain("\n<user_memory>\n");
+    expect(prompt).not.toContain("</user_memory>");
+    expect(prompt).toContain("Si existe <user_memory> abajo");
   });
 
   it("omits <user_memory> when memory is whitespace only", () => {
     const prompt = buildSystemPrompt(PROFILE, TRANSITS, undefined, undefined, "  \n\n  ");
-    expect(prompt).not.toContain("<user_memory>");
+    expect(prompt).not.toContain("\n<user_memory>\n");
+    expect(prompt).not.toContain("</user_memory>");
   });
 
   it("injects <user_memory> with the markdown body when memory is non-empty", () => {
@@ -72,10 +75,10 @@ describe("buildSystemPrompt — user_memory injection", () => {
     expect(prompt).toContain("Lanza programa premium en mayo");
   });
 
-  it("includes the rule mentioning <user_memory> in '## Reglas de datos' only when present", () => {
+  it("keeps the rule mentioning <user_memory> static regardless of block presence", () => {
     const without = buildSystemPrompt(PROFILE, TRANSITS, undefined, undefined, "");
     const withMem = buildSystemPrompt(PROFILE, TRANSITS, undefined, undefined, SAMPLE_MEMORY);
-    expect(without).not.toContain("hechos verificados sobre la persona");
+    expect(without).toContain("hechos verificados sobre la persona");
     expect(withMem).toContain("hechos verificados sobre la persona");
   });
 
