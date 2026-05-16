@@ -1,0 +1,23 @@
+docs/architecture/project-overview.md
+  s_cd28d1eff0c0f4::t_265e7db001fbdc 20
+docs/architecture/chat-llm-system.md
+  s_cd28d1eff0c0f4::t_f455f71323ebf5 297
+backend/.env.example
+  s_cd28d1eff0c0f4::t_24b8091e034983 9-22,24-28,30-34,36-44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "e42c52e3436a84b0d68ceee3a67702cb882826ef",
+  "prompts": {},
+  "sessions": {
+    "s_cd28d1eff0c0f4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a892b9c6-107e-4fe9-a32c-cbc7a2ecee00",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
