@@ -1,5 +1,13 @@
 # Astral Guide
 
+> 📚 **Documentación del proyecto: ver [`docs/INDEX.md`](docs/INDEX.md)** — índice categorizado de arquitectura, research de industria, specs activos, runbooks y referencias.
+>
+> Si entrás al proyecto por primera vez: leé este archivo (stack + flujo de datos) → [`docs/INDEX.md`](docs/INDEX.md) → [`docs/architecture/chat-llm-system.md`](docs/architecture/chat-llm-system.md) → [`docs/human-design-reference.md`](docs/human-design-reference.md).
+>
+> Si tocás la capa de AI (chat, prompts, tools, modelo, memory): **antes** de cualquier cambio, leé [`docs/architecture/chat-llm-system.md`](docs/architecture/chat-llm-system.md) y [`docs/architecture/refactor-2026-05-decisions.md`](docs/architecture/refactor-2026-05-decisions.md). Tienen el diagrama del flujo, las capas y el *por qué* de cada decisión.
+>
+> Para AI agents (Claude Code, Cursor, etc.): si existe localmente, también leer `AGENTS.md` (lista de skills + workflow; no está en git, es personal).
+
 ## Canonical Architecture
 
 Read `ARCHITECTURE.md` before changing bodygraph extraction/replacement,
