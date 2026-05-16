@@ -1,0 +1,49 @@
+backend/src/hd-channels.ts
+  s_cd28d1eff0c0f4::t_80d622dc34df27 2-8,11-104
+backend/src/knowledge/detection-rules.ts
+  s_cd28d1eff0c0f4::t_d1dd24c8e30f62 42-43
+backend/src/extraction-service.ts
+  s_cd28d1eff0c0f4::t_f89de598639913 20
+backend/.env.example
+  s_cd28d1eff0c0f4::t_bca2fedf9174b2 16-20
+  s_cd28d1eff0c0f4::t_b76876e9e6867d 9-10,12-15
+  s_cd28d1eff0c0f4::t_1edfd526a75a50 11
+backend/src/agent-service.ts
+  s_cd28d1eff0c0f4::t_216d1403bb1d4f 446-450,456
+  s_cd28d1eff0c0f4::t_61d6b2c67d7abf 292
+  s_cd28d1eff0c0f4::t_d69039509a960d 22-28
+  s_cd28d1eff0c0f4::t_90ee57cf998efd 15
+  s_cd28d1eff0c0f4::t_ea1002fc0fa1b0 208,210,212
+  s_cd28d1eff0c0f4::t_0ccf9a616790a0 249-281
+  s_cd28d1eff0c0f4::t_c63569240a709d 329-333,341
+backend/src/routes/chat.ts
+  s_cd28d1eff0c0f4::t_3a4957d80edfe0 362
+  s_cd28d1eff0c0f4::t_232c54aae319f9 485
+  s_cd28d1eff0c0f4::t_931d9fbde6ed3c 144
+  s_cd28d1eff0c0f4::t_64717ff96038a7 56-69
+backend/src/db.ts
+  s_cd28d1eff0c0f4::t_1def0407f182a4 321-331
+  s_cd28d1eff0c0f4::t_ad9073ea8b1bf9 1297,1305-1306,1313
+  s_cd28d1eff0c0f4::t_d5bdc6329a587a 424
+  s_cd28d1eff0c0f4::t_09562f9d19fa13 203-225
+backend/src/memory-writer.ts
+  s_cd28d1eff0c0f4::t_59f82678b50402 28
+backend/src/report/generate-report.ts
+  s_cd28d1eff0c0f4::t_d72434f244923b 20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "7542e0a3c5fc2bc0781fdf011879daf366fb7b46",
+  "prompts": {},
+  "sessions": {
+    "s_cd28d1eff0c0f4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a892b9c6-107e-4fe9-a32c-cbc7a2ecee00",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
