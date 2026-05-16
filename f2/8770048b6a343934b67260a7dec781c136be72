@@ -1,0 +1,42 @@
+docs/research/2026-05-agentic-patterns-tool-use.md
+  s_cd28d1eff0c0f4::t_999053120f7902 1-87
+docs/research/2026-05-cost-analysis-astral-beta.md
+  s_cd28d1eff0c0f4::t_c71bed2b5caa78 1-85
+docs/research/2026-05-fallback-patterns-industry.md
+  s_cd28d1eff0c0f4::t_6c96c957bf26ed 1-77
+docs/research/2026-05-conversational-memory-patterns.md
+  s_cd28d1eff0c0f4::t_60465c50706fb2 1-83
+docs/architecture/chat-llm-system.md
+  s_cd28d1eff0c0f4::t_4576fa953f06fe 1-333
+docs/research/2026-05-openai-tiers-and-rate-limits.md
+  s_cd28d1eff0c0f4::t_54b6953fc29355 1-70
+docs/INDEX.md
+  s_cd28d1eff0c0f4::t_069bd255403435 1-138
+docs/research/2026-05-context-engineering-best-practices.md
+  s_cd28d1eff0c0f4::t_220e2f2786fdd3 1-95
+CLAUDE.md
+  s_cd28d1eff0c0f4::t_5d81f11a04d25e 3-9
+  s_cd28d1eff0c0f4::t_a33f6fc50e58d9 10
+docs/research/2026-05-rate-limit-ux-patterns.md
+  s_cd28d1eff0c0f4::t_aa9fb52baf16f7 1-86
+docs/architecture/refactor-2026-05-decisions.md
+  s_cd28d1eff0c0f4::t_e7b50616f6b984 1-195
+docs/architecture/bug-investigation-daniela-2026-05.md
+  s_cd28d1eff0c0f4::t_d7feda267fd307 1-147
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "f28770048b6a343934b67260a7dec781c136be72",
+  "prompts": {},
+  "sessions": {
+    "s_cd28d1eff0c0f4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a892b9c6-107e-4fe9-a32c-cbc7a2ecee00",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
