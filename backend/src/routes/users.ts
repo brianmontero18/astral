@@ -311,29 +311,10 @@ export async function userRoutes(app: FastifyInstance) {
     return reply.send(await buildAdminUserDetail(user));
   });
 
-  app.put<{ Params: { id: string }; Body: { name: string; profile: object; intake?: object } }>(
-    "/users/:id",
-    async (req, reply) => {
-      const adminUser = await requireAdminUser(
-        req as AuthenticatedRequest,
-        reply,
-      );
-
-      if (!adminUser) {
-        return;
-      }
-
-      const { name, profile, intake } = req.body;
-      if (!name || !profile) {
-        return reply.status(400).send({ error: "Missing name or profile" });
-      }
-      const updated = await updateUserProfile(req.params.id, name, profile, intake);
-      if (!updated) {
-        return reply.status(404).send({ error: "User not found" });
-      }
-      return reply.send({ ok: true });
-    },
-  );
+  // PUT /users/:id is intentionally absent. The user's own /me endpoint is the
+  // only path that mutates profile/intake; admins manage access through
+  // /admin/users/:id/access. Re-introducing this surface lets any admin
+  // overwrite another user's HD profile, which has no legitimate caller.
 
   app.delete<{ Params: { id: string } }>("/users/:id", async (req, reply) => {
     const adminUser = await requireAdminUser(
