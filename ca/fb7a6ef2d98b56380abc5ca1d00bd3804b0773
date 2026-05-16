@@ -1,0 +1,21 @@
+backend/src/routes/users.ts
+  s_963b0e03d79839::t_61e37062078c9c 544-545
+docs/architecture/project-overview.md
+  s_963b0e03d79839::t_c8363b2e0bd69f 164,171-172
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "cafb7a6ef2d98b56380abc5ca1d00bd3804b0773",
+  "prompts": {},
+  "sessions": {
+    "s_963b0e03d79839": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8d65de57-dc44-4e93-b0e6-c2b110ada1a2",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
