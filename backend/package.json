@@ -6,6 +6,7 @@
     "dev": "node --env-file=.env --import tsx/esm src/server.ts",
     "start": "node --env-file=.env dist/server.js",
     "seed:local": "node --env-file=.env --import tsx/esm scripts/seed-local.ts",
+    "smoke:chat-v2": "node --env-file=.env --import tsx/esm scripts/smoke-chat-v2.ts",
     "build": "tsc",
     "check": "tsc --noEmit",
     "test": "vitest run",
