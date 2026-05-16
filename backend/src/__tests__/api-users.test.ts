@@ -361,66 +361,32 @@ describe("GET /api/users/:id", () => {
 });
 
 describe("PUT /api/users/:id", () => {
-  it("requires an admin role", async () => {
-    const id = await createTestUser(app, "Original", { type: "Generador" });
-    await createLinkedTestUser(app, "st-regular-writer", "Regular Writer", {
-      type: "Generator",
-    });
-
-    const res = await app.inject({
-      method: "PUT",
-      url: `/api/users/${id}`,
-      headers: sessionHeaders("st-regular-writer"),
-      payload: { name: "Actualizado", profile: { type: "Generador Manifestante" } },
-    });
-
-    expect(res.statusCode).toBe(403);
-    expect(JSON.parse(res.body)).toEqual({
-      error: "admin_required",
-    });
-  });
-
-  it("updates user name and profile for admins", async () => {
-    await createLinkedTestUser(app, "st-admin-writer", "Admin Writer", {
+  it("is not exposed — admin profile writes are not allowed", async () => {
+    // Regression: the previous handler accepted { name, profile, intake }
+    // from any admin without verifying ownership, which made it possible
+    // to overwrite another user's HD profile. The route is gone; admin
+    // mutations go through /admin/users/:id/access, and profile data only
+    // changes via the user's own /me endpoint.
+    await createLinkedTestUser(app, "st-admin-put-removed", "Admin", {
       type: "Manifestor",
     }, {
       role: "admin",
     });
-    const id = await createTestUser(app, "Original", { type: "Generador" });
-
-    const updateRes = await app.inject({
-      method: "PUT",
-      url: `/api/users/${id}`,
-      headers: sessionHeaders("st-admin-writer"),
-      payload: { name: "Actualizado", profile: { type: "Generador Manifestante" } },
-    });
-
-    expect(updateRes.statusCode).toBe(200);
-    expect(JSON.parse(updateRes.body).ok).toBe(true);
-
-    const { getUser } = await import("../db.js");
-    const updatedUser = await getUser(id);
-    expect(updatedUser?.name).toBe("Actualizado");
-    expect(updatedUser?.profile).toMatchObject({
-      type: "Generador Manifestante",
-    });
-  });
-
-  it("returns 404 for nonexistent user", async () => {
-    await createLinkedTestUser(app, "st-admin-missing-writer", "Admin Missing Writer", {
-      type: "Manifestor",
-    }, {
-      role: "admin",
-    });
+    const targetId = await createTestUser(app, "Target", { type: "Generador" });
 
     const res = await app.inject({
       method: "PUT",
-      url: "/api/users/fake-id",
-      headers: sessionHeaders("st-admin-missing-writer"),
-      payload: { name: "X", profile: {} },
+      url: `/api/users/${targetId}`,
+      headers: sessionHeaders("st-admin-put-removed"),
+      payload: { name: "Hijacked", profile: { type: "Generador Manifestante" } },
     });
 
     expect(res.statusCode).toBe(404);
+
+    const { getUser } = await import("../db.js");
+    const targetAfter = await getUser(targetId);
+    expect(targetAfter?.name).toBe("Target");
+    expect(targetAfter?.profile).toMatchObject({ type: "Generador" });
   });
 });
 
