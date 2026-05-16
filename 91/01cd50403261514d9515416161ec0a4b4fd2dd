@@ -1,0 +1,60 @@
+backend/src/__tests__/llm-pricing.test.ts
+  s_7965ef55101ce8::t_9120a71ba5f364 1-32
+docs/manual-eval-guion.md
+  s_7965ef55101ce8::t_e01a36efca7a10 164
+backend/src/__tests__/memory-reader.test.ts
+  s_7965ef55101ce8::t_0cc77d796ce2e1 52-53,59-60,66-67
+  s_7965ef55101ce8::t_9120a71ba5f364 54,61,78,81
+backend/src/__tests__/intake-in-chat.test.ts
+  s_7965ef55101ce8::t_9120a71ba5f364 45,57,75
+backend/src/agent-service-v2-prompt.ts
+  s_7965ef55101ce8::t_827cbf40c08be6 133-136
+backend/src/agent-service-v2.ts
+  s_7965ef55101ce8::t_827cbf40c08be6 9-11,83,126,153-156,159-165
+backend/src/__tests__/llm-telemetry.test.ts
+  s_7965ef55101ce8::t_b3d86cd6e7ee91 123-148
+backend/src/agent-service.ts
+  s_7965ef55101ce8::t_827cbf40c08be6 39,129-132
+backend/src/routes/chat.ts
+  s_7965ef55101ce8::t_827cbf40c08be6 135,173
+backend/src/llm/pricing.ts
+  s_7965ef55101ce8::t_827cbf40c08be6 12,17-18,21-24,29,37-44,46-48
+backend/src/db.ts
+  s_7965ef55101ce8::t_21b768e86c1a93 217-222
+  s_7965ef55101ce8::t_827cbf40c08be6 231,236-246,248-249
+backend/src/__tests__/db-migration-cached-tokens.test.ts
+  s_7965ef55101ce8::t_0cc77d796ce2e1 77-81
+  s_7965ef55101ce8::t_5af0e7caf2be3a 14-17,76,82-98,158-188
+docs/architecture/chat-llm-system.md
+  s_7965ef55101ce8::t_e01a36efca7a10 17,44,87,144,227,253,299
+AGENTS.md
+  s_7965ef55101ce8::t_827cbf40c08be6 39,110
+docs/architecture/project-overview.md
+  s_7965ef55101ce8::t_e01a36efca7a10 119
+docs/architecture/refactor-2026-05-decisions.md
+  s_7965ef55101ce8::t_db4cedf94dd151 127
+  s_7965ef55101ce8::t_e01a36efca7a10 29,125
+backend/src/__tests__/prompt-cache-discipline.test.ts
+  s_7965ef55101ce8::t_0cc77d796ce2e1 109-113
+  s_7965ef55101ce8::t_9120a71ba5f364 1-108,114-144
+backend/scripts/smoke-chat-v2.ts
+  s_7965ef55101ce8::t_827cbf40c08be6 27,85,105-108,113-115,146,153-158,165,169-170,173-174,178
+backend/src/__tests__/api-chat.test.ts
+  s_7965ef55101ce8::t_10b20aaae5b5f5 15-16,38-42,61,107-108,111,122-166
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "9101cd50403261514d9515416161ec0a4b4fd2dd",
+  "prompts": {},
+  "sessions": {
+    "s_7965ef55101ce8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e30e4-0e09-73f3-aa4d-22089e8a1c2a",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
