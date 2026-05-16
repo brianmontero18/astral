@@ -161,15 +161,15 @@ POST /me/report
 | PATCH | `/me/onboarding` | Update step/profile/intake/complete del onboarding |
 | POST | `/me/bodygraph` | Sube PDF + extrae perfil + setea active asset atómico |
 | GET | `/me/assets` | Lista assets del user con flag isActive |
-| POST | `/me/assets` | Upload asset genérico (NO extrae perfil — ver Bug A) |
+| POST | `/me/assets` | Upload asset genérico (natal/jpg/png/txt). Rechaza fileType=hd; las cartas HD van por `/me/bodygraph`. |
 | GET | `/api/assets/:id` | Descargar asset propio |
 | DELETE | `/api/assets/:id` | Eliminar asset propio |
 | POST | `/me/report` | Genera/devuelve report (cached por profile_hash) |
 | GET | `/me/report` | Devuelve report cached (409 si stale) |
 | POST | `/admin/users` | (admin) Invitar premium/basic por email |
 | GET | `/users/:id` | (admin) Detalle de cualquier user |
-| PUT | `/users/:id` | (admin) Update profile/intake/name de cualquier user — **VER BUG B** |
-| DELETE | `/users/:id` | (admin) Borrar user |
+| PATCH | `/admin/users/:id/access` | (admin) Cambiar plan/role/status |
+| DELETE | `/admin/users/:id` | (admin) Borrar user + cleanup R2 + audit log |
 
 ## Decisiones técnicas clave
 
