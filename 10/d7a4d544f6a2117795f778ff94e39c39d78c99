@@ -1,0 +1,38 @@
+backend/src/agent-service-v2.ts
+  s_cd28d1eff0c0f4::t_6e4561873d6ddf 142-146,148,150-152
+  s_cd28d1eff0c0f4::t_125459aa2e89fb 15-20
+  s_cd28d1eff0c0f4::t_2f05ade09357f0 39-41
+backend/src/agent-prompt-helpers.ts
+  s_cd28d1eff0c0f4::t_dcd199563d2b08 1-68
+backend/src/agent-service-v2-prompt.ts
+  s_cd28d1eff0c0f4::t_436902467e5abb 20-23
+backend/src/agent-service.ts
+  s_cd28d1eff0c0f4::t_7a3b4499167616 16-19
+backend/src/__tests__/hd-tools.test.ts
+  s_cd28d1eff0c0f4::t_1891a91969b566 73,75-76
+backend/src/__tests__/db-migration-cached-tokens.test.ts
+  s_cd28d1eff0c0f4::t_ebdb45cb7b5768 1-131
+backend/src/__tests__/memory-writer.test.ts
+  s_cd28d1eff0c0f4::t_7c58e996181ba4 112,115,125
+backend/src/memory-writer.ts
+  s_cd28d1eff0c0f4::t_71fed8d0cf733c 84-88
+  s_cd28d1eff0c0f4::t_5d8097503bfe5d 131
+backend/src/routes/chat.ts
+  s_cd28d1eff0c0f4::t_e5e435305bc113 112
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "10d7a4d544f6a2117795f778ff94e39c39d78c99",
+  "prompts": {},
+  "sessions": {
+    "s_cd28d1eff0c0f4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a892b9c6-107e-4fe9-a32c-cbc7a2ecee00",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
