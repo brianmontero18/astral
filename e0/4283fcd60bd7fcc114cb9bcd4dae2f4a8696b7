@@ -1,0 +1,22 @@
+backend/src/agent-service-v2.ts
+  s_cd28d1eff0c0f4::t_bf173caa766700 59,100
+  s_cd28d1eff0c0f4::t_47275acde8b292 30
+backend/src/agent-service-v2-prompt.ts
+  s_cd28d1eff0c0f4::t_ada25d97f3233a 1-245
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "e04283fcd60bd7fcc114cb9bcd4dae2f4a8696b7",
+  "prompts": {},
+  "sessions": {
+    "s_cd28d1eff0c0f4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a892b9c6-107e-4fe9-a32c-cbc7a2ecee00",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
