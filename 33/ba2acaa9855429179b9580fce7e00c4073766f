@@ -1,0 +1,23 @@
+backend/src/hd-tools/index.ts
+  s_cd28d1eff0c0f4::t_08eab15f8ea3e7 1-120
+backend/src/__tests__/hd-tools.test.ts
+  s_cd28d1eff0c0f4::t_dd22d2111e14f5 1-148
+backend/package.json
+  s_cd28d1eff0c0f4::t_e903207accda3c 15,24,30-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "33ba2acaa9855429179b9580fce7e00c4073766f",
+  "prompts": {},
+  "sessions": {
+    "s_cd28d1eff0c0f4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a892b9c6-107e-4fe9-a32c-cbc7a2ecee00",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
