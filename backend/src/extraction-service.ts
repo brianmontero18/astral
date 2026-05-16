@@ -223,6 +223,7 @@ type HdSummary = {
 };
 
 const HD_TYPE_MAP: Record<string, string> = {
+  // English (MyHumanDesign + Genetic Matrix EN)
   "Manifesting Generator": "Generador Manifestante",
   "Emotional Manifesting Generator": "Generador Manifestante",
   "Sacral Manifesting Generator": "Generador Manifestante",
@@ -242,6 +243,21 @@ const HD_TYPE_MAP: Record<string, string> = {
   "Splenic Manifestor": "Manifestador",
   "Ego Manifestor": "Manifestador",
   "Reflector": "Reflector",
+  // Spanish (Genetic Matrix ES — el sitio detecta locale del browser)
+  "Generador Manifestante Emocional": "Generador Manifestante",
+  "Generador Manifestante Sacral": "Generador Manifestante",
+  "Generador Manifestante Esplénico": "Generador Manifestante",
+  "Generador Emocional": "Generador",
+  "Generador Sacral": "Generador",
+  "Generador Esplénico": "Generador",
+  "Proyector Emocional": "Proyector",
+  "Proyector Esplénico": "Proyector",
+  "Proyector Ego": "Proyector",
+  "Proyector Auto-Proyectado": "Proyector",
+  "Proyector Mental": "Proyector",
+  "Manifestador Emocional": "Manifestador",
+  "Manifestador Esplénico": "Manifestador",
+  "Manifestador Ego": "Manifestador",
 };
 
 const HD_STRATEGY_MAP: Record<string, string> = {
@@ -256,12 +272,12 @@ const HD_STRATEGY_MAP: Record<string, string> = {
 };
 
 const HD_AUTHORITY_MAP: Array<{ test: (value: string) => boolean; value: string }> = [
-  { test: (v) => /emotional|solar plexus/i.test(v), value: "Emocional (Plexo Solar)" },
+  { test: (v) => /emotional|solar plexus|plexo\s+solar/i.test(v), value: "Emocional (Plexo Solar)" },
   { test: (v) => /\bsacral\b/i.test(v), value: "Sacral" },
-  { test: (v) => /\bsplenic\b/i.test(v), value: "Esplénica" },
-  { test: (v) => /\bego\b|\bheart\b/i.test(v), value: "Ego/Corazón" },
-  { test: (v) => /self[-\s]?projected/i.test(v), value: "Auto-proyectada" },
-  { test: (v) => /mental|environment/i.test(v), value: "Mental/Ambiente" },
+  { test: (v) => /\bsplenic\b|\bbazo\b|espl[ée]nica/i.test(v), value: "Esplénica" },
+  { test: (v) => /\bego\b|\bheart\b|coraz[oó]n/i.test(v), value: "Ego/Corazón" },
+  { test: (v) => /self[-\s]?projected|auto[-\s]?proyectad[ao]/i.test(v), value: "Auto-proyectada" },
+  { test: (v) => /mental|environment|ambiente/i.test(v), value: "Mental/Ambiente" },
   { test: (v) => /\blunar\b/i.test(v), value: "Lunar" },
 ];
 
@@ -276,6 +292,12 @@ const HD_DEFINITION_MAP: Record<string, string> = {
   "Split": "Definición dividida",
   "Triple Split": "Definición triple dividida",
   "Quadruple Split": "Definición cuádruple dividida",
+  // Spanish (Genetic Matrix ES)
+  "Definición Singular": "Definición simple",
+  "Definición Dividida": "Definición dividida",
+  "Definición Triple Dividida": "Definición triple dividida",
+  "Definición Cuádruple Dividida": "Definición cuádruple dividida",
+  "Sin Definición": "Sin definición",
 };
 
 const HD_NOT_SELF_MAP: Record<string, string> = {
@@ -425,31 +447,41 @@ function extractSection(
   return normalizeField(text.slice(from, end));
 }
 
-function parseHdSummaryFromText(text: string): HdSummary {
+export function parseHdSummaryFromText(text: string): HdSummary {
   const cleaned = normalizeField(text);
 
-  // Labels from both providers (MyHumanDesign uses spaced labels, Genetic Matrix uses "Key: value")
+  // Labels en los 3 formatos reales:
+  // - MyHumanDesign EN: "TYPE Generator …"
+  // - Genetic Matrix EN: "Type: Generator …"
+  // - Genetic Matrix ES: "Tipo: Generador …" (el sitio detecta locale del browser)
   const labels = [
     "TYPE ",
     "TYPE: ",
+    "TIPO: ",
     "PROFILE ",
     "PROFILE: ",
+    "PERFIL: ",
     "NOT SELF THEME ",
     "DEFINITION ",
     "DEFINITION: ",
+    "DEFINICIÓN: ",
     "DIGESTION ",
     "ENVIRONMENT ",
     "AUTHORITY (THE WAY YOU MAKE DECISIONS) ",
     "INNER AUTHORITY: ",
+    "AUTORIDAD INTERNA: ",
     "STRATEGY ",
     "STRATEGY: ",
     "LIFE THEME (INCARNATION CROSS) ",
     "INCARNATION CROSS: ",
+    "ENCARNACIÓN CRUZ: ",
     "YOUR STRONGEST SENSE ",
     "YOUR MOST IMPORTANT GIFT ",
     "YOUR OTHER GIFTS ",
     "SIGN ",
     "CHANNELS: ",
+    "CANALES: ",
+    "NOMBRE: ",
   ];
   const allLabelsUpper = labels.map((l) => l.toUpperCase());
 
@@ -460,20 +492,27 @@ function parseHdSummaryFromText(text: string): HdSummary {
   if (nameMatch && !/not available/i.test(nameMatch[1])) {
     summary.name = normalizeField(nameMatch[1]);
   }
-  // Name extraction (Genetic Matrix format: "Name: Foo Bar Birth Date")
+  // Name extraction (Genetic Matrix EN: "Name: Foo Bar Birth Date")
   if (!summary.name) {
     const gmNameMatch = cleaned.match(/\bName:\s+(.+?)\s+Birth Date\b/i);
     if (gmNameMatch) summary.name = normalizeField(gmNameMatch[1]);
   }
+  // Name extraction (Genetic Matrix ES: "Nombre: Foo Bar Fecha de Nacimiento")
+  if (!summary.name) {
+    const esNameMatch = cleaned.match(/\bNombre:\s+(.+?)\s+Fecha de Nacimiento\b/i);
+    if (esNameMatch) summary.name = normalizeField(esNameMatch[1]);
+  }
 
   const typeRaw = extractSection(cleaned, "TYPE ", allLabelsUpper)
-    ?? extractSection(cleaned, "TYPE: ", allLabelsUpper);
+    ?? extractSection(cleaned, "TYPE: ", allLabelsUpper)
+    ?? extractSection(cleaned, "TIPO: ", allLabelsUpper);
   if (typeRaw) {
     summary.humanDesign.type = normalizeField(typeRaw.split(" - ")[0] ?? typeRaw);
   }
 
   const profileRaw = extractSection(cleaned, "PROFILE ", allLabelsUpper)
-    ?? extractSection(cleaned, "PROFILE: ", allLabelsUpper);
+    ?? extractSection(cleaned, "PROFILE: ", allLabelsUpper)
+    ?? extractSection(cleaned, "PERFIL: ", allLabelsUpper);
   if (profileRaw) {
     const profileMatch = profileRaw.match(/\b\d{1,2}\/\d{1,2}\b/);
     summary.humanDesign.profile = profileMatch ? profileMatch[0] : profileRaw.split(":")[0] ?? profileRaw;
@@ -483,7 +522,8 @@ function parseHdSummaryFromText(text: string): HdSummary {
   if (notSelf) summary.humanDesign.notSelfTheme = notSelf;
 
   const definition = extractSection(cleaned, "DEFINITION ", allLabelsUpper)
-    ?? extractSection(cleaned, "DEFINITION: ", allLabelsUpper);
+    ?? extractSection(cleaned, "DEFINITION: ", allLabelsUpper)
+    ?? extractSection(cleaned, "DEFINICIÓN: ", allLabelsUpper);
   if (definition) summary.humanDesign.definition = definition;
 
   const digestion = extractSection(cleaned, "DIGESTION ", allLabelsUpper);
@@ -493,7 +533,8 @@ function parseHdSummaryFromText(text: string): HdSummary {
   if (environment) summary.humanDesign.environment = environment;
 
   const authority = extractSection(cleaned, "AUTHORITY (THE WAY YOU MAKE DECISIONS) ", allLabelsUpper)
-    ?? extractSection(cleaned, "INNER AUTHORITY: ", allLabelsUpper);
+    ?? extractSection(cleaned, "INNER AUTHORITY: ", allLabelsUpper)
+    ?? extractSection(cleaned, "AUTORIDAD INTERNA: ", allLabelsUpper);
   if (authority) summary.humanDesign.authority = authority;
 
   const strategy = extractSection(cleaned, "STRATEGY ", allLabelsUpper)
@@ -501,7 +542,8 @@ function parseHdSummaryFromText(text: string): HdSummary {
   if (strategy) summary.humanDesign.strategy = strategy;
 
   const lifeTheme = extractSection(cleaned, "LIFE THEME (INCARNATION CROSS) ", allLabelsUpper)
-    ?? extractSection(cleaned, "INCARNATION CROSS: ", allLabelsUpper);
+    ?? extractSection(cleaned, "INCARNATION CROSS: ", allLabelsUpper)
+    ?? extractSection(cleaned, "ENCARNACIÓN CRUZ: ", allLabelsUpper);
   if (lifeTheme) summary.humanDesign.incarnationCross = lifeTheme;
 
   const strongestSense = extractSection(cleaned, "YOUR STRONGEST SENSE ", allLabelsUpper);
