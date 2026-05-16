@@ -132,14 +132,9 @@ export async function assetRoutes(app: FastifyInstance) {
 
     // HD charts must go through POST /me/bodygraph, which extracts the profile
     // and links it atomically. /me/assets only persists the file, so accepting
-    // fileType=hd here leaves users.profile.humanDesign empty (bug A,
-    // astral-0b7 — see docs/architecture/bug-investigation-daniela-2026-05.md).
+    // fileType=hd here would leave users.profile.humanDesign empty.
     if (fileType === "hd") {
-      return reply.status(400).send({
-        error: "use_bodygraph_endpoint",
-        message:
-          "Subi tu carta HD por POST /me/bodygraph para que extraiga el perfil. Este endpoint solo guarda el archivo.",
-      });
+      return reply.status(400).send({ error: "use_bodygraph_endpoint" });
     }
 
     const id = await createAsset(userId, data.filename, data.mimetype, fileType, buffer);

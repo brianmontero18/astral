@@ -97,11 +97,11 @@ describe("POST /api/users/:userId/assets — upload", () => {
     expect(JSON.parse(res.body).fileType).toBe("natal");
   });
 
-  it("rejects fileType=hd and points callers to /me/bodygraph (astral-0b7)", async () => {
+  it("rejects fileType=hd on both upload paths and persists nothing", async () => {
     // /me/assets and /users/:userId/assets share handleAssetUpload. Accepting
-    // fileType=hd here is the root cause of astral-0b7: the asset is saved but
-    // the profile is never extracted. Both the PDF and non-PDF cases must be
-    // rejected with a stable error code so callers know to switch endpoints.
+    // fileType=hd here would save the file without extracting the profile, so
+    // both paths must reject — PDF (which would otherwise pass mime checks)
+    // and non-PDF — with a stable error code that tells callers to switch.
     const sessionSubject = `st-assets-hd-rejected-${Date.now()}`;
     const linkedUserId = await createLinkedTestUser(app, sessionSubject);
 
