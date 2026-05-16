@@ -14,6 +14,7 @@
 | Buscar cualquier otra doc | [`docs/INDEX.md`](docs/INDEX.md) |
 | Referencia HD canónica | [`docs/human-design-reference.md`](docs/human-design-reference.md) |
 | Plan de rollout chat v2 | [`docs/chat-v2-rollout.md`](docs/chat-v2-rollout.md) |
+| Auditar / consultar prod (Turso + R2) | [`backend/scripts/prod-audits/README.md`](backend/scripts/prod-audits/README.md) |
 
 **Convención**: no duplicar info que ya esté en `docs/`. Apuntá ahí.
 
