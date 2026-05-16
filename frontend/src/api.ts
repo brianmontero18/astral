@@ -400,25 +400,6 @@ export async function updateCurrentUser(
 
 // ─── Assets ──────────────────────────────────────────────────────────────────
 
-export async function uploadAsset(
-  file: File,
-  fileType: string,
-): Promise<AssetMeta> {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("fileType", fileType);
-
-  const res = await fetch(`${BASE}/me/assets`, {
-    method: "POST",
-    body: formData,
-  });
-  if (!res.ok) {
-    const err = await readErrorMessage(res);
-    throw new Error(err);
-  }
-  return res.json();
-}
-
 export async function getUserAssets(
 ): Promise<{ assets: AssetMeta[] }> {
   const res = await fetch(`${BASE}/me/assets`);

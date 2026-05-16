@@ -33,7 +33,7 @@ function multipartPayload(
   filename: string,
   content: Buffer | string,
   mimeType: string,
-  fileType = "hd",
+  fileType = "natal",
 ) {
   const boundary = "----TestBoundary" + Date.now();
   const body = Buffer.concat([
@@ -74,7 +74,7 @@ describe("POST /api/users/:userId/assets — upload", () => {
     expect(data.id).toBeDefined();
     expect(data.filename).toBe("chart.pdf");
     expect(data.mimeType).toBe("application/pdf");
-    expect(data.fileType).toBe("hd");
+    expect(data.fileType).toBe("natal");
     expect(data.sizeBytes).toBeGreaterThan(0);
   });
 
@@ -97,23 +97,37 @@ describe("POST /api/users/:userId/assets — upload", () => {
     expect(JSON.parse(res.body).fileType).toBe("natal");
   });
 
-  it("rejects HD file type if not PDF", async () => {
-    const { headers, body } = multipartPayload("chart.png", "PNG fake", "image/png", "hd");
-    const sessionSubject = `st-assets-hd-${Date.now()}`;
+  it("rejects fileType=hd on both upload paths and persists nothing", async () => {
+    // /me/assets and /users/:userId/assets share handleAssetUpload. Accepting
+    // fileType=hd here would save the file without extracting the profile, so
+    // both paths must reject — PDF (which would otherwise pass mime checks)
+    // and non-PDF — with a stable error code that tells callers to switch.
+    const sessionSubject = `st-assets-hd-rejected-${Date.now()}`;
     const linkedUserId = await createLinkedTestUser(app, sessionSubject);
 
-    const res = await app.inject({
+    const png = multipartPayload("chart.png", "PNG fake", "image/png", "hd");
+    const pngRes = await app.inject({
       method: "POST",
       url: `/api/users/${linkedUserId}/assets`,
-      headers: {
-        ...headers,
-        ...sessionHeaders(sessionSubject),
-      },
-      body,
+      headers: { ...png.headers, ...sessionHeaders(sessionSubject) },
+      body: png.body,
     });
+    expect(pngRes.statusCode).toBe(400);
+    expect(JSON.parse(pngRes.body).error).toBe("use_bodygraph_endpoint");
 
-    expect(res.statusCode).toBe(400);
-    expect(JSON.parse(res.body).error).toMatch(/PDF/);
+    const pdf = multipartPayload("chart.pdf", "%PDF-1.4 fake", "application/pdf", "hd");
+    const pdfRes = await app.inject({
+      method: "POST",
+      url: "/api/me/assets",
+      headers: { ...pdf.headers, ...sessionHeaders(sessionSubject) },
+      body: pdf.body,
+    });
+    expect(pdfRes.statusCode).toBe(400);
+    expect(JSON.parse(pdfRes.body).error).toBe("use_bodygraph_endpoint");
+
+    // Neither rejected upload should have been persisted.
+    const assets = await getUserAssets(linkedUserId);
+    expect(assets).toEqual([]);
   });
 
   it("rejects unsupported mime types", async () => {
@@ -200,7 +214,7 @@ describe("POST /api/users/:userId/assets — upload", () => {
       id: expect.any(String),
       filename: "chart.pdf",
       mimeType: "application/pdf",
-      fileType: "hd",
+      fileType: "natal",
     });
   });
 
@@ -266,7 +280,7 @@ describe("Assets list routes", () => {
     expect(assets).toHaveLength(1);
     expect(assets[0].filename).toBe("test.pdf");
     expect(assets[0].mimeType).toBe("application/pdf");
-    expect(assets[0].fileType).toBe("hd");
+    expect(assets[0].fileType).toBe("natal");
     expect(assets[0].sizeBytes).toBeGreaterThan(0);
     expect(assets[0].createdAt).toBeDefined();
     // Uploading an asset alone does not replace the canonical bodygraph.
@@ -275,13 +289,15 @@ describe("Assets list routes", () => {
     expect(assets[0].mime_type).toBeUndefined();
   });
 
-  it("GET /api/me/assets marks the HD asset linked from users.profile_asset_id as active", async () => {
+  it("GET /api/me/assets marks the asset linked from users.profile_asset_id as active", async () => {
     const sessionSubject = "st-assets-active";
     const linkedUserId = await createLinkedTestUser(app, sessionSubject);
 
-    // Upload three: oldest hd, then a natal, then the newest hd.
-    const upload = async (name: string, fileType: "hd" | "natal") => {
-      const { headers, body } = multipartPayload(name, "%PDF-content", "application/pdf", fileType);
+    // /me/assets only accepts natal (HD goes through /me/bodygraph). The
+    // isActive flag is driven by users.profile_asset_id regardless of
+    // fileType, so we exercise the wiring against natal assets.
+    const upload = async (name: string) => {
+      const { headers, body } = multipartPayload(name, "%PDF-content", "application/pdf", "natal");
       await app.inject({
         method: "POST",
         url: `/api/users/${linkedUserId}/assets`,
@@ -295,17 +311,17 @@ describe("Assets list routes", () => {
       await new Promise((r) => setTimeout(r, 1100));
     };
 
-    await upload("old-hd.pdf", "hd");
-    await upload("natal-chart.pdf", "natal");
-    await upload("new-hd.pdf", "hd");
+    await upload("first.pdf");
+    await upload("middle.pdf");
+    await upload("last.pdf");
 
     const rawAssets = await getUserAssets(linkedUserId);
-    const oldHd = rawAssets.find((asset) => asset.filename === "old-hd.pdf");
-    expect(oldHd).toBeDefined();
+    const first = rawAssets.find((asset) => asset.filename === "first.pdf");
+    expect(first).toBeDefined();
     await updateUserBodygraph(
       linkedUserId,
       { humanDesign: { type: "Projector" } },
-      oldHd!.id,
+      first!.id,
     );
 
     const res = await app.inject({
@@ -316,10 +332,9 @@ describe("Assets list routes", () => {
     const { assets } = JSON.parse(res.body);
     const byName = Object.fromEntries(assets.map((a: { filename: string }) => [a.filename, a]));
 
-    expect(byName["old-hd.pdf"].isActive).toBe(true);
-    expect(byName["new-hd.pdf"].isActive).toBe(false);
-    // Natal charts are never the active bodygraph; pill should not show.
-    expect(byName["natal-chart.pdf"].isActive).toBe(false);
+    expect(byName["first.pdf"].isActive).toBe(true);
+    expect(byName["middle.pdf"].isActive).toBe(false);
+    expect(byName["last.pdf"].isActive).toBe(false);
   });
 });
 

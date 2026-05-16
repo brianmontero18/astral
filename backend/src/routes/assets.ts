@@ -130,10 +130,11 @@ export async function assetRoutes(app: FastifyInstance) {
 
     const fileType = (data.fields.fileType as { value?: string } | undefined)?.value ?? "natal";
 
-    if (fileType === "hd" && data.mimetype !== "application/pdf") {
-      return reply.status(400).send({
-        error: "Subi un PDF exportado desde MyHumanDesign o Genetic Matrix. No aceptamos imagenes ni capturas.",
-      });
+    // HD charts must go through POST /me/bodygraph, which extracts the profile
+    // and links it atomically. /me/assets only persists the file, so accepting
+    // fileType=hd here would leave users.profile.humanDesign empty.
+    if (fileType === "hd") {
+      return reply.status(400).send({ error: "use_bodygraph_endpoint" });
     }
 
     const id = await createAsset(userId, data.filename, data.mimetype, fileType, buffer);
