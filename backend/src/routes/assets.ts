@@ -130,9 +130,15 @@ export async function assetRoutes(app: FastifyInstance) {
 
     const fileType = (data.fields.fileType as { value?: string } | undefined)?.value ?? "natal";
 
-    if (fileType === "hd" && data.mimetype !== "application/pdf") {
+    // HD charts must go through POST /me/bodygraph, which extracts the profile
+    // and links it atomically. /me/assets only persists the file, so accepting
+    // fileType=hd here leaves users.profile.humanDesign empty (bug A,
+    // astral-0b7 — see docs/architecture/bug-investigation-daniela-2026-05.md).
+    if (fileType === "hd") {
       return reply.status(400).send({
-        error: "Subi un PDF exportado desde MyHumanDesign o Genetic Matrix. No aceptamos imagenes ni capturas.",
+        error: "use_bodygraph_endpoint",
+        message:
+          "Subi tu carta HD por POST /me/bodygraph para que extraiga el perfil. Este endpoint solo guarda el archivo.",
       });
     }
 
