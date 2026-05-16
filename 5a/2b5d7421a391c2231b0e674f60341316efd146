@@ -1,0 +1,26 @@
+docs/chat-v2-rollout.md
+  s_cd28d1eff0c0f4::t_6ca978fb888de7 1-158
+backend/scripts/smoke-chat-v2.ts
+  s_cd28d1eff0c0f4::t_5dffd83ca40e69 104-107,109,113-114
+  s_cd28d1eff0c0f4::t_467cccab153fd9 96
+  s_cd28d1eff0c0f4::t_90b33556de1790 1-92,97,101-103,108,110-112,115-173
+  s_cd28d1eff0c0f4::t_e1c62825303430 93-95,98-100
+backend/package.json
+  s_cd28d1eff0c0f4::t_718dbccd7b0632 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "5a2b5d7421a391c2231b0e674f60341316efd146",
+  "prompts": {},
+  "sessions": {
+    "s_cd28d1eff0c0f4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a892b9c6-107e-4fe9-a32c-cbc7a2ecee00",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
