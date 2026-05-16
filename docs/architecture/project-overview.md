@@ -16,8 +16,8 @@ El usuario sube imágenes/PDFs de su bodygraph, GPT-4o Vision extrae los datos, 
 - **Frontend**: React 18 + TypeScript + Vite 5
 - **Backend**: Node.js / Fastify 5 + SQLite (`@libsql/client` / Turso en prod)
 - **LLM chat**: GPT-4o-mini por default (env var `CHAT_MODEL`), Vercel AI SDK + 5 HD tools cuando `FEATURE_CHAT_USE_TOOLS=true`
-- **LLM extracción**: GPT-4o Vision (env var `EXTRACTION_MODEL`)
 - **LLM memory/report**: GPT-4o-mini (env vars `MEMORY_WRITER_MODEL`, `REPORT_MODEL`)
+- **Extracción de bodygraph**: 100% **determinística** — `pdfjs-dist` extrae el texto del PDF, regex + parser custom identifica gates / centros / canales según el proveedor (MyHumanDesign o Genetic Matrix). NO usa LLM en el camino normal. `EXTRACTION_MODEL` (default `gpt-4o`) existe como fallback Vision para casos legacy / no-PDF, pero hoy no se invoca en producción.
 - **Tránsitos**: Swiss Ephemeris WASM (sin APIs externas)
 - **Auth**: SuperTokens managed (passwordless email + sessions httpOnly)
 - **Storage**: Cloudflare R2 para assets (PDFs HD)

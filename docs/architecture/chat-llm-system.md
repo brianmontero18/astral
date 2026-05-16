@@ -294,7 +294,7 @@ Desde el dashboard de Render, editar la env var:
 | `CHAT_MODEL` | `gpt-4o-mini` | Probar `gpt-4o` (más calidad, 17x costo) o futuro Claude |
 | `MEMORY_WRITER_MODEL` | `gpt-4o-mini` | Mantener mini casi siempre (escribe markdown, no critical) |
 | `REPORT_MODEL` | `gpt-4o-mini` | Subir si las usuarias piden mejor reporte |
-| `EXTRACTION_MODEL` | `gpt-4o` | Vision; mini no soporta multimodal con la misma calidad |
+| `EXTRACTION_MODEL` | `gpt-4o` | **Fallback Vision only**. El flujo real (PDF de MyHumanDesign / Genetic Matrix) es 100% determinístico vía `pdfjs-dist` + parser custom — no usa LLM. Esta var existe por si llega un asset legacy / no-PDF |
 | `FEATURE_CHAT_USE_TOOLS` | `false` | `true` para activar el path v2 con tools |
 | `CHAT_HISTORY_TURNS` | `60` | Bajar si los costos suben; reabrir compaction si hay quejas de "no se acuerda" |
 
