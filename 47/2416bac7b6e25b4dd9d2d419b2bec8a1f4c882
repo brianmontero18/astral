@@ -1,0 +1,36 @@
+AGENTS.md
+  s_963b0e03d79839::t_ba2167e6c0cfb7 17
+backend/scripts/prod-audits/lib/prod-r2.ts
+  s_963b0e03d79839::t_990d325a2a0e5b 1-18
+.gitignore
+  s_963b0e03d79839::t_b38f29d1e82c8a 14
+backend/scripts/prod-audits/examples/user-detail.ts
+  s_963b0e03d79839::t_6d633d49b1e671 1-129
+backend/scripts/prod-audits/lib/prod-db.ts
+  s_963b0e03d79839::t_2b3b8885db200b 1-3,11,14,22-26,61-62,64-68,70-90,97
+  s_963b0e03d79839::t_b1d4dbb8d6953a 4-10,12-13,15-21,27-60,63,69,91-96
+backend/scripts/prod-audits/examples/users-overview.ts
+  s_963b0e03d79839::t_0ad8bef3c0bdcb 1-57
+backend/scripts/prod-audits/lib/prod-env.ts
+  s_963b0e03d79839::t_7558138da3ac55 1-45
+backend/scripts/prod-audits/examples/find-anomalies.ts
+  s_963b0e03d79839::t_67792096c7750a 1-110
+backend/scripts/prod-audits/README.md
+  s_963b0e03d79839::t_d66ef6375c200e 1-96
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "472416bac7b6e25b4dd9d2d419b2bec8a1f4c882",
+  "prompts": {},
+  "sessions": {
+    "s_963b0e03d79839": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8d65de57-dc44-4e93-b0e6-c2b110ada1a2",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
