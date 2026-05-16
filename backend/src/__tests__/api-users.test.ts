@@ -390,66 +390,6 @@ describe("PUT /api/users/:id", () => {
   });
 });
 
-describe("DELETE /api/users/:id", () => {
-  it("requires an admin role", async () => {
-    const id = await createTestUser(app, "ToDelete", { type: "Reflector" });
-    await createLinkedTestUser(app, "st-regular-deleter", "Regular Deleter", {
-      type: "Generator",
-    });
-
-    const res = await app.inject({
-      method: "DELETE",
-      url: `/api/users/${id}`,
-      headers: sessionHeaders("st-regular-deleter"),
-    });
-
-    expect(res.statusCode).toBe(403);
-    expect(JSON.parse(res.body)).toEqual({
-      error: "admin_required",
-    });
-  });
-
-  it("deletes an existing user for admins", async () => {
-    await createLinkedTestUser(app, "st-admin-deleter", "Admin Deleter", {
-      type: "Manifestor",
-    }, {
-      role: "admin",
-    });
-    const id = await createTestUser(app, "ToDelete", { type: "Reflector" });
-
-    const deleteRes = await app.inject({
-      method: "DELETE",
-      url: `/api/users/${id}`,
-      headers: sessionHeaders("st-admin-deleter"),
-    });
-    expect(deleteRes.statusCode).toBe(200);
-    expect(JSON.parse(deleteRes.body).ok).toBe(true);
-
-    // Verify user is gone
-    const getRes = await app.inject({
-      method: "GET",
-      url: `/api/users/${id}`,
-      headers: sessionHeaders("st-admin-deleter"),
-    });
-    expect(getRes.statusCode).toBe(404);
-  });
-
-  it("returns 404 for nonexistent user", async () => {
-    await createLinkedTestUser(app, "st-admin-missing-deleter", "Admin Missing Deleter", {
-      type: "Manifestor",
-    }, {
-      role: "admin",
-    });
-
-    const res = await app.inject({
-      method: "DELETE",
-      url: "/api/users/fake-id",
-      headers: sessionHeaders("st-admin-missing-deleter"),
-    });
-    expect(res.statusCode).toBe(404);
-  });
-});
-
 describe("special characters in user data", () => {
   it("handles names with accents and ñ", async () => {
     await createLinkedTestUser(app, "st-admin-special", "Admin Special", {

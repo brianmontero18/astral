@@ -316,23 +316,6 @@ export async function userRoutes(app: FastifyInstance) {
   // /admin/users/:id/access. Re-introducing this surface lets any admin
   // overwrite another user's HD profile, which has no legitimate caller.
 
-  app.delete<{ Params: { id: string } }>("/users/:id", async (req, reply) => {
-    const adminUser = await requireAdminUser(
-      req as AuthenticatedRequest,
-      reply,
-    );
-
-    if (!adminUser) {
-      return;
-    }
-
-    const deleted = await deleteUser(req.params.id);
-    if (!deleted) {
-      return reply.status(404).send({ error: "User not found" });
-    }
-    return reply.send({ ok: true });
-  });
-
   app.post<{
     Body: { email?: string; plan?: AppUserPlan; name?: string };
   }>("/admin/users", async (req, reply) => {
@@ -558,9 +541,8 @@ export async function userRoutes(app: FastifyInstance) {
         return;
       }
 
-      // Self-delete from the admin panel is blocked. The legacy
-      // DELETE /api/users/:id endpoint stays available for an intentional
-      // self-delete UI in the future.
+      // Self-delete from the admin panel is blocked. A future self-delete
+      // UI would go through a dedicated /me endpoint, not this admin one.
       if (req.params.id === adminUser.id) {
         return reply.status(400).send({ error: "cannot_delete_self" });
       }
