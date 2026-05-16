@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently --kill-others -n backend,frontend -c blue,green \"cd backend && npm run dev\" \"cd frontend && npm run dev\"",
+    "dev": "concurrently --kill-others -n backend,frontend -c blue,green \"npm --prefix backend run dev\" \"npm --prefix frontend run dev\"",
     "build": "cd frontend && npm run build && cd ../backend && npm run build",
     "start": "cd backend && npm start",
     "seed:local": "cd backend && npm run seed:local",
