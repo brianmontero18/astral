@@ -1,0 +1,23 @@
+backend/src/__tests__/api-extract.test.ts
+  s_963b0e03d79839::t_0861b108dbec54 29,31-32
+  s_963b0e03d79839::t_2a9eb9c22d05d7 270-409
+backend/src/routes/assets.ts
+  s_963b0e03d79839::t_dc504205de0bc1 5,7
+  s_963b0e03d79839::t_c7909e717b11ec 219-224,240-252
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "71a09ed888648f7f1705974d6bcf0579a2a4ec79",
+  "prompts": {},
+  "sessions": {
+    "s_963b0e03d79839": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8d65de57-dc44-4e93-b0e6-c2b110ada1a2",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
