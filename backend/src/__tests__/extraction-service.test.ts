@@ -1,18 +1,34 @@
 /**
- * Tests para parseHdSummaryFromText.
+ * Tests para extraction-service:
  *
- * El parser tiene que reconocer los 3 formatos reales que recibimos:
- *   - MyHumanDesign EN: labels "TYPE", "PROFILE", … sin ":".
- *   - Genetic Matrix EN: "Type:", "Inner Authority:", …
- *   - Genetic Matrix ES: "Tipo:", "Autoridad interna:", … (el sitio
- *     detecta el locale del browser y traduce los labels y los valores).
+ *   1. parseHdSummaryFromText — labels en los 3 formatos reales
+ *      (MyHumanDesign EN, Genetic Matrix EN, Genetic Matrix ES).
+ *      Regresión de astral-86a (strings vacíos en formato ES).
  *
- * Regresión de astral-86a: antes del fix el formato ES devolvía strings
- * vacíos en type/profile/authority/definition aunque el texto tenía la
- * información.
+ *   2. extractProfileFromAssets fallback a Vision cuando el PDF no
+ *      tiene capa de texto (capturas, exports vectoriales, paid
+ *      Genetic Matrix). Regresión de astral-asy.
  */
-import { describe, expect, it } from "vitest";
-import { parseHdSummaryFromText } from "../extraction-service.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../hd-pdf/pdf-text.js", () => ({
+  extractPdfText: vi.fn(async () => ""),
+}));
+
+vi.mock("../db.js", async () => {
+  const actual = await vi.importActual<typeof import("../db.js")>("../db.js");
+  return {
+    ...actual,
+    insertLlmCall: vi.fn(async () => undefined),
+  };
+});
+
+const { extractProfileFromAssets, parseHdSummaryFromText, UserFacingError } =
+  await import("../extraction-service.js");
+const { extractPdfText } = await import("../hd-pdf/pdf-text.js");
+const { insertLlmCall } = await import("../db.js");
+const extractPdfTextMock = extractPdfText as unknown as ReturnType<typeof vi.fn>;
+const insertLlmCallMock = insertLlmCall as unknown as ReturnType<typeof vi.fn>;
 
 describe("parseHdSummaryFromText", () => {
   describe("MyHumanDesign English format (spaced labels)", () => {
@@ -131,5 +147,212 @@ describe("parseHdSummaryFromText", () => {
       const result = parseHdSummaryFromText(text);
       expect(result.humanDesign.type).toBeUndefined();
     });
+  });
+});
+
+// ─── Vision fallback (astral-asy) ────────────────────────────────────────────
+
+/**
+ * Build a 26-gate fixture with valid line numbers and exactly one of each
+ * planet on personality and design — the minimum shape that
+ * validateActivatedGates accepts.
+ */
+function buildValidGates() {
+  const planets = [
+    "Sun",
+    "Earth",
+    "Moon",
+    "North Node",
+    "South Node",
+    "Mercury",
+    "Venus",
+    "Mars",
+    "Jupiter",
+    "Saturn",
+    "Uranus",
+    "Neptune",
+    "Pluto",
+  ];
+  // Gate numbers are in [1, 64] and chosen so the personality+design
+  // pairing matches at least one HD channel, which lets
+  // deriveChannelsAndCenters compose without throwing.
+  const designNumbers = [3, 50, 61, 62, 39, 51, 16, 52, 31, 41, 38, 54, 43];
+  const personalityNumbers = [56, 60, 54, 53, 43, 4, 59, 59, 7, 41, 38, 38, 1];
+  const designLines = [4, 4, 3, 3, 2, 6, 3, 6, 3, 5, 5, 2, 1];
+  const personalityLines = [2, 2, 5, 5, 4, 6, 6, 4, 6, 3, 2, 6, 5];
+  return [
+    ...designNumbers.map((number, i) => ({
+      number,
+      line: designLines[i],
+      planet: planets[i],
+      isPersonality: false,
+    })),
+    ...personalityNumbers.map((number, i) => ({
+      number,
+      line: personalityLines[i],
+      planet: planets[i],
+      isPersonality: true,
+    })),
+  ];
+}
+
+function mockOpenAi(content: string, usage = { prompt_tokens: 500, completion_tokens: 200 }) {
+  const response = {
+    ok: true,
+    json: async () => ({
+      choices: [{ message: { content } }],
+      usage,
+    }),
+    text: async () => "",
+  };
+  global.fetch = vi.fn(async () => response as unknown as Response) as typeof fetch;
+}
+
+const IMAGE_PDF_ASSET = {
+  mimeType: "application/pdf",
+  data: Buffer.from("%PDF-fake-image-only"),
+  filename: "screenshot.pdf",
+  fileType: "hd",
+};
+
+describe("extractProfileFromAssets — Vision fallback for image-only PDFs (astral-asy)", () => {
+  beforeEach(() => {
+    extractPdfTextMock.mockReset();
+    extractPdfTextMock.mockResolvedValue(""); // simulates an image-only PDF
+    insertLlmCallMock.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("falls back to Vision when pdfjs extracts no text and returns a valid profile", async () => {
+    const gates = buildValidGates();
+    mockOpenAi(
+      JSON.stringify({
+        name: "Vision Subject",
+        humanDesign: {
+          type: "Generator",
+          profile: "5/1",
+          authority: "Sacral",
+          definition: "Single Definition",
+          activatedGates: gates,
+        },
+      }),
+    );
+
+    const profile = await extractProfileFromAssets([IMAGE_PDF_ASSET], "fake-key");
+
+    expect(profile.name).toBe("Vision Subject");
+    expect(profile.humanDesign.type).toBe("Generador"); // canonicalized
+    expect(profile.humanDesign.profile).toBe("5/1");
+    expect(profile.humanDesign.authority).toBe("Sacral");
+    expect(profile.humanDesign.definition).toBe("Definición simple");
+    expect(profile.humanDesign.activatedGates).toHaveLength(26);
+    // Channels and centers are derived from gates, not taken from Vision
+    expect(profile.humanDesign.channels.length).toBeGreaterThan(0);
+    expect(profile.humanDesign.definedCenters.length).toBeGreaterThan(0);
+    // Strategy / notSelfTheme are derived from type
+    expect(profile.humanDesign.strategy).toBe("Esperar para responder");
+    expect(profile.humanDesign.notSelfTheme).toBe("Frustración");
+  });
+
+  it("rejects when Vision returns fewer than 26 gates (hallucination guard)", async () => {
+    mockOpenAi(
+      JSON.stringify({
+        humanDesign: {
+          type: "Generator",
+          activatedGates: buildValidGates().slice(0, 10),
+        },
+      }),
+    );
+
+    await expect(
+      extractProfileFromAssets([IMAGE_PDF_ASSET], "fake-key"),
+    ).rejects.toBeInstanceOf(UserFacingError);
+  });
+
+  it("rejects when Vision returns gate.line outside [1, 6]", async () => {
+    const gates = buildValidGates();
+    gates[0].line = 9;
+    mockOpenAi(
+      JSON.stringify({
+        humanDesign: { type: "Generator", activatedGates: gates },
+      }),
+    );
+
+    await expect(
+      extractProfileFromAssets([IMAGE_PDF_ASSET], "fake-key"),
+    ).rejects.toBeInstanceOf(UserFacingError);
+  });
+
+  it("rejects when Vision returns duplicated planets within one side", async () => {
+    const gates = buildValidGates();
+    gates[0].planet = gates[1].planet; // duplicate planet in design
+    mockOpenAi(
+      JSON.stringify({
+        humanDesign: { type: "Generator", activatedGates: gates },
+      }),
+    );
+
+    await expect(
+      extractProfileFromAssets([IMAGE_PDF_ASSET], "fake-key"),
+    ).rejects.toBeInstanceOf(UserFacingError);
+  });
+
+  it("records llm_calls telemetry when a telemetry context is provided", async () => {
+    mockOpenAi(
+      JSON.stringify({
+        name: "T",
+        humanDesign: {
+          type: "Generator",
+          activatedGates: buildValidGates(),
+        },
+      }),
+    );
+
+    await extractProfileFromAssets([IMAGE_PDF_ASSET], "fake-key", {
+      userId: "user-abc",
+    });
+
+    expect(insertLlmCallMock).toHaveBeenCalledTimes(1);
+    const call = insertLlmCallMock.mock.calls[0][0];
+    expect(call.userId).toBe("user-abc");
+    expect(call.route).toBe("extraction");
+    expect(call.tokensIn).toBe(500);
+    expect(call.tokensOut).toBe(200);
+    expect(call.costUsd).toBeGreaterThan(0);
+  });
+
+  it("does NOT record telemetry when no context is passed (back-compat)", async () => {
+    mockOpenAi(
+      JSON.stringify({
+        humanDesign: {
+          type: "Generator",
+          activatedGates: buildValidGates(),
+        },
+      }),
+    );
+
+    await extractProfileFromAssets([IMAGE_PDF_ASSET], "fake-key");
+
+    expect(insertLlmCallMock).not.toHaveBeenCalled();
+  });
+
+  it("does NOT call Vision when the PDF has extractable text from a known provider (regression)", async () => {
+    extractPdfTextMock.mockResolvedValueOnce(
+      "Foundation Chart Quantum Name: Foo Bar Birth Date: 1990 www.geneticmatrix.com 1.2 2.3 3.4 …",
+    );
+    const fetchSpy = vi.fn();
+    global.fetch = fetchSpy as unknown as typeof fetch;
+
+    // The deterministic path will likely fail to parse 26 gates from this
+    // synthetic snippet — but the critical assertion is that we never call
+    // fetch (Vision) when the deterministic path is the right one.
+    await extractProfileFromAssets([IMAGE_PDF_ASSET], "fake-key").catch(() => {
+      /* expected — synthetic text is not a real bodygraph */
+    });
+
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
