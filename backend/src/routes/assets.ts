@@ -1,10 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import {
   createAsset,
-  getUserAssets,
-  getAsset,
   deleteAsset,
+  getAsset,
   getUser,
+  getUserAssets,
   updateUserBodygraph,
 } from "../db.js";
 import { extractProfileFromAssets, UserFacingError } from "../extraction-service.js";
@@ -216,6 +216,12 @@ export async function assetRoutes(app: FastifyInstance) {
       return reply.status(404).send({ error: "User not found" });
     }
 
+    // Capturar el asset previamente activo antes de cualquier mutación. Lo
+    // necesitamos para borrarlo después del update — el modelo v1 es "una
+    // sola carta activa", el botón "Reemplazar carta" promete reemplazo
+    // y la lista de assets no debe crecer al recargar la carta.
+    const previousAssetId = existingUser.profile_asset_id;
+
     profile.name = profile.name || existingUser.name;
 
     const assetId = await createAsset(
@@ -229,6 +235,21 @@ export async function assetRoutes(app: FastifyInstance) {
     const updated = await updateUserBodygraph(userId, profile, assetId);
     if (!updated) {
       return reply.status(404).send({ error: "User not found" });
+    }
+
+    // El nuevo asset ya está activo. Reapamos el viejo best-effort: si el
+    // delete falla (R2 transient, DB race) el sistema queda con un huérfano
+    // pero el usuario ya tiene la carta nueva activa, no se rompe nada
+    // visible. Errores quedan en logs estructurados para reaping manual.
+    if (previousAssetId && previousAssetId !== assetId) {
+      try {
+        await deleteAsset(previousAssetId);
+      } catch (err) {
+        app.log.warn(
+          { err, userId, previousAssetId, newAssetId: assetId },
+          "Failed to delete previous bodygraph asset after replace",
+        );
+      }
     }
 
     const [updatedUser, rawAssets] = await Promise.all([
