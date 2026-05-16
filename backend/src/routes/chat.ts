@@ -10,6 +10,10 @@ import {
   type UserProfile,
 } from "../agent-service.js";
 import {
+  runAstralAgentV2,
+  runAstralAgentStreamV2,
+} from "../agent-service-v2.js";
+import {
   deleteChatMessagesFrom,
   getChatMessages,
   getRecentChatMessages,
@@ -356,7 +360,8 @@ export async function chatRoutes(app: FastifyInstance) {
       });
       const intakeForChat = FLAGS.CHAT_INTAKE_CONTEXT && userIntake ? userIntake : undefined;
       const memoryForChat = FLAGS.MEMORY_LIVING_DOCUMENT && userMemory ? userMemory : undefined;
-      const result = await runAstralAgent(
+      const runAgent = FLAGS.CHAT_USE_TOOLS ? runAstralAgentV2 : runAstralAgent;
+      const result = await runAgent(
         profile,
         transits,
         truncateChatHistory(messages),
@@ -479,7 +484,10 @@ export async function chatRoutes(app: FastifyInstance) {
       let fullText = "";
       let captured: AgentCallMeta | null = null;
 
-      for await (const chunk of runAstralAgentStream(
+      const runAgentStream = FLAGS.CHAT_USE_TOOLS
+        ? runAstralAgentStreamV2
+        : runAstralAgentStream;
+      for await (const chunk of runAgentStream(
         profile,
         transits,
         truncateChatHistory(messages),
