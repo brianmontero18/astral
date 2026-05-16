@@ -9,12 +9,34 @@
  * as null — never invented.
  */
 
+import { createHash } from "node:crypto";
 import type { UserProfile } from "./agent-service.js";
+import { insertLlmCall } from "./db.js";
 import { HD_CHANNELS } from "./hd-channels.js";
 import { parseGeneticMatrixText } from "./hd-pdf/genetic-matrix.js";
 import { parseMyHumanDesignText } from "./hd-pdf/myhumandesign.js";
 import { extractPdfText } from "./hd-pdf/pdf-text.js";
-import { deriveChannelsAndCenters } from "./hd-pdf/validate.js";
+import { deriveChannelsAndCenters, validateActivatedGates } from "./hd-pdf/validate.js";
+import { calculateCost } from "./llm/pricing.js";
+
+// Vision's 13-planet set. Same membership as MyHumanDesign and Genetic
+// Matrix orderings (validateActivatedGates only checks counts, not order),
+// so a single list is enough for sanity-checking Vision output.
+const HD_PLANETS = [
+  "Sun",
+  "Earth",
+  "Moon",
+  "North Node",
+  "South Node",
+  "Mercury",
+  "Venus",
+  "Mars",
+  "Jupiter",
+  "Saturn",
+  "Uranus",
+  "Neptune",
+  "Pluto",
+] as const;
 
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 const MODEL = process.env.EXTRACTION_MODEL ?? "gpt-4o";
@@ -25,6 +47,8 @@ const UNSUPPORTED_SOURCE_MESSAGE =
   "Solo aceptamos PDFs oficiales de MyHumanDesign o Genetic Matrix. Reexporta el bodygraph desde la fuente oficial.";
 const UNREADABLE_PDF_MESSAGE =
   "No pudimos leer tu PDF. Reexporta el bodygraph desde la fuente oficial y vuelve a subirlo.";
+const VISION_GATES_INVALID_MESSAGE =
+  "No pudimos confirmar los datos de tu bodygraph. Reexporta el PDF desde MyHumanDesign o Genetic Matrix y volve a intentarlo.";
 
 export class UserFacingError extends Error {
   status: number;
@@ -617,11 +641,20 @@ function applyHdSummary(profile: UserProfile, summary: HdSummary): UserProfile {
   return profile;
 }
 
+interface OpenAiCallResult {
+  content: string;
+  tokensIn: number;
+  tokensOut: number;
+  cachedTokens: number;
+  latencyMs: number;
+}
+
 async function callOpenAI(
   systemPrompt: string,
   contentParts: any[],
   openaiKey: string,
-): Promise<string> {
+): Promise<OpenAiCallResult> {
+  const startedAt = Date.now();
   const response = await fetch(OPENAI_API_URL, {
     method: "POST",
     headers: {
@@ -645,10 +678,49 @@ async function callOpenAI(
 
   const data = (await response.json()) as {
     choices: Array<{ message: { content: string } }>;
+    usage?: {
+      prompt_tokens?: number;
+      completion_tokens?: number;
+      prompt_tokens_details?: { cached_tokens?: number };
+    };
   };
 
-  return data.choices[0]?.message?.content ?? "";
+  return {
+    content: data.choices[0]?.message?.content ?? "",
+    tokensIn: data.usage?.prompt_tokens ?? 0,
+    tokensOut: data.usage?.completion_tokens ?? 0,
+    cachedTokens: data.usage?.prompt_tokens_details?.cached_tokens ?? 0,
+    latencyMs: Date.now() - startedAt,
+  };
 }
+
+export interface ExtractionTelemetryCtx {
+  userId: string;
+}
+
+async function recordExtractionTelemetry(
+  ctx: ExtractionTelemetryCtx | undefined,
+  result: OpenAiCallResult,
+  promptHash: string,
+): Promise<void> {
+  if (!ctx) return;
+  await insertLlmCall({
+    userId: ctx.userId,
+    route: "extraction",
+    model: MODEL,
+    tokensIn: result.tokensIn,
+    tokensOut: result.tokensOut,
+    cachedTokens: result.cachedTokens,
+    costUsd: calculateCost(MODEL, result.tokensIn, result.tokensOut, {
+      cachedInputTokens: result.cachedTokens,
+    }),
+    latencyMs: result.latencyMs,
+    promptHash,
+  });
+}
+
+const HD_PROMPT_HASH = createHash("sha1").update("hd-prompt-v1").digest("hex").slice(0, 16);
+const MERGE_PROMPT_HASH = createHash("sha1").update("merge-prompt-v1").digest("hex").slice(0, 16);
 
 function parseJSON(raw: string): any {
   const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
@@ -659,11 +731,110 @@ function parseJSON(raw: string): any {
   }
 }
 
+// ─── Vision fallback for image-only HD PDFs ──────────────────────────────────
+
+async function extractHdViaVision(
+  asset: AssetData,
+  openaiKey: string,
+  telemetryCtx?: ExtractionTelemetryCtx,
+): Promise<UserProfile> {
+  const parts = [
+    ...buildFileParts(asset),
+    {
+      type: "text",
+      text: "Extraé los datos de Diseño Humano de este documento.",
+    },
+  ];
+
+  const result = await callOpenAI(HD_PROMPT, parts, openaiKey);
+  await recordExtractionTelemetry(telemetryCtx, result, HD_PROMPT_HASH);
+
+  const parsed = parseJSON(result.content) as Partial<UserProfile>;
+  const hd = parsed?.humanDesign;
+  const gates = hd?.activatedGates;
+
+  // Hard validation: Vision must return the canonical 26 gates with valid
+  // numbers, lines, planet counts. Anything else is treated as a failed
+  // extraction (alucinación) and surfaced to the user as a clear error.
+  if (!Array.isArray(gates) || gates.length === 0) {
+    throw new UserFacingError(VISION_GATES_INVALID_MESSAGE);
+  }
+  try {
+    validateActivatedGates(
+      gates as UserProfile["humanDesign"]["activatedGates"],
+      HD_PLANETS,
+      "Vision",
+    );
+  } catch {
+    throw new UserFacingError(VISION_GATES_INVALID_MESSAGE);
+  }
+
+  // Channels and centers are derived from gates by deterministic logic — we
+  // never trust Vision to pick them. The same goes for strategy / not-self
+  // (derived from type via deriveImpliedFields).
+  const validGates = gates as UserProfile["humanDesign"]["activatedGates"];
+  const { channelIds, definedCenters, undefinedCenters } = deriveChannelsAndCenters(
+    validGates,
+    "Vision",
+  );
+
+  const profile: UserProfile = {
+    name: typeof parsed.name === "string" ? parsed.name : "",
+    humanDesign: {
+      type: "",
+      strategy: "",
+      authority: "",
+      profile: "",
+      definition: "",
+      incarnationCross: "",
+      notSelfTheme: "",
+      variable: "",
+      digestion: "",
+      environment: "",
+      strongestSense: "",
+      channels: channelIds.map((id) => ({
+        id,
+        name: HD_CHANNELS[id] ?? "",
+        circuit: "",
+      })),
+      activatedGates: validGates,
+      definedCenters,
+      undefinedCenters,
+    },
+  };
+
+  // Vision returns its best guess of type/profile/authority/etc; we apply
+  // the same canonical maps as the deterministic path so the output shape
+  // is identical regardless of which branch ran.
+  const stringFields: Array<keyof UserProfile["humanDesign"]> = [
+    "type",
+    "profile",
+    "authority",
+    "definition",
+    "incarnationCross",
+    "strategy",
+    "notSelfTheme",
+    "variable",
+    "digestion",
+    "environment",
+    "strongestSense",
+  ];
+  for (const key of stringFields) {
+    const raw = hd?.[key];
+    if (typeof raw === "string" && raw.trim() !== "") {
+      (profile.humanDesign as any)[key] = mapHdValue(key, normalizeField(raw));
+    }
+  }
+
+  return deriveImpliedFields(profile);
+}
+
 // ─── Main extraction ─────────────────────────────────────────────────────────
 
 export async function extractProfileFromAssets(
   assets: AssetData[],
   openaiKey: string,
+  telemetryCtx?: ExtractionTelemetryCtx,
 ): Promise<UserProfile> {
   if (assets.length === 0) {
     throw new Error("No assets provided");
@@ -681,28 +852,38 @@ export async function extractProfileFromAssets(
     }
 
     const text = await extractPdfText(asset.data);
-    if (!text || text.trim().length < 20) {
-      throw new UserFacingError(UNREADABLE_PDF_MESSAGE);
-    }
 
-    const provider = detectPdfProvider(text);
-    if (!provider) {
+    // Deterministic path: PDF tiene capa de texto extraíble + matchea un
+    // proveedor conocido. Sin costo de LLM. Es el camino preferido.
+    if (text && text.trim().length >= 20) {
+      const provider = detectPdfProvider(text);
+      if (provider) {
+        try {
+          const gates =
+            provider === "genetic-matrix"
+              ? parseGeneticMatrixText(text)
+              : parseMyHumanDesignText(text);
+          const profile = buildProfileFromGates(
+            gates,
+            provider === "genetic-matrix" ? "Genetic Matrix" : "MyHumanDesign",
+          );
+          const summary = parseHdSummaryFromText(text);
+          return deriveImpliedFields(applyHdSummary(profile, summary));
+        } catch {
+          throw new UserFacingError(UNREADABLE_PDF_MESSAGE);
+        }
+      }
+      // Texto extraído pero ningún proveedor detectado → no es un export
+      // que sepamos parsear. No tiene sentido pasar por Vision (sería texto
+      // random) — el usuario tiene que reexportar desde una fuente oficial.
       throw new UserFacingError(UNSUPPORTED_SOURCE_MESSAGE);
     }
 
-    try {
-      const gates = provider === "genetic-matrix"
-        ? parseGeneticMatrixText(text)
-        : parseMyHumanDesignText(text);
-      const profile = buildProfileFromGates(
-        gates,
-        provider === "genetic-matrix" ? "Genetic Matrix" : "MyHumanDesign",
-      );
-      const summary = parseHdSummaryFromText(text);
-      return deriveImpliedFields(applyHdSummary(profile, summary));
-    } catch (err) {
-      throw new UserFacingError(UNREADABLE_PDF_MESSAGE);
-    }
+    // PDF sin texto extraíble (capa vectorial, imagen embebida, capturas
+    // via "Imprimir como PDF" de Chrome). Caemos a Vision para no
+    // dejar a la usuaria sin onboarding solo porque su herramienta
+    // exporta sin layer de texto.
+    return extractHdViaVision(asset, openaiKey, telemetryCtx);
   }
 
   const extractions: string[] = [];
@@ -714,8 +895,9 @@ export async function extractProfileFromAssets(
   }
   parts.push({ type: "text", text: "Extraé los datos de Diseño Humano de este documento." });
 
-  const raw = await callOpenAI(HD_PROMPT, parts, openaiKey);
-  const parsed = parseJSON(raw);
+  const extractResult = await callOpenAI(HD_PROMPT, parts, openaiKey);
+  await recordExtractionTelemetry(telemetryCtx, extractResult, HD_PROMPT_HASH);
+  const parsed = parseJSON(extractResult.content);
   extractions.push(JSON.stringify(parsed, null, 2));
 
   // Merge to normalize nulls → defaults
@@ -723,9 +905,10 @@ export async function extractProfileFromAssets(
     .map((e, i) => `--- Extracción ${i + 1} ---\n${e}`)
     .join("\n\n");
 
-  const mergeRaw = await callOpenAI(MERGE_PROMPT, [
+  const mergeResult = await callOpenAI(MERGE_PROMPT, [
     { type: "text", text: mergeInput },
   ], openaiKey);
+  await recordExtractionTelemetry(telemetryCtx, mergeResult, MERGE_PROMPT_HASH);
 
-  return deriveImpliedFields(parseJSON(mergeRaw) as UserProfile);
+  return deriveImpliedFields(parseJSON(mergeResult.content) as UserProfile);
 }

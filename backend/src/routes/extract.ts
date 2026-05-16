@@ -54,7 +54,9 @@ export async function extractRoutes(app: FastifyInstance) {
     }
 
     try {
-      const profile = await extractProfileFromAssets(assets, OPENAI_KEY);
+      const profile = await extractProfileFromAssets(assets, OPENAI_KEY, {
+        userId: currentUser.user.id,
+      });
       return reply.send({ profile });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

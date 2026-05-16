@@ -200,6 +200,7 @@ export async function assetRoutes(app: FastifyInstance) {
           },
         ],
         OPENAI_KEY,
+        { userId },
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
