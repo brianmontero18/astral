@@ -1,0 +1,24 @@
+backend/scripts/prod-audits/README.md
+  s_963b0e03d79839::t_9a93fa62d350cc 35-40
+backend/src/__tests__/extraction-service.test.ts
+  s_963b0e03d79839::t_b4edb8e9529dee 352-363
+  s_963b0e03d79839::t_d42053865726af 219-220,225-227,232-236
+backend/src/extraction-service.ts
+  s_963b0e03d79839::t_2233ef556823bb 883-891
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "5493db9990bc1882668d8d4f387c136ff57fe605",
+  "prompts": {},
+  "sessions": {
+    "s_963b0e03d79839": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8d65de57-dc44-4e93-b0e6-c2b110ada1a2",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
