@@ -880,9 +880,15 @@ export async function extractProfileFromAssets(
     }
 
     // PDF sin texto extraíble (capa vectorial, imagen embebida, capturas
-    // via "Imprimir como PDF" de Chrome). Caemos a Vision para no
-    // dejar a la usuaria sin onboarding solo porque su herramienta
-    // exporta sin layer de texto.
+    // via "Imprimir como PDF" de Chrome). El path Vision está implementado
+    // pero hoy alucina los 26 gates con shape estructuralmente válida
+    // (validation de count/lines/planets pasa pero los números son
+    // inventados). Hasta tener una solución con precisión >95% verificada,
+    // el fallback queda detrás de FEATURE_EXTRACTION_VISION_FALLBACK.
+    // Default false → tira UNREADABLE_PDF_MESSAGE como antes del refactor.
+    if (process.env.FEATURE_EXTRACTION_VISION_FALLBACK !== "true") {
+      throw new UserFacingError(UNREADABLE_PDF_MESSAGE);
+    }
     return extractHdViaVision(asset, openaiKey, telemetryCtx);
   }
 

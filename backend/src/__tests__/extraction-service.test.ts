@@ -216,14 +216,24 @@ const IMAGE_PDF_ASSET = {
 };
 
 describe("extractProfileFromAssets — Vision fallback for image-only PDFs (astral-asy)", () => {
+  const originalFlag = process.env.FEATURE_EXTRACTION_VISION_FALLBACK;
+
   beforeEach(() => {
     extractPdfTextMock.mockReset();
     extractPdfTextMock.mockResolvedValue(""); // simulates an image-only PDF
     insertLlmCallMock.mockReset();
+    // The Vision path is gated behind a feature flag in production. Tests
+    // exercise the implementation directly so they enable it explicitly.
+    process.env.FEATURE_EXTRACTION_VISION_FALLBACK = "true";
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    if (originalFlag === undefined) {
+      delete process.env.FEATURE_EXTRACTION_VISION_FALLBACK;
+    } else {
+      process.env.FEATURE_EXTRACTION_VISION_FALLBACK = originalFlag;
+    }
   });
 
   it("falls back to Vision when pdfjs extracts no text and returns a valid profile", async () => {
@@ -337,6 +347,18 @@ describe("extractProfileFromAssets — Vision fallback for image-only PDFs (astr
     await extractProfileFromAssets([IMAGE_PDF_ASSET], "fake-key");
 
     expect(insertLlmCallMock).not.toHaveBeenCalled();
+  });
+
+  it("does NOT fall back to Vision when FEATURE_EXTRACTION_VISION_FALLBACK is not 'true'", async () => {
+    delete process.env.FEATURE_EXTRACTION_VISION_FALLBACK;
+    const fetchSpy = vi.fn();
+    global.fetch = fetchSpy as unknown as typeof fetch;
+
+    await expect(
+      extractProfileFromAssets([IMAGE_PDF_ASSET], "fake-key"),
+    ).rejects.toBeInstanceOf(UserFacingError);
+
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it("does NOT call Vision when the PDF has extractable text from a known provider (regression)", async () => {
