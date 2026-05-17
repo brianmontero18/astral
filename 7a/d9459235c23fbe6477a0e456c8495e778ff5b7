@@ -1,0 +1,24 @@
+backend/src/__tests__/bodygraph-calculate.test.ts
+  s_b261358f8f8c95::t_2a15bc74f4d1ea 208-209,211
+backend/src/__tests__/hd-crosses.test.ts
+  s_b261358f8f8c95::t_08c5d66da19364 46-48,52,56-60
+  s_b261358f8f8c95::t_3e6eb84ef03810 78-102
+backend/src/hd-crosses.ts
+  s_b261358f8f8c95::t_c1034ffb6f7fd6 25-26,28-42,75,85,89,93-94,96-97,99,102,108-109,114,121,123,127,135,141-142,147,151-152,154-156,159-164,166,169-170,172,174-176,178,181,184,188,190-192,194-195,201-202,275
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "7ad9459235c23fbe6477a0e456c8495e778ff5b7",
+  "prompts": {},
+  "sessions": {
+    "s_b261358f8f8c95": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "546a20e1-3614-4c30-8828-b50165594b08",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
