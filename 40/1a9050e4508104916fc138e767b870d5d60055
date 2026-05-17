@@ -1,0 +1,42 @@
+backend/src/__tests__/prompt-cache-discipline.test.ts
+  s_6653f2643ef3b3::t_a791afefedf070 18-22
+backend/src/agent-service-v2-prompt.ts
+  s_8ac6ccbd3c7763::t_51b2c22faeee97 23
+  s_fa76ce704ec9be::t_95515968530958 192
+backend/src/agent-service.ts
+  s_8ac6ccbd3c7763::t_ed284e63958652 19
+  s_fa76ce704ec9be::t_f265d9ed298872 49-56,58-69,73-78,81,83-84,87-91,97-105,107-114
+  s_fa76ce704ec9be::t_dada8daa93da8d 250
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "401a9050e4508104916fc138e767b870d5d60055",
+  "prompts": {},
+  "sessions": {
+    "s_6653f2643ef3b3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e3703-55f7-70b2-b7e0-ee6aa32e16f5",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    },
+    "s_8ac6ccbd3c7763": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e3703-7b5d-7a73-9a30-e3bb2b942f4f",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    },
+    "s_fa76ce704ec9be": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5b30039-a463-475b-9808-119e555e125d",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
