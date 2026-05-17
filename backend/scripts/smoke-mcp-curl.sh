@@ -136,6 +136,7 @@ NO_CONSENT_TOKEN="$(json_get "data.tokens.noConsent.token")"
 WRONG_AUDIENCE_TOKEN="$(json_get "data.tokens.wrongAudience.token")"
 EXPIRED_TOKEN="$(json_get "data.tokens.expired.token")"
 REVOKED_TOKEN="$(json_get "data.tokens.revoked.token")"
+READ_ONLY_TOKEN="$(json_get "data.tokens.readOnly.token")"
 
 echo "Remote MCP curl smoke"
 echo "Base URL: ${BASE_URL}"
@@ -158,6 +159,12 @@ assert_status "405" "GET is not a Streamable HTTP MCP call"
 assert_json "GET returns method_not_allowed" "data.error === 'method_not_allowed'"
 pass "GET is rejected with method_not_allowed"
 
+request "PATCH" "${BASE_URL}/api/mcp/v1" "" \
+  -H "accept: application/json, text/event-stream"
+assert_status "405" "PATCH is not a Streamable HTTP MCP call"
+assert_json "PATCH returns method_not_allowed" "data.error === 'method_not_allowed'"
+pass "PATCH is rejected with method_not_allowed"
+
 request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"missing-auth","method":"initialize"}' \
   -H "content-type: application/json" \
   -H "accept: application/json, text/event-stream"
@@ -179,6 +186,7 @@ request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"no-consent","met
   -H "authorization: Bearer ${NO_CONSENT_TOKEN}"
 assert_status "403" "missing consent"
 assert_json "missing consent blocks initialize" "data.error.message === 'consent_required'"
+assert_json "missing consent does not leak internal ids" "data.error.data && !('userId' in data.error.data) && !('clientId' in data.error.data) && !('tokenId' in data.error.data)"
 pass "missing consent blocks initialize"
 
 request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"wrong-audience","method":"initialize"}' \
@@ -212,6 +220,14 @@ request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"bad-accept","met
 assert_status "406" "missing event-stream accept"
 assert_json "bad accept returns not_acceptable" "data.error === 'not_acceptable'"
 pass "bad Accept header is rejected"
+
+request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"lookalike-accept","method":"initialize"}' \
+  -H "content-type: application/json" \
+  -H "accept: application/jsonl, text/event-stream" \
+  -H "authorization: Bearer ${VALID_TOKEN}"
+assert_status "406" "lookalike JSON accept"
+assert_json "lookalike Accept returns not_acceptable" "data.error === 'not_acceptable'"
+pass "lookalike Accept media type is rejected"
 
 request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"bad-origin","method":"initialize"}' \
   -H "content-type: application/json" \
@@ -270,5 +286,13 @@ request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"call","method":"
 assert_status "200" "tools/call disabled"
 assert_json "tools/call is disabled" "data.error.code === -32601 && data.error.message === 'Method not found'"
 pass "tools/call is disabled in transport-only slice"
+
+request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"read-only-call","method":"tools/call","params":{"name":"ask_astral_guide_v1","arguments":{"question":"hello"}}}' \
+  -H "content-type: application/json" \
+  -H "accept: application/json, text/event-stream" \
+  -H "authorization: Bearer ${READ_ONLY_TOKEN}"
+assert_status "200" "tools/call disabled for read-only clients"
+assert_json "tools/call disabled before scope checks" "data.error.code === -32601 && data.error.message === 'Method not found'"
+pass "tools/call remains disabled for read-only scoped clients"
 
 echo "Remote MCP curl smoke complete"

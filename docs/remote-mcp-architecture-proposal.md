@@ -478,7 +478,7 @@ El route HTTP y MCP deben ser adapters finos sobre esa funcion.
 
 ---
 
-## Acceptance criteria de una primera implementacion
+## Acceptance criteria del MVP con tools
 
 1. Con `FEATURE_REMOTE_MCP=false`, el endpoint MCP no lista tools.
 2. Sin token valido, el endpoint MCP versionado responde auth error.
@@ -522,7 +522,7 @@ Bloqueantes que cambian schema shape:
 
 No bloqueantes:
 
-- Que herramienta MCP library usar en Node/Fastify. Resolver en Slice 3; no cambia tablas ni `McpPrincipal`.
+- Si migrar el transporte manual minimalista a una libreria MCP de Node cuando agreguemos tools complejas o compatibilidad de cliente lo justifique. Slice 3 no necesito dependencia nueva.
 - Nombre final de tools.
 - Si `get_my_profile_summary_v1` debe existir despues del MVP y con que scope/consentimiento.
 - Si el reporte semanal va como tool aparte o como prompt dentro de `ask_astral_guide_v1`.

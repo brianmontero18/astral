@@ -499,10 +499,10 @@ Current coverage:
 - starts a backend process against a temp DB;
 - seeds a private beta MCP client, consent, and hashed bearer tokens;
 - verifies `FEATURE_REMOTE_MCP=false` keeps `/api/mcp/v1` unregistered;
-- verifies missing/invalid/no-consent/wrong-audience/expired/revoked bearer failures;
-- verifies bad `Accept`, mismatched browser `Origin`, and batch-shaped JSON are rejected;
+- verifies missing/invalid/no-consent/wrong-audience/expired/revoked bearer failures without leaking internal `userId`, `clientId`, or `tokenId`;
+- verifies non-POST HTTP methods, bad/lookalike `Accept`, mismatched browser `Origin`, and batch-shaped JSON are rejected;
 - verifies valid `initialize`, `notifications/initialized`, `ping`, and `tools/list`;
-- verifies `tools/list` is empty and `tools/call` remains disabled until Slice 4.
+- verifies `tools/list` is empty and `tools/call` remains disabled until Slice 4, including for consented clients without `mcp:ask`.
 
 Next expansion after Slice 4:
 

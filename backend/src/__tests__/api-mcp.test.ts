@@ -100,6 +100,26 @@ describe("Remote MCP route", () => {
     expect(res.statusCode).toBe(404);
   });
 
+  it.each(["GET", "PUT", "PATCH", "DELETE"])(
+    "rejects %s requests because Streamable HTTP messages use POST",
+    async (method) => {
+      const harness = await buildMcpTestApp(true);
+
+      const res = await harness.app.inject({
+        method,
+        url: "/api/mcp/v1",
+        headers: {
+          accept: "application/json, text/event-stream",
+        },
+      });
+
+      expect(res.statusCode).toBe(405);
+      expect(JSON.parse(res.body)).toEqual({
+        error: "method_not_allowed",
+      });
+    },
+  );
+
   it("requires bearer auth before initialize", async () => {
     const harness = await buildMcpTestApp(true);
 
@@ -120,6 +140,38 @@ describe("Remote MCP route", () => {
       error: {
         message: "authentication_required",
       },
+    });
+  });
+
+  it("accepts protocol media types case-insensitively and rejects lookalike media types", async () => {
+    const harness = await buildMcpTestApp(true);
+    await harness.seedAccess();
+
+    const accepted = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: {
+        authorization: `Bearer ${RAW_TOKEN}`,
+        accept: "Application/JSON; charset=utf-8, Text/Event-Stream",
+        "content-type": "application/json",
+      },
+      payload: jsonRpcBody("ping"),
+    });
+    expect(accepted.statusCode).toBe(200);
+
+    const rejected = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: {
+        authorization: `Bearer ${RAW_TOKEN}`,
+        accept: "application/jsonl, text/event-stream",
+        "content-type": "application/json",
+      },
+      payload: jsonRpcBody("ping"),
+    });
+    expect(rejected.statusCode).toBe(406);
+    expect(JSON.parse(rejected.body)).toEqual({
+      error: "not_acceptable",
     });
   });
 
@@ -159,6 +211,12 @@ describe("Remote MCP route", () => {
         message: "consent_required",
       },
     });
+    const body = JSON.parse(res.body) as {
+      error: { data?: Record<string, unknown> };
+    };
+    expect(body.error.data).not.toHaveProperty("userId");
+    expect(body.error.data).not.toHaveProperty("clientId");
+    expect(body.error.data).not.toHaveProperty("tokenId");
   });
 
   it("initializes and lists zero tools for an authenticated consented beta client", async () => {
@@ -225,6 +283,50 @@ describe("Remote MCP route", () => {
   it("does not enable tools/call in the transport slice", async () => {
     const harness = await buildMcpTestApp(true);
     await harness.seedAccess();
+
+    const res = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: jsonRpcBody("tools/call"),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toMatchObject({
+      jsonrpc: "2.0",
+      id: "req-1",
+      error: {
+        code: -32601,
+        message: "Method not found",
+      },
+    });
+  });
+
+  it("keeps tools/call disabled even for consented clients without mcp:ask scope", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    const userId = await db.createUser("MCP Read Only User", {
+      humanDesign: {
+        type: "Projector",
+      },
+    });
+    const clientId = await db.createMcpClient({
+      id: "read-only-beta",
+      name: "Read Only Beta",
+    });
+    await db.createMcpConsent({
+      userId,
+      clientId,
+      scopes: ["mcp:read_hd"],
+    });
+    await db.createMcpToken({
+      tokenHash: hashMcpBearerToken(RAW_TOKEN),
+      userId,
+      clientId,
+      scopes: ["mcp:read_hd"],
+      audience: MCP_AUDIENCE,
+      expiresAt: futureExpiry(),
+    });
 
     const res = await harness.app.inject({
       method: "POST",

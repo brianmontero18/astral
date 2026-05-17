@@ -53,10 +53,17 @@ function getHeaderValue(header: string | Array<string> | undefined): string | un
 
 function wantsJson(request: FastifyRequest): boolean {
   const accept = getHeaderValue(request.headers.accept);
+  const mediaTypes = accept
+    ?.toLowerCase()
+    .split(",")
+    .map((part) => part.trim().split(";")[0]?.trim())
+    .filter((part): part is string => Boolean(part));
+  const acceptsAny = mediaTypes?.includes("*/*") ?? false;
+
   return Boolean(
-    accept &&
-    (accept.includes("application/json") || accept.includes("*/*")) &&
-    (accept.includes("text/event-stream") || accept.includes("*/*")),
+    mediaTypes &&
+    (acceptsAny || mediaTypes.includes("application/json")) &&
+    (acceptsAny || mediaTypes.includes("text/event-stream")),
   );
 }
 
@@ -135,9 +142,6 @@ function authErrorResponse(
     AUTH_ERROR_CODES[auth.error],
     auth.error,
     {
-      tokenId: auth.tokenId,
-      userId: auth.userId,
-      clientId: auth.clientId,
       requiredScopes: auth.requiredScopes ?? [],
     },
   );
@@ -160,12 +164,10 @@ function initializeResult() {
 
 async function authorizeForMethod(
   request: FastifyRequest,
-  method: string | undefined,
 ): Promise<ResolveMcpPrincipalResult> {
-  const requiredScopes = method === "tools/call" ? ["mcp:ask"] : [];
   return resolveMcpPrincipal({
     authorizationHeader: request.headers.authorization,
-    requiredScopes,
+    requiredScopes: [],
   });
 }
 
@@ -199,7 +201,7 @@ export async function handleMcpPost(
   }
 
   const message = request.body;
-  const auth = await authorizeForMethod(request, message.method);
+  const auth = await authorizeForMethod(request);
   if (auth.kind !== "authorized") {
     await reply
       .status(auth.statusCode)

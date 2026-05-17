@@ -108,6 +108,12 @@ const revoked = await seedToken({
   clientId,
   revokedAt: new Date().toISOString(),
 });
+const readOnly = await seedToken({
+  label: "read_only",
+  userId,
+  clientId,
+  scopes: ["mcp:read_hd"],
+});
 
 console.log(JSON.stringify({
   userId,
@@ -118,5 +124,6 @@ console.log(JSON.stringify({
     wrongAudience,
     expired,
     revoked,
+    readOnly,
   },
 }));
