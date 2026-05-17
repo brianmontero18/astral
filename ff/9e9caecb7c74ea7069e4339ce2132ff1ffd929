@@ -1,0 +1,34 @@
+docs/remote-mcp-architecture-proposal.md
+  s_62b8d99e2a79a2::t_16cfd46087bb77 481,525
+backend/src/mcp/server.ts
+  s_62b8d99e2a79a2::t_a177adeb755d3d 56-62,64-66
+  s_62b8d99e2a79a2::t_fcd85371c03312 170,204
+backend/scripts/smoke-mcp-curl.sh
+  s_62b8d99e2a79a2::t_a5316c45c6e0a5 139,189,290-296
+  s_62b8d99e2a79a2::t_e387e8157a618e 162-167,224-230
+backend/src/routes/mcp.ts
+  s_62b8d99e2a79a2::t_54b03a77c49742 7-8
+backend/scripts/seed-mcp-smoke.ts
+  s_62b8d99e2a79a2::t_69eef968ee7dcf 111-116,127
+backend/src/__tests__/api-mcp.test.ts
+  s_62b8d99e2a79a2::t_1ec90c34d5fc14 214-219,305-329
+  s_62b8d99e2a79a2::t_3c50c798072591 103-122,146-174
+docs/remote-mcp-implementation-recon-plan.md
+  s_62b8d99e2a79a2::t_33ba290f76e8f1 502-503,505
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "ff9e9caecb7c74ea7069e4339ce2132ff1ffd929",
+  "prompts": {},
+  "sessions": {
+    "s_62b8d99e2a79a2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e3725-5a85-7d62-8c54-69eb956a2ff8",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
