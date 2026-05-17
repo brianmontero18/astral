@@ -1,0 +1,56 @@
+docs/architecture/bodygraph-render.md
+  s_fa76ce704ec9be::t_20f41dbc193814 223-224
+  s_fa76ce704ec9be::t_934f1af4b99c52 1-50,52-140,142,148-220,222
+  s_fa76ce704ec9be::t_23f1d2263ea14e 51
+  s_fa76ce704ec9be::t_1cbfa8f4221d5b 141,143-147
+  s_fa76ce704ec9be::t_660eba7567da75 221,225-260
+backend/src/bodygraph/render-svg.ts
+  s_fa76ce704ec9be::t_f4805227024fd7 430
+  s_fa76ce704ec9be::t_0c44f55b261b64 59-60,62,362-363,401,457,460-463,466-467,488,491,508,513,515,527,541,605,611
+  s_fa76ce704ec9be::t_f1b4e3645382ad 253-255
+  s_fa76ce704ec9be::t_881628edd1123b 171,174
+  s_fa76ce704ec9be::t_60c1a42e6fbabb 280-281
+  s_fa76ce704ec9be::t_8cbaccd8f48ee9 161,164-166,172,175-215,229-237,240-246
+  s_fa76ce704ec9be::t_d702038164ec2d 447
+  s_fa76ce704ec9be::t_917a511229afc0 364
+  s_fa76ce704ec9be::t_c03c20745bb87f 222-223
+  s_fa76ce704ec9be::t_c22ba19801eae1 20,26
+  s_fa76ce704ec9be::t_cd3bd677142c3e 318,328,339-351,358-359
+  s_fa76ce704ec9be::t_69c37ad5d467f1 224-225,247-248,256-263,266-273,275
+  s_fa76ce704ec9be::t_6590ec4ba8044c 1,3,7,14-19,21-25,27,33-42,44-45,47-58,63-64,66-73,76-77,87-88,90-95,105-149,151-160,167-170,173,216-221,226-228,276-279,282-309,311,313-317,319-327,329-336,352-355,357,519-526,528-536,623
+  s_fa76ce704ec9be::t_3deea0e7deb407 8,11,28-32,75,78-86,96-104,312,356,360-361,372-373,375-379,392-393,395-396,400,403,406-413,415-417,420,422-429,433-438,440-441,444,449-450,453,456,470,473,493-498,500,502-507,509-512,514,516-518,537-538,540,543,545,555-557,563,566-570,572,574-576,578,580-581,592-593,597,599-601,606-607,612-622
+  s_fa76ce704ec9be::t_bb529eb1236892 150
+backend/src/__tests__/bodygraph-render-svg.test.ts
+  s_fa76ce704ec9be::t_cf3f92d4cf1b42 13,21
+  s_fa76ce704ec9be::t_a87526b7abc65e 152-198,200-211,213-219
+  s_fa76ce704ec9be::t_aa2db819f201f9 1-12,14-20,22-151,220-255
+backend/src/bodygraph/planet-symbols.ts
+  s_fa76ce704ec9be::t_a2d1dccd2eebbb 1-6,9-114
+  s_fa76ce704ec9be::t_4c20be2a6a8194 7-8
+backend/src/bodygraph/svg-geometry.ts
+  s_fa76ce704ec9be::t_3b9cf4618d5c04 194-196,205,210,214-223,226
+  s_fa76ce704ec9be::t_b91be6b16a5324 183-189
+  s_fa76ce704ec9be::t_e7ed2a8eefb759 240
+  s_fa76ce704ec9be::t_4bb3cd11b0fa33 229-238
+  s_fa76ce704ec9be::t_044a9d26543f0a 1-10,17-182,190,192-193,197,200,224,227-228,239,241-279
+  s_fa76ce704ec9be::t_4e8c2485f9e780 191,203-204,206-209,211-213,225
+  s_fa76ce704ec9be::t_59866b537cd775 280-320
+  s_fa76ce704ec9be::t_26e7f807f30493 11-16
+  s_fa76ce704ec9be::t_21298147ae8044 198-199,201-202
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "66d7aeba539a6affd5a0c33cd895ad12c4affbd0",
+  "prompts": {},
+  "sessions": {
+    "s_fa76ce704ec9be": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5b30039-a463-475b-9808-119e555e125d",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
