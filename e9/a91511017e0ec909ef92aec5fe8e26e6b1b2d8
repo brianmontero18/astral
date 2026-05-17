@@ -1,0 +1,21 @@
+backend/src/__tests__/bodygraph-calculate.test.ts
+  s_fa76ce704ec9be::t_731ad89c8cd814 99
+backend/src/hd-meta.ts
+  s_fa76ce704ec9be::t_c8a05eae683108 15-20,25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "e9a91511017e0ec909ef92aec5fe8e26e6b1b2d8",
+  "prompts": {},
+  "sessions": {
+    "s_fa76ce704ec9be": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5b30039-a463-475b-9808-119e555e125d",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
