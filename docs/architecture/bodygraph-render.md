@@ -175,6 +175,7 @@ paralelo. Esto viola la regla 5. La corrección llega cuando el DTO exponga
 
 - **Genetic Matrix usa "Opportunistic"** (no "Opportunist" del canon Ra Uru Hu). Nuestra tabla `PROFILE_LINE_NAMES` se alinea al dialecto de Genetic Matrix.
 - **Genetic Matrix NO renderiza markers "R" en este layout de Foundation Chart**. Los markers visibles `△ ▽` son **fixing state** (Exalted/Detriment), no retrograde. `astral-lor` (P3.3) va a pintar fixing state visualmente; la representación de retrograde queda como decisión de diseño nuestra (probablemente fuera de scope para MVP).
+- **Naming canónico de subdivisiones**: HD canon (per SharpAstrology.HumanDesign/Utility/HumanDesignUtility.cs) define cinco niveles: `gate → line → color → tone → base`. La primera versión de `astral-hjx` llamó "tone" a lo que canon llama "color"; corregido en `astral-hjx-fix` (rename + agregar tone real + base). El Variable Wheel consume color y tone por separado.
 
 ### ❌ Falta — agrupado por paquetes
 
@@ -196,7 +197,9 @@ Ver beads hijos abajo. La sección 4 detalla el gap analysis.
 | `activatedGates[].isRetrograde` | DTO + Swiss Eph speed flag | P0 |
 | `humanDesign.incarnationCross` | DTO + tabla canónica ~192 crosses | P1 |
 | `activatedGates[].fixingState` | DTO + tabla `(planet, gate) → state` | P1 |
-| `activatedGates[].tone` (1..6 dentro de line) | DTO + extender cálculo astronómico | P2 |
+| `activatedGates[].color` (1..6, sixth de la line) | DTO + cálculo astronómico | P2 ✅ |
+| `activatedGates[].tone` (1..6, sixth del color) | DTO + cálculo astronómico | P2 ✅ |
+| `activatedGates[].base` (1..5, fifth del tone) | DTO + cálculo astronómico | P2 ✅ |
 | `humanDesign.design.*` + `humanDesign.personality.*` (Brain, Determination, Cognition, Environment, Motivation, Sense, Trajectory, View, Perspective, etc.) | DTO + Variable Wheel | P2 |
 
 ### 4.2 Capa 2 — visual

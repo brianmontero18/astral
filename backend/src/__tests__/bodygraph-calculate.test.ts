@@ -204,22 +204,24 @@ describe("calculateBodygraph", () => {
     });
   });
 
-  describe("P2 — tone (subdivisión line/6) en activatedGates", () => {
-    it("populates a valid tone [1..6] on every activated gate for Agos", async () => {
+  describe("P2 — color / tone / base subdivisiones HD en activatedGates", () => {
+    it("populates valid color/tone/base on every activated gate for Agos", async () => {
       const profile = await calculateBodygraph({
         date: "1988-12-28",
         time: "06:13",
         timezoneOffsetHours: 0,
       });
       for (const g of profile.humanDesign.activatedGates) {
-        expect(typeof g.tone).toBe("number");
+        expect(g.color).toBeGreaterThanOrEqual(1);
+        expect(g.color).toBeLessThanOrEqual(6);
         expect(g.tone).toBeGreaterThanOrEqual(1);
         expect(g.tone).toBeLessThanOrEqual(6);
+        expect(g.base).toBeGreaterThanOrEqual(1);
+        expect(g.base).toBeLessThanOrEqual(5);
       }
     });
 
     it("is deterministic across timezone equivalence", async () => {
-      // Same absolute moment, two different (date,time,tz) inputs.
       const utc = await calculateBodygraph({
         date: "1988-12-28",
         time: "06:13",
@@ -230,13 +232,14 @@ describe("calculateBodygraph", () => {
         time: "03:13",
         timezoneOffsetHours: -3,
       });
-      // All activatedGates have identical (gate, line, tone) — same moment.
-      const key = (g: { number: number; line: number; tone?: number; planet: string; isPersonality: boolean }) =>
+      const key = (g: { planet: string; isPersonality: boolean }) =>
         `${g.planet}-${g.isPersonality ? "P" : "D"}`;
       const byKey = new Map(localMinus3.humanDesign.activatedGates.map((g) => [key(g), g]));
       for (const g of utc.humanDesign.activatedGates) {
         const other = byKey.get(key(g));
+        expect(other?.color).toBe(g.color);
         expect(other?.tone).toBe(g.tone);
+        expect(other?.base).toBe(g.base);
       }
     });
   });
