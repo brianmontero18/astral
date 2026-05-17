@@ -35,18 +35,37 @@ const DEGREES_PER_GATE = 360 / 64; // 5.625°
  */
 const WHEEL_OFFSET = 302;
 
-export function degreeToGate(longitude: number): { gate: number; line: number } {
+const DEGREES_PER_LINE = DEGREES_PER_GATE / 6;       // 0.9375°
+const DEGREES_PER_TONE = DEGREES_PER_LINE / 6;       // 0.15625°
+
+/**
+ * Convert an ecliptic longitude to a Human Design gate/line/tone position.
+ *
+ * - `gate`: 1..64, indexed via the Rave Mandala sequence (`GATE_SEQUENCE`).
+ * - `line`: 1..6, sixth subdivision of a gate (0.9375° each).
+ * - `tone`: 1..6, sixth subdivision of a line (0.15625° each). Required by
+ *   the Variable Wheel — Brain/Determination/Cognition/etc. are functions of
+ *   the tone of specific planets at the design or personality moment.
+ *
+ * Subdivision system: Quantum (linear). Genetic Matrix uses this convention;
+ * the older Original I-Ching system distributes tones non-linearly within a
+ * line. We do not support Original — every consumer in Astral targets the
+ * Quantum layout.
+ */
+export function degreeToGate(longitude: number): { gate: number; line: number; tone: number } {
   const normalized = ((longitude % 360) + 360) % 360;
   const adjusted = ((normalized - WHEEL_OFFSET) % 360 + 360) % 360;
 
   const slot = Math.floor(adjusted / DEGREES_PER_GATE);
   const gate = GATE_SEQUENCE[slot];
 
-  // Each gate has 6 lines, each covering 5.625° / 6 = 0.9375°
   const positionWithinGate = adjusted - slot * DEGREES_PER_GATE;
-  const line = Math.floor(positionWithinGate / (DEGREES_PER_GATE / 6)) + 1;
+  const line = Math.min(Math.floor(positionWithinGate / DEGREES_PER_LINE) + 1, 6);
 
-  return { gate, line: Math.min(line, 6) };
+  const positionWithinLine = positionWithinGate - (line - 1) * DEGREES_PER_LINE;
+  const tone = Math.min(Math.floor(positionWithinLine / DEGREES_PER_TONE) + 1, 6);
+
+  return { gate, line, tone };
 }
 
 // ─── Gate-to-Center mapping (64 gates → 9 centers) ───────────────────────────

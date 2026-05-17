@@ -107,6 +107,11 @@ export interface UserProfile {
     activatedGates: Array<{
       number: number;
       line: number;
+      /**
+       * Sixth subdivision of the line (1..6). Quantum convention (linear
+       * subdivision). Required by the Variable Wheel downstream.
+       */
+      tone?: number;
       planet: string;
       isPersonality: boolean;
       /** Velocidad eclíptica negativa al momento del cálculo. */

@@ -204,6 +204,43 @@ describe("calculateBodygraph", () => {
     });
   });
 
+  describe("P2 — tone (subdivisión line/6) en activatedGates", () => {
+    it("populates a valid tone [1..6] on every activated gate for Agos", async () => {
+      const profile = await calculateBodygraph({
+        date: "1988-12-28",
+        time: "06:13",
+        timezoneOffsetHours: 0,
+      });
+      for (const g of profile.humanDesign.activatedGates) {
+        expect(typeof g.tone).toBe("number");
+        expect(g.tone).toBeGreaterThanOrEqual(1);
+        expect(g.tone).toBeLessThanOrEqual(6);
+      }
+    });
+
+    it("is deterministic across timezone equivalence", async () => {
+      // Same absolute moment, two different (date,time,tz) inputs.
+      const utc = await calculateBodygraph({
+        date: "1988-12-28",
+        time: "06:13",
+        timezoneOffsetHours: 0,
+      });
+      const localMinus3 = await calculateBodygraph({
+        date: "1988-12-28",
+        time: "03:13",
+        timezoneOffsetHours: -3,
+      });
+      // All activatedGates have identical (gate, line, tone) — same moment.
+      const key = (g: { number: number; line: number; tone?: number; planet: string; isPersonality: boolean }) =>
+        `${g.planet}-${g.isPersonality ? "P" : "D"}`;
+      const byKey = new Map(localMinus3.humanDesign.activatedGates.map((g) => [key(g), g]));
+      for (const g of utc.humanDesign.activatedGates) {
+        const other = byKey.get(key(g));
+        expect(other?.tone).toBe(g.tone);
+      }
+    });
+  });
+
   describe("timezone handling", () => {
     it("converts local time to UTC using the offset", async () => {
       const localUtcMinus3: BirthData = {

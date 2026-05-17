@@ -109,6 +109,47 @@ describe("degreeToGate", () => {
     expect(degreeToGate(3.5).gate).toBe(25);
     expect(degreeToGate(3.875).gate).toBe(17);
   });
+
+  describe("tone (sixth subdivision of a line)", () => {
+    // Each line is 0.9375°, each tone is 0.9375/6 = 0.15625°.
+    it("returns tone 1 at the start of line 1 of Gate 41", () => {
+      expect(degreeToGate(302).tone).toBe(1);
+    });
+
+    it("returns tone 6 at the end of line 1 of Gate 41", () => {
+      // Line 1 spans 302° to 302.9375°. The last tone slot starts at
+      // 302 + 5*0.15625 = 302.78125° and ends at 302.9375°.
+      expect(degreeToGate(302.78125).tone).toBe(6);
+      expect(degreeToGate(302.9374).tone).toBe(6);
+    });
+
+    it("rolls tone back to 1 when crossing into the next line", () => {
+      // 302.9375° is the start of line 2 → tone 1 of line 2.
+      const r = degreeToGate(302.9375);
+      expect(r.line).toBe(2);
+      expect(r.tone).toBe(1);
+    });
+
+    it("matches every tone slot within line 1 of Gate 41", () => {
+      const TONE_WIDTH = 0.15625;
+      for (let tone = 1; tone <= 6; tone++) {
+        // Probe a tiny epsilon past the tone slot start.
+        const longitude = 302 + (tone - 1) * TONE_WIDTH + 0.001;
+        const r = degreeToGate(longitude);
+        expect(r.gate, `tone ${tone} probe should still be gate 41`).toBe(41);
+        expect(r.line, `tone ${tone} probe should still be line 1`).toBe(1);
+        expect(r.tone, `tone slot ${tone}`).toBe(tone);
+      }
+    });
+
+    it("returns tone in [1, 6] for any degree", () => {
+      for (let deg = 0; deg < 360; deg += 0.7) {
+        const { tone } = degreeToGate(deg);
+        expect(tone).toBeGreaterThanOrEqual(1);
+        expect(tone).toBeLessThanOrEqual(6);
+      }
+    });
+  });
 });
 
 describe("GATE_TO_CENTER", () => {

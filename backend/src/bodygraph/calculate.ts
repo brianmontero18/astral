@@ -64,6 +64,7 @@ type Side = "personality" | "design";
 interface ComputedGate {
   number: number;
   line: number;
+  tone: number;
   planet: string;
   isPersonality: boolean;
   isRetrograde: boolean;
@@ -162,10 +163,11 @@ function computeAllGates(swe: Swe, personalityJd: number, designJd: number): Com
         lon = normLon(r[0]);
         isRetrograde = r[3] < 0;
       }
-      const { gate, line } = degreeToGate(lon);
+      const { gate, line, tone } = degreeToGate(lon);
       out.push({
         number: gate,
         line,
+        tone,
         planet: body,
         isPersonality: side === "personality",
         isRetrograde,
