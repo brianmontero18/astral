@@ -385,6 +385,8 @@ Implemented scope:
 
 ### Slice 3 — MCP transport behind flag
 
+Status: cerrado en `astral-c8p`.
+
 Goal: register an MCP endpoint that can list zero or minimal tools safely.
 
 Likely files:
@@ -403,6 +405,15 @@ Acceptance:
 - authenticated request with consent can initialize/list tools;
 - wrong Origin/header patterns rejected if required by transport;
 - `/api/chat` tests still pass.
+
+Implemented scope:
+
+- `FEATURE_REMOTE_MCP=false` keeps `/api/mcp/v1` unregistered;
+- `FEATURE_REMOTE_MCP=true` exposes stateless Streamable HTTP JSON-RPC at `/api/mcp/v1`;
+- every JSON-RPC message is bearer-authenticated through the Slice 2 MCP principal resolver;
+- `initialize`, `notifications/initialized`, `ping`, and `tools/list` are supported;
+- `tools/list` returns an empty list until Slice 4 registers tool metadata;
+- `tools/call` is not enabled and does not call `GuideService`, LLMs, chat persistence, or memory writer.
 
 ### Slice 4 — `ask_astral_guide_v1`
 
