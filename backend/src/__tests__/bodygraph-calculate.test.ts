@@ -98,6 +98,7 @@ describe("calculateBodygraph", () => {
       expect(profile.humanDesign.typeQualifier).toBe("Emotional");
       expect(profile.humanDesign.profileName).toBe("Opportunistic / Role Model");
       expect(profile.humanDesign.themes).toEqual({ positive: "Success", notSelf: "Amargura" });
+      expect(profile.humanDesign.incarnationCross).toBe("RAX Service 4");
 
       // designDate ~88° before personality (≈ early October 1988).
       expect(profile.humanDesign.design).toBeDefined();
@@ -201,6 +202,13 @@ describe("calculateBodygraph", () => {
       expect(profile.humanDesign.profileName).toBe("Role Model / Hermit");
       expect(profile.humanDesign.themes).toEqual({ positive: "Satisfaction", notSelf: "Frustración" });
       expect(profile.humanDesign.design!.date).toMatch(/^1988-11-2\dT/);
+    });
+
+    it("derives Brian's incarnation cross from Personality.Sun=30 + 6/2 profile", async () => {
+      // 6/2 → "left" angle; (30, left) → "LAX Industry" per SharpAstrology
+      // canon. Foundation Chart de Brian aún no validado contra Genetic Matrix.
+      const profile = await calculateBodygraph(BRIAN);
+      expect(profile.humanDesign.incarnationCross).toBe("LAX Industry");
     });
   });
 
