@@ -8,8 +8,9 @@
  * con el mismo body shape pero requiriendo session válida y persistiendo
  * el resultado en users.profile + (idealmente) un asset sintético.
  */
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import { calculateBodygraph, type BirthData } from "../bodygraph/calculate.js";
+import { renderBodygraphPdf } from "../bodygraph/render-pdf.js";
 
 interface RequestBody {
   date?: unknown;
@@ -22,38 +23,81 @@ interface RequestBody {
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^\d{2}:\d{2}$/;
 
-export async function bodygraphRoutes(app: FastifyInstance): Promise<void> {
-  app.post<{ Body: RequestBody }>("/bodygraph/preview", async (req, reply) => {
-    const body = req.body ?? {};
+type ParseResult =
+  | { ok: true; birth: BirthData }
+  | { ok: false; status: number; error: string; message: string };
 
-    if (typeof body.date !== "string" || !DATE_RE.test(body.date)) {
-      return reply.status(400).send({ error: "invalid_date", message: "date must be YYYY-MM-DD" });
-    }
-    if (typeof body.time !== "string" || !TIME_RE.test(body.time)) {
-      return reply.status(400).send({ error: "invalid_time", message: "time must be HH:mm" });
-    }
-    if (typeof body.timezoneOffsetHours !== "number" || Number.isNaN(body.timezoneOffsetHours)) {
-      return reply.status(400).send({ error: "invalid_timezone", message: "timezoneOffsetHours must be a number" });
-    }
-    if (body.timezoneOffsetHours < -12 || body.timezoneOffsetHours > 14) {
-      return reply.status(400).send({ error: "invalid_timezone", message: "timezoneOffsetHours out of range" });
-    }
-
-    const birth: BirthData = {
+function parseBirthBody(body: RequestBody): ParseResult {
+  if (typeof body.date !== "string" || !DATE_RE.test(body.date)) {
+    return { ok: false, status: 400, error: "invalid_date", message: "date must be YYYY-MM-DD" };
+  }
+  if (typeof body.time !== "string" || !TIME_RE.test(body.time)) {
+    return { ok: false, status: 400, error: "invalid_time", message: "time must be HH:mm" };
+  }
+  if (typeof body.timezoneOffsetHours !== "number" || Number.isNaN(body.timezoneOffsetHours)) {
+    return { ok: false, status: 400, error: "invalid_timezone", message: "timezoneOffsetHours must be a number" };
+  }
+  if (body.timezoneOffsetHours < -12 || body.timezoneOffsetHours > 14) {
+    return { ok: false, status: 400, error: "invalid_timezone", message: "timezoneOffsetHours out of range" };
+  }
+  return {
+    ok: true,
+    birth: {
       date: body.date,
       time: body.time,
       timezoneOffsetHours: body.timezoneOffsetHours,
       placeLabel: typeof body.placeLabel === "string" ? body.placeLabel : undefined,
       name: typeof body.name === "string" ? body.name : undefined,
-    };
+    },
+  };
+}
+
+function slugifyFilename(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function sendValidationError(reply: FastifyReply, status: number, error: string, message: string) {
+  return reply.status(status).send({ error, message });
+}
+
+export async function bodygraphRoutes(app: FastifyInstance): Promise<void> {
+  app.post<{ Body: RequestBody }>("/bodygraph/preview", async (req, reply) => {
+    const parsed = parseBirthBody(req.body ?? {});
+    if (!parsed.ok) return sendValidationError(reply, parsed.status, parsed.error, parsed.message);
 
     try {
-      const profile = await calculateBodygraph(birth);
+      const profile = await calculateBodygraph(parsed.birth);
       return reply.status(200).send({ profile });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       app.log.error({ err }, "bodygraph preview failed");
       return reply.status(500).send({ error: "calculation_failed", message });
+    }
+  });
+
+  app.post<{ Body: RequestBody }>("/bodygraph/pdf", async (req, reply) => {
+    const parsed = parseBirthBody(req.body ?? {});
+    if (!parsed.ok) return sendValidationError(reply, parsed.status, parsed.error, parsed.message);
+
+    try {
+      const profile = await calculateBodygraph(parsed.birth);
+      const buffer = await renderBodygraphPdf(profile);
+      const slug = profile.name ? slugifyFilename(profile.name) : "";
+      const filename = slug ? `bodygraph-${slug}.pdf` : "bodygraph.pdf";
+      return reply
+        .header("Content-Type", "application/pdf")
+        .header("Content-Disposition", `attachment; filename="${filename}"`)
+        .status(200)
+        .send(buffer);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      app.log.error({ err }, "bodygraph pdf failed");
+      return reply.status(500).send({ error: "pdf_render_failed", message });
     }
   });
 }

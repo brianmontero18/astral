@@ -157,6 +157,7 @@ paralelo. Esto viola la regla 5. La corrección llega cuando el DTO exponga
 - `backend/src/bodygraph/svg-geometry.ts` — 9 centros, 64 gates, 30 line channels + Integration knot K4 (hub + 4 spokes).
 - `backend/src/bodygraph/planet-symbols.ts` — 13 glifos planetarios vectoriales (portados de SharpAstrology MIT).
 - `backend/src/bodygraph/render-svg.ts` — `renderBodygraphSvg()` + `renderFullDocument()`. Activación P/D/Mixed/none por gate y channel half.
+- `backend/src/bodygraph/render-pdf.tsx` — `renderBodygraphPdf(profile)`: rasteriza el SVG completo a PNG con `sharp` (densidad 300 DPI, 2400px) y lo embebe en una página A4 vía `@react-pdf/renderer`. **Importa `render-svg.ts`** (delega el drawing al renderer SVG en vez de duplicarlo). Tradeoff: chart rasterizado vs vectorial, pero a 290 DPI en A4 es print-grade.
 
 **Capa cálculo P0 (`astral-ffm`)**:
 - `backend/src/hd-meta.ts` — tablas chicas (`PROFILE_LINE_NAMES`, `TYPE_POSITIVE_THEME`, `TYPE_QUALIFIER_BY_AUTHORITY`) + helpers (`lookupProfileName`, `lookupPositiveTheme`, `lookupTypeQualifier`, `calcAgeYears`).
@@ -206,7 +207,7 @@ Ver beads hijos abajo. La sección 4 detalla el gap analysis.
 
 | Elemento | Bead |
 |---|---|
-| Endpoint `POST /api/bodygraph/pdf` con `@react-pdf/renderer` | Fase 4 (separada) |
+| Endpoint `POST /api/bodygraph/pdf` con `@react-pdf/renderer` | Fase 4 ✅ |
 | Botón "Descargar PDF" en `BodygraphPoc.tsx` | Fase 5 (separada) |
 | Arrows L/R en panel (Variable Configuration) | P3 |
 | Triángulos de tone (▲/▽ numerados 1-6) | P3 |
