@@ -1,0 +1,30 @@
+backend/scripts/seed-mcp-smoke.ts
+  s_62b8d99e2a79a2::t_8e0ed42ee599ee 1-122
+backend/scripts/smoke-mcp-curl.sh
+  s_62b8d99e2a79a2::t_1258dcc54bbdd8 1-4,6-17,22-60,62-63,65-71,75-86,90-110,117-157,159-164,166-172,174-180,182-188,190-196,198-204,206-212,214-222,224-230,232-238,240-254,256-262,264-270,272-274
+  s_62b8d99e2a79a2::t_274a2e2015a866 111-116
+  s_62b8d99e2a79a2::t_72623c4cb0fdda 61,64,72-73
+  s_62b8d99e2a79a2::t_b26f7f3c5555a1 74
+  s_62b8d99e2a79a2::t_0b17c55af554e3 5
+  s_62b8d99e2a79a2::t_9165b4beddfa2a 18-21,87-89,158,165,173,181,189,197,205,213,223,231,239,255,263,271
+backend/package.json
+  s_62b8d99e2a79a2::t_a2de93f5b86e90 10
+docs/remote-mcp-implementation-recon-plan.md
+  s_62b8d99e2a79a2::t_cd7b35ba45ac17 485-513,548-553
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "bb466361bb0375926ec7d5d9bff18087c7d394d5",
+  "prompts": {},
+  "sessions": {
+    "s_62b8d99e2a79a2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e3725-5a85-7d62-8c54-69eb956a2ff8",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
