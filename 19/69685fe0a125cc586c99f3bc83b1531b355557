@@ -1,0 +1,21 @@
+backend/src/bodygraph/render-svg.ts
+  s_b261358f8f8c95::t_f95f80496d7d26 476-479,481-482,488,491-498,520-528,531
+backend/src/__tests__/bodygraph-render-svg.test.ts
+  s_b261358f8f8c95::t_d06a084381a36c 275-295
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "1969685fe0a125cc586c99f3bc83b1531b355557",
+  "prompts": {},
+  "sessions": {
+    "s_b261358f8f8c95": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "546a20e1-3614-4c30-8828-b50165594b08",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
