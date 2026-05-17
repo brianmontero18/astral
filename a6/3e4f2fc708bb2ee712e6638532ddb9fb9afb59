@@ -1,0 +1,36 @@
+backend/src/__tests__/db-migration-cached-tokens.test.ts
+  s_a21e2b125db110::t_0399688111bb36 189-195
+backend/src/mcp/tools.ts
+  s_a21e2b125db110::t_b4bd78b7f911bf 1-47
+backend/src/__tests__/api-mcp.test.ts
+  s_a21e2b125db110::t_c5b4fd07d6d820 5,11-59,69-80,84-127,145-146,151,156-203,212-224
+  s_a21e2b125db110::t_80292973c73c57 373,406-439,468,470-482,488-494,498,501-508,510,513-528,543,546,549-550,552-560,562-574,576-596,598-634,640-642,650-651,654
+  s_a21e2b125db110::t_fa687184fcc65d 509
+  s_a21e2b125db110::t_a9fa2045e29a89 529-542
+backend/src/mcp/tools/ask-astral-guide-v1.ts
+  s_a21e2b125db110::t_87e4a8fbabc626 1-124
+backend/src/mcp/server.ts
+  s_a21e2b125db110::t_36b598a2dbbb13 2,6,9-15,176,180,184-256,321-398
+backend/src/db.ts
+  s_a21e2b125db110::t_d6693df9d88e09 247-248,259,267,405,505-506,1545-1546
+backend/src/services/guide-service.ts
+  s_a21e2b125db110::t_35ef6941dcadbc 67,162,182-194
+backend/scripts/smoke-mcp-curl.sh
+  s_a21e2b125db110::t_a4a9fdaf1047c9 115-116,281-282,288-298,304-306
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "a63e4f2fc708bb2ee712e6638532ddb9fb9afb59",
+  "prompts": {},
+  "sessions": {
+    "s_a21e2b125db110": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e3772-37c2-7900-95fe-490137c57452",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
