@@ -153,6 +153,12 @@ export interface UserProfile {
       isPersonality: boolean;
       /** Velocidad eclíptica negativa al momento del cálculo. */
       isRetrograde?: boolean;
+      /**
+       * Fixing state HD canon para (planet, gate, line). Lookup en hd-fixings.ts
+       * (portado de SharpAstrology.HumanDesign). `null` si la combinación no
+       * tiene un estado canónico (la mayoría de las posiciones).
+       */
+      fixingState?: "exalted" | "detriment" | null;
     }>;
     definedCenters: string[];
     undefinedCenters: string[];
