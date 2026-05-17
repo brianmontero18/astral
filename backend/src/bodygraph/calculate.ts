@@ -24,7 +24,9 @@ import {
   lookupPositiveTheme,
   lookupTypeQualifier,
   calcAgeYears,
+  toneToOrientation,
 } from "../hd-meta.js";
+import type { HdVariable } from "../agent-service.js";
 
 const HD_DESIGN_OFFSET_DEGREES = 88;
 
@@ -57,6 +59,25 @@ function julianDayToIsoUtc(jd: number): string {
   // JD 2440587.5 = 1970-01-01T00:00:00Z (Unix epoch).
   const ms = (jd - 2440587.5) * 86400000;
   return new Date(ms).toISOString();
+}
+
+/**
+ * Build an `HdVariable` from a planet's activation. The canonical assignment
+ * per SharpAstrology.HumanDesign DataModels/HumanDesignChart.cs `_Variables()`
+ * is: Digestion=Design.Sun, Awareness=Personality.Sun,
+ *     Environment=Design.NorthNode, Perspective=Personality.NorthNode.
+ *
+ * The activation must come from `computeAllGates` and must have color/tone/
+ * base populated (otherwise undefined, which throws).
+ */
+function variableFromGate(gate: ComputedGate | undefined, where: string): HdVariable {
+  if (!gate) throw new Error(`variableFromGate: missing activation for ${where}`);
+  return {
+    orientation: toneToOrientation(gate.tone),
+    color: gate.color,
+    tone: gate.tone,
+    base: gate.base,
+  };
 }
 
 type Side = "personality" | "design";
@@ -341,6 +362,16 @@ export async function calculateBodygraph(birth: BirthData): Promise<UserProfile>
   const designDateIso = julianDayToIsoUtc(designJd);
   const ageYears = calcAgeYears(dateUtcIso);
 
+  // Variables canonical (per SharpAstrology HumanDesignChart._Variables).
+  const findGate = (planet: string, isPersonality: boolean) =>
+    gates.find((g) => g.planet === planet && g.isPersonality === isPersonality);
+  const variables = {
+    digestion:   variableFromGate(findGate("Sun", false),         "Design.Sun"),
+    awareness:   variableFromGate(findGate("Sun", true),          "Personality.Sun"),
+    environment: variableFromGate(findGate("North Node", false),  "Design.NorthNode"),
+    perspective: variableFromGate(findGate("North Node", true),   "Personality.NorthNode"),
+  };
+
   const result: UserProfile = {
     name: birth.name ?? "",
     birthData: {
@@ -367,6 +398,7 @@ export async function calculateBodygraph(birth: BirthData): Promise<UserProfile>
       environment: "",
       strongestSense: "",
       design: { date: designDateIso },
+      variables,
       channels,
       activatedGates: gates,
       definedCenters,

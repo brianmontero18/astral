@@ -82,6 +82,20 @@ export function lookupTypeQualifier(authority: string): string {
   return TYPE_QUALIFIER_BY_AUTHORITY[authority] ?? "";
 }
 
+// ─── Variable orientation ───────────────────────────────────────────────────
+//
+// Tone (1..6) → Orientation (left/right). Tone 1-3 are Left, 4-6 are Right.
+// Source: SharpAstrology.HumanDesign Enums/Tone.cs `ToOrientation()`.
+// Used by the Variable Wheel: Orientation of each Variable (Digestion,
+// Awareness, Environment, Perspective) is derived from the Tone of the
+// corresponding planet activation (Sun / NorthNode at design / personality).
+
+export type Orientation = "left" | "right";
+
+export function toneToOrientation(tone: number): Orientation {
+  return tone <= 3 ? "left" : "right";
+}
+
 // ─── Age years ──────────────────────────────────────────────────────────────
 
 /**
