@@ -1,0 +1,19 @@
+backend/src/__tests__/api-mcp.test.ts
+  s_78a8a1e6a69ecb::t_bca60f92de822a 682-683,687-692,704-706,725-752
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "314290ae6dfe98ee03281545e403cfd6632850c8",
+  "prompts": {},
+  "sessions": {
+    "s_78a8a1e6a69ecb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e37f8-1923-7092-b2c7-7ebd7faa6e3c",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
