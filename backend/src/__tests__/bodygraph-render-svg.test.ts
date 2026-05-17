@@ -156,21 +156,16 @@ describe("renderBodygraphSvg", () => {
         time: "12:00",
         timezoneOffsetHours: 0,
         name: "Brian Montero",
+        placeLabel: "Punta Cardón, Falcón, Venezuela",
       });
-      const svg = renderFullDocument(profile, {
-        birth: {
-          dateLocal: "18 Feb 1989 12:00",
-          dateUtc: "18 Feb 1989 12:00 UTC",
-          placeLabel: "Punta Cardón, Falcón, Venezuela",
-        },
-      });
+      const svg = renderFullDocument(profile);
       expect(svg).toContain('id="header"');
       expect(svg).toContain('id="panel-design"');
       expect(svg).toContain('id="chart"');
       expect(svg).toContain('id="panel-personality"');
-      // Identity in header.
+      // Identity in header — now prefixed by typeQualifier ("Emotional").
       expect(svg).toContain("Brian Montero");
-      expect(svg).toContain("Generador Manifestante");
+      expect(svg).toContain("Emotional Generador Manifestante");
       expect(svg).toContain("Punta Cardón");
       // Panel labels.
       expect(svg).toContain("Diseño");

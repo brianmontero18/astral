@@ -80,6 +80,65 @@ describe("calculateBodygraph", () => {
       expect(profile.humanDesign.strategy).toBe("Esperar la invitación");
       expect(profile.humanDesign.notSelfTheme).toBe("Amargura");
     });
+
+    it("populates the new P0 fields (birthData, profileName, typeQualifier, themes, designDate, retrograde)", async () => {
+      const profile = await calculateBodygraph({ ...AGOS, placeLabel: "Esquel, Chubut, Argentina" });
+
+      // birthData
+      expect(profile.birthData).toBeDefined();
+      expect(profile.birthData!.dateLocalIso).toBe("1988-12-28T06:13:00+00:00");
+      expect(profile.birthData!.dateUtcIso).toBe("1988-12-28T06:13:00.000Z");
+      expect(profile.birthData!.placeLabel).toBe("Esquel, Chubut, Argentina");
+      expect(profile.birthData!.timezoneOffsetHours).toBe(0);
+      // ageYears at runtime — varies by today's date; just sanity check.
+      expect(profile.birthData!.ageYears).toBeGreaterThanOrEqual(30);
+      expect(profile.birthData!.ageYears).toBeLessThan(60);
+
+      // HD identity enriched
+      expect(profile.humanDesign.typeQualifier).toBe("Emotional");
+      expect(profile.humanDesign.profileName).toBe("Opportunist / Role Model");
+      expect(profile.humanDesign.themes).toEqual({ positive: "Success", notSelf: "Amargura" });
+
+      // designDate ~88° before personality (≈ early October 1988).
+      expect(profile.humanDesign.design).toBeDefined();
+      expect(profile.humanDesign.design!.date).toMatch(/^1988-10-0\dT/);
+
+      // Retrograde flag is populated on every activatedGate.
+      const allHaveFlag = profile.humanDesign.activatedGates.every(
+        (g) => typeof g.isRetrograde === "boolean",
+      );
+      expect(allHaveFlag).toBe(true);
+      // Sun and Moon never retrograde (geocentric semantics).
+      const sunMoon = profile.humanDesign.activatedGates.filter(
+        (g) => g.planet === "Sun" || g.planet === "Moon" || g.planet === "Earth",
+      );
+      for (const g of sunMoon) expect(g.isRetrograde).toBe(false);
+
+      // Anchor specific retrograde values for Agos against Swiss Eph ground truth:
+      //   Design moment ~= 1988-10-01 17:14 UTC
+      //     Mercury speed = -0.343°/day  → retrograde
+      //   Personality moment = 1988-12-28 06:13 UTC
+      //     Mercury speed = +1.547°/day  → direct
+      // Mercury was in a retro cycle that ended around mid-October 1988.
+      const mercuryDesign = profile.humanDesign.activatedGates.find(
+        (g) => g.planet === "Mercury" && !g.isPersonality,
+      );
+      const mercuryPersonality = profile.humanDesign.activatedGates.find(
+        (g) => g.planet === "Mercury" && g.isPersonality,
+      );
+      expect(mercuryDesign?.isRetrograde).toBe(true);
+      expect(mercuryPersonality?.isRetrograde).toBe(false);
+    });
+
+    it("uses timezone offset in dateLocalIso", async () => {
+      const profile = await calculateBodygraph({
+        date: "1988-12-28",
+        time: "03:13",
+        timezoneOffsetHours: -3,
+      });
+      expect(profile.birthData!.dateLocalIso).toBe("1988-12-28T03:13:00-03:00");
+      expect(profile.birthData!.dateUtcIso).toBe("1988-12-28T06:13:00.000Z");
+    });
   });
 
   describe("ground truth: Brian — UTC 1989-02-18 12:00", () => {
@@ -134,6 +193,14 @@ describe("calculateBodygraph", () => {
       expect(hd.authority).toBe("Emocional (Plexo Solar)");
       expect(hd.strategy).toBe("Esperar para responder y luego informar");
       expect(hd.notSelfTheme).toBe("Frustración");
+    });
+
+    it("populates the new P0 fields for Brian", async () => {
+      const profile = await calculateBodygraph(BRIAN);
+      expect(profile.humanDesign.typeQualifier).toBe("Emotional");
+      expect(profile.humanDesign.profileName).toBe("Role Model / Hermit");
+      expect(profile.humanDesign.themes).toEqual({ positive: "Satisfaction", notSelf: "Frustración" });
+      expect(profile.humanDesign.design!.date).toMatch(/^1988-11-2\dT/);
     });
   });
 

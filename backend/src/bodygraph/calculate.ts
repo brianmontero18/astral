@@ -19,20 +19,44 @@ import type { UserProfile } from "../agent-service.js";
 import { HD_CHANNELS } from "../hd-channels.js";
 import { degreeToGate, GATE_TO_CENTER } from "../hd-gates.js";
 import { deriveImpliedFields } from "../extraction-service.js";
+import {
+  lookupProfileName,
+  lookupPositiveTheme,
+  lookupTypeQualifier,
+  calcAgeYears,
+} from "../hd-meta.js";
 
 const HD_DESIGN_OFFSET_DEGREES = 88;
 
 export interface BirthData {
-  /** ISO yyyy-mm-dd. */
+  /** ISO yyyy-mm-dd. Local date at birth place. */
   date: string;
   /** Local time HH:mm 24h. */
   time: string;
   /** UTC offset in hours, e.g. -3 for Argentina, 5.5 for India. */
   timezoneOffsetHours: number;
-  /** Optional display only — not used in calculation. */
+  /** Optional display label — not used in astronomy. */
   placeLabel?: string;
+  /** Optional geographic coordinates — reserved for future timezone DB lookups. */
+  coordinates?: { lat: number; lon: number };
   /** Optional name to put in profile.name. Otherwise empty string. */
   name?: string;
+}
+
+/** Build an ISO 8601 string with explicit offset from local date+time+tz. */
+function buildLocalIso(date: string, time: string, tzHours: number): string {
+  const abs = Math.abs(tzHours);
+  const hh = String(Math.floor(abs)).padStart(2, "0");
+  const mm = String(Math.round((abs - Math.floor(abs)) * 60)).padStart(2, "0");
+  const sign = tzHours >= 0 ? "+" : "-";
+  return `${date}T${time}:00${sign}${hh}:${mm}`;
+}
+
+/** Convert a Julian Day (UT) to an ISO 8601 string in UTC. */
+function julianDayToIsoUtc(jd: number): string {
+  // JD 2440587.5 = 1970-01-01T00:00:00Z (Unix epoch).
+  const ms = (jd - 2440587.5) * 86400000;
+  return new Date(ms).toISOString();
 }
 
 type Side = "personality" | "design";
@@ -42,6 +66,7 @@ interface ComputedGate {
   line: number;
   planet: string;
   isPersonality: boolean;
+  isRetrograde: boolean;
 }
 
 interface Swe {
@@ -112,20 +137,30 @@ function computeAllGates(swe: Swe, personalityJd: number, designJd: number): Com
     "South Node": null,
   };
 
+  // SEFLG_SPEED expone la velocidad eclíptica (índice 3 del result). Necesaria
+  // para detectar retrogradación (velocity < 0 = movimiento aparente retrógrado).
+  const flag = swe.SEFLG_SWIEPH | swe.SEFLG_SPEED;
+
   const out: ComputedGate[] = [];
   for (const side of ["design", "personality"] as Side[]) {
     const jd = side === "design" ? designJd : personalityJd;
     for (const body of HD_BODIES) {
       let lon: number;
+      let isRetrograde: boolean;
       if (body === "Earth") {
-        const r = swe.calc_ut(jd, swe.SE_SUN, swe.SEFLG_SWIEPH);
+        // Earth = Sun + 180°. Heliocéntricamente nunca "retrograda".
+        const r = swe.calc_ut(jd, swe.SE_SUN, flag);
         lon = normLon(r[0] + 180);
+        isRetrograde = false;
       } else if (body === "South Node") {
-        const r = swe.calc_ut(jd, swe.SE_TRUE_NODE, swe.SEFLG_SWIEPH);
+        // Antipodal del North Node. Comparte estado retro.
+        const r = swe.calc_ut(jd, swe.SE_TRUE_NODE, flag);
         lon = normLon(r[0] + 180);
+        isRetrograde = r[3] < 0;
       } else {
-        const r = swe.calc_ut(jd, ids[body]!, swe.SEFLG_SWIEPH);
+        const r = swe.calc_ut(jd, ids[body]!, flag);
         lon = normLon(r[0]);
+        isRetrograde = r[3] < 0;
       }
       const { gate, line } = degreeToGate(lon);
       out.push({
@@ -133,6 +168,7 @@ function computeAllGates(swe: Swe, personalityJd: number, designJd: number): Com
         line,
         planet: body,
         isPersonality: side === "personality",
+        isRetrograde,
       });
     }
   }
@@ -282,6 +318,9 @@ export async function calculateBodygraph(birth: BirthData): Promise<UserProfile>
   const authority = deriveAuthority(typeEn, definedCenters, components);
   const definition = DEFINITION_NAMES[components.length] ?? `${components.length} grupos`;
   const profile = deriveProfile(gates);
+  const profileName = lookupProfileName(profile);
+  const typeQualifier = lookupTypeQualifier(authority);
+  const positiveTheme = lookupPositiveTheme(type);
 
   const undefinedCenters = ALL_CENTERS.filter((c) => !definedCenters.includes(c));
 
@@ -291,20 +330,37 @@ export async function calculateBodygraph(birth: BirthData): Promise<UserProfile>
     circuit: "",
   }));
 
+  const dateLocalIso = buildLocalIso(birth.date, birth.time, birth.timezoneOffsetHours);
+  const dateUtcIso = new Date(dateLocalIso).toISOString();
+  const designDateIso = julianDayToIsoUtc(designJd);
+  const ageYears = calcAgeYears(dateUtcIso);
+
   const result: UserProfile = {
     name: birth.name ?? "",
+    birthData: {
+      dateLocalIso,
+      dateUtcIso,
+      placeLabel: birth.placeLabel ?? "",
+      coordinates: birth.coordinates,
+      timezoneOffsetHours: birth.timezoneOffsetHours,
+      ageYears,
+    },
     humanDesign: {
       type,
+      typeQualifier,
       strategy: "",
       authority,
       profile,
+      profileName,
       definition,
       incarnationCross: "",
+      themes: { positive: positiveTheme, notSelf: "" },
       notSelfTheme: "",
       variable: "",
       digestion: "",
       environment: "",
       strongestSense: "",
+      design: { date: designDateIso },
       channels,
       activatedGates: gates,
       definedCenters,
@@ -312,5 +368,10 @@ export async function calculateBodygraph(birth: BirthData): Promise<UserProfile>
     },
   };
 
-  return deriveImpliedFields(result);
+  const enriched = deriveImpliedFields(result);
+  // Sync themes.notSelf with the legacy notSelfTheme that deriveImpliedFields populates.
+  if (enriched.humanDesign.themes) {
+    enriched.humanDesign.themes.notSelf = enriched.humanDesign.notSelfTheme;
+  }
+  return enriched;
 }
