@@ -12,11 +12,17 @@
 
 // ─── Profile line names ─────────────────────────────────────────────────────
 
+/**
+ * Nombres canónicos de las 6 líneas de profile, en el dialecto de Genetic
+ * Matrix (que es la fuente que validamos visualmente). Otras fuentes HD usan
+ * "Opportunist" en lugar de "Opportunistic" — si en algún momento hay que
+ * matchear ambas, exponer un segundo Record alias.
+ */
 export const PROFILE_LINE_NAMES: Record<number, string> = {
   1: "Investigator",
   2: "Hermit",
   3: "Martyr",
-  4: "Opportunist",
+  4: "Opportunistic",
   5: "Heretic",
   6: "Role Model",
 };

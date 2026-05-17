@@ -96,7 +96,7 @@ describe("calculateBodygraph", () => {
 
       // HD identity enriched
       expect(profile.humanDesign.typeQualifier).toBe("Emotional");
-      expect(profile.humanDesign.profileName).toBe("Opportunist / Role Model");
+      expect(profile.humanDesign.profileName).toBe("Opportunistic / Role Model");
       expect(profile.humanDesign.themes).toEqual({ positive: "Success", notSelf: "Amargura" });
 
       // designDate ~88° before personality (≈ early October 1988).
