@@ -58,9 +58,9 @@ backend/src/app.ts
 
 Implicacion:
 
-- MCP puede registrarse dentro del prefijo `/api`, como `/api/mcp/v1`, sin tocar el SPA fallback.
-- Si se elige `/mcp/v1`, hay que registrarlo fuera del bloque `/api` y antes del fallback. Aisla mejor la superficie publica, pero abre una segunda convencion.
-- Para MVP, `/api/mcp/v1` es menos riesgoso en el repo actual.
+- MCP debe registrarse dentro del prefijo `/api`, como `/api/mcp/v1`, sin tocar el SPA fallback.
+- `/mcp/v1` queda descartado para MVP porque exige registrarlo fuera del bloque `/api` y abre una segunda convencion de routing.
+- `/api/mcp/v1` es menos riesgoso en el repo actual y quedo locked en Slice 0.
 
 Archivos relevantes:
 
@@ -301,20 +301,24 @@ mcp_read_only:
 
 ### Slice 0 — Decision locks
 
-No code or minimal docs.
+Status: cerrado en `astral-6ry`.
 
-Decide:
+Locked decisions:
 
-- endpoint path: `/api/mcp/v1` vs `/mcp/v1`;
-- token strategy for beta: OAuth-first vs short-lived PAT beta;
-- support clients for first smoke;
-- initial budgets;
-- whether MCP consumes the same monthly chat quota or separate MCP quota.
+- endpoint path: `/api/mcp/v1`;
+- transport default: stateless Streamable HTTP; SSE only if a beta client requires it;
+- beta token strategy: short-lived PAT private beta, admin/script-issued, hashed, scoped, revocable, `audience=astral-mcp`, max 7 day expiry;
+- production auth: OAuth/OIDC-compatible before consumer/ChatGPT support;
+- consent: required in `mcp_consents` from Slice 2, including PAT beta;
+- first smoke order: Claude Code first; Codex/Cursor if their local config supports remote HTTP bearer/OAuth; ChatGPT after OAuth; Gemini research-only;
+- initial budgets: `ask_astral_guide_v1` 20/day and 100/month per user in beta; deterministic tools 100/day and 500/month; concurrency max 1 `ask` per user and 3 per client; 45s `ask` timeout, 5s deterministic timeout;
+- quota relationship: MCP quota is separate from web chat quota and must not consume `chat_messages`.
 
 Exit criteria:
 
-- accepted decisions added to proposal doc;
-- no open blocker that changes schema shape.
+- accepted decisions added to `docs/remote-mcp-architecture-proposal.md`;
+- no open blocker remains that changes `mcp_clients`, `mcp_consents`, `mcp_tokens` or `mcp_audit_events`;
+- next implementation work starts at Slice 1, not `/api/mcp/v1`.
 
 ### Slice 1 — Extract guide service without behavior change
 

@@ -1,8 +1,8 @@
 # Remote MCP para Astral Guide — propuesta de arquitectura
 
-**Estado**: borrador para deliberacion.
+**Estado**: propuesta con Slice 0 cerrado; no implementado.
 **Fecha**: 2026-05-17.
-**Bead**: `astral-t45`.
+**Beads**: `astral-t45`, `astral-6ry`.
 **Objetivo**: definir un punto de partida practico para exponer Astral Guide a clientes externos como ChatGPT, Claude, Gemini, Codex, Cursor o cualquier cliente compatible con MCP.
 
 ---
@@ -25,6 +25,30 @@ Para MVP: **mismo backend, mismo Docker, mismo Render service**, detras de featu
 
 ---
 
+## Slice 0 — decision locks
+
+Estas decisiones cierran el primer bloqueo de arquitectura. No habilitan MCP todavia; habilitan Slice 1 (`GuideService`) y preparan Slice 2/3 sin cambiar el contrato despues.
+
+| Decision | Lock |
+|---|---|
+| Endpoint publico MVP | `/api/mcp/v1`. Sigue la convencion real de `backend/src/app.ts`, queda antes del SPA fallback y evita registrar una segunda superficie top-level. `/mcp/v1` y `mcp.astral.guide` quedan como opciones de Fase 2 si se separa servicio. |
+| Transport default | Streamable HTTP stateless. SSE solo como compatibilidad si un cliente beta lo exige; no disenar session affinity. |
+| Auth beta | Short-lived PAT privado solo para beta tecnica, emitido por admin/script interno, hasheado en DB, scoped, revocable, con `audience=astral-mcp`, `tokenId`, `clientId` y expiracion maxima de 7 dias. No es contrato publico ni reemplaza OAuth. |
+| Auth produccion | OAuth/OIDC-compatible antes de soporte consumer o ChatGPT/App publicable. La forma interna del principal queda fija desde Slice 2: `userId`, `clientId`, `scopes`, `audience`, `tokenId`. |
+| Consentimiento | Obligatorio desde Slice 2 incluso para PAT beta: `mcp_consents(user_id, client_id, scopes_json, status, created_at, revoked_at)`. Sin consentimiento activo no se listan ni ejecutan tools. |
+| Primer smoke beta | Orden: Claude Code con HTTP + bearer; Codex y Cursor si aceptan configuracion remote HTTP/OAuth-bearer en la version local; ChatGPT solo despues de OAuth real. Gemini queda research-only hasta validar soporte MCP actual. |
+| Budgets MVP | Separados por `clientId + userId + tool`: `ask_astral_guide_v1` max 20 llamadas/dia y 100/mes por usuario en beta; deterministic HD/transit tools max 100 llamadas/dia y 500/mes; concurrency max 1 `ask` por usuario y 3 por client; timeout duro 45s para `ask` y 5s para deterministic tools. |
+| Relacion con chat quota | MCP no consume la cuota mensual de chat web. Usa cuota MCP separada para evitar que un cliente externo degrade la experiencia nativa. Billing/telemetry igual debe poder atribuir costo por usuario, cliente y tool. |
+| Persistencia | MVP `mcp_read_only`: no escribe `chat_messages`, no dispara `memory_writer`, no muta profile/intake/memory. Solo audit, cost telemetry y counters. |
+
+Exit criteria cumplido para Slice 0:
+
+- no queda decision bloqueante que cambie la forma de `mcp_clients`, `mcp_consents`, `mcp_tokens` o `mcp_audit_events`;
+- no crear `/api/mcp/v1` hasta completar Slice 1;
+- cualquier cambio futuro de path/auth/budget requiere actualizar este bloque y el plan de recon.
+
+---
+
 ## Decision propuesta
 
 ### Si para MVP
@@ -36,7 +60,7 @@ Render Web Service actual
       /api/*       -> API actual de Astral
       /auth/*      -> SuperTokens web auth
       /api/mcp/v1  -> Remote MCP endpoint NUEVO
-      token/OAuth endpoints MCP TBD
+      token/OAuth endpoints MCP bajo /api/mcp/v1/auth/*
       /*           -> React static frontend
 ```
 
@@ -201,7 +225,7 @@ No exponer `memory_md` crudo. No exponer intake completo. No exponer birth data.
 | - /api/*                                       |
 | - /auth/*                                      |
 | - /api/mcp/v1    NUEVO                         |
-| - token/OAuth endpoints MCP TBD                |
+| - /api/mcp/v1/auth/* token/OAuth MCP           |
 | - static React frontend                         |
 +-------------------------------------------------+
 ```
@@ -237,9 +261,9 @@ Browser ------> | astral-web          |
                            ^
                            |
                 +----------+----------+
-ChatGPT ------> | astral-mcp              |
-Claude  ------> | /api/mcp/v1 + auth TBD |
-Cursor  ------> | MCP only                |
+ChatGPT ------> | astral-mcp                 |
+Claude  ------> | /api/mcp/v1 + OAuth/PAT    |
+Cursor  ------> | MCP only                   |
                 +---------------------+
 
 Shared dependencies:
@@ -401,7 +425,7 @@ mcp_budget_exceeded
 
 ## Guardrails
 
-1. Path versionado desde el dia 1. Candidatos: `/api/mcp/v1` o `/mcp/v1`. La propuesta usa `/api/mcp/v1`, pero queda como decision bloqueante porque `/mcp/v1` aisla mejor la superficie publica.
+1. Path versionado desde el dia 1: `/api/mcp/v1` para MVP. No registrar `/mcp/v1` ni subdominio dedicado hasta Fase 2.
 2. Feature flag default off: `FEATURE_REMOTE_MCP=false`.
 3. No write tools en MVP.
 4. No memory raw.
@@ -414,6 +438,7 @@ mcp_budget_exceeded
 11. Respuestas minimizadas: no prompt interno, no secrets, no stack traces.
 12. Todo costo MCP debe quedar medible por separado del chat web.
 13. Tokens short-lived, scoped, revocables y ligados a `clientId + userId + audience`.
+14. Cuota MCP separada de la cuota web; nunca consumir `chat_messages` para budget MCP.
 
 ---
 
@@ -477,12 +502,12 @@ El route HTTP y MCP deben ser adapters finos sobre esa funcion.
 No prometer soporte comercial hasta validar al menos una matriz beta.
 
 ```text
-Cliente        Transporte/Auth a validar        Estado
-ChatGPT        Remote MCP + OAuth/connector      pendiente
-Claude Code    Remote MCP HTTP/SSE + bearer      pendiente
-Cursor         MCP config local/remoto           pendiente
-Codex          MCP config local/remoto           pendiente
-Gemini         soporte MCP real del cliente      pendiente
+Cliente        Transporte/Auth a validar              Estado
+Claude Code    Remote MCP HTTP + bearer                smoke beta #1
+Codex          Remote MCP config local/remoto          smoke beta si soporta bearer/OAuth local
+Cursor         Remote MCP config local/remoto          smoke beta si soporta bearer/OAuth local
+ChatGPT        Remote MCP + OAuth/connector            despues de OAuth real
+Gemini         soporte MCP real del cliente            research-only
 ```
 
 Esta matriz es release gate, no documentacion posterior.
@@ -491,21 +516,17 @@ Esta matriz es release gate, no documentacion posterior.
 
 ## Preguntas abiertas
 
-Bloqueantes:
+Bloqueantes que cambian schema shape:
 
-- OAuth completo desde dia 1 o PAT solo para beta privada?
-- Confirmamos default de no persistir chat/memory para MCP?
-- Que clientes son target del primer smoke real: ChatGPT, Claude Code, Codex, Cursor?
-- Que herramienta MCP library usar en Node/Fastify?
-- El endpoint publico queda en `/api/mcp/v1`, `/mcp/v1` o subdominio `mcp.astral.guide` apuntando al mismo service?
-- Como se implementa consentimiento y revocacion por cliente externo?
-- Cuales son los budgets iniciales por `clientId + userId + tool`?
+- Ninguno despues de Slice 0.
 
 No bloqueantes:
 
+- Que herramienta MCP library usar en Node/Fastify. Resolver en Slice 3; no cambia tablas ni `McpPrincipal`.
 - Nombre final de tools.
 - Si `get_my_profile_summary_v1` debe existir despues del MVP y con que scope/consentimiento.
 - Si el reporte semanal va como tool aparte o como prompt dentro de `ask_astral_guide_v1`.
+- Si `mcp.astral.guide` debe apuntar al mismo Render service en Fase 2.
 
 ---
 
@@ -522,8 +543,8 @@ Architect:
 
 - Aprobaria MVP con condiciones.
 - No separar servicio todavia.
-- Bloqueantes: auth bearer/OAuth real, decision de persistencia MCP, matriz de compatibilidad por cliente.
-- Recomienda `/api/mcp`, transport stateless, feature flags y extraer un servicio compartido para chat/MCP; el segundo round deja el path como decision abierta frente a `/mcp`.
+- Slice 0 cierra los bloqueantes de path, auth beta, persistencia, budgets y matriz de smoke.
+- Recomienda `/api/mcp/v1`, transport stateless, feature flags y extraer un servicio compartido para chat/MCP antes de registrar MCP.
 - Round 2 endurece el contrato: beta privada, consentimiento, budgets, tool `ask_astral_guide_v1`, no writes y versionado.
 
 Decision recomendada:
@@ -533,6 +554,7 @@ Construir Remote MCP dentro del backend actual como beta privada.
 Mantenerlo apagado por default.
 No persistir memoria/chat en MVP.
 Exigir consentimiento + tokens scoped/short-lived.
+Usar PAT beta solo para smoke tecnico; OAuth antes de soporte consumer.
 Versionar endpoint/tools desde el dia 1.
 Disenarlo para poder extraerlo a servicio separado.
 ```
