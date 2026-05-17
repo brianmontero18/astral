@@ -1,0 +1,27 @@
+backend/src/services/guide-telemetry.ts
+  s_62b8d99e2a79a2::t_099b1a0bfd5175 1-44
+backend/src/services/guide-service.ts
+  s_62b8d99e2a79a2::t_bec933646e744b 1-267
+backend/src/routes/chat.ts
+  s_62b8d99e2a79a2::t_3f8065b06bf5d0 259,297
+  s_62b8d99e2a79a2::t_ca9d7bd233b1ed 126-127,129-140,225-238,241-246
+  s_62b8d99e2a79a2::t_510f1083302f7c 1-4,24-30
+backend/src/services/guide-transits.ts
+  s_62b8d99e2a79a2::t_f41d46ad257f39 1-107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "c2d95c2a6c5ff84d155d239191623852b7cc69cf",
+  "prompts": {},
+  "sessions": {
+    "s_62b8d99e2a79a2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e3725-5a85-7d62-8c54-69eb956a2ff8",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
