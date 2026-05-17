@@ -32,6 +32,12 @@ R2_BUCKET_NAME=astral-assets
 
 # Solo si un script ejerce extracción de PDF
 OPENAI_API_KEY=
+
+# Habilita el fallback Vision para PDFs imagen-only en /me/bodygraph.
+# Default (cualquier valor != "true") → tira UNREADABLE_PDF_MESSAGE como
+# antes del feature. Setear en "true" solo cuando la calidad del path
+# Vision esté validada con precision >95% sobre los 26 gates.
+FEATURE_EXTRACTION_VISION_FALLBACK=
 ```
 
 2. Generar los dos tokens Turso desde el dashboard: uno con permisos read-only,
