@@ -483,6 +483,12 @@ Acceptance:
 - unsupported clients are explicitly marked unsupported;
 - failures feed back into transport/auth choices.
 
+Status: first beta matrix captured in
+[`remote-mcp-client-smoke-matrix.md`](remote-mcp-client-smoke-matrix.md).
+Claude Code connected locally; Codex HTTP bearer config validated; Cursor is
+blocked by local auth/keychain; ChatGPT waits for OAuth; Gemini remains
+research-only.
+
 ### Continuous MCP curl smoke
 
 Status: iniciado en `astral-bw6`.

@@ -506,14 +506,15 @@ No prometer soporte comercial hasta validar al menos una matriz beta.
 
 ```text
 Cliente        Transporte/Auth a validar              Estado
-Claude Code    Remote MCP HTTP + bearer                smoke beta #1
-Codex          Remote MCP config local/remoto          smoke beta si soporta bearer/OAuth local
-Cursor         Remote MCP config local/remoto          smoke beta si soporta bearer/OAuth local
+Claude Code    Remote MCP HTTP + bearer                conectado localmente
+Codex          Remote MCP config local/remoto          config HTTP bearer validada
+Cursor         Remote MCP config local/remoto          bloqueado por auth/keychain local
 ChatGPT        Remote MCP + OAuth/connector            despues de OAuth real
-Gemini         soporte MCP real del cliente            research-only
+Gemini         soporte MCP real del cliente            research-only / CLI no validada
 ```
 
 Esta matriz es release gate, no documentacion posterior.
+Detalle operativo: [`remote-mcp-client-smoke-matrix.md`](remote-mcp-client-smoke-matrix.md).
 
 ---
 
