@@ -1,0 +1,30 @@
+docs/architecture/bodygraph-render.md
+  s_b261358f8f8c95::t_85e580057616c5 198
+backend/src/bodygraph/calculate.ts
+  s_b261358f8f8c95::t_bb085e3b53c559 355-356
+  s_b261358f8f8c95::t_ab8c3f747f30fc 23
+  s_b261358f8f8c95::t_63e18712b4223c 399
+backend/src/__tests__/hd-crosses.test.ts
+  s_b261358f8f8c95::t_3ef3ae44c60bdd 1-93
+backend/src/hd-crosses.ts
+  s_b261358f8f8c95::t_658a3c6caac922 1-282
+backend/src/__tests__/bodygraph-calculate.test.ts
+  s_b261358f8f8c95::t_ce2d28a063adb9 101
+  s_b261358f8f8c95::t_8f947874c8a564 206-212
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "40ff5b73bc1db58f1b8d743f1a643cb26982ce51",
+  "prompts": {},
+  "sessions": {
+    "s_b261358f8f8c95": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "546a20e1-3614-4c30-8828-b50165594b08",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
