@@ -344,6 +344,8 @@ Acceptance:
 
 ### Slice 2 — MCP auth model and schema
 
+Status: cerrado en `astral-3pv`.
+
 Goal: create the minimum DB/auth primitives for external clients.
 
 Likely schema:
@@ -373,6 +375,13 @@ Acceptance:
 - disabled/banned Astral users cannot use MCP;
 - missing consent blocks tool list/call;
 - migration tests cover fresh DB and legacy DB.
+
+Implemented scope:
+
+- `mcp_clients`, `mcp_consents`, `mcp_tokens`, `mcp_audit_events` are created by idempotent DB schema migration;
+- bearer auth resolver returns the fixed principal shape: `userId`, `clientId`, `scopes`, `audience`, `tokenId`;
+- resolver is separate from SuperTokens cookie/session auth;
+- no `/api/mcp/v1` route, transport, tool registry, OAuth UI, chat persistence, or memory writes were added in this slice.
 
 ### Slice 3 — MCP transport behind flag
 

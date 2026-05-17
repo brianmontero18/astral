@@ -1,8 +1,8 @@
 # Remote MCP para Astral Guide — propuesta de arquitectura
 
-**Estado**: propuesta con Slice 0 cerrado; no implementado.
+**Estado**: propuesta con Slices 0-2 cerrados; endpoint MCP no implementado.
 **Fecha**: 2026-05-17.
-**Beads**: `astral-t45`, `astral-6ry`.
+**Beads**: `astral-t45`, `astral-6ry`, `astral-3pv`.
 **Objetivo**: definir un punto de partida practico para exponer Astral Guide a clientes externos como ChatGPT, Claude, Gemini, Codex, Cursor o cualquier cliente compatible con MCP.
 
 ---

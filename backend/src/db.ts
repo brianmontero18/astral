@@ -67,6 +67,35 @@ export interface AppUserIdentityRecord {
   subject: string;
 }
 
+export type McpClientStatus = "active" | "disabled";
+export type McpConsentStatus = "active" | "revoked";
+export type McpAuditStatus = "success" | "error" | "denied";
+export type McpSideEffectsMode = "mcp_read_only";
+
+export interface McpTokenAuthRecord {
+  id: string;
+  token_hash: string;
+  user_id: string;
+  client_id: string;
+  scopes_json: string;
+  audience: string;
+  expires_at: string;
+  revoked_at: string | null;
+  created_at: string;
+  user_status: AppUserStatus;
+  client_status: McpClientStatus;
+}
+
+export interface McpConsentRecord {
+  id: string;
+  user_id: string;
+  client_id: string;
+  scopes_json: string;
+  status: McpConsentStatus;
+  created_at: string;
+  revoked_at: string | null;
+}
+
 const DEFAULT_USER_PLAN: AppUserPlan = "free";
 const DEFAULT_USER_ROLE: AppUserRole = "user";
 const DEFAULT_USER_STATUS: AppUserStatus = "active";
@@ -255,6 +284,60 @@ export async function widenLlmCallsRouteCheckIfNeeded(c: Client): Promise<void> 
   );
 }
 
+export async function createMcpAuthSchemaIfMissing(c: Client): Promise<void> {
+  await c.batch(
+    [
+      `CREATE TABLE IF NOT EXISTS mcp_clients (
+        id         TEXT PRIMARY KEY,
+        name       TEXT NOT NULL,
+        status     TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','disabled')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE TABLE IF NOT EXISTS mcp_consents (
+        id          TEXT PRIMARY KEY,
+        user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        client_id   TEXT NOT NULL REFERENCES mcp_clients(id) ON DELETE CASCADE,
+        scopes_json TEXT NOT NULL CHECK(json_valid(scopes_json)),
+        status      TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','revoked')),
+        created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+        revoked_at  TEXT DEFAULT NULL
+      )`,
+      `CREATE TABLE IF NOT EXISTS mcp_tokens (
+        id          TEXT PRIMARY KEY,
+        token_hash  TEXT NOT NULL UNIQUE,
+        user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        client_id   TEXT NOT NULL REFERENCES mcp_clients(id) ON DELETE CASCADE,
+        scopes_json TEXT NOT NULL CHECK(json_valid(scopes_json)),
+        audience    TEXT NOT NULL,
+        expires_at  TEXT NOT NULL,
+        revoked_at  TEXT DEFAULT NULL,
+        created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE TABLE IF NOT EXISTS mcp_audit_events (
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id           TEXT DEFAULT NULL REFERENCES users(id) ON DELETE SET NULL,
+        client_id         TEXT DEFAULT NULL REFERENCES mcp_clients(id) ON DELETE SET NULL,
+        token_id          TEXT DEFAULT NULL REFERENCES mcp_tokens(id) ON DELETE SET NULL,
+        event             TEXT NOT NULL,
+        tool_name         TEXT DEFAULT NULL,
+        side_effects_mode TEXT DEFAULT NULL CHECK(side_effects_mode IS NULL OR side_effects_mode IN ('mcp_read_only')),
+        status            TEXT NOT NULL CHECK(status IN ('success','error','denied')),
+        metadata_json     TEXT DEFAULT NULL CHECK(metadata_json IS NULL OR json_valid(metadata_json)),
+        created_at        TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      "CREATE INDEX IF NOT EXISTS idx_mcp_clients_status ON mcp_clients(status)",
+      "CREATE INDEX IF NOT EXISTS idx_mcp_consents_user_client ON mcp_consents(user_id, client_id)",
+      "CREATE UNIQUE INDEX IF NOT EXISTS idx_mcp_consents_active_user_client ON mcp_consents(user_id, client_id) WHERE status = 'active' AND revoked_at IS NULL",
+      "CREATE INDEX IF NOT EXISTS idx_mcp_tokens_user_client ON mcp_tokens(user_id, client_id)",
+      "CREATE INDEX IF NOT EXISTS idx_mcp_tokens_expires ON mcp_tokens(expires_at)",
+      "CREATE INDEX IF NOT EXISTS idx_mcp_audit_user_client_created ON mcp_audit_events(user_id, client_id, created_at)",
+      "CREATE INDEX IF NOT EXISTS idx_mcp_audit_token_created ON mcp_audit_events(token_id, created_at)",
+    ],
+    "write",
+  );
+}
+
 // ─── Init ────────────────────────────────────────────────────────────────────
 
 export async function initDb(): Promise<void> {
@@ -359,6 +442,8 @@ export async function initDb(): Promise<void> {
     ],
     "write",
   );
+
+  await createMcpAuthSchemaIfMissing(client);
 
   // ─── Idempotent migrations for existing DBs ────────────────────────────────
   // SQLite ALTER TABLE ADD COLUMN doesn't accept dynamic defaults like
@@ -1276,6 +1361,178 @@ export async function cleanupExpiredShares(): Promise<number> {
     args: [],
   });
   return result.rowsAffected;
+}
+
+// ─── Remote MCP Auth Primitives ──────────────────────────────────────────────
+
+export async function createMcpClient(input: {
+  id?: string;
+  name: string;
+  status?: McpClientStatus;
+}): Promise<string> {
+  const id = input.id ?? randomUUID();
+  await client.execute({
+    sql: "INSERT INTO mcp_clients (id, name, status) VALUES (?, ?, ?)",
+    args: [id, input.name, input.status ?? "active"],
+  });
+  return id;
+}
+
+export async function createMcpConsent(input: {
+  id?: string;
+  userId: string;
+  clientId: string;
+  scopes: Array<string>;
+  status?: McpConsentStatus;
+  revokedAt?: string | null;
+}): Promise<string> {
+  const id = input.id ?? randomUUID();
+  await client.execute({
+    sql: `INSERT INTO mcp_consents
+          (id, user_id, client_id, scopes_json, status, revoked_at)
+          VALUES (?, ?, ?, ?, ?, ?)`,
+    args: [
+      id,
+      input.userId,
+      input.clientId,
+      JSON.stringify(input.scopes),
+      input.status ?? "active",
+      input.revokedAt ?? null,
+    ],
+  });
+  return id;
+}
+
+export async function createMcpToken(input: {
+  id?: string;
+  tokenHash: string;
+  userId: string;
+  clientId: string;
+  scopes: Array<string>;
+  audience: string;
+  expiresAt: string;
+  revokedAt?: string | null;
+}): Promise<string> {
+  const id = input.id ?? randomUUID();
+  await client.execute({
+    sql: `INSERT INTO mcp_tokens
+          (id, token_hash, user_id, client_id, scopes_json, audience, expires_at, revoked_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [
+      id,
+      input.tokenHash,
+      input.userId,
+      input.clientId,
+      JSON.stringify(input.scopes),
+      input.audience,
+      input.expiresAt,
+      input.revokedAt ?? null,
+    ],
+  });
+  return id;
+}
+
+export async function findMcpTokenAuthRecordByHash(
+  tokenHash: string,
+): Promise<McpTokenAuthRecord | null> {
+  const result = await client.execute({
+    sql: `
+      SELECT
+        mcp_tokens.id,
+        mcp_tokens.token_hash,
+        mcp_tokens.user_id,
+        mcp_tokens.client_id,
+        mcp_tokens.scopes_json,
+        mcp_tokens.audience,
+        mcp_tokens.expires_at,
+        mcp_tokens.revoked_at,
+        mcp_tokens.created_at,
+        users.status AS user_status,
+        mcp_clients.status AS client_status
+      FROM mcp_tokens
+      INNER JOIN users ON users.id = mcp_tokens.user_id
+      INNER JOIN mcp_clients ON mcp_clients.id = mcp_tokens.client_id
+      WHERE mcp_tokens.token_hash = ?
+      LIMIT 1
+    `,
+    args: [tokenHash],
+  });
+  const row = result.rows[0];
+  if (!row) return null;
+
+  return {
+    id: row.id as string,
+    token_hash: row.token_hash as string,
+    user_id: row.user_id as string,
+    client_id: row.client_id as string,
+    scopes_json: row.scopes_json as string,
+    audience: row.audience as string,
+    expires_at: row.expires_at as string,
+    revoked_at: typeof row.revoked_at === "string" ? row.revoked_at : null,
+    created_at: row.created_at as string,
+    user_status: row.user_status as AppUserStatus,
+    client_status: row.client_status as McpClientStatus,
+  };
+}
+
+export async function findActiveMcpConsent(
+  userId: string,
+  clientId: string,
+): Promise<McpConsentRecord | null> {
+  const result = await client.execute({
+    sql: `
+      SELECT id, user_id, client_id, scopes_json, status, created_at, revoked_at
+      FROM mcp_consents
+      WHERE user_id = ?
+        AND client_id = ?
+        AND status = 'active'
+        AND revoked_at IS NULL
+      ORDER BY datetime(created_at) DESC, id DESC
+      LIMIT 1
+    `,
+    args: [userId, clientId],
+  });
+  const row = result.rows[0];
+  if (!row) return null;
+
+  return {
+    id: row.id as string,
+    user_id: row.user_id as string,
+    client_id: row.client_id as string,
+    scopes_json: row.scopes_json as string,
+    status: row.status as McpConsentStatus,
+    created_at: row.created_at as string,
+    revoked_at: typeof row.revoked_at === "string" ? row.revoked_at : null,
+  };
+}
+
+export async function insertMcpAuditEvent(input: {
+  userId?: string | null;
+  clientId?: string | null;
+  tokenId?: string | null;
+  event: string;
+  toolName?: string | null;
+  sideEffectsMode?: McpSideEffectsMode | null;
+  status: McpAuditStatus;
+  metadata?: object | null;
+}): Promise<number> {
+  const result = await client.execute({
+    sql: `INSERT INTO mcp_audit_events
+          (user_id, client_id, token_id, event, tool_name, side_effects_mode, status, metadata_json)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          RETURNING id`,
+    args: [
+      input.userId ?? null,
+      input.clientId ?? null,
+      input.tokenId ?? null,
+      input.event,
+      input.toolName ?? null,
+      input.sideEffectsMode ?? null,
+      input.status,
+      input.metadata ? JSON.stringify(input.metadata) : null,
+    ],
+  });
+  return Number(result.rows[0].id);
 }
 
 // ─── LLM Calls (telemetry) ───────────────────────────────────────────────────
