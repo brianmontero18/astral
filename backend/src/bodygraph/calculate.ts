@@ -20,6 +20,7 @@ import { HD_CHANNELS } from "../hd-channels.js";
 import { degreeToGate, GATE_TO_CENTER } from "../hd-gates.js";
 import { deriveImpliedFields } from "../extraction-service.js";
 import { lookupFixingState } from "../hd-fixings.js";
+import { lookupIncarnationCross } from "../hd-crosses.js";
 import {
   lookupProfileName,
   lookupPositiveTheme,
@@ -351,6 +352,8 @@ export async function calculateBodygraph(birth: BirthData): Promise<UserProfile>
   const profileName = lookupProfileName(profile);
   const typeQualifier = lookupTypeQualifier(authority);
   const positiveTheme = lookupPositiveTheme(type);
+  const personalitySunGate = gates.find((g) => g.planet === "Sun" && g.isPersonality)?.number ?? 0;
+  const incarnationCross = lookupIncarnationCross(personalitySunGate, profile);
 
   const undefinedCenters = ALL_CENTERS.filter((c) => !definedCenters.includes(c));
 
@@ -393,7 +396,7 @@ export async function calculateBodygraph(birth: BirthData): Promise<UserProfile>
       profile,
       profileName,
       definition,
-      incarnationCross: "",
+      incarnationCross,
       themes: { positive: positiveTheme, notSelf: "" },
       notSelfTheme: "",
       variable: "",
