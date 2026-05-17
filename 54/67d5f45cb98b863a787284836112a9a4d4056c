@@ -1,0 +1,36 @@
+backend/src/__tests__/api-mcp.test.ts
+  s_78a8a1e6a69ecb::t_0823823d157f0c 407-408,424-427,430,446-464,647-886
+backend/scripts/smoke-mcp-curl.sh
+  s_78a8a1e6a69ecb::t_bdff9b4bc98a5b 142,300-317
+backend/src/mcp/tools/ask-astral-guide-v1.ts
+  s_78a8a1e6a69ecb::t_91bef815782295 7-10
+backend/src/mcp/tools.ts
+  s_78a8a1e6a69ecb::t_fdcca3fdbc579b 8-17,20,43-53
+backend/src/mcp/tools/hd-deterministic-v1.ts
+  s_78a8a1e6a69ecb::t_f1e503a3097c9b 1-64,66-161
+  s_78a8a1e6a69ecb::t_892aa60a7dd865 65
+backend/src/mcp/tool-contract.ts
+  s_78a8a1e6a69ecb::t_06b50df4022375 1-17
+docs/remote-mcp-architecture-proposal.md
+  s_78a8a1e6a69ecb::t_a32061c42c8b3c 3,197,203-205
+backend/scripts/seed-mcp-smoke.ts
+  s_78a8a1e6a69ecb::t_9ea4f045f2c06c 118-123,168
+docs/remote-mcp-implementation-recon-plan.md
+  s_78a8a1e6a69ecb::t_1faf1765fb996f 3,448,453-456
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "5467d5f45cb98b863a787284836112a9a4d4056c",
+  "prompts": {},
+  "sessions": {
+    "s_78a8a1e6a69ecb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e37f8-1923-7092-b2c7-7ebd7faa6e3c",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
