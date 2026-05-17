@@ -68,6 +68,9 @@ export default function BodygraphPoc() {
   const [result, setResult] = useState<UserProfileResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -95,6 +98,51 @@ export default function BodygraphPoc() {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    setPdfLoading(true);
+    setPdfError(null);
+    try {
+      const res = await fetch("/api/bodygraph/pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/pdf" },
+        body: JSON.stringify({
+          date,
+          time,
+          timezoneOffsetHours: tz,
+          name: name || undefined,
+          placeLabel: placeLabel || undefined,
+        }),
+      });
+      if (!res.ok) {
+        let message = `Error ${res.status}`;
+        try {
+          const body = await res.json();
+          message = body.message || body.error || message;
+        } catch {
+          // Body wasn't JSON — keep the generic message.
+        }
+        setPdfError(message);
+        return;
+      }
+      const disposition = res.headers.get("Content-Disposition") ?? "";
+      const filenameMatch = disposition.match(/filename="?([^"]+)"?/);
+      const filename = filenameMatch?.[1] ?? "bodygraph.pdf";
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setPdfError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPdfLoading(false);
     }
   };
 
@@ -197,7 +245,31 @@ export default function BodygraphPoc() {
 
       {result && (
         <div style={{ marginTop: 32 }}>
-          <h2 style={{ fontSize: 22 }}>Resultado{result.name ? ` para ${result.name}` : ""}</h2>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+            <h2 style={{ fontSize: 22, margin: 0 }}>Resultado{result.name ? ` para ${result.name}` : ""}</h2>
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              disabled={pdfLoading}
+              style={{
+                padding: "10px 18px",
+                fontSize: 14,
+                background: "white",
+                color: pdfLoading ? "#aaa" : "#2a5",
+                border: `1px solid ${pdfLoading ? "#ccc" : "#2a5"}`,
+                borderRadius: 4,
+                cursor: pdfLoading ? "default" : "pointer",
+                fontWeight: 500,
+              }}
+            >
+              {pdfLoading ? "Generando PDF..." : "Descargar PDF"}
+            </button>
+          </div>
+          {pdfError && (
+            <div style={{ marginTop: 12, padding: 12, background: "#fee", border: "1px solid #f88", borderRadius: 4, color: "#900", fontSize: 14 }}>
+              <strong>Error al generar PDF:</strong> {pdfError}
+            </div>
+          )}
           {placeLabel && <p style={{ color: "#666" }}>{placeLabel}</p>}
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginTop: 16 }}>
