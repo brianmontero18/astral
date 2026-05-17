@@ -205,10 +205,10 @@ describe("calculateBodygraph", () => {
     });
 
     it("derives Brian's incarnation cross from Personality.Sun=30 + 6/2 profile", async () => {
-      // 6/2 → "left" angle; (30, left) → "LAX Industry" per SharpAstrology
-      // canon. Foundation Chart de Brian aún no validado contra Genetic Matrix.
+      // 6/2 → "left" angle; (30, left) → "LAX Industry 1" per Genetic Matrix.
+      // Validated against Foundation Chart de Brian (Genetic Matrix).
       const profile = await calculateBodygraph(BRIAN);
-      expect(profile.humanDesign.incarnationCross).toBe("LAX Industry");
+      expect(profile.humanDesign.incarnationCross).toBe("LAX Industry 1");
     });
   });
 

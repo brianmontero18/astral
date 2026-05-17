@@ -43,16 +43,21 @@ describe("lookupIncarnationCross", () => {
       expect(lookupIncarnationCross(58, "4/6")).toBe("RAX Service 4");
     });
 
-    it("returns LAX Industry for (gate=30, profile=6/2)", () => {
-      expect(lookupIncarnationCross(30, "6/2")).toBe("LAX Industry");
+    it("returns LAX Industry 1 for Brian (gate=30, profile=6/2)", () => {
+      // Validated against Foundation Chart de Brian (Genetic Matrix).
+      expect(lookupIncarnationCross(30, "6/2")).toBe("LAX Industry 1");
     });
 
     it("returns JUX Conflict for (gate=6, profile=4/1)", () => {
+      // JUX crosses have a single member per gate — no numeric suffix.
       expect(lookupIncarnationCross(6, "4/1")).toBe("JUX Conflict");
     });
 
-    it("returns RAX Sphinx for (gate=13, profile=1/3) — the canonical first right-angle cross", () => {
-      expect(lookupIncarnationCross(13, "1/3")).toBe("RAX Sphinx");
+    it("returns RAX Sphinx 1 for (gate=13, profile=1/3) — Genetic Matrix appends ' 1' to the first variant", () => {
+      // SharpAstrology canon says "RAX Sphinx" (sin sufijo) para la 1ra
+      // variante de la familia; Genetic Matrix display SIEMPRE numera, así
+      // que la 1ra variante se renderea como "Sphinx 1".
+      expect(lookupIncarnationCross(13, "1/3")).toBe("RAX Sphinx 1");
     });
   });
 
@@ -67,6 +72,31 @@ describe("lookupIncarnationCross", () => {
     it("returns empty string for invalid profile", () => {
       expect(lookupIncarnationCross(13, "7/2")).toBe("");
       expect(lookupIncarnationCross(13, "")).toBe("");
+    });
+  });
+
+  describe("Genetic Matrix display convention: ' 1' suffix on first variant", () => {
+    it("appends ' 1' to RAX names whose family has 2+ members (Sphinx, Service, etc.)", () => {
+      // Sphinx family: gates 13/2/7/1 — all 4 variants present, gate 13 was
+      // 'RAX Sphinx' in SharpAstrology canon, displayed as 'RAX Sphinx 1'.
+      expect(lookupIncarnationCross(13, "1/3")).toBe("RAX Sphinx 1");
+      expect(lookupIncarnationCross(2, "1/3")).toBe("RAX Sphinx 2");
+      expect(lookupIncarnationCross(7, "1/3")).toBe("RAX Sphinx 3");
+      expect(lookupIncarnationCross(1, "1/3")).toBe("RAX Sphinx 4");
+    });
+
+    it("appends ' 1' to LAX names whose family has 2+ members (Industry, Healing, etc.)", () => {
+      expect(lookupIncarnationCross(30, "5/1")).toBe("LAX Industry 1");
+      expect(lookupIncarnationCross(29, "5/1")).toBe("LAX Industry 2");
+      expect(lookupIncarnationCross(25, "5/1")).toBe("LAX Healing 1");
+      expect(lookupIncarnationCross(46, "5/1")).toBe("LAX Healing 2");
+    });
+
+    it("does NOT append a number to JUX names (every JUX cross is unique per gate)", () => {
+      for (let g = 1; g <= 64; g++) {
+        const name = lookupIncarnationCross(g, "4/1");
+        expect(name, `JUX gate ${g}`).not.toMatch(/ \d+$/);
+      }
     });
   });
 
