@@ -1,0 +1,19 @@
+docs/architecture/bodygraph-render.md
+  s_fa76ce704ec9be::t_14e6550bf92e46 153,155,160-177
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "09ec34786e926d9a34fc8689f0f38f990835553c",
+  "prompts": {},
+  "sessions": {
+    "s_fa76ce704ec9be": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5b30039-a463-475b-9808-119e555e125d",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
