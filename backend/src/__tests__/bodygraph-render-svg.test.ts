@@ -272,6 +272,27 @@ describe("renderBodygraphSvg", () => {
       expect(countLabel("6", "#E5A800")).toBe(1);
     });
 
+    it("renders L/R orientation letters next to each Variable arrow", async () => {
+      // For Agos: D.Sun tone=1 → L, D.NN tone=5 → R, P.Sun tone=2 → L, P.NN tone=3 → L.
+      // Total in tone-groups block: 3 L circles + 1 R circle.
+      const profile = await calculateBodygraph({
+        date: "1988-12-28",
+        time: "06:13",
+        timezoneOffsetHours: 0,
+      });
+      const svg = renderFullDocument(profile);
+      const toneBlock = svg.match(/<g id="tone-groups">([\s\S]*?)<\/g><\/svg>$/)![1];
+      // Letters inside circles use the panel's side color (red for design,
+      // black for personality). Count L vs R irrespective of color.
+      const lLetters = (toneBlock.match(/>L</g) ?? []).length;
+      const rLetters = (toneBlock.match(/>R</g) ?? []).length;
+      expect(lLetters).toBe(3);
+      expect(rLetters).toBe(1);
+      // Each letter has a paired circle outline.
+      const circles = (toneBlock.match(/<circle [^/]+fill="none"/g) ?? []).length;
+      expect(circles).toBe(4);
+    });
+
     it("colors the design panel red and the personality panel black", async () => {
       const profile = await calculateBodygraph({
         date: "1989-02-18",
