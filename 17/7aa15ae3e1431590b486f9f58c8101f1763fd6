@@ -1,0 +1,32 @@
+backend/src/bodygraph/calculate.ts
+  s_963b0e03d79839::t_a5c3179c789d78 1-316
+frontend/src/BodygraphPoc.tsx
+  s_963b0e03d79839::t_3e4068048e628e 1-254
+backend/src/app.ts
+  s_963b0e03d79839::t_fef5ada07533ce 19
+  s_963b0e03d79839::t_dad291d5b837c3 102
+backend/src/__tests__/api-bodygraph.test.ts
+  s_963b0e03d79839::t_3fb34b6f12f39d 1-72
+frontend/src/main.tsx
+  s_963b0e03d79839::t_afb15692787997 7,11-16,20
+backend/src/__tests__/bodygraph-calculate.test.ts
+  s_963b0e03d79839::t_52c8912271bd65 1-158
+backend/src/routes/bodygraph.ts
+  s_963b0e03d79839::t_3168438f26a884 1-59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "177aa15ae3e1431590b486f9f58c8101f1763fd6",
+  "prompts": {},
+  "sessions": {
+    "s_963b0e03d79839": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8d65de57-dc44-4e93-b0e6-c2b110ada1a2",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
