@@ -204,6 +204,57 @@ describe("calculateBodygraph", () => {
     });
   });
 
+  describe("P1 — Fixing state per planet/gate/line (astral-13j)", () => {
+    it("populates fixingState on every activated gate (boolean-tri shape)", async () => {
+      const profile = await calculateBodygraph({
+        date: "1988-12-28",
+        time: "06:13",
+        timezoneOffsetHours: 0,
+      });
+      for (const g of profile.humanDesign.activatedGates) {
+        // Either "exalted", "detriment", or null — never undefined or other.
+        expect(g.fixingState === "exalted" || g.fixingState === "detriment" || g.fixingState === null).toBe(true);
+      }
+    });
+
+    it("matches the SharpAstrology canon for Agos's 6 verified entries", async () => {
+      // 6 fixings cross-checked against image #13 (Foundation Chart de Agos)
+      // AND the SharpAstrology Utility/HumanDesignUtility.cs table. Other two
+      // ambiguous markers from the image (P Sun 58.4, P Mercury 61.1) NOT
+      // included — they may have been a misread of small markers in the image.
+      const profile = await calculateBodygraph({
+        date: "1988-12-28",
+        time: "06:13",
+        timezoneOffsetHours: 0,
+      });
+      const find = (planet: string, isP: boolean) =>
+        profile.humanDesign.activatedGates.find(
+          (g) => g.planet === planet && g.isPersonality === isP,
+        );
+      // Personality side
+      expect(find("Venus", true)?.fixingState).toBe("exalted");      // 5.2
+      expect(find("Uranus", true)?.fixingState).toBe("exalted");     // 10.4
+      expect(find("Neptune", true)?.fixingState).toBe("exalted");    // 38.1
+      // Design side
+      expect(find("Mars", false)?.fixingState).toBe("exalted");      // 17.1
+      expect(find("Neptune", false)?.fixingState).toBe("detriment"); // 58.4
+      expect(find("Pluto", false)?.fixingState).toBe("exalted");     // 44.4
+    });
+
+    it("returns null for planet/gate/line combos that have no canonical fixing", async () => {
+      const profile = await calculateBodygraph({
+        date: "1989-02-18",
+        time: "12:00",
+        timezoneOffsetHours: 0,
+      });
+      // Most positions have no fixing — sanity that at least SOME are null.
+      const nullCount = profile.humanDesign.activatedGates.filter(
+        (g) => g.fixingState === null,
+      ).length;
+      expect(nullCount).toBeGreaterThan(0);
+    });
+  });
+
   describe("P2 — Variable Wheel canonical (4 vars × 4 props)", () => {
     it("populates the 4 Variables for Agos from Sun & NorthNode activations", async () => {
       const profile = await calculateBodygraph({

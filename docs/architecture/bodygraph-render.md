@@ -196,7 +196,7 @@ Ver beads hijos abajo. La sección 4 detalla el gap analysis.
 | `humanDesign.themes.positive` ("Success") | DTO + mapping by type | P0 |
 | `activatedGates[].isRetrograde` | DTO + Swiss Eph speed flag | P0 |
 | `humanDesign.incarnationCross` | DTO + tabla canónica ~192 crosses | P1 |
-| `activatedGates[].fixingState` | DTO + tabla `(planet, gate) → state` | P1 |
+| `activatedGates[].fixingState` | DTO + tabla `(planet, gate, line)` (759 entries) | P1 ✅ |
 | `activatedGates[].color` (1..6, sixth de la line) | DTO + cálculo astronómico | P2 ✅ |
 | `activatedGates[].tone` (1..6, sixth del color) | DTO + cálculo astronómico | P2 ✅ |
 | `activatedGates[].base` (1..5, fifth del tone) | DTO + cálculo astronómico | P2 ✅ |

@@ -19,6 +19,7 @@ import type { UserProfile } from "../agent-service.js";
 import { HD_CHANNELS } from "../hd-channels.js";
 import { degreeToGate, GATE_TO_CENTER } from "../hd-gates.js";
 import { deriveImpliedFields } from "../extraction-service.js";
+import { lookupFixingState } from "../hd-fixings.js";
 import {
   lookupProfileName,
   lookupPositiveTheme,
@@ -91,6 +92,7 @@ interface ComputedGate {
   planet: string;
   isPersonality: boolean;
   isRetrograde: boolean;
+  fixingState: "exalted" | "detriment" | null;
 }
 
 interface Swe {
@@ -196,6 +198,7 @@ function computeAllGates(swe: Swe, personalityJd: number, designJd: number): Com
         planet: body,
         isPersonality: side === "personality",
         isRetrograde,
+        fixingState: lookupFixingState(body, gate, line),
       });
     }
   }
