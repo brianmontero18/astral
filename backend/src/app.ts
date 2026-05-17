@@ -16,6 +16,7 @@ import { userRoutes } from "./routes/users.js";
 import { assetRoutes } from "./routes/assets.js";
 import { extractRoutes } from "./routes/extract.js";
 import { transcribeRoutes } from "./routes/transcribe.js";
+import { bodygraphRoutes } from "./routes/bodygraph.js";
 import { reportRoutes } from "./routes/report.js";
 
 function isHtmlAuthEntryRequest(acceptHeader: string | undefined, requestUrl: string) {
@@ -98,6 +99,7 @@ export async function buildApp(opts?: { logger?: boolean; auth?: AuthRuntime }) 
       await api.register(extractRoutes);
       await api.register(transcribeRoutes);
       await api.register(reportRoutes);
+      await api.register(bodygraphRoutes);
     },
     { prefix: "/api" },
   );

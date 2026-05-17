@@ -4,14 +4,20 @@ import { SuperTokensWrapper } from "supertokens-auth-react";
 import "./index.css";
 import App from "./App";
 import { AuthScreen } from "./auth/AuthScreen";
+import BodygraphPoc from "./BodygraphPoc";
 import { ensureFrontendAuthInit, isAuthRoute } from "./auth/config";
 
 const authConfig = ensureFrontendAuthInit();
-const rootComponent = isAuthRoute() ? <AuthScreen /> : <App />;
+const isBodygraphPoc = window.location.pathname === "/bodygraph-poc";
+const rootComponent = isBodygraphPoc
+  ? <BodygraphPoc />
+  : isAuthRoute()
+    ? <AuthScreen />
+    : <App />;
 
 const app = (
   <StrictMode>
-    {authConfig.enabled ? (
+    {authConfig.enabled && !isBodygraphPoc ? (
       <SuperTokensWrapper>
         {rootComponent}
       </SuperTokensWrapper>
