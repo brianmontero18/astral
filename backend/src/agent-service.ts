@@ -108,10 +108,16 @@ export interface UserProfile {
       number: number;
       line: number;
       /**
-       * Sixth subdivision of the line (1..6). Quantum convention (linear
-       * subdivision). Required by the Variable Wheel downstream.
+       * Subdivisiones canónicas HD por debajo de la line. Source: SharpAstrology
+       * Utility/HumanDesignUtility.cs.
+       *   - `color`: 1..6, sixth of a line (0.15625° each).
+       *   - `tone`:  1..6, sixth of a color (~0.026° each).
+       *   - `base`:  1..5, fifth of a tone (~0.0052° each).
+       * El Variable Wheel (Cognition, Determination, etc.) los consume.
        */
+      color?: number;
       tone?: number;
+      base?: number;
       planet: string;
       isPersonality: boolean;
       /** Velocidad eclíptica negativa al momento del cálculo. */

@@ -110,43 +110,66 @@ describe("degreeToGate", () => {
     expect(degreeToGate(3.875).gate).toBe(17);
   });
 
-  describe("tone (sixth subdivision of a line)", () => {
-    // Each line is 0.9375°, each tone is 0.9375/6 = 0.15625°.
-    it("returns tone 1 at the start of line 1 of Gate 41", () => {
-      expect(degreeToGate(302).tone).toBe(1);
+  describe("color / tone / base (HD canon subdivisions below line)", () => {
+    // Subdivisions per SharpAstrology Utility/HumanDesignUtility.cs:
+    //   line   = 0.9375°
+    //   color  = 0.15625°  (line / 6)
+    //   tone   = 0.0260417° (color / 6)
+    //   base   = 0.00520833° (tone / 5)
+    const COLOR_WIDTH = 0.15625;
+    const TONE_WIDTH = COLOR_WIDTH / 6;
+    const BASE_WIDTH = TONE_WIDTH / 5;
+
+    it("returns color/tone/base = 1 at the start of Gate 41 line 1", () => {
+      const r = degreeToGate(302);
+      expect(r.color).toBe(1);
+      expect(r.tone).toBe(1);
+      expect(r.base).toBe(1);
     });
 
-    it("returns tone 6 at the end of line 1 of Gate 41", () => {
-      // Line 1 spans 302° to 302.9375°. The last tone slot starts at
-      // 302 + 5*0.15625 = 302.78125° and ends at 302.9375°.
-      expect(degreeToGate(302.78125).tone).toBe(6);
-      expect(degreeToGate(302.9374).tone).toBe(6);
-    });
-
-    it("rolls tone back to 1 when crossing into the next line", () => {
-      // 302.9375° is the start of line 2 → tone 1 of line 2.
+    it("rolls color back to 1 when crossing into the next line", () => {
       const r = degreeToGate(302.9375);
       expect(r.line).toBe(2);
-      expect(r.tone).toBe(1);
+      expect(r.color).toBe(1);
     });
 
-    it("matches every tone slot within line 1 of Gate 41", () => {
-      const TONE_WIDTH = 0.15625;
-      for (let tone = 1; tone <= 6; tone++) {
-        // Probe a tiny epsilon past the tone slot start.
-        const longitude = 302 + (tone - 1) * TONE_WIDTH + 0.001;
+    it("matches every color slot within line 1 of Gate 41", () => {
+      for (let color = 1; color <= 6; color++) {
+        const longitude = 302 + (color - 1) * COLOR_WIDTH + 0.001;
         const r = degreeToGate(longitude);
-        expect(r.gate, `tone ${tone} probe should still be gate 41`).toBe(41);
-        expect(r.line, `tone ${tone} probe should still be line 1`).toBe(1);
+        expect(r.gate, `color ${color} probe should still be gate 41`).toBe(41);
+        expect(r.line, `color ${color} probe should still be line 1`).toBe(1);
+        expect(r.color, `color slot ${color}`).toBe(color);
+      }
+    });
+
+    it("matches every tone slot within color 1 of line 1 of Gate 41", () => {
+      for (let tone = 1; tone <= 6; tone++) {
+        const longitude = 302 + (tone - 1) * TONE_WIDTH + 0.0001;
+        const r = degreeToGate(longitude);
+        expect(r.color, `tone ${tone} probe should still be color 1`).toBe(1);
         expect(r.tone, `tone slot ${tone}`).toBe(tone);
       }
     });
 
-    it("returns tone in [1, 6] for any degree", () => {
+    it("matches every base slot within tone 1 of color 1 of line 1 of Gate 41", () => {
+      for (let base = 1; base <= 5; base++) {
+        const longitude = 302 + (base - 1) * BASE_WIDTH + 0.00001;
+        const r = degreeToGate(longitude);
+        expect(r.tone, `base ${base} probe should still be tone 1`).toBe(1);
+        expect(r.base, `base slot ${base}`).toBe(base);
+      }
+    });
+
+    it("keeps color/tone/base in their canonical ranges for any degree", () => {
       for (let deg = 0; deg < 360; deg += 0.7) {
-        const { tone } = degreeToGate(deg);
+        const { color, tone, base } = degreeToGate(deg);
+        expect(color).toBeGreaterThanOrEqual(1);
+        expect(color).toBeLessThanOrEqual(6);
         expect(tone).toBeGreaterThanOrEqual(1);
         expect(tone).toBeLessThanOrEqual(6);
+        expect(base).toBeGreaterThanOrEqual(1);
+        expect(base).toBeLessThanOrEqual(5);
       }
     });
   });
