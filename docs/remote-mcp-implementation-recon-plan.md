@@ -1,6 +1,6 @@
 # Remote MCP — reconocimiento y plan de implementacion
 
-**Estado**: Slices 0-5 implementados en `feature/astral-mcp-architecture`; quedan smoke de clientes reales, tools de transitos seguras y OAuth publico.
+**Estado**: Slices 0-6 implementados en `feature/astral-mcp-architecture`; quedan hardening E2E/manual, tools de transitos seguras y OAuth publico.
 **Fecha**: 2026-05-17.
 **Bead**: `astral-de7`.
 **Base**: `feature/astral-mcp-architecture`.
@@ -593,6 +593,9 @@ Regression tests:
 
 ## Recommended next step
 
-Start with **Slice 0 + Slice 1** only.
+Proceed to **Slice 7 — E2E green + manual smoke + cleanup**.
 
-Do not implement MCP endpoint until `guide-service` exists and web chat remains green. That gives a clean core boundary and makes later MCP work mostly auth/protocol/tool wiring instead of surgery inside `routes/chat.ts`.
+Slices 0-6 are already captured in this branch. Slice 7 should keep scope tight:
+run the backend gate, perform a focused manual smoke with the validated client
+path, clean up stale notes if any remain, and leave OAuth/public connector work
+out of scope.

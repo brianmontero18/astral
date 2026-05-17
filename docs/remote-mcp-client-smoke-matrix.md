@@ -5,9 +5,10 @@
 **Bead**: `astral-2s5`.
 **Endpoint tested**: `/api/mcp/v1` with `FEATURE_REMOTE_MCP=true`.
 
-This matrix validates client compatibility after Slice 5. It is not a public
-support promise. The goal is to identify which clients can be used for the next
-private beta pass and which clients need OAuth, UI login, or further research.
+This Slice 6 matrix validates client compatibility after Slice 5. It is not a
+public support promise. The goal is to identify which clients can be used for
+the next private beta pass and which clients need OAuth, UI login, or further
+research.
 
 ## Control smoke
 
