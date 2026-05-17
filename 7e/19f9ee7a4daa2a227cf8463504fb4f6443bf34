@@ -1,0 +1,27 @@
+docs/remote-mcp-implementation-recon-plan.md
+  s_4c18123980327d::t_bfa9b9e3c3bc5b 5
+  s_4c18123980327d::t_36e2e47bd2b160 508-509
+docs/remote-mcp-client-smoke-matrix.md
+  s_4c18123980327d::t_8f43b2b6131596 60
+  s_4c18123980327d::t_bfa9b9e3c3bc5b 5
+backend/scripts/smoke-mcp-curl.sh
+  s_4c18123980327d::t_52af4a18152245 7-8
+docs/remote-mcp-architecture-proposal.md
+  s_4c18123980327d::t_bfa9b9e3c3bc5b 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "7e19f9ee7a4daa2a227cf8463504fb4f6443bf34",
+  "prompts": {},
+  "sessions": {
+    "s_4c18123980327d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e3830-933b-7f01-89ae-1bffb20d9890",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
