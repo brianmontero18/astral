@@ -62,6 +62,7 @@ Reports de sub-agents que investigaron contra docs oficiales (Anthropic, OpenAI,
 | [`ux-refactor-plan-2026-05.md`](ux-refactor-plan-2026-05.md) | Plan de refactor UX 2026-05. |
 | [`ux-audit-2026-05.md`](ux-audit-2026-05.md) | Auditoría UX 2026-05. |
 | [`remote-mcp-architecture-proposal.md`](remote-mcp-architecture-proposal.md) | Borrador de arquitectura para exponer Astral Guide como Remote MCP para clientes externos. |
+| [`remote-mcp-implementation-recon-plan.md`](remote-mcp-implementation-recon-plan.md) | Reconocimiento del codebase y slices propuestos para implementar Remote MCP sin romper chat/auth existentes. |
 
 ---
 
