@@ -74,6 +74,10 @@ const COLOR_GATE_TEXT_INACTIVE = "#555555";
 const COLOR_HEADER_TEXT = "#2E5E3F"; // verde Genetic Matrix
 const COLOR_BODY_TEXT = "#1F1F1F";
 
+// Fixing state markers (Genetic Matrix dialect).
+const COLOR_EXALTED = "#22A33C";    // △ green — planet at exalted gate.line
+const COLOR_DETRIMENT = "#E5A800";  // ▽ yellow — planet at detriment gate.line
+
 const CENTER_FILL: Record<CenterId, string> = {
   Head:        "#FFD12B",
   Ajna:        "#87FE49",
@@ -383,12 +387,38 @@ function getPlanetActivation(
   profile: UserProfile,
   planet: PlanetName,
   side: "design" | "personality",
-): { gate: number; line: number } | null {
+): { gate: number; line: number; fixingState: "exalted" | "detriment" | null } | null {
   const target = profile.humanDesign.activatedGates.find(
     (g) => g.planet === planet && g.isPersonality === (side === "personality"),
   );
   if (!target) return null;
-  return { gate: target.number, line: target.line };
+  return {
+    gate: target.number,
+    line: target.line,
+    fixingState: target.fixingState ?? null,
+  };
+}
+
+/**
+ * Tiny equilateral triangle marker for fixing state (Exalted ▲ / Detriment ▽).
+ * `pointDown` flips the triangle for the detriment variant.
+ */
+function renderFixingMarker(
+  cx: number,
+  cy: number,
+  size: number,
+  color: string,
+  pointDown: boolean,
+): string {
+  const h = size; // total height
+  const w = size; // total width (equilateral-ish)
+  const halfW = w / 2;
+  const top = cy - h / 2;
+  const bot = cy + h / 2;
+  const pts = pointDown
+    ? `${f(cx - halfW)},${f(top)} ${f(cx + halfW)},${f(top)} ${f(cx)},${f(bot)}`
+    : `${f(cx - halfW)},${f(bot)} ${f(cx + halfW)},${f(bot)} ${f(cx)},${f(top)}`;
+  return `<polygon points="${pts}" fill="${color}"/>`;
 }
 
 function renderPlanetPanel(profile: UserProfile, opts: PanelOptions): string {
@@ -407,6 +437,8 @@ function renderPlanetPanel(profile: UserProfile, opts: PanelOptions): string {
     `font-size="${f(rowH * 0.45)}" text-anchor="middle" fill="${color}" ` +
     `font-family="Helvetica, Arial, sans-serif" font-weight="bold">${escapeXml(headerText)}</text>`;
 
+  const markerSize = rowH * 0.28;
+
   for (let i = 0; i < PLANET_ORDER.length; i++) {
     const planet = PLANET_ORDER[i];
     const rowTop = opts.y + i * rowH;
@@ -415,8 +447,15 @@ function renderPlanetPanel(profile: UserProfile, opts: PanelOptions): string {
     const glyphX = opts.x + padX;
     const glyphY = rowCenterY - glyphSize / 2;
     svg += renderPlanetGlyph(planet, glyphX, glyphY, glyphSize, color);
-    // Gate.line text at right.
+    // Fixing state marker (△ Exalted / ▽ Detriment) between glyph and label.
     const act = getPlanetActivation(profile, planet, opts.side);
+    if (act?.fixingState) {
+      const markerCx = glyphX + glyphSize + opts.width * 0.04;
+      const pointDown = act.fixingState === "detriment";
+      const markerColor = act.fixingState === "exalted" ? COLOR_EXALTED : COLOR_DETRIMENT;
+      svg += renderFixingMarker(markerCx, rowCenterY, markerSize, markerColor, pointDown);
+    }
+    // Gate.line text at right.
     const label = act ? `${act.gate}.${act.line}` : "—";
     const textX = opts.x + padX + glyphSize + opts.width * 0.08;
     svg +=

@@ -196,6 +196,39 @@ describe("renderBodygraphSvg", () => {
       expect(personMatch![1]).toContain(">58.4<");
     });
 
+    it("draws fixing-state markers (△ exalted / ▽ detriment) in the planet panels", async () => {
+      // Agos's ground truth (cross-checked against SharpAstrology table):
+      //   Design side  → 2 exalted (Mars 17.1, Pluto 44.4) + 1 detriment (Neptune 58.4).
+      //   Personality  → 3 exalted (Venus 5.2, Uranus 10.4, Neptune 38.1) + 0 detriment.
+      // The actual count can be higher because activatedGates has more entries
+      // than the 6 spot-checked — we assert >= the known minimums.
+      const profile = await calculateBodygraph({
+        date: "1988-12-28",
+        time: "06:13",
+        timezoneOffsetHours: 0,
+      });
+      const svg = renderFullDocument(profile);
+      const designBlock = svg.match(/<g id="panel-design">([\s\S]*?)<\/g><g id="chart">/)![1];
+      const personBlock = svg.match(/<g id="panel-personality">([\s\S]*?)<\/g><\/svg>$/)![1];
+
+      const exaltedRe = /<polygon points="[^"]*" fill="#22A33C"\/>/g;
+      const detrimentRe = /<polygon points="[^"]*" fill="#E5A800"\/>/g;
+
+      const designExalted = (designBlock.match(exaltedRe) ?? []).length;
+      const designDetriment = (designBlock.match(detrimentRe) ?? []).length;
+      const personExalted = (personBlock.match(exaltedRe) ?? []).length;
+      const personDetriment = (personBlock.match(detrimentRe) ?? []).length;
+
+      // Lower bounds derived from the 6 ground-truth fixings.
+      expect(designExalted).toBeGreaterThanOrEqual(2);
+      expect(designDetriment).toBeGreaterThanOrEqual(1);
+      expect(personExalted).toBeGreaterThanOrEqual(3);
+      // Suppress unused destructure warning on personDetriment — we don't
+      // bound it because Agos has 0 detriments on Personality side and
+      // asserting "≥ 0" is meaningless.
+      expect(personDetriment).toBeGreaterThanOrEqual(0);
+    });
+
     it("colors the design panel red and the personality panel black", async () => {
       const profile = await calculateBodygraph({
         date: "1989-02-18",
