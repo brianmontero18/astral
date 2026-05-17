@@ -20,6 +20,7 @@ import { BUSINESS_PACK_V1 } from "./knowledge/business-pack-v1.js";
 import {
   buildBusinessContextBlock,
   buildUserMemoryBlock,
+  formatBirthForPrompt,
 } from "./agent-prompt-helpers.js";
 
 /**
@@ -188,7 +189,7 @@ Usá ÚNICAMENTE los datos de tránsito e impacto provistos abajo. Cada insight 
 # Contexto
 
 <user_profile name="${profile.name}">
-${profile.birthData ? `<birth>${profile.birthData.date}, ${profile.birthData.time} — ${profile.birthData.location}</birth>` : ""}
+${profile.birthData ? `<birth>${formatBirthForPrompt(profile.birthData)}</birth>` : ""}
 <human_design>
   <type>${hd.type}</type>${hd.strategy ? `\n  <strategy>${hd.strategy}</strategy>` : ""}
   <authority>${hd.authority}</authority>

@@ -10,6 +10,14 @@
 
 import type { Intake } from "./report/types.js";
 
+export interface PromptBirthData {
+  dateLocalIso: string;
+  dateUtcIso: string;
+  placeLabel: string;
+  timezoneOffsetHours: number;
+  ageYears: number;
+}
+
 export const TIPO_NEGOCIO_PROMPT_LABELS: Record<
   NonNullable<Intake["tipo_de_negocio"]>,
   string
@@ -65,4 +73,13 @@ export function buildUserMemoryBlock(memory?: string): string {
   const trimmed = memory.trim();
   if (!trimmed) return "";
   return `\n<user_memory>\n${trimmed}\n</user_memory>`;
+}
+
+export function formatBirthForPrompt(birth: PromptBirthData): string {
+  return [
+    birth.dateLocalIso,
+    `UTC ${birth.dateUtcIso}`,
+    birth.placeLabel,
+    `edad ${birth.ageYears}`,
+  ].join(" | ");
 }

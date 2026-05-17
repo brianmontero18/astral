@@ -150,13 +150,31 @@ paralelo. Esto viola la regla 5. La corrección llega cuando el DTO exponga
 
 ## 3. Status (a 2026-05-17)
 
-### ✅ Hecho (fases 1-3 de `astral-jrf`)
+### ✅ Hecho
 
+**Capa render (fases 1-3 originales de `astral-jrf`)**:
 - `backend/src/bodygraph/calculate.ts` — POC determinístico Swiss Eph, 26/26 gates validados contra Agos + Brian.
 - `backend/src/bodygraph/svg-geometry.ts` — 9 centros, 64 gates, 30 line channels + Integration knot K4 (hub + 4 spokes).
 - `backend/src/bodygraph/planet-symbols.ts` — 13 glifos planetarios vectoriales (portados de SharpAstrology MIT).
 - `backend/src/bodygraph/render-svg.ts` — `renderBodygraphSvg()` + `renderFullDocument()`. Activación P/D/Mixed/none por gate y channel half.
-- `backend/src/__tests__/bodygraph-render-svg.test.ts` — 12 tests verde, suite full 504 verde.
+
+**Capa cálculo P0 (`astral-ffm`)**:
+- `backend/src/hd-meta.ts` — tablas chicas (`PROFILE_LINE_NAMES`, `TYPE_POSITIVE_THEME`, `TYPE_QUALIFIER_BY_AUTHORITY`) + helpers (`lookupProfileName`, `lookupPositiveTheme`, `lookupTypeQualifier`, `calcAgeYears`).
+- `calculate.ts` populate todos los campos esenciales del DTO: `birthData` ISOs + tz + age, `typeQualifier`, `profileName`, `themes.{positive, notSelf}`, `design.date`, `activatedGates[].isRetrograde`.
+- Prompt builders v1+v2 migrados al nuevo shape via `formatBirthForPrompt` en `agent-prompt-helpers.ts` (commit `401a905` por Codex en paralelo).
+- `renderFullDocument` corrigió la violación de regla 5: ya no recibe `birth:` aparte — todo desde `profile.birthData`.
+
+**Validación contra Foundation Chart real de Agos**:
+- `design.date` matches `01 October 1988, 17:14:58` al segundo.
+- `typeQualifier="Emotional"`, `profileName="Opportunistic / Role Model"`, `themes.positive="Success"`.
+- Mercury retrograde verificado contra Swiss Eph ground truth: Design retro (-0.343°/día), Personality direct (+1.547°/día).
+
+507/507 tests verde, tsc limpio.
+
+### Observaciones del cross-check con Foundation Chart oficial
+
+- **Genetic Matrix usa "Opportunistic"** (no "Opportunist" del canon Ra Uru Hu). Nuestra tabla `PROFILE_LINE_NAMES` se alinea al dialecto de Genetic Matrix.
+- **Genetic Matrix NO renderiza markers "R" en este layout de Foundation Chart**. Los markers visibles `△ ▽` son **fixing state** (Exalted/Detriment), no retrograde. `astral-lor` (P3.3) va a pintar fixing state visualmente; la representación de retrograde queda como decisión de diseño nuestra (probablemente fuera de scope para MVP).
 
 ### ❌ Falta — agrupado por paquetes
 

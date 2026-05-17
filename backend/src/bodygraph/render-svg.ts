@@ -436,11 +436,25 @@ interface HeaderOptions {
   y: number;
   width: number;
   height: number;
-  birth?: { dateLocal?: string; dateUtc?: string; placeLabel?: string };
+}
+
+const MONTH_SHORT_ES = [
+  "ene", "feb", "mar", "abr", "may", "jun",
+  "jul", "ago", "sep", "oct", "nov", "dic",
+];
+
+/** Format a birth ISO ("1988-12-28T03:13:00-03:00") as "28 dic 1988 03:13". */
+function formatBirthIsoForHeader(iso: string): string {
+  const [datePart, timePart] = iso.split("T");
+  if (!datePart || !timePart) return iso;
+  const [y, m, d] = datePart.split("-").map(Number);
+  const hhmm = timePart.substring(0, 5);
+  return `${d} ${MONTH_SHORT_ES[m - 1]} ${y} ${hhmm}`;
 }
 
 function renderHeader(profile: UserProfile, opts: HeaderOptions): string {
   const hd = profile.humanDesign;
+  const birth = profile.birthData;
   const padX = 0.02;
   const left = opts.x + padX;
   const right = opts.x + opts.width - padX;
@@ -448,8 +462,11 @@ function renderHeader(profile: UserProfile, opts: HeaderOptions): string {
   const lineSize = opts.height * 0.085;
 
   let svg = "";
-  // Title (name + type).
-  const titleText = `${profile.name || "Bodygraph"}${hd.type ? ` — ${hd.type}` : ""}`;
+  // Title (name + type prefixed by qualifier when present).
+  const typeDisplay = hd.typeQualifier
+    ? `${hd.typeQualifier} ${hd.type}`
+    : hd.type;
+  const titleText = `${profile.name || "Bodygraph"}${typeDisplay ? ` — ${typeDisplay}` : ""}`;
   svg +=
     `<text x="${f(left)}" y="${f(opts.y + titleSize)}" ` +
     `font-size="${f(titleSize)}" fill="${COLOR_HEADER_TEXT}" ` +
@@ -457,22 +474,26 @@ function renderHeader(profile: UserProfile, opts: HeaderOptions): string {
 
   // Field rows. We render two columns of label/value pairs.
   const fields: Array<{ label: string; value: string }> = [
-    { label: "Perfil", value: hd.profile },
+    { label: "Perfil", value: hd.profileName ? `${hd.profile} — ${hd.profileName}` : hd.profile },
     { label: "Autoridad", value: hd.authority },
     { label: "Definición", value: hd.definition },
     { label: "Estrategia", value: hd.strategy },
-    { label: "Tema No-Self", value: hd.notSelfTheme },
+    { label: "Temas", value: hd.themes ? `${hd.themes.positive} / ${hd.themes.notSelf}` : hd.notSelfTheme },
     { label: "Cruz de Encarnación", value: hd.incarnationCross || "—" },
   ];
 
-  if (opts.birth?.placeLabel) {
-    fields.unshift({ label: "Lugar", value: opts.birth.placeLabel });
-  }
-  if (opts.birth?.dateUtc) {
-    fields.unshift({ label: "Nacimiento (UTC)", value: opts.birth.dateUtc });
-  }
-  if (opts.birth?.dateLocal) {
-    fields.unshift({ label: "Nacimiento (local)", value: opts.birth.dateLocal });
+  if (birth) {
+    if (birth.placeLabel) {
+      fields.unshift({ label: "Lugar", value: birth.placeLabel });
+    }
+    fields.unshift({
+      label: "Nacimiento (UTC)",
+      value: formatBirthIsoForHeader(birth.dateUtcIso),
+    });
+    fields.unshift({
+      label: "Nacimiento (local)",
+      value: formatBirthIsoForHeader(birth.dateLocalIso),
+    });
   }
 
   // Two columns, side-by-side. Each row about `lineSize * 1.4` tall.
@@ -541,17 +562,8 @@ export function activeChannelIds(profile: UserProfile): string[] {
 export interface FullDocumentOptions {
   /** SVG width attribute. Defaults to 1000 (px). */
   width?: number;
-  /** SVG height attribute. Defaults to 1300 (px) preserving aspect ratio. */
+  /** SVG height attribute. Defaults to ~1042 (px) preserving 2.4:2.5 aspect ratio. */
   height?: number;
-  /** Birth metadata for the header. Optional. */
-  birth?: {
-    /** Local time human label, e.g. "28 Dec 1988 06:13". */
-    dateLocal?: string;
-    /** UTC equivalent, e.g. "28 Dec 1988 06:13 UTC". */
-    dateUtc?: string;
-    /** Place label, e.g. "Buenos Aires, Argentina". */
-    placeLabel?: string;
-  };
 }
 
 /**
@@ -585,10 +597,9 @@ export function renderFullDocument(
   const designP = { x: 0.10, y: 0.50, w: 0.45, h: 1.40 };
   const personP = { x: 1.75, y: 0.50, w: 0.45, h: 1.40 };
 
-  // 1. Header.
+  // 1. Header (reads birth metadata from profile.birthData if present).
   const headerSvg = renderHeader(profile, {
     x: header.x, y: header.y, width: header.w, height: header.h,
-    birth: opts.birth,
   });
 
   // 2. Chart (translated + scaled into the chart region).
