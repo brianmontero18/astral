@@ -191,7 +191,7 @@ describe("renderBodygraphSvg", () => {
       // Sun design gate.line for Agos is 18.6 per the calculate test fixture.
       expect(designBlock).toContain(">18.6<");
       // Agos's personality Sun is 58.4 in the ground truth.
-      const personMatch = svg.match(/<g id="panel-personality">([\s\S]*?)<\/g><\/svg>$/);
+      const personMatch = svg.match(/<g id="panel-personality">([\s\S]*?)<\/g><g id="tone-groups">/);
       expect(personMatch).toBeTruthy();
       expect(personMatch![1]).toContain(">58.4<");
     });
@@ -209,7 +209,7 @@ describe("renderBodygraphSvg", () => {
       });
       const svg = renderFullDocument(profile);
       const designBlock = svg.match(/<g id="panel-design">([\s\S]*?)<\/g><g id="chart">/)![1];
-      const personBlock = svg.match(/<g id="panel-personality">([\s\S]*?)<\/g><\/svg>$/)![1];
+      const personBlock = svg.match(/<g id="panel-personality">([\s\S]*?)<\/g><g id="tone-groups">/)![1];
 
       const exaltedRe = /<polygon points="[^"]*" fill="#22A33C"\/>/g;
       const detrimentRe = /<polygon points="[^"]*" fill="#E5A800"\/>/g;
@@ -229,6 +229,49 @@ describe("renderBodygraphSvg", () => {
       expect(personDetriment).toBeGreaterThanOrEqual(0);
     });
 
+    it("renders 4 tone groups (color + tone triangles) — 1 per Variable", async () => {
+      // Agos's variables per `astral-7w2`, cross-checked against Foundation
+      // Chart de Agos image:
+      //   digestion   (D.Sun)  → color=2, tone=1  → chart ▲1 (green/tone) + ▽2 (yellow/color)
+      //   environment (D.NN)   → color=4, tone=5  → chart ▲5 (green/tone) + ▽4 (yellow/color)
+      //   awareness   (P.Sun)  → color=1, tone=2  → chart ▲1 (yellow/color) + ▽2 (green/tone)
+      //   perspective (P.NN)   → color=6, tone=3  → chart ▲6 (yellow/color) + ▽3 (green/tone)
+      // Encoding rule: GREEN triangle = tone, YELLOW triangle = color (universal,
+      // independent of side). Direction (▲/▽) flips by side.
+      const profile = await calculateBodygraph({
+        date: "1988-12-28",
+        time: "06:13",
+        timezoneOffsetHours: 0,
+      });
+      const svg = renderFullDocument(profile);
+      const toneMatch = svg.match(/<g id="tone-groups">([\s\S]*?)<\/g><\/svg>$/);
+      expect(toneMatch).toBeTruthy();
+      const toneBlock = toneMatch![1];
+
+      // Topology: 8 numbered triangles + 4 orientation arrows.
+      const numberedTriangles = (toneBlock.match(/<polygon points="[^"]*" fill="none" stroke="(#22A33C|#E5A800)"/g) ?? []).length;
+      expect(numberedTriangles).toBe(8);
+      const orientationArrows = (toneBlock.match(/<polygon points="[^"]*" fill="none" stroke="(#C8102E|#000000)"/g) ?? []).length;
+      expect(orientationArrows).toBe(4);
+
+      // Ground-truth color/tone values appear as text labels (any order).
+      // Helper: count text elements containing a given label with a specific fill color.
+      const countLabel = (label: string, color: string) => {
+        const re = new RegExp(`fill="${color}"[^>]*>${label}<`, "g");
+        return (toneBlock.match(re) ?? []).length;
+      };
+      // GREEN labels (tone): D.Sun=1, D.NN=5, P.Sun=2, P.NN=3 — 4 distinct numbers each appearing once.
+      expect(countLabel("1", "#22A33C")).toBe(1);
+      expect(countLabel("5", "#22A33C")).toBe(1);
+      expect(countLabel("2", "#22A33C")).toBe(1);
+      expect(countLabel("3", "#22A33C")).toBe(1);
+      // YELLOW labels (color): D.Sun=2, D.NN=4, P.Sun=1, P.NN=6.
+      expect(countLabel("2", "#E5A800")).toBe(1);
+      expect(countLabel("4", "#E5A800")).toBe(1);
+      expect(countLabel("1", "#E5A800")).toBe(1);
+      expect(countLabel("6", "#E5A800")).toBe(1);
+    });
+
     it("colors the design panel red and the personality panel black", async () => {
       const profile = await calculateBodygraph({
         date: "1989-02-18",
@@ -237,7 +280,7 @@ describe("renderBodygraphSvg", () => {
       });
       const svg = renderFullDocument(profile);
       const designMatch = svg.match(/<g id="panel-design">([\s\S]*?)<\/g><g id="chart">/);
-      const personMatch = svg.match(/<g id="panel-personality">([\s\S]*?)<\/g><\/svg>$/);
+      const personMatch = svg.match(/<g id="panel-personality">([\s\S]*?)<\/g><g id="tone-groups">/);
       expect(designMatch![1]).toContain('stroke="#C8102E"');
       expect(designMatch![1]).not.toMatch(/stroke="#000000"/);
       expect(personMatch![1]).toContain('stroke="#000000"');

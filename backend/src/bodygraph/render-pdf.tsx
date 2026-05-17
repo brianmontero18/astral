@@ -32,9 +32,11 @@ import { renderFullDocument } from "./render-svg.js";
 
 /**
  * Width (in pixels) at which the SVG is rasterized to PNG. A4 portrait has
- * a printable area of ~595pt wide. 2400px ≈ 290 DPI which is print-grade.
+ * a printable area of ~595pt wide. 4800px ≈ 580 DPI — necessary for small
+ * header text to remain sharp at 100% zoom (2400px @ 290 DPI produced visible
+ * pixelation on subtitle text per founder spot-check).
  */
-const PNG_RENDER_WIDTH = 2400;
+const PNG_RENDER_WIDTH = 4800;
 
 const styles = StyleSheet.create({
   page: {
@@ -49,13 +51,14 @@ const styles = StyleSheet.create({
 });
 
 async function svgToPngBuffer(svg: string): Promise<Buffer> {
-  // `density` controls the rendering DPI when sharp parses the SVG. Higher
-  // density = sharper rasterization. The output is then constrained to
-  // PNG_RENDER_WIDTH so the dimensions are predictable regardless of the
-  // SVG's intrinsic size.
-  return sharp(Buffer.from(svg), { density: 300 })
+  // The SVG ships with `width="PNG_RENDER_WIDTH"` already, so sharp will
+  // rasterize at that intrinsic size (no density override needed; setting
+  // a high density caused sharp to interpret SVG units as points and exceed
+  // its 268M-pixel safety limit). The explicit .resize() guarantees output
+  // dimensions even if the SVG width attr drifts in the future.
+  return sharp(Buffer.from(svg))
     .resize({ width: PNG_RENDER_WIDTH })
-    .png()
+    .png({ compressionLevel: 9 })
     .toBuffer();
 }
 

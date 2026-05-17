@@ -78,6 +78,12 @@ const COLOR_BODY_TEXT = "#1F1F1F";
 const COLOR_EXALTED = "#22A33C";    // △ green — planet at exalted gate.line
 const COLOR_DETRIMENT = "#E5A800";  // ▽ yellow — planet at detriment gate.line
 
+// Tone group triangles (Variable Wheel preview rendered next to each panel).
+// Genetic Matrix shows green ▲ + yellow ▽ on the Design side, INVERTED on
+// the Personality side (yellow ▲ + green ▽). Logic implemented in `renderToneGroup`.
+const COLOR_TONE_GREEN = "#22A33C";
+const COLOR_TONE_YELLOW = "#E5A800";
+
 const CENTER_FILL: Record<CenterId, string> = {
   Head:        "#FFD12B",
   Ajna:        "#87FE49",
@@ -421,6 +427,98 @@ function renderFixingMarker(
   return `<polygon points="${pts}" fill="${color}"/>`;
 }
 
+/**
+ * Triangle with a number inside — used by `renderToneGroup` to display the
+ * color/tone values of a Variable. Outlined (stroke), not filled, with the
+ * number rendered in the stroke color.
+ */
+function renderNumberedTriangle(
+  cx: number,
+  cy: number,
+  size: number,
+  color: string,
+  pointDown: boolean,
+  label: string,
+): string {
+  const halfW = size / 2;
+  const halfH = size / 2;
+  const top = cy - halfH;
+  const bot = cy + halfH;
+  const pts = pointDown
+    ? `${f(cx - halfW)},${f(top)} ${f(cx + halfW)},${f(top)} ${f(cx)},${f(bot)}`
+    : `${f(cx - halfW)},${f(bot)} ${f(cx + halfW)},${f(bot)} ${f(cx)},${f(top)}`;
+  // Numbers in down-pointing triangles look better when shifted up; up-pointing,
+  // shifted down. Empirical adjustment.
+  const labelY = pointDown ? cy - halfH * 0.30 : cy + halfH * 0.30;
+  return (
+    `<polygon points="${pts}" fill="none" stroke="${color}" stroke-width="${f(size * 0.08)}"/>` +
+    `<text x="${f(cx)}" y="${f(labelY)}" font-size="${f(size * 0.55)}" text-anchor="middle" ` +
+    `dominant-baseline="central" fill="${color}" font-family="Helvetica, Arial, sans-serif" ` +
+    `font-weight="bold">${escapeXml(label)}</text>`
+  );
+}
+
+interface ToneGroupOptions {
+  /** Variable to read color/tone/orientation from. */
+  variable: { orientation: "left" | "right"; color: number; tone: number };
+  /** Left edge of the group in viewport coordinates. */
+  x: number;
+  /** Vertical center of the group in viewport coordinates. */
+  cy: number;
+  /** Total width allotted to the group. */
+  width: number;
+  /** Per-side color logic: design uses ▲green+▽yellow, personality inverts. */
+  side: "design" | "personality";
+}
+
+/**
+ * Renders the Variable summary block shown by Genetic Matrix between each
+ * planet panel and the chart: an orientation arrow + 2 numbered triangles.
+ *
+ * Encoding (Genetic Matrix dialect, validated against Agos's Foundation Chart):
+ *   - GREEN triangle (#22A33C) always encodes `tone` (1..6).
+ *   - YELLOW triangle (#E5A800) always encodes `color` (1..6).
+ *   - Design side renders GREEN as ▲ + YELLOW as ▽.
+ *   - Personality side INVERTS: YELLOW as ▲ + GREEN as ▽.
+ *
+ * Arrow direction reflects the Variable's orientation (left/right), which is
+ * derived from `tone` per `toneToOrientation` in hd-meta.
+ */
+function renderToneGroup(opts: ToneGroupOptions): string {
+  const triSize = opts.width * 0.28;
+  const arrowSize = opts.width * 0.22;
+
+  // Distribute 3 elements (arrow + 2 triangles) across `opts.width`.
+  const xArrow = opts.x + opts.width * 0.18;
+  const xUp = opts.x + opts.width * 0.55;
+  const xDown = opts.x + opts.width * 0.85;
+
+  // Per-side mapping. Universal rule: green = tone, yellow = color. Which one
+  // sits on top (▲) flips by side.
+  const upIsGreen = opts.side === "design";
+  const upColor = upIsGreen ? COLOR_TONE_GREEN : COLOR_TONE_YELLOW;
+  const downColor = upIsGreen ? COLOR_TONE_YELLOW : COLOR_TONE_GREEN;
+  const upValue = upIsGreen ? opts.variable.tone : opts.variable.color;
+  const downValue = upIsGreen ? opts.variable.color : opts.variable.tone;
+  const sideColor = opts.side === "design" ? COLOR_DESIGN : COLOR_PERSONALITY;
+
+  // Arrow as a horizontal triangle pointing left or right.
+  const arrowLeft = opts.variable.orientation === "left";
+  const sw = arrowSize * 0.10;
+  const arrowHalfW = arrowSize / 2;
+  const arrowHalfH = arrowSize / 2;
+  const arrowPts = arrowLeft
+    ? `${f(xArrow + arrowHalfW)},${f(opts.cy - arrowHalfH)} ${f(xArrow + arrowHalfW)},${f(opts.cy + arrowHalfH)} ${f(xArrow - arrowHalfW)},${f(opts.cy)}`
+    : `${f(xArrow - arrowHalfW)},${f(opts.cy - arrowHalfH)} ${f(xArrow - arrowHalfW)},${f(opts.cy + arrowHalfH)} ${f(xArrow + arrowHalfW)},${f(opts.cy)}`;
+  const arrowSvg = `<polygon points="${arrowPts}" fill="none" stroke="${sideColor}" stroke-width="${f(sw)}"/>`;
+
+  return (
+    arrowSvg +
+    renderNumberedTriangle(xUp, opts.cy, triSize, upColor, false, String(upValue)) +
+    renderNumberedTriangle(xDown, opts.cy, triSize, downColor, true, String(downValue))
+  );
+}
+
 function renderPlanetPanel(profile: UserProfile, opts: PanelOptions): string {
   const color = opts.side === "design" ? COLOR_DESIGN : COLOR_PERSONALITY;
   const rowH = opts.height / PLANET_ORDER.length;
@@ -661,6 +759,41 @@ export function renderFullDocument(
     side: "personality",
   });
 
+  // 5. Tone groups: 2 per side (Sun/Earth and NN/SN rows) showing color + tone
+  // of each Variable (digestion, environment, awareness, perspective). Only
+  // drawn if the variables block is populated in the DTO.
+  let toneGroupsSvg = "";
+  const variables = profile.humanDesign.variables;
+  if (variables) {
+    // Vertically align each group between rows 0+1 (Sun/Earth) and rows 2+3
+    // (NN/SN) of the planet panels. PLANET_ORDER[0..3] = Sun, Earth, NN, SN.
+    const panelRowH = designP.h / PLANET_ORDER.length;
+    const sunEarthCy = designP.y + panelRowH * 1.0;
+    const nnSnCy = designP.y + panelRowH * 3.0;
+    // Groups occupy the gap between each panel and the chart.
+    const designGroupX = designP.x + designP.w + 0.005;
+    const designGroupW = chart.x - designGroupX - 0.005;
+    const personGroupX = chart.x + chart.w + 0.005;
+    const personGroupW = personP.x - personGroupX - 0.005;
+
+    toneGroupsSvg += renderToneGroup({
+      variable: variables.digestion,
+      x: designGroupX, cy: sunEarthCy, width: designGroupW, side: "design",
+    });
+    toneGroupsSvg += renderToneGroup({
+      variable: variables.environment,
+      x: designGroupX, cy: nnSnCy, width: designGroupW, side: "design",
+    });
+    toneGroupsSvg += renderToneGroup({
+      variable: variables.awareness,
+      x: personGroupX, cy: sunEarthCy, width: personGroupW, side: "personality",
+    });
+    toneGroupsSvg += renderToneGroup({
+      variable: variables.perspective,
+      x: personGroupX, cy: nnSnCy, width: personGroupW, side: "personality",
+    });
+  }
+
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vbX} ${vbY} ${vbW} ${vbH}" width="${width}" height="${height}">` +
     `<rect x="0" y="0" width="${vbW}" height="${vbH}" fill="#FFFFFF"/>` +
@@ -668,6 +801,7 @@ export function renderFullDocument(
     `<g id="panel-design">${designPanelSvg}</g>` +
     `<g id="chart">${chartGroup}</g>` +
     `<g id="panel-personality">${personPanelSvg}</g>` +
+    `<g id="tone-groups">${toneGroupsSvg}</g>` +
     `</svg>`
   );
 }
