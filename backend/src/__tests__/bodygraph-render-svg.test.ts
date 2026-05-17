@@ -230,14 +230,14 @@ describe("renderBodygraphSvg", () => {
     });
 
     it("renders 4 tone groups (color + tone triangles) — 1 per Variable", async () => {
-      // Agos's variables per `astral-7w2` + cross-check vs Foundation Chart de
-      // Agos (image #12/#13): the 4 numbered triangles around the panels read:
-      //   digestion   (D.Sun)  → color=1, tone=2
-      //   environment (D.NN)   → color=5, tone=4
-      //   awareness   (P.Sun)  → color=1, tone=2
-      //   perspective (P.NN)   → color=6, tone=3
-      // We assert the SVG contains text elements with these exact values inside
-      // the tone-groups block.
+      // Agos's variables per `astral-7w2`, cross-checked against Foundation
+      // Chart de Agos image:
+      //   digestion   (D.Sun)  → color=2, tone=1  → chart ▲1 (green/tone) + ▽2 (yellow/color)
+      //   environment (D.NN)   → color=4, tone=5  → chart ▲5 (green/tone) + ▽4 (yellow/color)
+      //   awareness   (P.Sun)  → color=1, tone=2  → chart ▲1 (yellow/color) + ▽2 (green/tone)
+      //   perspective (P.NN)   → color=6, tone=3  → chart ▲6 (yellow/color) + ▽3 (green/tone)
+      // Encoding rule: GREEN triangle = tone, YELLOW triangle = color (universal,
+      // independent of side). Direction (▲/▽) flips by side.
       const profile = await calculateBodygraph({
         date: "1988-12-28",
         time: "06:13",
@@ -247,13 +247,29 @@ describe("renderBodygraphSvg", () => {
       const toneMatch = svg.match(/<g id="tone-groups">([\s\S]*?)<\/g><\/svg>$/);
       expect(toneMatch).toBeTruthy();
       const toneBlock = toneMatch![1];
-      // Each Variable contributes 2 numeric triangles (color ▲ and tone ▽) →
-      // 4 Variables × 2 = 8 numbered triangles.
+
+      // Topology: 8 numbered triangles + 4 orientation arrows.
       const numberedTriangles = (toneBlock.match(/<polygon points="[^"]*" fill="none" stroke="(#22A33C|#E5A800)"/g) ?? []).length;
       expect(numberedTriangles).toBe(8);
-      // Orientation arrows: 1 per Variable = 4 arrows.
       const orientationArrows = (toneBlock.match(/<polygon points="[^"]*" fill="none" stroke="(#C8102E|#000000)"/g) ?? []).length;
       expect(orientationArrows).toBe(4);
+
+      // Ground-truth color/tone values appear as text labels (any order).
+      // Helper: count text elements containing a given label with a specific fill color.
+      const countLabel = (label: string, color: string) => {
+        const re = new RegExp(`fill="${color}"[^>]*>${label}<`, "g");
+        return (toneBlock.match(re) ?? []).length;
+      };
+      // GREEN labels (tone): D.Sun=1, D.NN=5, P.Sun=2, P.NN=3 — 4 distinct numbers each appearing once.
+      expect(countLabel("1", "#22A33C")).toBe(1);
+      expect(countLabel("5", "#22A33C")).toBe(1);
+      expect(countLabel("2", "#22A33C")).toBe(1);
+      expect(countLabel("3", "#22A33C")).toBe(1);
+      // YELLOW labels (color): D.Sun=2, D.NN=4, P.Sun=1, P.NN=6.
+      expect(countLabel("2", "#E5A800")).toBe(1);
+      expect(countLabel("4", "#E5A800")).toBe(1);
+      expect(countLabel("1", "#E5A800")).toBe(1);
+      expect(countLabel("6", "#E5A800")).toBe(1);
     });
 
     it("colors the design panel red and the personality panel black", async () => {

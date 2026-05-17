@@ -473,12 +473,13 @@ interface ToneGroupOptions {
 
 /**
  * Renders the Variable summary block shown by Genetic Matrix between each
- * planet panel and the chart: an orientation arrow + ▲ (color value) + ▽
- * (tone value). The triangles are outlined and contain the numeric value.
+ * planet panel and the chart: an orientation arrow + 2 numbered triangles.
  *
- * Color scheme (Genetic Matrix dialect):
- *   - Design side    → ▲ green, ▽ yellow
- *   - Personality    → ▲ yellow, ▽ green   (inverted)
+ * Encoding (Genetic Matrix dialect, validated against Agos's Foundation Chart):
+ *   - GREEN triangle (#22A33C) always encodes `tone` (1..6).
+ *   - YELLOW triangle (#E5A800) always encodes `color` (1..6).
+ *   - Design side renders GREEN as ▲ + YELLOW as ▽.
+ *   - Personality side INVERTS: YELLOW as ▲ + GREEN as ▽.
  *
  * Arrow direction reflects the Variable's orientation (left/right), which is
  * derived from `tone` per `toneToOrientation` in hd-meta.
@@ -492,14 +493,18 @@ function renderToneGroup(opts: ToneGroupOptions): string {
   const xUp = opts.x + opts.width * 0.55;
   const xDown = opts.x + opts.width * 0.85;
 
-  const upColor = opts.side === "design" ? COLOR_TONE_GREEN : COLOR_TONE_YELLOW;
-  const downColor = opts.side === "design" ? COLOR_TONE_YELLOW : COLOR_TONE_GREEN;
+  // Per-side mapping. Universal rule: green = tone, yellow = color. Which one
+  // sits on top (▲) flips by side.
+  const upIsGreen = opts.side === "design";
+  const upColor = upIsGreen ? COLOR_TONE_GREEN : COLOR_TONE_YELLOW;
+  const downColor = upIsGreen ? COLOR_TONE_YELLOW : COLOR_TONE_GREEN;
+  const upValue = upIsGreen ? opts.variable.tone : opts.variable.color;
+  const downValue = upIsGreen ? opts.variable.color : opts.variable.tone;
   const sideColor = opts.side === "design" ? COLOR_DESIGN : COLOR_PERSONALITY;
 
-  const arrowLeft = opts.variable.orientation === "left";
-  // Triangle/arrow stroke widths share a constant.
-  const sw = arrowSize * 0.10;
   // Arrow as a horizontal triangle pointing left or right.
+  const arrowLeft = opts.variable.orientation === "left";
+  const sw = arrowSize * 0.10;
   const arrowHalfW = arrowSize / 2;
   const arrowHalfH = arrowSize / 2;
   const arrowPts = arrowLeft
@@ -509,8 +514,8 @@ function renderToneGroup(opts: ToneGroupOptions): string {
 
   return (
     arrowSvg +
-    renderNumberedTriangle(xUp, opts.cy, triSize, upColor, false, String(opts.variable.color)) +
-    renderNumberedTriangle(xDown, opts.cy, triSize, downColor, true, String(opts.variable.tone))
+    renderNumberedTriangle(xUp, opts.cy, triSize, upColor, false, String(upValue)) +
+    renderNumberedTriangle(xDown, opts.cy, triSize, downColor, true, String(downValue))
   );
 }
 
