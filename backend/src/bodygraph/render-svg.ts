@@ -473,24 +473,29 @@ interface ToneGroupOptions {
 
 /**
  * Renders the Variable summary block shown by Genetic Matrix between each
- * planet panel and the chart: an orientation arrow + 2 numbered triangles.
+ * planet panel and the chart:
+ *   - Orientation arrow (◁ / ▷) reflecting the Variable's left/right orientation.
+ *   - Letter circle (L or R) matching the orientation, drawn just after the arrow.
+ *   - 2 numbered triangles for color + tone.
  *
- * Encoding (Genetic Matrix dialect, validated against Agos's Foundation Chart):
+ * Encoding (Genetic Matrix dialect, validated against Foundation Charts of
+ * Agos + Brian):
  *   - GREEN triangle (#22A33C) always encodes `tone` (1..6).
  *   - YELLOW triangle (#E5A800) always encodes `color` (1..6).
  *   - Design side renders GREEN as ▲ + YELLOW as ▽.
  *   - Personality side INVERTS: YELLOW as ▲ + GREEN as ▽.
  *
- * Arrow direction reflects the Variable's orientation (left/right), which is
- * derived from `tone` per `toneToOrientation` in hd-meta.
+ * Orientation comes from `toneToOrientation(tone)` in hd-meta (tone ≤ 3 → left).
  */
 function renderToneGroup(opts: ToneGroupOptions): string {
-  const triSize = opts.width * 0.28;
-  const arrowSize = opts.width * 0.22;
+  const triSize = opts.width * 0.22;
+  const arrowSize = opts.width * 0.18;
+  const letterRadius = opts.width * 0.08;
 
-  // Distribute 3 elements (arrow + 2 triangles) across `opts.width`.
-  const xArrow = opts.x + opts.width * 0.18;
-  const xUp = opts.x + opts.width * 0.55;
+  // Layout: arrow → letter circle → ▲ triangle → ▽ triangle, spread evenly.
+  const xArrow = opts.x + opts.width * 0.11;
+  const xLetter = opts.x + opts.width * 0.30;
+  const xUp = opts.x + opts.width * 0.56;
   const xDown = opts.x + opts.width * 0.85;
 
   // Per-side mapping. Universal rule: green = tone, yellow = color. Which one
@@ -512,8 +517,18 @@ function renderToneGroup(opts: ToneGroupOptions): string {
     : `${f(xArrow - arrowHalfW)},${f(opts.cy - arrowHalfH)} ${f(xArrow - arrowHalfW)},${f(opts.cy + arrowHalfH)} ${f(xArrow + arrowHalfW)},${f(opts.cy)}`;
   const arrowSvg = `<polygon points="${arrowPts}" fill="none" stroke="${sideColor}" stroke-width="${f(sw)}"/>`;
 
+  // L or R letter inside a small circle, sharing the side color.
+  const letter = arrowLeft ? "L" : "R";
+  const letterSvg =
+    `<circle cx="${f(xLetter)}" cy="${f(opts.cy)}" r="${f(letterRadius)}" ` +
+    `fill="none" stroke="${sideColor}" stroke-width="${f(letterRadius * 0.18)}"/>` +
+    `<text x="${f(xLetter)}" y="${f(opts.cy)}" font-size="${f(letterRadius * 1.2)}" ` +
+    `text-anchor="middle" dominant-baseline="central" fill="${sideColor}" ` +
+    `font-family="Helvetica, Arial, sans-serif" font-weight="bold">${letter}</text>`;
+
   return (
     arrowSvg +
+    letterSvg +
     renderNumberedTriangle(xUp, opts.cy, triSize, upColor, false, String(upValue)) +
     renderNumberedTriangle(xDown, opts.cy, triSize, downColor, true, String(downValue))
   );
