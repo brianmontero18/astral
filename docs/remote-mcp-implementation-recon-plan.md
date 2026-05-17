@@ -2,7 +2,7 @@
 
 **Estado**: Slices 0-7 implementados/validados en `feature/astral-mcp-architecture`; quedan tools de transitos seguras y OAuth publico fuera del MVP actual.
 **Fecha**: 2026-05-17.
-**Bead**: `astral-de7`.
+**Bead original de recon**: `astral-de7`; cierre Slice 7 en `astral-6o4`.
 **Base**: `feature/astral-mcp-architecture`.
 **Documento previo**: [`remote-mcp-architecture-proposal.md`](remote-mcp-architecture-proposal.md).
 
@@ -505,7 +505,8 @@ Scope kept intentionally narrow:
 - no OAuth/UI work;
 - no new MCP tools;
 - no personal/profile/transit-impact tools exposed;
-- docs updated only to remove stale Slice 7 follow-up notes.
+- stale Slice 7 follow-up notes removed;
+- smoke harness cleanup fixed so temp DB/log placeholders do not remain after runs.
 
 ### Continuous MCP curl smoke
 

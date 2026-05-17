@@ -2,7 +2,7 @@
 
 **Date**: 2026-05-17.
 **Branch**: `feature/astral-mcp-architecture`.
-**Bead**: `astral-2s5`.
+**Bead original**: `astral-2s5`; validacion Slice 7 en `astral-6o4`.
 **Endpoint tested**: `/api/mcp/v1` with `FEATURE_REMOTE_MCP=true`.
 
 This Slice 6 matrix validates client compatibility after Slice 5. It is not a
@@ -57,7 +57,7 @@ Raw JSON-RPC over HTTP passed against the local server:
 5. Keep **Gemini** research-only until its CLI can be inspected and configured
    reliably.
 
-## Follow-up for Slice 7
+## Slice 7 validation
 
 Completed on 2026-05-17:
 
