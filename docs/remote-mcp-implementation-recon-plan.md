@@ -1,6 +1,6 @@
 # Remote MCP — reconocimiento y plan de implementacion
 
-**Estado**: plan de reconocimiento para convertir la propuesta en slices implementables.
+**Estado**: Slices 0-4 implementados en `feature/astral-mcp-architecture`; quedan tools deterministicas, smoke de clientes reales y OAuth publico.
 **Fecha**: 2026-05-17.
 **Bead**: `astral-de7`.
 **Base**: `feature/astral-mcp-architecture`.
@@ -412,8 +412,9 @@ Implemented scope:
 - `FEATURE_REMOTE_MCP=true` exposes stateless Streamable HTTP JSON-RPC at `/api/mcp/v1`;
 - every JSON-RPC message is bearer-authenticated through the Slice 2 MCP principal resolver;
 - `initialize`, `notifications/initialized`, `ping`, and `tools/list` are supported;
-- `tools/list` returns an empty list until Slice 4 registers tool metadata;
-- `tools/call` is not enabled and does not call `GuideService`, LLMs, chat persistence, or memory writer.
+- `tools/list` returns `ask_astral_guide_v1` only for principals with active consent and `mcp:ask`;
+- `tools/call` supports `ask_astral_guide_v1` only in `mcp_read_only` mode;
+- `ask_astral_guide_v1` derives the user from `McpPrincipal`, ignores client-supplied profile/memory/intake/user overrides, writes `llm_calls.route='mcp_ask'`, records MCP audit events, and does not write `chat_messages` or trigger `memory_writer`.
 
 ### Slice 4 — `ask_astral_guide_v1`
 
@@ -423,12 +424,9 @@ Input contract:
 
 ```json
 {
-  "question": "string",
-  "mode": "general"
+  "question": "string"
 }
 ```
-
-`mode` debe ser enum cerrado: `general`, `weekly_focus` o `transit_question`.
 
 No `userId`, no profile, no memory, no raw system instructions.
 
@@ -502,14 +500,18 @@ Current coverage:
 - verifies missing/invalid/no-consent/wrong-audience/expired/revoked bearer failures without leaking internal `userId`, `clientId`, or `tokenId`;
 - verifies non-POST HTTP methods, bad/lookalike `Accept`, mismatched browser `Origin`, and batch-shaped JSON are rejected;
 - verifies valid `initialize`, `notifications/initialized`, `ping`, and `tools/list`;
-- verifies `tools/list` is empty and `tools/call` remains disabled until Slice 4, including for consented clients without `mcp:ask`.
+- verifies `tools/list` exposes `ask_astral_guide_v1` only for scoped/consented clients;
+- verifies `tools/call` can call `ask_astral_guide_v1` through a non-network test seam;
+- verifies a token without `mcp:ask` cannot list or call `ask_astral_guide_v1`;
+- verifies budget exhaustion blocks `ask_astral_guide_v1` before the agent path.
 
-Next expansion after Slice 4:
+Fastify integration coverage also asserts:
 
-- validate `tools/list` exposes `ask_astral_guide_v1` only for scoped/consented clients;
-- call `tools/call` through curl with a seeded user and mocked/non-network agent path;
-- assert no `chat_messages` or memory writes are produced by MCP calls;
-- add budget-exceeded curl coverage once MCP counters exist.
+- DB-derived profile/intake/memory are passed to GuideService while payload overrides are ignored;
+- no `chat_messages` are written;
+- `runMemoryWriter` is not called;
+- `llm_calls` uses route `mcp_ask`;
+- started/completed/blocked MCP audit events are written with `mcp_read_only`.
 
 ---
 

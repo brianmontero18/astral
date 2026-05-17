@@ -46,6 +46,10 @@ export const askAstralGuideToolDefinition = {
     required: ["question"],
   },
   requiredScopes: ["mcp:ask"],
+  budget: {
+    dailyLimit: 20,
+    monthlyLimit: 100,
+  },
 } as const;
 
 function readQuestion(args: unknown): string {

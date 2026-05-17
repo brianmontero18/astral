@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 
 import type { McpPrincipal } from "./auth.js";
+import type { McpToolBudget } from "./budgets.js";
 import {
   askAstralGuideToolDefinition,
   callAskAstralGuideV1,
@@ -15,6 +16,7 @@ export interface McpToolDefinition {
   description: string;
   inputSchema: Record<string, unknown>;
   requiredScopes: ReadonlyArray<string>;
+  budget?: McpToolBudget;
   call(args: unknown, context: McpToolContext): Promise<McpToolCallResult>;
 }
 

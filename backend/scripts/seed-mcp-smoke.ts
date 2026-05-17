@@ -5,6 +5,7 @@ import {
   createMcpToken,
   createUser,
   initDb,
+  insertMcpAuditEvent,
 } from "../src/db.js";
 import { hashMcpBearerToken, MCP_AUDIENCE } from "../src/mcp/auth.js";
 
@@ -115,9 +116,42 @@ const readOnly = await seedToken({
   scopes: ["mcp:read_hd"],
 });
 
+const budgetUserId = await createUser("MCP Budget Smoke User", profile, {
+  email: "mcp-smoke-budget@astral.test",
+  plan: "premium",
+});
+const budgetClientId = await createMcpClient({
+  id: `mcp-smoke-budget-client-${Date.now()}`,
+  name: "MCP Smoke Budget Client",
+});
+await createMcpConsent({
+  userId: budgetUserId,
+  clientId: budgetClientId,
+  scopes: ["mcp:ask"],
+});
+const budgetExceeded = await seedToken({
+  label: "budget_exceeded",
+  userId: budgetUserId,
+  clientId: budgetClientId,
+  scopes: ["mcp:ask"],
+});
+for (let i = 0; i < 20; i += 1) {
+  await insertMcpAuditEvent({
+    userId: budgetUserId,
+    clientId: budgetClientId,
+    tokenId: budgetExceeded.tokenId,
+    event: "tool_call_completed",
+    toolName: "ask_astral_guide_v1",
+    sideEffectsMode: "mcp_read_only",
+    status: "success",
+  });
+}
+
 console.log(JSON.stringify({
   userId,
   clientId,
+  budgetUserId,
+  budgetClientId,
   tokens: {
     valid,
     noConsent,
@@ -125,5 +159,6 @@ console.log(JSON.stringify({
     expired,
     revoked,
     readOnly,
+    budgetExceeded,
   },
 }));

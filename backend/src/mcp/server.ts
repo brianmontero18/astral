@@ -1,9 +1,11 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { insertMcpAuditEvent } from "../db.js";
+import {
+  insertMcpAuditEvent,
+  type McpAuditStatus,
+} from "../db.js";
 import {
   resolveMcpPrincipal,
   type McpAuthError,
-  type McpPrincipal,
   type ResolveMcpPrincipalResult,
 } from "./auth.js";
 import {
@@ -13,6 +15,10 @@ import {
   serializeMcpTool,
   type McpToolDefinition,
 } from "./tools.js";
+import {
+  checkMcpToolBudget,
+  MCP_TOOL_CALL_COMPLETED_EVENT,
+} from "./budgets.js";
 
 const MCP_PROTOCOL_VERSION = "2025-06-18";
 const JSONRPC_VERSION = "2.0";
@@ -207,21 +213,46 @@ function parseToolCallParams(
   };
 }
 
+type McpAuditIdentity = {
+  userId?: string | null;
+  clientId?: string | null;
+  tokenId?: string | null;
+};
+
+function auditIdentityFromAuth(
+  auth: ResolveMcpPrincipalResult,
+): McpAuditIdentity | null {
+  if (auth.kind === "authorized") {
+    return auth.principal;
+  }
+
+  if (!auth.userId && !auth.clientId && !auth.tokenId) {
+    return null;
+  }
+
+  return {
+    userId: auth.userId,
+    clientId: auth.clientId,
+    tokenId: auth.tokenId,
+  };
+}
+
 async function recordMcpToolAudit(
   request: FastifyRequest,
-  principal: McpPrincipal | null,
+  identity: McpAuditIdentity | null,
   input: {
+    event: string;
     toolName: string;
-    status: "success" | "error" | "denied";
+    status: McpAuditStatus;
     metadata?: object;
   },
 ): Promise<void> {
   try {
     await insertMcpAuditEvent({
-      userId: principal?.userId,
-      clientId: principal?.clientId,
-      tokenId: principal?.tokenId,
-      event: "tools/call",
+      userId: identity?.userId,
+      clientId: identity?.clientId,
+      tokenId: identity?.tokenId,
+      event: input.event,
       toolName: input.toolName,
       sideEffectsMode: "mcp_read_only",
       status: input.status,
@@ -348,7 +379,8 @@ export async function handleMcpPost(
 
     const toolAuth = await authorizeToolCall(request, tool);
     if (toolAuth.kind !== "authorized") {
-      await recordMcpToolAudit(request, null, {
+      await recordMcpToolAudit(request, auditIdentityFromAuth(toolAuth), {
+        event: "tool_call_blocked",
         toolName: tool.name,
         status: "denied",
         metadata: { reason: toolAuth.error },
@@ -360,12 +392,46 @@ export async function handleMcpPost(
       return;
     }
 
+    const budget = await checkMcpToolBudget({
+      principal: toolAuth.principal,
+      toolName: tool.name,
+      budget: tool.budget,
+    });
+    if (!budget.allowed) {
+      await recordMcpToolAudit(request, toolAuth.principal, {
+        event: "tool_call_blocked",
+        toolName: tool.name,
+        status: "denied",
+        metadata: {
+          reason: "budget_exceeded",
+          period: budget.period,
+          limit: budget.limit,
+          used: budget.used,
+        },
+      });
+      await reply
+        .status(429)
+        .type("application/json")
+        .send(errorResponse(message.id ?? null, -32011, "budget_exceeded", {
+          period: budget.period,
+          limit: budget.limit,
+          used: budget.used,
+        }));
+      return;
+    }
+
     try {
+      await recordMcpToolAudit(request, toolAuth.principal, {
+        event: "tool_call_started",
+        toolName: tool.name,
+        status: "success",
+      });
       const result = await tool.call(parsed.args, {
         app: request.server,
         principal: toolAuth.principal,
       });
       await recordMcpToolAudit(request, toolAuth.principal, {
+        event: MCP_TOOL_CALL_COMPLETED_EVENT,
         toolName: tool.name,
         status: "success",
       });
@@ -375,6 +441,7 @@ export async function handleMcpPost(
         .send(success(message.id ?? null, result));
     } catch (err) {
       await recordMcpToolAudit(request, toolAuth.principal, {
+        event: "tool_call_failed",
         toolName: tool.name,
         status: "error",
         metadata: {

@@ -96,6 +96,19 @@ export interface McpConsentRecord {
   revoked_at: string | null;
 }
 
+export interface McpAuditEventRecord {
+  id: number;
+  user_id: string | null;
+  client_id: string | null;
+  token_id: string | null;
+  event: string;
+  tool_name: string | null;
+  side_effects_mode: McpSideEffectsMode | null;
+  status: McpAuditStatus;
+  metadata: object | null;
+  created_at: string;
+}
+
 const DEFAULT_USER_PLAN: AppUserPlan = "free";
 const DEFAULT_USER_ROLE: AppUserRole = "user";
 const DEFAULT_USER_STATUS: AppUserStatus = "active";
@@ -1533,6 +1546,77 @@ export async function insertMcpAuditEvent(input: {
     ],
   });
   return Number(result.rows[0].id);
+}
+
+export async function countMcpAuditEvents(input: {
+  userId: string;
+  clientId: string;
+  toolName: string;
+  event: string;
+  status: McpAuditStatus;
+  sinceIso: string;
+}): Promise<number> {
+  const result = await client.execute({
+    sql: `SELECT COUNT(*) AS count
+          FROM mcp_audit_events
+          WHERE user_id = ?
+            AND client_id = ?
+            AND tool_name = ?
+            AND event = ?
+            AND status = ?
+            AND datetime(created_at) >= datetime(?)`,
+    args: [
+      input.userId,
+      input.clientId,
+      input.toolName,
+      input.event,
+      input.status,
+      input.sinceIso,
+    ],
+  });
+
+  return Number(result.rows[0]?.count ?? 0);
+}
+
+export async function getMcpAuditEventsForUser(
+  userId: string,
+): Promise<Array<McpAuditEventRecord>> {
+  const result = await client.execute({
+    sql: `SELECT
+            id,
+            user_id,
+            client_id,
+            token_id,
+            event,
+            tool_name,
+            side_effects_mode,
+            status,
+            metadata_json,
+            created_at
+          FROM mcp_audit_events
+          WHERE user_id = ?
+          ORDER BY id ASC`,
+    args: [userId],
+  });
+
+  return result.rows.map((row) => ({
+    id: Number(row.id),
+    user_id: typeof row.user_id === "string" ? row.user_id : null,
+    client_id: typeof row.client_id === "string" ? row.client_id : null,
+    token_id: typeof row.token_id === "string" ? row.token_id : null,
+    event: row.event as string,
+    tool_name: typeof row.tool_name === "string" ? row.tool_name : null,
+    side_effects_mode:
+      typeof row.side_effects_mode === "string"
+        ? row.side_effects_mode as McpSideEffectsMode
+        : null,
+    status: row.status as McpAuditStatus,
+    metadata:
+      typeof row.metadata_json === "string"
+        ? JSON.parse(row.metadata_json) as object
+        : null,
+    created_at: row.created_at as string,
+  }));
 }
 
 // ─── LLM Calls (telemetry) ───────────────────────────────────────────────────

@@ -526,6 +526,23 @@ describe("Remote MCP route", () => {
 
     const messages = await db.getChatMessages(userId);
     expect(messages).toEqual([]);
+    const auditEvents = await db.getMcpAuditEventsForUser(userId);
+    expect(auditEvents).toEqual([
+      expect.objectContaining({
+        user_id: userId,
+        event: "tool_call_started",
+        tool_name: "ask_astral_guide_v1",
+        side_effects_mode: "mcp_read_only",
+        status: "success",
+      }),
+      expect.objectContaining({
+        user_id: userId,
+        event: "tool_call_completed",
+        tool_name: "ask_astral_guide_v1",
+        side_effects_mode: "mcp_read_only",
+        status: "success",
+      }),
+    ]);
     const usage = await db.getLlmUsageForUser(userId, "1970-01-01T00:00:00.000Z");
     expect(usage.byRoute).toContainEqual(
       expect.objectContaining({
@@ -569,7 +586,7 @@ describe("Remote MCP route", () => {
   it("returns a controlled MCP error when ask_astral_guide_v1 is called without mcp:ask", async () => {
     const harness = await buildMcpTestApp(true);
     const db = await import("../db.js");
-    await seedMcpAccess(db, {
+    const { userId, clientId } = await seedMcpAccess(db, {
       tokenScopes: ["mcp:read_hd"],
       consentScopes: ["mcp:read_hd"],
     });
@@ -596,6 +613,74 @@ describe("Remote MCP route", () => {
       },
     });
     expect(runAstralAgentMock).not.toHaveBeenCalled();
+
+    const auditEvents = await db.getMcpAuditEventsForUser(userId);
+    expect(auditEvents).toEqual([
+      expect.objectContaining({
+        user_id: userId,
+        client_id: clientId,
+        event: "tool_call_blocked",
+        tool_name: "ask_astral_guide_v1",
+        status: "denied",
+        metadata: { reason: "insufficient_scope" },
+      }),
+    ]);
+  });
+
+  it("blocks ask_astral_guide_v1 before the agent call when MCP budget is exhausted", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    const { userId, clientId } = await seedMcpAccess(db);
+
+    for (let i = 0; i < 20; i += 1) {
+      await db.insertMcpAuditEvent({
+        userId,
+        clientId,
+        event: "tool_call_completed",
+        toolName: "ask_astral_guide_v1",
+        sideEffectsMode: "mcp_read_only",
+        status: "success",
+      });
+    }
+
+    const res = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: toolsCallBody("ask_astral_guide_v1", {
+        question: "hello",
+      }),
+    });
+
+    expect(res.statusCode).toBe(429);
+    expect(JSON.parse(res.body)).toMatchObject({
+      jsonrpc: "2.0",
+      id: "req-1",
+      error: {
+        code: -32011,
+        message: "budget_exceeded",
+        data: {
+          period: "day",
+          limit: 20,
+          used: 20,
+        },
+      },
+    });
+    expect(runAstralAgentMock).not.toHaveBeenCalled();
+    const auditEvents = await db.getMcpAuditEventsForUser(userId);
+    expect(auditEvents.at(-1)).toMatchObject({
+      user_id: userId,
+      client_id: clientId,
+      event: "tool_call_blocked",
+      tool_name: "ask_astral_guide_v1",
+      status: "denied",
+      metadata: {
+        reason: "budget_exceeded",
+        period: "day",
+        limit: 20,
+        used: 20,
+      },
+    });
   });
 
   it.each(["disabled", "banned"] as const)(

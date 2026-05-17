@@ -139,6 +139,7 @@ WRONG_AUDIENCE_TOKEN="$(json_get "data.tokens.wrongAudience.token")"
 EXPIRED_TOKEN="$(json_get "data.tokens.expired.token")"
 REVOKED_TOKEN="$(json_get "data.tokens.revoked.token")"
 READ_ONLY_TOKEN="$(json_get "data.tokens.readOnly.token")"
+BUDGET_EXCEEDED_TOKEN="$(json_get "data.tokens.budgetExceeded.token")"
 
 echo "Remote MCP curl smoke"
 echo "Base URL: ${BASE_URL}"
@@ -304,5 +305,13 @@ request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"read-only-call",
 assert_status "403" "ask tool requires mcp:ask"
 assert_json "read-only token cannot call ask" "data.error.code === -32006 && data.error.message === 'insufficient_scope'"
 pass "read-only token cannot call ask"
+
+request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"budget-call","method":"tools/call","params":{"name":"ask_astral_guide_v1","arguments":{"question":"hello"}}}' \
+  -H "content-type: application/json" \
+  -H "accept: application/json, text/event-stream" \
+  -H "authorization: Bearer ${BUDGET_EXCEEDED_TOKEN}"
+assert_status "429" "ask tool budget"
+assert_json "budgeted token cannot call ask" "data.error.code === -32011 && data.error.message === 'budget_exceeded' && data.error.data.period === 'day'"
+pass "budgeted token cannot call ask"
 
 echo "Remote MCP curl smoke complete"
