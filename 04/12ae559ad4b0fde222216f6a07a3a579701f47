@@ -1,0 +1,29 @@
+backend/src/__tests__/bodygraph-calculate.test.ts
+  s_fa76ce704ec9be::t_6d3ceafe82c86a 207-276
+backend/src/bodygraph/calculate.ts
+  s_fa76ce704ec9be::t_c85c895d0563e9 64-82
+  s_fa76ce704ec9be::t_850d40d5a5f20e 365-374
+  s_fa76ce704ec9be::t_2a89be15c4a754 401
+  s_fa76ce704ec9be::t_a8d291c052eeb2 27,29
+backend/src/agent-service.ts
+  s_fa76ce704ec9be::t_bd3489a55413a8 117-136
+  s_fa76ce704ec9be::t_e6cbfc2101546e 47-57
+backend/src/hd-meta.ts
+  s_fa76ce704ec9be::t_f3a89258d2b011 85-98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "0412ae559ad4b0fde222216f6a07a3a579701f47",
+  "prompts": {},
+  "sessions": {
+    "s_fa76ce704ec9be": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5b30039-a463-475b-9808-119e555e125d",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
