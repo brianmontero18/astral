@@ -1,0 +1,30 @@
+backend/src/__tests__/api-bodygraph-pdf.test.ts
+  s_b261358f8f8c95::t_3636a8b8b31f42 1-79
+backend/package.json
+  s_b261358f8f8c95::t_458121ce13b3a8 28
+docs/architecture/bodygraph-render.md
+  s_b261358f8f8c95::t_bbd7724b802c95 210
+  s_b261358f8f8c95::t_c5ee2379fb7430 160
+backend/package-lock.json
+  ai_agent 23,913-922,1572-2036,6192-6243
+backend/src/routes/bodygraph.ts
+  s_b261358f8f8c95::t_5d3468b8c304e4 11,13,26-28,30-45,51-71,74,82-100
+backend/src/bodygraph/render-pdf.tsx
+  s_b261358f8f8c95::t_cf9bcd90a5575c 1-84
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "f27d52101939698c1a8a4d0deefb654726658397",
+  "prompts": {},
+  "sessions": {
+    "s_b261358f8f8c95": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "546a20e1-3614-4c30-8828-b50165594b08",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
