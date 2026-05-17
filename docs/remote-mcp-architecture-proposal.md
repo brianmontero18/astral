@@ -1,6 +1,6 @@
 # Remote MCP para Astral Guide — propuesta de arquitectura
 
-**Estado**: propuesta con Slices 0-4 cerrados; `ask_astral_guide_v1` implementada en modo `mcp_read_only`; tools deterministicas aun no implementadas.
+**Estado**: propuesta con Slices 0-5 cerrados; `ask_astral_guide_v1` implementada en modo `mcp_read_only`; tools deterministicas HD implementadas con `mcp:read_hd`.
 **Fecha**: 2026-05-17.
 **Beads**: `astral-t45`, `astral-6ry`, `astral-3pv`, `astral-c8p`.
 **Objetivo**: definir un punto de partida practico para exponer Astral Guide a clientes externos como ChatGPT, Claude, Gemini, Codex, Cursor o cualquier cliente compatible con MCP.
@@ -194,12 +194,15 @@ No acepta `userId`, `profile`, `memory` ni `intake` desde el cliente.
 
 ### Soporte read-only
 
-Propuesta inicial:
+Implementadas en Slice 5:
 
-- `get_current_transit_context_v1`
 - `find_channel_by_gates_v1`
 - `find_channels_by_gate_v1`
 - `get_center_for_gate_v1`
+
+Pendiente / no expuesta:
+
+- `get_current_transit_context_v1`
 
 Quedan fuera del MVP salvo decision explicita:
 

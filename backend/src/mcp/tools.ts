@@ -5,9 +5,19 @@ import type { McpToolBudget } from "./budgets.js";
 import {
   askAstralGuideToolDefinition,
   callAskAstralGuideV1,
+} from "./tools/ask-astral-guide-v1.js";
+import {
+  callFindChannelByGatesV1,
+  callFindChannelsByGateV1,
+  callGetCenterForGateV1,
+  findChannelByGatesToolDefinition,
+  findChannelsByGateToolDefinition,
+  getCenterForGateToolDefinition,
+} from "./tools/hd-deterministic-v1.js";
+import {
   McpToolCallError,
   type McpToolCallResult,
-} from "./tools/ask-astral-guide-v1.js";
+} from "./tool-contract.js";
 
 export { McpToolCallError };
 
@@ -29,6 +39,18 @@ const MCP_TOOLS: McpToolDefinition[] = [
   {
     ...askAstralGuideToolDefinition,
     call: callAskAstralGuideV1,
+  },
+  {
+    ...findChannelByGatesToolDefinition,
+    call: callFindChannelByGatesV1,
+  },
+  {
+    ...findChannelsByGateToolDefinition,
+    call: callFindChannelsByGateV1,
+  },
+  {
+    ...getCenterForGateToolDefinition,
+    call: callGetCenterForGateV1,
   },
 ];
 

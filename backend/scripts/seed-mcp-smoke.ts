@@ -115,6 +115,12 @@ const readOnly = await seedToken({
   clientId,
   scopes: ["mcp:read_hd"],
 });
+const askOnly = await seedToken({
+  label: "ask_only",
+  userId,
+  clientId,
+  scopes: ["mcp:ask"],
+});
 
 const budgetUserId = await createUser("MCP Budget Smoke User", profile, {
   email: "mcp-smoke-budget@astral.test",
@@ -159,6 +165,7 @@ console.log(JSON.stringify({
     expired,
     revoked,
     readOnly,
+    askOnly,
     budgetExceeded,
   },
 }));

@@ -4,30 +4,16 @@ import type { ChatMessage, UserProfile } from "../../agent-service.js";
 import { getUser } from "../../db.js";
 import { runGuideTurn } from "../../services/guide-service.js";
 import type { McpPrincipal } from "../auth.js";
+import {
+  McpToolCallError,
+  type McpToolCallResult,
+} from "../tool-contract.js";
 
 export const ASK_ASTRAL_GUIDE_TOOL_NAME = "ask_astral_guide_v1";
 
 export interface AskAstralGuideToolContext {
   app: FastifyInstance;
   principal: McpPrincipal;
-}
-
-export interface McpToolCallResult {
-  content: Array<{
-    type: "text";
-    text: string;
-  }>;
-  structuredContent?: Record<string, unknown>;
-}
-
-export class McpToolCallError extends Error {
-  constructor(
-    public readonly code: number,
-    message: string,
-    public readonly data?: unknown,
-  ) {
-    super(message);
-  }
 }
 
 export const askAstralGuideToolDefinition = {

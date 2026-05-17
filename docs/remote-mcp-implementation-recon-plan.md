@@ -1,6 +1,6 @@
 # Remote MCP — reconocimiento y plan de implementacion
 
-**Estado**: Slices 0-4 implementados en `feature/astral-mcp-architecture`; quedan tools deterministicas, smoke de clientes reales y OAuth publico.
+**Estado**: Slices 0-5 implementados en `feature/astral-mcp-architecture`; quedan smoke de clientes reales, tools de transitos seguras y OAuth publico.
 **Fecha**: 2026-05-17.
 **Bead**: `astral-de7`.
 **Base**: `feature/astral-mcp-architecture`.
@@ -445,12 +445,15 @@ Acceptance:
 
 Goal: expose deterministic helpers only after the main tool is safe.
 
-Initial set:
+Implemented:
 
 - `find_channel_by_gates_v1`
 - `find_channels_by_gate_v1`
 - `get_center_for_gate_v1`
-- optional `get_current_transit_context_v1`
+
+Not exposed in Slice 5:
+
+- `get_current_transit_context_v1`
 
 Acceptance:
 

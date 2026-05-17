@@ -404,7 +404,8 @@ describe("Remote MCP route", () => {
       payload: jsonRpcBody("tools/list", "req-2"),
     });
     expect(toolsRes.statusCode).toBe(200);
-    expect(JSON.parse(toolsRes.body)).toEqual({
+    const toolsBody = JSON.parse(toolsRes.body);
+    expect(toolsBody).toEqual({
       jsonrpc: "2.0",
       id: "req-2",
       result: {
@@ -420,9 +421,13 @@ describe("Remote MCP route", () => {
         ],
       },
     });
+    const toolNames = toolsBody.result.tools.map((tool: { name: string }) => tool.name);
+    expect(toolNames).not.toContain("find_channel_by_gates_v1");
+    expect(toolNames).not.toContain("find_channels_by_gate_v1");
+    expect(toolNames).not.toContain("get_center_for_gate_v1");
   });
 
-  it("does not list ask_astral_guide_v1 for a consented client without mcp:ask", async () => {
+  it("lists deterministic HD tools, but not ask_astral_guide_v1, for a read-only mcp:read_hd client", async () => {
     const harness = await buildMcpTestApp(true);
     const db = await import("../db.js");
     await seedMcpAccess(db, {
@@ -438,13 +443,25 @@ describe("Remote MCP route", () => {
     });
 
     expect(toolsRes.statusCode).toBe(200);
-    expect(JSON.parse(toolsRes.body)).toEqual({
-      jsonrpc: "2.0",
-      id: "req-2",
-      result: {
-        tools: [],
-      },
-    });
+    const body = JSON.parse(toolsRes.body);
+    expect(body.jsonrpc).toBe("2.0");
+    expect(body.id).toBe("req-2");
+    const toolNames = body.result.tools.map((tool: { name: string }) => tool.name).sort();
+    expect(toolNames).toEqual([
+      "find_channel_by_gates_v1",
+      "find_channels_by_gate_v1",
+      "get_center_for_gate_v1",
+    ]);
+    expect(toolNames).not.toContain("ask_astral_guide_v1");
+    expect(body.result.tools).toContainEqual(
+      expect.objectContaining({
+        name: "find_channel_by_gates_v1",
+        inputSchema: expect.objectContaining({
+          type: "object",
+          required: ["gateA", "gateB"],
+        }),
+      }),
+    );
   });
 
   it("acknowledges notifications without a JSON-RPC response body", async () => {
@@ -625,6 +642,248 @@ describe("Remote MCP route", () => {
         metadata: { reason: "insufficient_scope" },
       }),
     ]);
+  });
+
+  it("calls deterministic HD tools with mcp:read_hd without invoking agents, chat persistence, or memory writer", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    const { userId } = await seedMcpAccess(db, {
+      tokenScopes: ["mcp:read_hd"],
+      consentScopes: ["mcp:read_hd"],
+    });
+
+    const channelRes = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: toolsCallBody("find_channel_by_gates_v1", {
+        gateA: 8,
+        gateB: 1,
+      }),
+    });
+    const channelsRes = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: toolsCallBody("find_channels_by_gate_v1", {
+        gate: 10,
+      }, "req-2"),
+    });
+    const centerRes = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: toolsCallBody("get_center_for_gate_v1", {
+        gate: 1,
+      }, "req-3"),
+    });
+
+    expect(channelRes.statusCode).toBe(200);
+    expect(JSON.parse(channelRes.body)).toMatchObject({
+      jsonrpc: "2.0",
+      id: "req-1",
+      result: {
+        structuredContent: {
+          channel: {
+            id: "1-8",
+            name: "Canal de Inspiración",
+            gates: [1, 8],
+            circuit: "Individual",
+            subCircuit: "Knowing",
+          },
+        },
+      },
+    });
+    expect(JSON.parse(channelsRes.body).result.structuredContent.channels.map(
+      (channel: { id: string }) => channel.id,
+    ).sort()).toEqual(["10-20", "10-34", "10-57"]);
+    expect(JSON.parse(centerRes.body)).toMatchObject({
+      result: {
+        structuredContent: {
+          gate: 1,
+          center: "G",
+        },
+      },
+    });
+
+    expect(runAstralAgentMock).not.toHaveBeenCalled();
+    expect(runAstralAgentV2Mock).not.toHaveBeenCalled();
+    expect(runMemoryWriterMock).not.toHaveBeenCalled();
+    expect(await db.getChatMessages(userId)).toEqual([]);
+  });
+
+  it("writes started and completed audit events for deterministic HD tools", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    const { userId, clientId } = await seedMcpAccess(db, {
+      tokenScopes: ["mcp:read_hd"],
+      consentScopes: ["mcp:read_hd"],
+    });
+
+    const res = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: toolsCallBody("get_center_for_gate_v1", {
+        gate: 1,
+      }),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(await db.getMcpAuditEventsForUser(userId)).toEqual([
+      expect.objectContaining({
+        user_id: userId,
+        client_id: clientId,
+        event: "tool_call_started",
+        tool_name: "get_center_for_gate_v1",
+        side_effects_mode: "mcp_read_only",
+        status: "success",
+      }),
+      expect.objectContaining({
+        user_id: userId,
+        client_id: clientId,
+        event: "tool_call_completed",
+        tool_name: "get_center_for_gate_v1",
+        side_effects_mode: "mcp_read_only",
+        status: "success",
+      }),
+    ]);
+  });
+
+  it("returns a controlled MCP error when deterministic HD tools are called without mcp:read_hd", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    const { userId, clientId } = await seedMcpAccess(db);
+
+    const res = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: toolsCallBody("get_center_for_gate_v1", {
+        gate: 1,
+      }),
+    });
+
+    expect(res.statusCode).toBe(403);
+    expect(JSON.parse(res.body)).toMatchObject({
+      jsonrpc: "2.0",
+      id: "req-1",
+      error: {
+        code: -32006,
+        message: "insufficient_scope",
+        data: {
+          requiredScopes: ["mcp:read_hd"],
+        },
+      },
+    });
+    expect(runAstralAgentMock).not.toHaveBeenCalled();
+
+    expect(await db.getMcpAuditEventsForUser(userId)).toEqual([
+      expect.objectContaining({
+        user_id: userId,
+        client_id: clientId,
+        event: "tool_call_blocked",
+        tool_name: "get_center_for_gate_v1",
+        status: "denied",
+        metadata: { reason: "insufficient_scope" },
+      }),
+    ]);
+  });
+
+  it("blocks deterministic HD tools before execution when MCP budget is exhausted", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    const { userId, clientId } = await seedMcpAccess(db, {
+      tokenScopes: ["mcp:read_hd"],
+      consentScopes: ["mcp:read_hd"],
+    });
+
+    for (let i = 0; i < 100; i += 1) {
+      await db.insertMcpAuditEvent({
+        userId,
+        clientId,
+        event: "tool_call_completed",
+        toolName: "get_center_for_gate_v1",
+        sideEffectsMode: "mcp_read_only",
+        status: "success",
+      });
+    }
+
+    const res = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: toolsCallBody("get_center_for_gate_v1", {
+        gate: 1,
+      }),
+    });
+
+    expect(res.statusCode).toBe(429);
+    expect(JSON.parse(res.body)).toMatchObject({
+      jsonrpc: "2.0",
+      id: "req-1",
+      error: {
+        code: -32011,
+        message: "budget_exceeded",
+        data: {
+          period: "day",
+          limit: 100,
+          used: 100,
+        },
+      },
+    });
+    expect(runAstralAgentMock).not.toHaveBeenCalled();
+    const auditEvents = await db.getMcpAuditEventsForUser(userId);
+    expect(auditEvents.at(-1)).toMatchObject({
+      user_id: userId,
+      client_id: clientId,
+      event: "tool_call_blocked",
+      tool_name: "get_center_for_gate_v1",
+      status: "denied",
+      metadata: {
+        reason: "budget_exceeded",
+        period: "day",
+        limit: 100,
+        used: 100,
+      },
+    });
+    expect(auditEvents.filter((event) => (
+      event.tool_name === "get_center_for_gate_v1" &&
+      event.event === "tool_call_started"
+    ))).toHaveLength(0);
+  });
+
+  it("returns invalid params for malformed deterministic HD tool arguments", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    await seedMcpAccess(db, {
+      tokenScopes: ["mcp:read_hd"],
+      consentScopes: ["mcp:read_hd"],
+    });
+
+    const res = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: toolsCallBody("find_channels_by_gate_v1", {
+        gate: 65,
+      }),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toMatchObject({
+      jsonrpc: "2.0",
+      id: "req-1",
+      error: {
+        code: -32602,
+        message: "Invalid params",
+        data: {
+          reason: "gate_out_of_range",
+          param: "gate",
+        },
+      },
+    });
+    expect(runAstralAgentMock).not.toHaveBeenCalled();
   });
 
   it("blocks ask_astral_guide_v1 before the agent call when MCP budget is exhausted", async () => {

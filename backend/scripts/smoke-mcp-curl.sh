@@ -139,6 +139,7 @@ WRONG_AUDIENCE_TOKEN="$(json_get "data.tokens.wrongAudience.token")"
 EXPIRED_TOKEN="$(json_get "data.tokens.expired.token")"
 REVOKED_TOKEN="$(json_get "data.tokens.revoked.token")"
 READ_ONLY_TOKEN="$(json_get "data.tokens.readOnly.token")"
+ASK_ONLY_TOKEN="$(json_get "data.tokens.askOnly.token")"
 BUDGET_EXCEEDED_TOKEN="$(json_get "data.tokens.budgetExceeded.token")"
 
 echo "Remote MCP curl smoke"
@@ -296,7 +297,24 @@ request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"read-only-tools"
   -H "authorization: Bearer ${READ_ONLY_TOKEN}"
 assert_status "200" "read-only tools/list"
 assert_json "read-only token does not list ask" "Array.isArray(data.result.tools) && !data.result.tools.some((tool) => tool.name === 'ask_astral_guide_v1')"
-pass "read-only token does not list ask"
+assert_json "read-only token lists deterministic HD tool" "data.result.tools.some((tool) => tool.name === 'get_center_for_gate_v1')"
+pass "read-only token lists deterministic HD tools without ask"
+
+request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"read-only-hd-call","method":"tools/call","params":{"name":"get_center_for_gate_v1","arguments":{"gate":1}}}' \
+  -H "content-type: application/json" \
+  -H "accept: application/json, text/event-stream" \
+  -H "authorization: Bearer ${READ_ONLY_TOKEN}"
+assert_status "200" "deterministic HD tool call"
+assert_json "deterministic HD tool returns center" "data.result.structuredContent && data.result.structuredContent.gate === 1 && data.result.structuredContent.center === 'G'"
+pass "read-only token can call deterministic HD tool"
+
+request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"ask-only-hd-call","method":"tools/call","params":{"name":"get_center_for_gate_v1","arguments":{"gate":1}}}' \
+  -H "content-type: application/json" \
+  -H "accept: application/json, text/event-stream" \
+  -H "authorization: Bearer ${ASK_ONLY_TOKEN}"
+assert_status "403" "deterministic HD tool requires mcp:read_hd"
+assert_json "ask-only token cannot call deterministic HD tool" "data.error.code === -32006 && data.error.message === 'insufficient_scope'"
+pass "ask-only token cannot call deterministic HD tool"
 
 request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"read-only-call","method":"tools/call","params":{"name":"ask_astral_guide_v1","arguments":{"question":"hello"}}}' \
   -H "content-type: application/json" \
