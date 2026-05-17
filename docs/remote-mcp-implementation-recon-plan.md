@@ -482,6 +482,35 @@ Acceptance:
 - unsupported clients are explicitly marked unsupported;
 - failures feed back into transport/auth choices.
 
+### Continuous MCP curl smoke
+
+Status: iniciado en `astral-bw6`.
+
+Goal: keep a real HTTP/curl harness running before and during tool work, so MCP is tested from a client point of view rather than only through Fastify injection.
+
+Implemented command:
+
+```bash
+cd backend && npm run smoke:mcp
+```
+
+Current coverage:
+
+- starts a backend process against a temp DB;
+- seeds a private beta MCP client, consent, and hashed bearer tokens;
+- verifies `FEATURE_REMOTE_MCP=false` keeps `/api/mcp/v1` unregistered;
+- verifies missing/invalid/no-consent/wrong-audience/expired/revoked bearer failures;
+- verifies bad `Accept`, mismatched browser `Origin`, and batch-shaped JSON are rejected;
+- verifies valid `initialize`, `notifications/initialized`, `ping`, and `tools/list`;
+- verifies `tools/list` is empty and `tools/call` remains disabled until Slice 4.
+
+Next expansion after Slice 4:
+
+- validate `tools/list` exposes `ask_astral_guide_v1` only for scoped/consented clients;
+- call `tools/call` through curl with a seeded user and mocked/non-network agent path;
+- assert no `chat_messages` or memory writes are produced by MCP calls;
+- add budget-exceeded curl coverage once MCP counters exist.
+
 ---
 
 ## Test plan
@@ -515,6 +544,13 @@ Backend tests:
   - new MCP tables exist on fresh DB;
   - route CHECK widening preserves existing `llm_calls`;
   - idempotent rerun.
+
+E2E curl smoke:
+
+- `npm run smoke:mcp`
+  - full backend process, temp DB, real `curl` requests;
+  - critical-path auth and transport checks;
+  - edge cases around headers, origin, JSON-RPC shape, and disabled tool execution.
 
 Regression tests:
 
