@@ -191,7 +191,7 @@ describe("renderBodygraphSvg", () => {
       // Sun design gate.line for Agos is 18.6 per the calculate test fixture.
       expect(designBlock).toContain(">18.6<");
       // Agos's personality Sun is 58.4 in the ground truth.
-      const personMatch = svg.match(/<g id="panel-personality">([\s\S]*?)<\/g><\/svg>$/);
+      const personMatch = svg.match(/<g id="panel-personality">([\s\S]*?)<\/g><g id="tone-groups">/);
       expect(personMatch).toBeTruthy();
       expect(personMatch![1]).toContain(">58.4<");
     });
@@ -209,7 +209,7 @@ describe("renderBodygraphSvg", () => {
       });
       const svg = renderFullDocument(profile);
       const designBlock = svg.match(/<g id="panel-design">([\s\S]*?)<\/g><g id="chart">/)![1];
-      const personBlock = svg.match(/<g id="panel-personality">([\s\S]*?)<\/g><\/svg>$/)![1];
+      const personBlock = svg.match(/<g id="panel-personality">([\s\S]*?)<\/g><g id="tone-groups">/)![1];
 
       const exaltedRe = /<polygon points="[^"]*" fill="#22A33C"\/>/g;
       const detrimentRe = /<polygon points="[^"]*" fill="#E5A800"\/>/g;
@@ -229,6 +229,33 @@ describe("renderBodygraphSvg", () => {
       expect(personDetriment).toBeGreaterThanOrEqual(0);
     });
 
+    it("renders 4 tone groups (color + tone triangles) — 1 per Variable", async () => {
+      // Agos's variables per `astral-7w2` + cross-check vs Foundation Chart de
+      // Agos (image #12/#13): the 4 numbered triangles around the panels read:
+      //   digestion   (D.Sun)  → color=1, tone=2
+      //   environment (D.NN)   → color=5, tone=4
+      //   awareness   (P.Sun)  → color=1, tone=2
+      //   perspective (P.NN)   → color=6, tone=3
+      // We assert the SVG contains text elements with these exact values inside
+      // the tone-groups block.
+      const profile = await calculateBodygraph({
+        date: "1988-12-28",
+        time: "06:13",
+        timezoneOffsetHours: 0,
+      });
+      const svg = renderFullDocument(profile);
+      const toneMatch = svg.match(/<g id="tone-groups">([\s\S]*?)<\/g><\/svg>$/);
+      expect(toneMatch).toBeTruthy();
+      const toneBlock = toneMatch![1];
+      // Each Variable contributes 2 numeric triangles (color ▲ and tone ▽) →
+      // 4 Variables × 2 = 8 numbered triangles.
+      const numberedTriangles = (toneBlock.match(/<polygon points="[^"]*" fill="none" stroke="(#22A33C|#E5A800)"/g) ?? []).length;
+      expect(numberedTriangles).toBe(8);
+      // Orientation arrows: 1 per Variable = 4 arrows.
+      const orientationArrows = (toneBlock.match(/<polygon points="[^"]*" fill="none" stroke="(#C8102E|#000000)"/g) ?? []).length;
+      expect(orientationArrows).toBe(4);
+    });
+
     it("colors the design panel red and the personality panel black", async () => {
       const profile = await calculateBodygraph({
         date: "1989-02-18",
@@ -237,7 +264,7 @@ describe("renderBodygraphSvg", () => {
       });
       const svg = renderFullDocument(profile);
       const designMatch = svg.match(/<g id="panel-design">([\s\S]*?)<\/g><g id="chart">/);
-      const personMatch = svg.match(/<g id="panel-personality">([\s\S]*?)<\/g><\/svg>$/);
+      const personMatch = svg.match(/<g id="panel-personality">([\s\S]*?)<\/g><g id="tone-groups">/);
       expect(designMatch![1]).toContain('stroke="#C8102E"');
       expect(designMatch![1]).not.toMatch(/stroke="#000000"/);
       expect(personMatch![1]).toContain('stroke="#000000"');
