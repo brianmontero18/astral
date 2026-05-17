@@ -204,6 +204,76 @@ describe("calculateBodygraph", () => {
     });
   });
 
+  describe("P2 — Variable Wheel canonical (4 vars × 4 props)", () => {
+    it("populates the 4 Variables for Agos from Sun & NorthNode activations", async () => {
+      const profile = await calculateBodygraph({
+        date: "1988-12-28",
+        time: "06:13",
+        timezoneOffsetHours: 0,
+        name: "Agos",
+      });
+      const vars = profile.humanDesign.variables;
+      expect(vars).toBeDefined();
+      // All 4 variables present with the canonical shape.
+      for (const key of ["digestion", "awareness", "environment", "perspective"] as const) {
+        const v = vars![key];
+        expect(v).toBeDefined();
+        expect(v.orientation).toMatch(/^(left|right)$/);
+        expect(v.color).toBeGreaterThanOrEqual(1);
+        expect(v.color).toBeLessThanOrEqual(6);
+        expect(v.tone).toBeGreaterThanOrEqual(1);
+        expect(v.tone).toBeLessThanOrEqual(6);
+        expect(v.base).toBeGreaterThanOrEqual(1);
+        expect(v.base).toBeLessThanOrEqual(5);
+      }
+    });
+
+    it("uses Tone.ToOrientation: 1-3 left, 4-6 right (per SharpAstrology canon)", async () => {
+      const profile = await calculateBodygraph({
+        date: "1988-12-28",
+        time: "06:13",
+        timezoneOffsetHours: 0,
+      });
+      const vars = profile.humanDesign.variables!;
+      for (const v of [vars.digestion, vars.awareness, vars.environment, vars.perspective]) {
+        if (v.tone <= 3) expect(v.orientation).toBe("left");
+        else expect(v.orientation).toBe("right");
+      }
+    });
+
+    it("sources Variables from the canonical planet/side pairs", async () => {
+      // Per SharpAstrology HumanDesignChart._Variables():
+      //   Digestion   = Design.Sun
+      //   Awareness   = Personality.Sun
+      //   Environment = Design.NorthNode
+      //   Perspective = Personality.NorthNode
+      const profile = await calculateBodygraph({
+        date: "1988-12-28",
+        time: "06:13",
+        timezoneOffsetHours: 0,
+      });
+      const vars = profile.humanDesign.variables!;
+      const dSun = profile.humanDesign.activatedGates.find(
+        (g) => g.planet === "Sun" && !g.isPersonality,
+      );
+      const pSun = profile.humanDesign.activatedGates.find(
+        (g) => g.planet === "Sun" && g.isPersonality,
+      );
+      const dNode = profile.humanDesign.activatedGates.find(
+        (g) => g.planet === "North Node" && !g.isPersonality,
+      );
+      const pNode = profile.humanDesign.activatedGates.find(
+        (g) => g.planet === "North Node" && g.isPersonality,
+      );
+      expect(vars.digestion.color).toBe(dSun!.color);
+      expect(vars.digestion.tone).toBe(dSun!.tone);
+      expect(vars.digestion.base).toBe(dSun!.base);
+      expect(vars.awareness.color).toBe(pSun!.color);
+      expect(vars.environment.color).toBe(dNode!.color);
+      expect(vars.perspective.color).toBe(pNode!.color);
+    });
+  });
+
   describe("P2 — color / tone / base subdivisiones HD en activatedGates", () => {
     it("populates valid color/tone/base on every activated gate for Agos", async () => {
       const profile = await calculateBodygraph({

@@ -44,6 +44,17 @@ export interface AgentResult extends AgentCallMeta {
   content: string;
 }
 
+export interface HdVariable {
+  /** "left" if tone ∈ {1,2,3}; "right" if tone ∈ {4,5,6}. */
+  orientation: "left" | "right";
+  /** 1..6, sixth subdivision of the line (~0.156° each). */
+  color: number;
+  /** 1..6, sixth subdivision of the color (~0.026° each). */
+  tone: number;
+  /** 1..5, fifth subdivision of the tone (~0.005° each). */
+  base: number;
+}
+
 export interface UserProfile {
   name: string;
   /**
@@ -102,6 +113,26 @@ export interface UserProfile {
     design?: {
       /** ISO 8601 UTC del momento del cálculo Design. */
       date: string;
+    };
+    /**
+     * Variables HD canónicas (4) con sus 4 propiedades (orientation, color,
+     * tone, base). Source: SharpAstrology.HumanDesign DataModels/Variables.cs.
+     *
+     * Asignación planeta→variable:
+     *   - digestion   = Design.Sun
+     *   - awareness   = Personality.Sun
+     *   - environment = Design.NorthNode
+     *   - perspective = Personality.NorthNode
+     *
+     * Esta capa es 100% numérica. Los labels human-friendly de Genetic Matrix
+     * (Brain="Active", Cognition="Smell", etc.) se derivan en un módulo
+     * aparte — ver bead astral-vby.
+     */
+    variables?: {
+      digestion: HdVariable;
+      awareness: HdVariable;
+      environment: HdVariable;
+      perspective: HdVariable;
     };
     channels: Array<{ id: string; name: string; circuit: string }>;
     activatedGates: Array<{
