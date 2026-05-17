@@ -244,8 +244,8 @@ export async function addLlmCallsCachedTokensColumnIfMissing(c: Client): Promise
 }
 
 /**
- * Detects an `llm_calls` table whose CHECK constraint pre-dates the
- * `memory_writer` route value and rebuilds it with the widened constraint.
+ * Detects an `llm_calls` table whose CHECK constraint pre-dates newer route
+ * values and rebuilds it with the widened constraint.
  * Preserves `cached_tokens` when the prompt-cache telemetry migration already
  * ran first. Exported for direct testing.
  */
@@ -256,7 +256,7 @@ export async function widenLlmCallsRouteCheckIfNeeded(c: Client): Promise<void> 
   });
   const tableSql = schemaResult.rows[0]?.sql as string | undefined;
   if (!tableSql) return;
-  if (tableSql.includes("'memory_writer'")) return;
+  if (tableSql.includes("'mcp_ask'")) return;
   const hasCachedTokens = tableSql.includes("cached_tokens");
 
   await c.batch(
@@ -264,7 +264,7 @@ export async function widenLlmCallsRouteCheckIfNeeded(c: Client): Promise<void> 
       `CREATE TABLE llm_calls_new (
         id            INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        route         TEXT NOT NULL CHECK(route IN ('chat','chat_stream','report','extraction','memory_writer')),
+        route         TEXT NOT NULL CHECK(route IN ('chat','chat_stream','report','extraction','memory_writer','mcp_ask')),
         model         TEXT NOT NULL,
         tokens_in     INTEGER NOT NULL DEFAULT 0,
         tokens_out    INTEGER NOT NULL DEFAULT 0,
@@ -402,7 +402,7 @@ export async function initDb(): Promise<void> {
       `CREATE TABLE IF NOT EXISTS llm_calls (
         id            INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        route         TEXT NOT NULL CHECK(route IN ('chat','chat_stream','report','extraction','memory_writer')),
+        route         TEXT NOT NULL CHECK(route IN ('chat','chat_stream','report','extraction','memory_writer','mcp_ask')),
         model         TEXT NOT NULL,
         tokens_in     INTEGER NOT NULL DEFAULT 0,
         tokens_out    INTEGER NOT NULL DEFAULT 0,
@@ -502,8 +502,8 @@ export async function initDb(): Promise<void> {
   await rebuildLegacyAssetsTableIfNeeded(client);
 
   // SQLite cements CHECK constraints at CREATE TABLE time, so adding a new
-  // route value (memory_writer) requires rebuilding the table on existing
-  // databases. Fresh installs already get the widened CHECK above.
+  // route values require rebuilding the table on existing databases. Fresh
+  // installs already get the widened CHECK above.
   await widenLlmCallsRouteCheckIfNeeded(client);
   await addLlmCallsCachedTokensColumnIfMissing(client);
 
@@ -1542,7 +1542,8 @@ export type LlmCallRoute =
   | "chat_stream"
   | "report"
   | "extraction"
-  | "memory_writer";
+  | "memory_writer"
+  | "mcp_ask";
 
 export interface LlmCallInput {
   userId: string;

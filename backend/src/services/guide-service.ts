@@ -64,6 +64,7 @@ export interface RunGuideTurnInput extends GuideTurnUserContext {
   app: FastifyInstance;
   messages: ChatMessage[];
   transitContext?: ParsedTransitChatContext;
+  sideEffectsMode?: "web_persisted" | "mcp_read_only";
 }
 
 export interface RunGuideTurnResult {
@@ -158,6 +159,7 @@ function triggerGuideMemoryWriterAsync(
 export async function runGuideTurn(
   input: RunGuideTurnInput,
 ): Promise<RunGuideTurnResult> {
+  const sideEffectsMode = input.sideEffectsMode ?? "web_persisted";
   const transits = await getTransitsForChat(input.transitContext);
   const impact = analyzeTransitImpact(transits, {
     activatedGates: input.profile.humanDesign?.activatedGates ?? [],
@@ -177,7 +179,19 @@ export async function runGuideTurn(
   );
 
   if (input.persistedUserId) {
-    await persistGuideLlmCall(input.app, input.persistedUserId, "chat", result);
+    await persistGuideLlmCall(
+      input.app,
+      input.persistedUserId,
+      sideEffectsMode === "mcp_read_only" ? "mcp_ask" : "chat",
+      result,
+    );
+  }
+
+  if (sideEffectsMode === "mcp_read_only") {
+    return {
+      reply: result.content,
+      transitsUsed: transits.fetchedAt,
+    };
   }
 
   const persisted = await persistGuideTurnMessages({

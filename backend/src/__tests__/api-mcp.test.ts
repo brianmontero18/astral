@@ -2,11 +2,61 @@ import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { hashMcpBearerToken, MCP_AUDIENCE } from "../mcp/auth.js";
+import type { ChatMessage } from "../agent-service.js";
 
 const RAW_TOKEN = "astral_mcp_route_token";
 
 let app: FastifyInstance | null = null;
 const originalRemoteMcpFlag = process.env.FEATURE_REMOTE_MCP;
+const originalMcpTestReply = process.env.MCP_ASK_ASTRAL_GUIDE_TEST_REPLY;
+
+const runAstralAgentMock = vi.fn();
+const runAstralAgentStreamMock = vi.fn();
+const runAstralAgentV2Mock = vi.fn();
+const runAstralAgentStreamV2Mock = vi.fn();
+const runMemoryWriterMock = vi.fn();
+const analyzeTransitImpactMock = vi.fn();
+const getTransitSnapshotCachedMock = vi.fn();
+
+function mockAgentResult(content: string) {
+  return {
+    content,
+    usage: { promptTokens: 11, completionTokens: 7, cachedTokens: 0 },
+    latencyMs: 5,
+    systemPrompt: "TEST_MCP_PROMPT",
+  };
+}
+
+vi.mock("../agent-service.js", () => ({
+  runAstralAgent: runAstralAgentMock,
+  runAstralAgentStream: runAstralAgentStreamMock,
+  hashSystemPrompt: (s: string) => s.slice(0, 16),
+  CHAT_MODEL: "gpt-4o-mini",
+}));
+
+vi.mock("../agent-service-v2.js", () => ({
+  runAstralAgentV2: runAstralAgentV2Mock,
+  runAstralAgentStreamV2: runAstralAgentStreamV2Mock,
+}));
+
+vi.mock("../memory-writer.js", async () => {
+  const actual = await vi.importActual<typeof import("../memory-writer.js")>("../memory-writer.js");
+
+  return {
+    ...actual,
+    runMemoryWriter: runMemoryWriterMock,
+  };
+});
+
+vi.mock("../transit-service.js", async () => {
+  const actual = await vi.importActual<typeof import("../transit-service.js")>("../transit-service.js");
+
+  return {
+    ...actual,
+    analyzeTransitImpact: analyzeTransitImpactMock,
+    getTransitSnapshotCached: getTransitSnapshotCachedMock,
+  };
+});
 
 afterEach(async () => {
   await app?.close();
@@ -16,8 +66,64 @@ afterEach(async () => {
   } else {
     process.env.FEATURE_REMOTE_MCP = originalRemoteMcpFlag;
   }
+  if (originalMcpTestReply === undefined) {
+    delete process.env.MCP_ASK_ASTRAL_GUIDE_TEST_REPLY;
+  } else {
+    process.env.MCP_ASK_ASTRAL_GUIDE_TEST_REPLY = originalMcpTestReply;
+  }
+  runAstralAgentMock.mockReset();
+  runAstralAgentStreamMock.mockReset();
+  runAstralAgentV2Mock.mockReset();
+  runAstralAgentStreamV2Mock.mockReset();
+  runMemoryWriterMock.mockReset();
+  analyzeTransitImpactMock.mockReset();
+  getTransitSnapshotCachedMock.mockReset();
   vi.resetModules();
 });
+
+const MOCK_TRANSIT_SNAPSHOT = {
+  id: "instant:2026-05-17T00:00:00.000Z",
+  targetAt: "2026-05-17T00:00:00.000Z",
+  calculatedAt: "2026-05-17T00:00:01.000Z",
+  label: "Ahora",
+  collective: {
+    planets: [],
+    activatedGates: [],
+    activatedChannels: [],
+    activatedCenters: [],
+    temporarilyDefinedCenters: [],
+  },
+};
+
+const MOCK_IMPACT = {
+  personalChannels: [],
+  conditionedCenters: [],
+  reinforcedGates: [],
+  educationalChannels: [],
+};
+
+function testProfile(name: string, type: string = "Generator") {
+  return {
+    name,
+    humanDesign: {
+      type,
+      strategy: "Respond",
+      authority: "Sacral",
+      profile: "2/4",
+      definition: "Single Definition",
+      incarnationCross: "Right Angle Cross of Explanation",
+      notSelfTheme: "Frustration",
+      variable: "",
+      digestion: "",
+      environment: "",
+      strongestSense: "",
+      channels: [],
+      activatedGates: [{ number: 1, line: 1, planet: "Sun", isPersonality: true }],
+      definedCenters: ["Sacral"],
+      undefinedCenters: ["Head"],
+    },
+  };
+}
 
 async function buildMcpTestApp(flagEnabled: boolean): Promise<{
   app: FastifyInstance;
@@ -36,34 +142,63 @@ async function buildMcpTestApp(flagEnabled: boolean): Promise<{
   await db.initDb();
   app = await buildApp({ logger: false });
   await app.ready();
+  getTransitSnapshotCachedMock.mockResolvedValue(MOCK_TRANSIT_SNAPSHOT);
+  analyzeTransitImpactMock.mockReturnValue(MOCK_IMPACT);
 
   return {
     app,
     seedAccess: async () => {
-      const userId = await db.createUser("MCP Route User", {
-        humanDesign: {
-          type: "Generator",
-        },
-      });
-      const clientId = await db.createMcpClient({
-        id: "claude-code-beta",
-        name: "Claude Code Beta",
-      });
-      await db.createMcpConsent({
-        userId,
-        clientId,
-        scopes: ["mcp:ask"],
-      });
-      await db.createMcpToken({
-        tokenHash: hashMcpBearerToken(RAW_TOKEN),
-        userId,
-        clientId,
-        scopes: ["mcp:ask"],
-        audience: MCP_AUDIENCE,
-        expiresAt: futureExpiry(),
-      });
+      await seedMcpAccess(db);
     },
   };
+}
+
+async function seedMcpAccess(
+  db: typeof import("../db.js"),
+  input: {
+    rawToken?: string;
+    userName?: string;
+    profile?: object;
+    tokenScopes?: Array<string>;
+    consentScopes?: Array<string>;
+    userStatus?: "active" | "disabled" | "banned";
+    clientStatus?: "active" | "disabled";
+    intake?: object | null;
+    memory?: string;
+  } = {},
+): Promise<{ userId: string; clientId: string; rawToken: string }> {
+  const rawToken = input.rawToken ?? RAW_TOKEN;
+  const profile = input.profile ?? testProfile(input.userName ?? "MCP Route User");
+  const userId = await db.createUser(input.userName ?? "MCP Route User", profile, {
+    status: input.userStatus ?? "active",
+    plan: "premium",
+  });
+  if (input.intake !== undefined) {
+    await db.updateUserProfile(userId, input.userName ?? "MCP Route User", profile, input.intake);
+  }
+  if (input.memory !== undefined) {
+    await db.updateUserMemory(userId, input.memory);
+  }
+  const clientId = await db.createMcpClient({
+    id: `mcp-test-client-${Math.random().toString(16).slice(2)}`,
+    name: "MCP Test Client",
+    status: input.clientStatus ?? "active",
+  });
+  await db.createMcpConsent({
+    userId,
+    clientId,
+    scopes: input.consentScopes ?? ["mcp:ask"],
+  });
+  await db.createMcpToken({
+    tokenHash: hashMcpBearerToken(rawToken),
+    userId,
+    clientId,
+    scopes: input.tokenScopes ?? ["mcp:ask"],
+    audience: MCP_AUDIENCE,
+    expiresAt: futureExpiry(),
+  });
+
+  return { userId, clientId, rawToken };
 }
 
 function jsonRpcBody(method: string, id: string = "req-1") {
@@ -71,6 +206,22 @@ function jsonRpcBody(method: string, id: string = "req-1") {
     jsonrpc: "2.0",
     id,
     method,
+  };
+}
+
+function toolsCallBody(
+  name: string,
+  args: Record<string, unknown>,
+  id: string = "req-1",
+) {
+  return {
+    jsonrpc: "2.0",
+    id,
+    method: "tools/call",
+    params: {
+      name,
+      arguments: args,
+    },
   };
 }
 
@@ -219,7 +370,7 @@ describe("Remote MCP route", () => {
     expect(body.error.data).not.toHaveProperty("tokenId");
   });
 
-  it("initializes and lists zero tools for an authenticated consented beta client", async () => {
+  it("initializes and lists ask_astral_guide_v1 for a consented client with mcp:ask", async () => {
     const harness = await buildMcpTestApp(true);
     await harness.seedAccess();
 
@@ -257,6 +408,40 @@ describe("Remote MCP route", () => {
       jsonrpc: "2.0",
       id: "req-2",
       result: {
+        tools: [
+          expect.objectContaining({
+            name: "ask_astral_guide_v1",
+            description: expect.stringContaining("Astral Guide"),
+            inputSchema: expect.objectContaining({
+              type: "object",
+              required: ["question"],
+            }),
+          }),
+        ],
+      },
+    });
+  });
+
+  it("does not list ask_astral_guide_v1 for a consented client without mcp:ask", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    await seedMcpAccess(db, {
+      tokenScopes: ["mcp:read_hd"],
+      consentScopes: ["mcp:read_hd"],
+    });
+
+    const toolsRes = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: jsonRpcBody("tools/list", "req-2"),
+    });
+
+    expect(toolsRes.statusCode).toBe(200);
+    expect(JSON.parse(toolsRes.body)).toEqual({
+      jsonrpc: "2.0",
+      id: "req-2",
+      result: {
         tools: [],
       },
     });
@@ -280,7 +465,171 @@ describe("Remote MCP route", () => {
     expect(res.body).toBe("");
   });
 
-  it("does not enable tools/call in the transport slice", async () => {
+  it("calls ask_astral_guide_v1 with the user derived from the bearer token", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    const tokenProfile = testProfile("Token Owner", "Generator");
+    const overrideProfile = testProfile("Injected Owner", "Projector");
+    const { userId } = await seedMcpAccess(db, {
+      userName: "Token Owner",
+      profile: tokenProfile,
+      intake: { actividad: "Astrology mentor", desafio_actual: "Focus" },
+      memory: "Verified memory from database.",
+    });
+    const otherUserId = await db.createUser("Injected Owner", overrideProfile, {
+      plan: "premium",
+    });
+    runAstralAgentMock.mockResolvedValueOnce(mockAgentResult("Respuesta MCP"));
+
+    const res = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: toolsCallBody("ask_astral_guide_v1", {
+        question: "Que energia hay disponible?",
+        userId: otherUserId,
+        profile: overrideProfile,
+        intake: { actividad: "Injected activity" },
+        memory: "Injected memory",
+      }),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toEqual({
+      jsonrpc: "2.0",
+      id: "req-1",
+      result: {
+        content: [
+          {
+            type: "text",
+            text: "Respuesta MCP",
+          },
+        ],
+        structuredContent: {
+          transits_used: "2026-05-17T00:00:00.000Z",
+        },
+      },
+    });
+    expect(runAstralAgentMock).toHaveBeenCalledTimes(1);
+    expect(runAstralAgentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Token Owner",
+        humanDesign: expect.objectContaining({ type: "Generator" }),
+      }),
+      expect.any(Object),
+      [{ role: "user", content: "Que energia hay disponible?" }] satisfies ChatMessage[],
+      "test-key-not-real",
+      MOCK_IMPACT,
+      { actividad: "Astrology mentor", desafio_actual: "Focus" },
+      "Verified memory from database.",
+    );
+
+    const messages = await db.getChatMessages(userId);
+    expect(messages).toEqual([]);
+    const usage = await db.getLlmUsageForUser(userId, "1970-01-01T00:00:00.000Z");
+    expect(usage.byRoute).toContainEqual(
+      expect.objectContaining({
+        route: "mcp_ask",
+        callCount: 1,
+        tokensIn: 11,
+        tokensOut: 7,
+      }),
+    );
+    expect(usage.byRoute).not.toContainEqual(
+      expect.objectContaining({
+        route: "chat",
+      }),
+    );
+    expect(runMemoryWriterMock).not.toHaveBeenCalled();
+  });
+
+  it("does not write chat_messages or trigger memory_writer for ask_astral_guide_v1", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    const { userId } = await seedMcpAccess(db, {
+      memory: "Persistent memory should be read, not mutated.",
+    });
+    runAstralAgentMock.mockResolvedValueOnce(mockAgentResult("Read-only reply"));
+
+    const res = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: toolsCallBody("ask_astral_guide_v1", {
+        question: "Respondeme sin persistir",
+      }),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body).result.content[0].text).toBe("Read-only reply");
+    expect(await db.getChatMessages(userId)).toEqual([]);
+    expect(runMemoryWriterMock).not.toHaveBeenCalled();
+  });
+
+  it("returns a controlled MCP error when ask_astral_guide_v1 is called without mcp:ask", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    await seedMcpAccess(db, {
+      tokenScopes: ["mcp:read_hd"],
+      consentScopes: ["mcp:read_hd"],
+    });
+
+    const res = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: toolsCallBody("ask_astral_guide_v1", {
+        question: "hello",
+      }),
+    });
+
+    expect(res.statusCode).toBe(403);
+    expect(JSON.parse(res.body)).toMatchObject({
+      jsonrpc: "2.0",
+      id: "req-1",
+      error: {
+        code: -32006,
+        message: "insufficient_scope",
+        data: {
+          requiredScopes: ["mcp:ask"],
+        },
+      },
+    });
+    expect(runAstralAgentMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["disabled", "banned"] as const)(
+    "blocks %s users before ask_astral_guide_v1 runs",
+    async (userStatus) => {
+      const harness = await buildMcpTestApp(true);
+      const db = await import("../db.js");
+      await seedMcpAccess(db, {
+        userStatus,
+      });
+
+      const res = await harness.app.inject({
+        method: "POST",
+        url: "/api/mcp/v1",
+        headers: mcpHeaders(),
+        payload: toolsCallBody("ask_astral_guide_v1", {
+          question: "hello",
+        }),
+      });
+
+      expect(res.statusCode).toBe(403);
+      expect(JSON.parse(res.body)).toMatchObject({
+        jsonrpc: "2.0",
+        id: "req-1",
+        error: {
+          code: -32008,
+          message: "account_inactive",
+        },
+      });
+      expect(runAstralAgentMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("returns invalid params when ask_astral_guide_v1 receives no question", async () => {
     const harness = await buildMcpTestApp(true);
     await harness.seedAccess();
 
@@ -288,7 +637,9 @@ describe("Remote MCP route", () => {
       method: "POST",
       url: "/api/mcp/v1",
       headers: mcpHeaders(),
-      payload: jsonRpcBody("tools/call"),
+      payload: toolsCallBody("ask_astral_guide_v1", {
+        question: " ",
+      }),
     });
 
     expect(res.statusCode).toBe(200);
@@ -296,54 +647,11 @@ describe("Remote MCP route", () => {
       jsonrpc: "2.0",
       id: "req-1",
       error: {
-        code: -32601,
-        message: "Method not found",
+        code: -32602,
+        message: "Invalid params",
       },
     });
-  });
-
-  it("keeps tools/call disabled even for consented clients without mcp:ask scope", async () => {
-    const harness = await buildMcpTestApp(true);
-    const db = await import("../db.js");
-    const userId = await db.createUser("MCP Read Only User", {
-      humanDesign: {
-        type: "Projector",
-      },
-    });
-    const clientId = await db.createMcpClient({
-      id: "read-only-beta",
-      name: "Read Only Beta",
-    });
-    await db.createMcpConsent({
-      userId,
-      clientId,
-      scopes: ["mcp:read_hd"],
-    });
-    await db.createMcpToken({
-      tokenHash: hashMcpBearerToken(RAW_TOKEN),
-      userId,
-      clientId,
-      scopes: ["mcp:read_hd"],
-      audience: MCP_AUDIENCE,
-      expiresAt: futureExpiry(),
-    });
-
-    const res = await harness.app.inject({
-      method: "POST",
-      url: "/api/mcp/v1",
-      headers: mcpHeaders(),
-      payload: jsonRpcBody("tools/call"),
-    });
-
-    expect(res.statusCode).toBe(200);
-    expect(JSON.parse(res.body)).toMatchObject({
-      jsonrpc: "2.0",
-      id: "req-1",
-      error: {
-        code: -32601,
-        message: "Method not found",
-      },
-    });
+    expect(runAstralAgentMock).not.toHaveBeenCalled();
   });
 
   it("rejects browser origins that do not match the request host", async () => {

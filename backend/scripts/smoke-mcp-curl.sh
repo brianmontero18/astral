@@ -112,6 +112,8 @@ start_server() {
   FEATURE_REMOTE_MCP="${flag}" \
   TURSO_DATABASE_URL="file:${DB_PATH}" \
   OPENAI_API_KEY="test-key-not-real" \
+  NODE_ENV="test" \
+  MCP_ASK_ASTRAL_GUIDE_TEST_REPLY="MCP smoke Astral Guide reply" \
   PORT="${PORT}" \
   node --import tsx/esm src/server.ts >"${LOG_PATH}" 2>&1 &
   SERVER_PID="$!"
@@ -276,23 +278,31 @@ request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"tools","method":
   -H "accept: application/json, text/event-stream" \
   -H "authorization: Bearer ${VALID_TOKEN}"
 assert_status "200" "tools/list"
-assert_json "tools/list returns empty registry" "Array.isArray(data.result.tools) && data.result.tools.length === 0"
-pass "tools/list returns empty registry"
+assert_json "tools/list exposes ask tool for mcp:ask clients" "Array.isArray(data.result.tools) && data.result.tools.some((tool) => tool.name === 'ask_astral_guide_v1')"
+pass "tools/list exposes ask tool for mcp:ask clients"
 
 request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"call","method":"tools/call","params":{"name":"ask_astral_guide_v1","arguments":{"question":"hello"}}}' \
   -H "content-type: application/json" \
   -H "accept: application/json, text/event-stream" \
   -H "authorization: Bearer ${VALID_TOKEN}"
-assert_status "200" "tools/call disabled"
-assert_json "tools/call is disabled" "data.error.code === -32601 && data.error.message === 'Method not found'"
-pass "tools/call is disabled in transport-only slice"
+assert_status "200" "ask tool call"
+assert_json "ask tool returns content" "Array.isArray(data.result.content) && data.result.content[0].type === 'text' && data.result.content[0].text === 'MCP smoke Astral Guide reply'"
+pass "ask tool call succeeds through curl without network LLM"
+
+request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"read-only-tools","method":"tools/list"}' \
+  -H "content-type: application/json" \
+  -H "accept: application/json, text/event-stream" \
+  -H "authorization: Bearer ${READ_ONLY_TOKEN}"
+assert_status "200" "read-only tools/list"
+assert_json "read-only token does not list ask" "Array.isArray(data.result.tools) && !data.result.tools.some((tool) => tool.name === 'ask_astral_guide_v1')"
+pass "read-only token does not list ask"
 
 request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"read-only-call","method":"tools/call","params":{"name":"ask_astral_guide_v1","arguments":{"question":"hello"}}}' \
   -H "content-type: application/json" \
   -H "accept: application/json, text/event-stream" \
   -H "authorization: Bearer ${READ_ONLY_TOKEN}"
-assert_status "200" "tools/call disabled for read-only clients"
-assert_json "tools/call disabled before scope checks" "data.error.code === -32601 && data.error.message === 'Method not found'"
-pass "tools/call remains disabled for read-only scoped clients"
+assert_status "403" "ask tool requires mcp:ask"
+assert_json "read-only token cannot call ask" "data.error.code === -32006 && data.error.message === 'insufficient_scope'"
+pass "read-only token cannot call ask"
 
 echo "Remote MCP curl smoke complete"

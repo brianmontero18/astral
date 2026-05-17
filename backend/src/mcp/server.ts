@@ -1,9 +1,18 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
+import { insertMcpAuditEvent } from "../db.js";
 import {
   resolveMcpPrincipal,
   type McpAuthError,
+  type McpPrincipal,
   type ResolveMcpPrincipalResult,
 } from "./auth.js";
+import {
+  allMcpTools,
+  findMcpTool,
+  McpToolCallError,
+  serializeMcpTool,
+  type McpToolDefinition,
+} from "./tools.js";
 
 const MCP_PROTOCOL_VERSION = "2025-06-18";
 const JSONRPC_VERSION = "2.0";
@@ -164,11 +173,85 @@ function initializeResult() {
 
 async function authorizeForMethod(
   request: FastifyRequest,
+  requiredScopes: ReadonlyArray<string> = [],
 ): Promise<ResolveMcpPrincipalResult> {
   return resolveMcpPrincipal({
     authorizationHeader: request.headers.authorization,
-    requiredScopes: [],
+    requiredScopes,
   });
+}
+
+function includesAllScopes(
+  grantedScopes: ReadonlyArray<string>,
+  requiredScopes: ReadonlyArray<string>,
+): boolean {
+  const granted = new Set(grantedScopes);
+  return requiredScopes.every((scope) => granted.has(scope));
+}
+
+function parseToolCallParams(
+  params: unknown,
+): { name: string; args: unknown } | { error: JsonRpcErrorResponse } {
+  if (!params || typeof params !== "object" || Array.isArray(params)) {
+    return { error: errorResponse(null, -32602, "Invalid params") };
+  }
+
+  const candidate = params as { name?: unknown; arguments?: unknown };
+  if (typeof candidate.name !== "string" || candidate.name.trim().length === 0) {
+    return { error: errorResponse(null, -32602, "Invalid params") };
+  }
+
+  return {
+    name: candidate.name,
+    args: candidate.arguments ?? {},
+  };
+}
+
+async function recordMcpToolAudit(
+  request: FastifyRequest,
+  principal: McpPrincipal | null,
+  input: {
+    toolName: string;
+    status: "success" | "error" | "denied";
+    metadata?: object;
+  },
+): Promise<void> {
+  try {
+    await insertMcpAuditEvent({
+      userId: principal?.userId,
+      clientId: principal?.clientId,
+      tokenId: principal?.tokenId,
+      event: "tools/call",
+      toolName: input.toolName,
+      sideEffectsMode: "mcp_read_only",
+      status: input.status,
+      metadata: input.metadata,
+    });
+  } catch (err) {
+    request.log.warn({ err, toolName: input.toolName }, "mcp audit insert failed");
+  }
+}
+
+async function visibleToolsForRequest(
+  request: FastifyRequest,
+): Promise<Array<ReturnType<typeof serializeMcpTool>>> {
+  const visible = [];
+
+  for (const tool of allMcpTools()) {
+    const auth = await authorizeForMethod(request, tool.requiredScopes);
+    if (auth.kind === "authorized" && includesAllScopes(auth.principal.scopes, tool.requiredScopes)) {
+      visible.push(serializeMcpTool(tool));
+    }
+  }
+
+  return visible;
+}
+
+async function authorizeToolCall(
+  request: FastifyRequest,
+  tool: McpToolDefinition,
+): Promise<ResolveMcpPrincipalResult> {
+  return authorizeForMethod(request, tool.requiredScopes);
 }
 
 export async function handleMcpPost(
@@ -235,7 +318,84 @@ export async function handleMcpPost(
     await reply
       .status(200)
       .type("application/json")
-      .send(success(message.id ?? null, { tools: [] }));
+      .send(success(message.id ?? null, { tools: await visibleToolsForRequest(request) }));
+    return;
+  }
+
+  if (message.method === "tools/call") {
+    const parsed = parseToolCallParams(message.params);
+    if ("error" in parsed) {
+      await reply
+        .status(200)
+        .type("application/json")
+        .send({
+          ...parsed.error,
+          id: message.id ?? null,
+        });
+      return;
+    }
+
+    const tool = findMcpTool(parsed.name);
+    if (!tool) {
+      await reply
+        .status(200)
+        .type("application/json")
+        .send(errorResponse(message.id ?? null, -32602, "Unknown tool", {
+          toolName: parsed.name,
+        }));
+      return;
+    }
+
+    const toolAuth = await authorizeToolCall(request, tool);
+    if (toolAuth.kind !== "authorized") {
+      await recordMcpToolAudit(request, null, {
+        toolName: tool.name,
+        status: "denied",
+        metadata: { reason: toolAuth.error },
+      });
+      await reply
+        .status(toolAuth.statusCode)
+        .type("application/json")
+        .send(authErrorResponse(message.id ?? null, toolAuth));
+      return;
+    }
+
+    try {
+      const result = await tool.call(parsed.args, {
+        app: request.server,
+        principal: toolAuth.principal,
+      });
+      await recordMcpToolAudit(request, toolAuth.principal, {
+        toolName: tool.name,
+        status: "success",
+      });
+      await reply
+        .status(200)
+        .type("application/json")
+        .send(success(message.id ?? null, result));
+    } catch (err) {
+      await recordMcpToolAudit(request, toolAuth.principal, {
+        toolName: tool.name,
+        status: "error",
+        metadata: {
+          message: err instanceof Error ? err.message : String(err),
+        },
+      });
+
+      if (err instanceof McpToolCallError) {
+        await reply
+          .status(200)
+          .type("application/json")
+          .send(errorResponse(message.id ?? null, err.code, err.message, err.data));
+        return;
+      }
+
+      request.log.error({ err, toolName: tool.name }, "mcp tool call failed");
+      await reply
+        .status(502)
+        .type("application/json")
+        .send(errorResponse(message.id ?? null, -32000, "tool_call_failed"));
+    }
     return;
   }
 
