@@ -679,10 +679,17 @@ describe("Remote MCP route", () => {
     });
 
     expect(channelRes.statusCode).toBe(200);
-    expect(JSON.parse(channelRes.body)).toMatchObject({
+    const channelBody = JSON.parse(channelRes.body);
+    expect(channelBody).toMatchObject({
       jsonrpc: "2.0",
       id: "req-1",
       result: {
+        content: [
+          {
+            type: "text",
+            text: expect.any(String),
+          },
+        ],
         structuredContent: {
           channel: {
             id: "1-8",
@@ -694,6 +701,9 @@ describe("Remote MCP route", () => {
         },
       },
     });
+    expect(JSON.parse(channelBody.result.content[0].text)).toEqual(
+      channelBody.result.structuredContent,
+    );
     expect(JSON.parse(channelsRes.body).result.structuredContent.channels.map(
       (channel: { id: string }) => channel.id,
     ).sort()).toEqual(["10-20", "10-34", "10-57"]);
@@ -710,6 +720,36 @@ describe("Remote MCP route", () => {
     expect(runAstralAgentV2Mock).not.toHaveBeenCalled();
     expect(runMemoryWriterMock).not.toHaveBeenCalled();
     expect(await db.getChatMessages(userId)).toEqual([]);
+  });
+
+  it("returns null when find_channel_by_gates_v1 receives valid gates that do not form a channel", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    await seedMcpAccess(db, {
+      tokenScopes: ["mcp:read_hd"],
+      consentScopes: ["mcp:read_hd"],
+    });
+
+    const res = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: toolsCallBody("find_channel_by_gates_v1", {
+        gateA: 8,
+        gateB: 20,
+      }),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toMatchObject({
+      jsonrpc: "2.0",
+      id: "req-1",
+      result: {
+        structuredContent: {
+          channel: null,
+        },
+      },
+    });
   });
 
   it("writes started and completed audit events for deterministic HD tools", async () => {
