@@ -400,9 +400,11 @@ Input contract:
 ```json
 {
   "question": "string",
-  "mode": "general | weekly_focus | transit_question"
+  "mode": "general"
 }
 ```
+
+`mode` debe ser enum cerrado: `general`, `weekly_focus` o `transit_question`.
 
 No `userId`, no profile, no memory, no raw system instructions.
 
@@ -523,4 +525,3 @@ Regression tests:
 Start with **Slice 0 + Slice 1** only.
 
 Do not implement MCP endpoint until `guide-service` exists and web chat remains green. That gives a clean core boundary and makes later MCP work mostly auth/protocol/tool wiring instead of surgery inside `routes/chat.ts`.
-

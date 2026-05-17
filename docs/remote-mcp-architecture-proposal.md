@@ -36,7 +36,7 @@ Render Web Service actual
       /api/*       -> API actual de Astral
       /auth/*      -> SuperTokens web auth
       /api/mcp/v1  -> Remote MCP endpoint NUEVO
-      /oauth/*     -> auth/token flow MCP NUEVO
+      token/OAuth endpoints MCP TBD
       /*           -> React static frontend
 ```
 
@@ -81,10 +81,10 @@ Ambas entradas deben terminar en la misma capa de negocio:
 
 ```text
 Web app:
-  React -> /api/chat/stream -> AstralConversationService
+  React -> /api/chat/stream -> GuideService
 
 MCP:
-  External client -> /api/mcp/v1 -> ask_astral_guide_v1 -> AstralConversationService
+  External client -> /api/mcp/v1 -> ask_astral_guide_v1 -> GuideService
 ```
 
 MCP no debe tener logica de Astral adentro. MCP es un adapter/protocolo.
@@ -116,7 +116,7 @@ MCP no debe tener logica de Astral adentro. MCP es un adapter/protocolo.
                                    | no userId/profile from client
                                    v
                     +-----------------------------+
-                    | AstralConversationService   |
+                    | GuideService                |
                     | shared with web chat        |
                     +--------------+--------------+
                                    |
@@ -172,14 +172,17 @@ No acepta `userId`, `profile`, `memory` ni `intake` desde el cliente.
 
 Propuesta inicial:
 
-- `get_my_profile_summary_v1`
 - `get_current_transit_context_v1`
-- `analyze_my_transit_impact_v1`
 - `find_channel_by_gates_v1`
 - `find_channels_by_gate_v1`
 - `get_center_for_gate_v1`
 
-No exponer `memory_md` crudo. No exponer intake completo. No exponer birth data salvo que haya consentimiento y scope explicito.
+Quedan fuera del MVP salvo decision explicita:
+
+- `get_my_profile_summary_v1`: abre perfil personal y requiere consentimiento/scope propio.
+- `analyze_my_transit_impact_v1`: aunque es read-only, revela datos derivados del bodygraph del usuario.
+
+No exponer `memory_md` crudo. No exponer intake completo. No exponer birth data.
 
 ---
 
@@ -198,7 +201,7 @@ No exponer `memory_md` crudo. No exponer intake completo. No exponer birth data 
 | - /api/*                                       |
 | - /auth/*                                      |
 | - /api/mcp/v1    NUEVO                         |
-| - /oauth/*       NUEVO                         |
+| - token/OAuth endpoints MCP TBD                |
 | - static React frontend                         |
 +-------------------------------------------------+
 ```
@@ -234,9 +237,9 @@ Browser ------> | astral-web          |
                            ^
                            |
                 +----------+----------+
-ChatGPT ------> | astral-mcp          |
-Claude  ------> | /api/mcp/v1 + /oauth |
-Cursor  ------> | MCP only            |
+ChatGPT ------> | astral-mcp              |
+Claude  ------> | /api/mcp/v1 + auth TBD |
+Cursor  ------> | MCP only                |
                 +---------------------+
 
 Shared dependencies:
@@ -305,9 +308,15 @@ Scopes iniciales:
 
 ```text
 mcp:ask
-profile:read_summary
-transits:read
-hd:read
+mcp:read_hd
+mcp:read_transits
+```
+
+Scopes diferidos para tools que revelan perfil o impacto personal:
+
+```text
+mcp:read_profile_summary
+mcp:read_personal_impact
 ```
 
 No usar bearer permanente sin scopes para produccion. Un PAT puede servir solo para beta dev controlada con Codex/Cursor, no como contrato para ChatGPT/Claude consumer.
@@ -348,7 +357,7 @@ Propuesta:
 - leer profile/intake/memory para responder;
 - registrar `llm_calls` o tabla equivalente para costo/telemetry;
 - no mutar memory por default;
-- agregar `FEATURE_REMOTE_MCP_PERSIST_CHAT=false` para futura exploracion.
+- si algun dia se habilita persistencia, hacerlo con flag separado (`FEATURE_REMOTE_MCP_PERSIST_CHAT`) y consentimiento explicito. No forma parte del MVP.
 
 ---
 
@@ -399,13 +408,12 @@ mcp_budget_exceeded
 5. No `userId` enviado por cliente.
 6. No profile enviado por cliente.
 7. No self-HTTP contra `/api/chat`; llamar servicios internos.
-8. Tool schemas versionados desde el primer commit.
+8. Tool names y schemas versionados desde el primer commit (`*_v1`).
 9. Stateless transport preferido; no session affinity.
 10. Validar `Origin`/headers donde aplique.
 11. Respuestas minimizadas: no prompt interno, no secrets, no stack traces.
 12. Todo costo MCP debe quedar medible por separado del chat web.
-13. Tool names y schemas versionados: `*_v1`.
-14. Tokens short-lived, scoped, revocables y ligados a `clientId + userId + audience`.
+13. Tokens short-lived, scoped, revocables y ligados a `clientId + userId + audience`.
 
 ---
 
@@ -427,7 +435,7 @@ backend/src/
       transits.ts
 
   services/
-    astral-conversation.ts  # capa compartida chat + MCP
+    guide-service.ts        # capa compartida chat + MCP
 ```
 
 La primera refactorizacion real deberia extraer desde `routes/chat.ts` una funcion compartida tipo:
@@ -437,7 +445,7 @@ runAstralConversationTurn({
   userId,
   messages,
   transitContext,
-  persistMode
+  sideEffectsMode
 })
 ```
 
@@ -496,7 +504,7 @@ Bloqueantes:
 No bloqueantes:
 
 - Nombre final de tools.
-- Si `get_my_profile_summary_v1` debe existir en MVP o solo `ask_astral_guide_v1`.
+- Si `get_my_profile_summary_v1` debe existir despues del MVP y con que scope/consentimiento.
 - Si el reporte semanal va como tool aparte o como prompt dentro de `ask_astral_guide_v1`.
 
 ---
