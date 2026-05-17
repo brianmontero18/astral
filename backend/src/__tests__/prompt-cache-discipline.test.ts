@@ -15,9 +15,11 @@ import type { TransitImpact, WeeklyTransits } from "../transit-service.js";
 const BASE_PROFILE: UserProfile = {
   name: "Daniela",
   birthData: {
-    date: "1989-02-18",
-    time: "08:00",
-    location: "Punta Cardon",
+    dateLocalIso: "1989-02-18T08:00:00-04:00",
+    dateUtcIso: "1989-02-18T12:00:00Z",
+    placeLabel: "Punta Cardon",
+    timezoneOffsetHours: -4,
+    ageYears: 37,
   },
   humanDesign: {
     type: "Generador",

@@ -16,6 +16,7 @@ import { renderChannelsTable } from "./hd-channels.js";
 import {
   buildBusinessContextBlock,
   buildUserMemoryBlock,
+  formatBirthForPrompt,
 } from "./agent-prompt-helpers.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -45,25 +46,72 @@ export interface AgentResult extends AgentCallMeta {
 
 export interface UserProfile {
   name: string;
+  /**
+   * Birth metadata derivada en la capa de cálculo. Opcional para retro-compat
+   * con perfiles legacy importados de PDFs, donde solo teníamos strings ya
+   * formateados. Los nuevos perfiles calculados via Swiss Eph la populan completa.
+   *
+   * Las fechas son ISO 8601 (con offset para local, Z para UTC). Los consumers
+   * que necesiten display human-friendly derivan localmente.
+   */
   birthData?: {
-    date: string;      // ej: "18 February 1989"
-    time: string;      // ej: "08:00"
-    location: string;  // ej: "Punta Cardón, Falcón, Venezuela"
+    /** ISO 8601 con offset, ej: "1989-02-18T08:00:00-04:00". */
+    dateLocalIso: string;
+    /** ISO 8601 en UTC (Z), ej: "1989-02-18T12:00:00Z". */
+    dateUtcIso: string;
+    /** Label libre del lugar de nacimiento. */
+    placeLabel: string;
+    /** Coordenadas geográficas. Opcional — para futuras timezone lookups. */
+    coordinates?: { lat: number; lon: number };
+    /** Offset horario respecto a UTC en horas (ej: -3 para Argentina). */
+    timezoneOffsetHours: number;
+    /** Edad cumplida al momento del cálculo. */
+    ageYears: number;
   };
   humanDesign: {
     type: string;
+    /**
+     * Prefijo del type para display ("Emotional", "Mental", etc.) — depende
+     * de la authority. Para "Emocional (Plexo Solar)" → "Emotional",
+     * con lo que la presentación queda "Emotional Projector".
+     */
+    typeQualifier?: string;
     strategy: string;
     authority: string;
+    /** Ej: "4/6". */
     profile: string;
+    /** Ej: "Opportunist / Role Model". Se deriva via PROFILE_LINE_NAMES. */
+    profileName?: string;
     definition: string;
     incarnationCross: string;
+    /**
+     * Tema HD positivo + no-self. Para Projector: "Success / Bitterness".
+     * `notSelfTheme` se mantiene como alias backward-compat de `themes.notSelf`.
+     */
+    themes?: { positive: string; notSelf: string };
     notSelfTheme: string;
     variable: string;
     digestion: string;
     environment: string;
     strongestSense: string;
+    /**
+     * Variables del Design (subsection del Foundation Chart). Se populan via
+     * Variable Wheel — actualmente solo `date` (ISO del momento del diseño,
+     * ~88° solares antes del nacimiento).
+     */
+    design?: {
+      /** ISO 8601 UTC del momento del cálculo Design. */
+      date: string;
+    };
     channels: Array<{ id: string; name: string; circuit: string }>;
-    activatedGates: Array<{ number: number; line: number; planet: string; isPersonality: boolean }>;
+    activatedGates: Array<{
+      number: number;
+      line: number;
+      planet: string;
+      isPersonality: boolean;
+      /** Velocidad eclíptica negativa al momento del cálculo. */
+      isRetrograde?: boolean;
+    }>;
     definedCenters: string[];
     undefinedCenters: string[];
   };
@@ -199,7 +247,7 @@ Usá ÚNICAMENTE los datos de tránsito e impacto provistos abajo. Cada insight 
 # Contexto
 
 <user_profile name="${profile.name}">
-${profile.birthData ? `<birth>${profile.birthData.date}, ${profile.birthData.time} — ${profile.birthData.location}</birth>` : ""}
+${profile.birthData ? `<birth>${formatBirthForPrompt(profile.birthData)}</birth>` : ""}
 <human_design>
   <type>${hd.type}</type>${hd.strategy ? `\n  <strategy>${hd.strategy}</strategy>` : ""}
   <authority>${hd.authority}</authority>
