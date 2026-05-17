@@ -1,0 +1,31 @@
+backend/src/db.ts
+  s_62b8d99e2a79a2::t_fb16d847ac70da 70-98,287-340,446
+  s_62b8d99e2a79a2::t_9ccaedcf459aa3 1366-1537
+backend/src/mcp/auth.ts
+  s_62b8d99e2a79a2::t_0f58072577bc58 1-253
+backend/src/__tests__/mcp-auth.test.ts
+  s_62b8d99e2a79a2::t_8688f52f39f6c6 1-279,298-338
+  s_62b8d99e2a79a2::t_7ac3b33f349e69 280-297
+backend/src/__tests__/mcp-schema-migration.test.ts
+  s_62b8d99e2a79a2::t_d925f83ac25dbd 1-141
+docs/remote-mcp-implementation-recon-plan.md
+  s_62b8d99e2a79a2::t_8f459be8635303 347-348,379-384
+docs/remote-mcp-architecture-proposal.md
+  s_62b8d99e2a79a2::t_8e3f6fb1506313 3,5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "f9be730f993c039106386eb7158e50177cc859ad",
+  "prompts": {},
+  "sessions": {
+    "s_62b8d99e2a79a2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e3725-5a85-7d62-8c54-69eb956a2ff8",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
