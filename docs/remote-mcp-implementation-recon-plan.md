@@ -1,6 +1,6 @@
 # Remote MCP — reconocimiento y plan de implementacion
 
-**Estado**: Slices 0-6 implementados en `feature/astral-mcp-architecture`; quedan hardening E2E/manual, tools de transitos seguras y OAuth publico.
+**Estado**: Slices 0-7 implementados/validados en `feature/astral-mcp-architecture`; quedan tools de transitos seguras y OAuth publico fuera del MVP actual.
 **Fecha**: 2026-05-17.
 **Bead**: `astral-de7`.
 **Base**: `feature/astral-mcp-architecture`.
@@ -489,6 +489,24 @@ Claude Code connected locally; Codex HTTP bearer config validated; Cursor is
 blocked by local auth/keychain; ChatGPT waits for OAuth; Gemini remains
 research-only.
 
+### Slice 7 — E2E green + manual smoke + cleanup
+
+Status: closed on 2026-05-17.
+
+Validated:
+
+- `npm run check`
+- `npm run test`
+- `npm run smoke:mcp`
+- focused Claude Code HTTP + bearer smoke with a temp DB and isolated `HOME`
+
+Scope kept intentionally narrow:
+
+- no OAuth/UI work;
+- no new MCP tools;
+- no personal/profile/transit-impact tools exposed;
+- docs updated only to remove stale Slice 7 follow-up notes.
+
 ### Continuous MCP curl smoke
 
 Status: iniciado en `astral-bw6`.
@@ -511,6 +529,9 @@ Current coverage:
 - verifies valid `initialize`, `notifications/initialized`, `ping`, and `tools/list`;
 - verifies `tools/list` exposes `ask_astral_guide_v1` only for scoped/consented clients;
 - verifies `tools/call` can call `ask_astral_guide_v1` through a non-network test seam;
+- verifies `tools/list` exposes deterministic HD tools for `mcp:read_hd` clients;
+- verifies a read-only token can call deterministic HD tools;
+- verifies an ask-only token cannot call deterministic HD tools;
 - verifies a token without `mcp:ask` cannot list or call `ask_astral_guide_v1`;
 - verifies budget exhaustion blocks `ask_astral_guide_v1` before the agent path.
 
@@ -593,9 +614,5 @@ Regression tests:
 
 ## Recommended next step
 
-Proceed to **Slice 7 — E2E green + manual smoke + cleanup**.
-
-Slices 0-6 are already captured in this branch. Slice 7 should keep scope tight:
-run the backend gate, perform a focused manual smoke with the validated client
-path, clean up stale notes if any remain, and leave OAuth/public connector work
-out of scope.
+Prepare PR/review for the private beta surface as implemented. Keep future
+OAuth/public connector work and transit/profile-impact tools in separate slices.

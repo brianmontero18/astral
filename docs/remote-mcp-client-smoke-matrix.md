@@ -59,12 +59,17 @@ Raw JSON-RPC over HTTP passed against the local server:
 
 ## Follow-up for Slice 7
 
-- Run the normal backend gate:
-  - `cd backend && npm run check`
-  - `cd backend && npm run test`
-  - `cd backend && npm run smoke:mcp`
-- Optional manual beta smoke:
-  - Configure Claude Code with a short-lived beta token.
-  - `tools/list` must show only scopes granted by the token and consent.
-  - Call `get_center_for_gate_v1` with `{ "gate": 1 }`.
-  - Call `ask_astral_guide_v1` only with an `mcp:ask` token.
+Completed on 2026-05-17:
+
+- `npm run check`
+- `npm run test`
+- `npm run smoke:mcp`
+- Claude Code HTTP + bearer connection smoke with temp DB, short-lived seeded
+  token, and isolated `HOME`; `claude mcp get` reported `Connected`.
+
+Remaining client gaps stay unchanged:
+
+- Codex CLI still needs a real interactive/model run before full validation.
+- Cursor remains blocked by local auth/keychain.
+- ChatGPT waits for OAuth.
+- Gemini remains research-only.
