@@ -1,0 +1,21 @@
+docs/INDEX.md
+  s_7ca317218f4531::t_d28df45322cb13 65
+docs/remote-mcp-implementation-recon-plan.md
+  s_7ca317218f4531::t_d28df45322cb13 1-526
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "d581833577fe4c50abd85d7fde0ea3768a1a01f4",
+  "prompts": {},
+  "sessions": {
+    "s_7ca317218f4531": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e33e6-d551-7893-b2fc-254cee9d9bee",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
