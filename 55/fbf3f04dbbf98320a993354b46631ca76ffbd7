@@ -1,0 +1,21 @@
+frontend/src/BodygraphPoc.tsx
+  s_b261358f8f8c95::t_81f84f6e31da13 71-73
+  s_b261358f8f8c95::t_b8cbe9c6b1e8d5 104-148
+  s_b261358f8f8c95::t_ef125a919309c7 248-272
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "55fbf3f04dbbf98320a993354b46631ca76ffbd7",
+  "prompts": {},
+  "sessions": {
+    "s_b261358f8f8c95": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "546a20e1-3614-4c30-8828-b50165594b08",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
