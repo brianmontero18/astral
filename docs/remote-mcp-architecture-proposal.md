@@ -1,0 +1,530 @@
+# Remote MCP para Astral Guide — propuesta de arquitectura
+
+**Estado**: borrador para deliberacion.
+**Fecha**: 2026-05-17.
+**Bead**: `astral-t45`.
+**Objetivo**: definir un punto de partida practico para exponer Astral Guide a clientes externos como ChatGPT, Claude, Gemini, Codex, Cursor o cualquier cliente compatible con MCP.
+
+---
+
+## TL;DR
+
+Construir un **Remote MCP Server de Astral** como nueva superficie del backend.
+
+No exportamos el prompt ni la memoria. Exponemos tools autenticadas que llaman al backend de Astral, donde siguen viviendo:
+
+- perfil HD del usuario;
+- intake de negocio;
+- memoria persistente;
+- tránsitos;
+- tools HD deterministicas;
+- cuotas, billing y telemetry;
+- prompt/voz de Astral Guide.
+
+Para MVP: **mismo backend, mismo Docker, mismo Render service**, detras de feature flag. Diseñarlo desde el dia 1 para poder extraerlo despues a un servicio separado si el uso lo justifica.
+
+---
+
+## Decision propuesta
+
+### Si para MVP
+
+```text
+Render Web Service actual
+  Docker container
+    node backend/dist/server.js
+      /api/*       -> API actual de Astral
+      /auth/*      -> SuperTokens web auth
+      /api/mcp/v1  -> Remote MCP endpoint NUEVO
+      /oauth/*     -> auth/token flow MCP NUEVO
+      /*           -> React static frontend
+```
+
+### No por ahora
+
+```text
+Render Service A: Astral web
+Render Service B: Astral MCP
+```
+
+Separar servicios desde el dia 1 agrega deploy/ops antes de validar demanda. La separacion tiene sentido cuando haya trafico externo real, necesidades de escalado separadas, SLA propio, rate limits por cliente o riesgo de que MCP degrade la app web.
+
+---
+
+## Arquitectura mental
+
+```text
+Clientes propios
+Browser Astral
+        |
+        v
+  /api/chat/stream
+        |
+        v
++--------------------------+
+| Astral backend Fastify   |
++--------------------------+
+
+Clientes externos
+ChatGPT / Claude / Gemini / Codex / Cursor
+        |
+        v
+   /api/mcp/v1
+        |
+        v
++--------------------------+
+| Astral backend Fastify   |
++--------------------------+
+```
+
+Ambas entradas deben terminar en la misma capa de negocio:
+
+```text
+Web app:
+  React -> /api/chat/stream -> AstralConversationService
+
+MCP:
+  External client -> /api/mcp/v1 -> ask_astral_guide_v1 -> AstralConversationService
+```
+
+MCP no debe tener logica de Astral adentro. MCP es un adapter/protocolo.
+
+---
+
+## Diagrama de abstracciones
+
+```text
+                    +-----------------------------+
+                    | External MCP Client         |
+                    | ChatGPT / Claude / Cursor   |
+                    +--------------+--------------+
+                                   |
+                                   | MCP + Bearer/OAuth
+                                   v
+                    +-----------------------------+
+                    | MCP Transport Layer         |
+                    | /api/mcp/v1                 |
+                    +--------------+--------------+
+                                   |
+                                   | validate token, scopes, client
+                                   v
+                    +-----------------------------+
+                    | MCP Adapter                 |
+                    | tools, schemas, responses   |
+                    +--------------+--------------+
+                                   |
+                                   | no userId/profile from client
+                                   v
+                    +-----------------------------+
+                    | AstralConversationService   |
+                    | shared with web chat        |
+                    +--------------+--------------+
+                                   |
+              +--------------------+--------------------+
+              |                    |                    |
+              v                    v                    v
+   +--------------------+  +----------------+  +---------------------+
+   | User context       |  | Transit engine |  | HD deterministic    |
+   | profile/intake/    |  | Swiss Eph WASM |  | tools/tables        |
+   | memory             |  | impact calc    |  | channels/gates      |
+   +--------------------+  +----------------+  +---------------------+
+              |                    |                    |
+              +--------------------+--------------------+
+                                   |
+                                   v
+                    +-----------------------------+
+                    | Astral Agent                |
+                    | prompt + model + tools      |
+                    +--------------+--------------+
+                                   |
+                                   v
+                         OpenAI / configured LLM
+```
+
+---
+
+## Tools MVP
+
+### Principal
+
+`ask_astral_guide_v1`
+
+Input:
+
+```json
+{
+  "question": "string"
+}
+```
+
+Comportamiento:
+
+- deriva el usuario desde el token MCP;
+- carga profile/intake/memory desde DB;
+- calcula transitos server-side;
+- llama al agente actual de Astral;
+- devuelve respuesta final en texto;
+- registra telemetry/costo.
+
+No acepta `userId`, `profile`, `memory` ni `intake` desde el cliente.
+
+### Soporte read-only
+
+Propuesta inicial:
+
+- `get_my_profile_summary_v1`
+- `get_current_transit_context_v1`
+- `analyze_my_transit_impact_v1`
+- `find_channel_by_gates_v1`
+- `find_channels_by_gate_v1`
+- `get_center_for_gate_v1`
+
+No exponer `memory_md` crudo. No exponer intake completo. No exponer birth data salvo que haya consentimiento y scope explicito.
+
+---
+
+## Deploy recomendado
+
+### Fase 1: mismo Render service
+
+```text
++-------------------------------------------------+
+| Render: astral-backend-prod                     |
++-------------------------------------------------+
+| Dockerfile actual                               |
+| CMD node backend/dist/server.js                 |
++-------------------------------------------------+
+| Fastify                                         |
+| - /api/*                                       |
+| - /auth/*                                      |
+| - /api/mcp/v1    NUEVO                         |
+| - /oauth/*       NUEVO                         |
+| - static React frontend                         |
++-------------------------------------------------+
+```
+
+Ventajas:
+
+- menor complejidad operativa;
+- reutiliza DB, R2, auth wiring, telemetry y agente actual;
+- rollback por feature flag;
+- valida demanda antes de crear otra app.
+
+Condiciones:
+
+- `FEATURE_REMOTE_MCP=false` por default;
+- kill switch via env var;
+- budgets, rate limits y circuit breakers por user/client/tool;
+- timeouts y concurrency limits;
+- logs estructurados;
+- no estado en memoria local.
+
+### Fase 2: servicio separado
+
+Cuando el uso lo justifique:
+
+```text
+                +---------------------+
+Browser ------> | astral-web          |
+                | frontend + /api     |
+                +----------+----------+
+                           |
+                           v
+                    Shared Astral Core
+                           ^
+                           |
+                +----------+----------+
+ChatGPT ------> | astral-mcp          |
+Claude  ------> | /api/mcp/v1 + /oauth |
+Cursor  ------> | MCP only            |
+                +---------------------+
+
+Shared dependencies:
+- Turso
+- R2
+- SuperTokens/OAuth provider
+- OpenAI/model provider
+- telemetry
+```
+
+Triggers para separar:
+
+- MCP afecta latencia de la web;
+- conexiones largas o trafico externo impredecible;
+- necesidad de deploy/rollback independiente;
+- rate limits por cliente externo;
+- logs, dashboards o SLA separados;
+- costos MCP requieren billing/alerting propio.
+
+---
+
+## Trust boundary
+
+Este proyecto cruza una frontera nueva:
+
+```text
+Usuario -> Cliente externo con su propio modelo -> Astral MCP -> Astral Agent
+```
+
+Ese cliente externo puede resumir, reescribir o inyectar instrucciones antes de llamar a Astral. Por eso MCP no debe tratar el input como equivalente a un mensaje nativo de la web app.
+
+Modelo de principal minimo:
+
+```text
+endUser        = persona dueña de la cuenta Astral
+externalClient = ChatGPT / Claude / Cursor / Codex / etc.
+clientId       = identidad registrada del cliente externo
+token          = credencial emitida para MCP
+audience       = recurso esperado: astral-mcp
+scopes         = tools/capabilities permitidas
+```
+
+Cada tool call debe auditar `endUser`, `clientId`, `tool`, `scope`, `sideEffectsMode`, costo, latencia y resultado.
+
+## Auth y consentimiento
+
+Bloque critico.
+
+La sesion web actual de SuperTokens/cookies no alcanza para MCP. MCP necesita principal bearer/OAuth:
+
+- usuario;
+- cliente externo;
+- audience/resource MCP;
+- scopes;
+- expiracion;
+- revocacion;
+- auditoria.
+
+Antes de emitir token debe existir consentimiento explicito:
+
+```text
+"Autorizo a usar Astral Guide desde <externalClient> con estos scopes."
+```
+
+Scopes iniciales:
+
+```text
+mcp:ask
+profile:read_summary
+transits:read
+hd:read
+```
+
+No usar bearer permanente sin scopes para produccion. Un PAT puede servir solo para beta dev controlada con Codex/Cursor, no como contrato para ChatGPT/Claude consumer.
+
+---
+
+## Side effects contract
+
+Default MVP: **`sideEffectsMode=read_only`**.
+
+Permitido:
+
+- leer profile/intake/memory server-side;
+- calcular transitos;
+- llamar al agente;
+- registrar telemetry, audit logs, rate counters y costo;
+- devolver respuesta final minimizada.
+
+Prohibido en MVP:
+
+- escribir en `chat_messages`;
+- disparar `memory_writer`;
+- modificar profile/intake/memory;
+- subir o borrar assets;
+- ejecutar admin actions;
+- devolver prompt, `memory_md`, intake completo, profile raw o secrets.
+
+Razon:
+
+```text
+Usuario -> ChatGPT -> Astral MCP -> Astral Agent
+```
+
+El mensaje puede llegar mediado por otro modelo. Si se persiste como conversacion nativa de Astral, la memoria puede contaminarse con contexto que no vino directamente del usuario.
+
+Propuesta:
+
+- leer profile/intake/memory para responder;
+- registrar `llm_calls` o tabla equivalente para costo/telemetry;
+- no mutar memory por default;
+- agregar `FEATURE_REMOTE_MCP_PERSIST_CHAT=false` para futura exploracion.
+
+---
+
+## Observabilidad minima
+
+Cada tool call debe registrar:
+
+- `userId`;
+- `clientId`;
+- tool;
+- scopes;
+- latency;
+- tokens in/out;
+- costo;
+- status/error;
+- request id;
+- model;
+- route (`mcp_ask`, `mcp_tool_hd`, etc.).
+
+Tambien hacen falta:
+
+- rate limit por user;
+- rate limit por client;
+- budget por `clientId + userId + tool`;
+- budget diario/mensual;
+- timeout duro por tool;
+- concurrency limit;
+- alertas de costo.
+
+Eventos recomendados:
+
+```text
+mcp_auth_failed
+mcp_tool_call_started
+mcp_tool_call_completed
+mcp_tool_call_blocked
+mcp_budget_exceeded
+```
+
+---
+
+## Guardrails
+
+1. Path versionado desde el dia 1. Candidatos: `/api/mcp/v1` o `/mcp/v1`. La propuesta usa `/api/mcp/v1`, pero queda como decision bloqueante porque `/mcp/v1` aisla mejor la superficie publica.
+2. Feature flag default off: `FEATURE_REMOTE_MCP=false`.
+3. No write tools en MVP.
+4. No memory raw.
+5. No `userId` enviado por cliente.
+6. No profile enviado por cliente.
+7. No self-HTTP contra `/api/chat`; llamar servicios internos.
+8. Tool schemas versionados desde el primer commit.
+9. Stateless transport preferido; no session affinity.
+10. Validar `Origin`/headers donde aplique.
+11. Respuestas minimizadas: no prompt interno, no secrets, no stack traces.
+12. Todo costo MCP debe quedar medible por separado del chat web.
+13. Tool names y schemas versionados: `*_v1`.
+14. Tokens short-lived, scoped, revocables y ligados a `clientId + userId + audience`.
+
+---
+
+## Organizacion sugerida del codigo
+
+```text
+backend/src/
+  routes/
+    chat.ts                 # REST/SSE actual
+    mcp.ts                  # registra endpoint MCP versionado
+
+  mcp/
+    auth.ts                 # bearer/OAuth principal + scopes
+    server.ts               # MCP server/transport
+    tools.ts                # registry
+    tools/
+      ask-astral-guide-v1.ts
+      hd.ts
+      transits.ts
+
+  services/
+    astral-conversation.ts  # capa compartida chat + MCP
+```
+
+La primera refactorizacion real deberia extraer desde `routes/chat.ts` una funcion compartida tipo:
+
+```text
+runAstralConversationTurn({
+  userId,
+  messages,
+  transitContext,
+  persistMode
+})
+```
+
+El route HTTP y MCP deben ser adapters finos sobre esa funcion.
+
+---
+
+## Acceptance criteria de una primera implementacion
+
+1. Con `FEATURE_REMOTE_MCP=false`, el endpoint MCP no lista tools.
+2. Sin token valido, el endpoint MCP versionado responde auth error.
+3. Con token valido y scope `mcp:ask`, el cliente lista `ask_astral_guide_v1`.
+4. `ask_astral_guide_v1` deriva usuario del token, no del payload.
+5. `ask_astral_guide_v1` responde usando profile/intake/memory/transits server-side.
+6. Un token sin scope correcto recibe `insufficient_scope`.
+7. Tools read-only no devuelven `memory_md`, intake completo ni PII.
+8. Las llamadas MCP quedan separadas en telemetry/costo.
+9. MCP no rompe `/api/chat/stream`.
+10. Rollback = cambiar una env var.
+11. Un cliente sin consentimiento activo no puede listar ni ejecutar tools.
+12. Token expirado, wrong audience o scope insuficiente falla antes de tocar DB/LLM.
+13. Si excede budget por cliente/usuario/tool, responde error controlado sin llamar al agente.
+14. Ninguna respuesta MCP contiene prompt, `memory_md`, intake completo, profile raw ni secrets.
+
+---
+
+## Compatibility matrix
+
+No prometer soporte comercial hasta validar al menos una matriz beta.
+
+```text
+Cliente        Transporte/Auth a validar        Estado
+ChatGPT        Remote MCP + OAuth/connector      pendiente
+Claude Code    Remote MCP HTTP/SSE + bearer      pendiente
+Cursor         MCP config local/remoto           pendiente
+Codex          MCP config local/remoto           pendiente
+Gemini         soporte MCP real del cliente      pendiente
+```
+
+Esta matriz es release gate, no documentacion posterior.
+
+---
+
+## Preguntas abiertas
+
+Bloqueantes:
+
+- OAuth completo desde dia 1 o PAT solo para beta privada?
+- Confirmamos default de no persistir chat/memory para MCP?
+- Que clientes son target del primer smoke real: ChatGPT, Claude Code, Codex, Cursor?
+- Que herramienta MCP library usar en Node/Fastify?
+- El endpoint publico queda en `/api/mcp/v1`, `/mcp/v1` o subdominio `mcp.astral.guide` apuntando al mismo service?
+- Como se implementa consentimiento y revocacion por cliente externo?
+- Cuales son los budgets iniciales por `clientId + userId + tool`?
+
+No bloqueantes:
+
+- Nombre final de tools.
+- Si `get_my_profile_summary_v1` debe existir en MVP o solo `ask_astral_guide_v1`.
+- Si el reporte semanal va como tool aparte o como prompt dentro de `ask_astral_guide_v1`.
+
+---
+
+## Veredicto de deliberacion inicial
+
+Sparring:
+
+- Mismo backend para MVP esta bien, pero solo como beta privada.
+- El riesgo grande no es MCP sino auth, scopes, costos, privacidad y carga.
+- `ask_astral_guide_v1` preserva la voz, pero es un contrato amplio: requiere limites claros.
+- Falta tratarlo como boundary agente-a-agente: prompt injection, minimizacion y side effects.
+
+Architect:
+
+- Aprobaria MVP con condiciones.
+- No separar servicio todavia.
+- Bloqueantes: auth bearer/OAuth real, decision de persistencia MCP, matriz de compatibilidad por cliente.
+- Recomienda `/api/mcp`, transport stateless, feature flags y extraer un servicio compartido para chat/MCP; el segundo round deja el path como decision abierta frente a `/mcp`.
+- Round 2 endurece el contrato: beta privada, consentimiento, budgets, tool `ask_astral_guide_v1`, no writes y versionado.
+
+Decision recomendada:
+
+```text
+Construir Remote MCP dentro del backend actual como beta privada.
+Mantenerlo apagado por default.
+No persistir memoria/chat en MVP.
+Exigir consentimiento + tokens scoped/short-lived.
+Versionar endpoint/tools desde el dia 1.
+Disenarlo para poder extraerlo a servicio separado.
+```
