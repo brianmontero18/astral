@@ -82,7 +82,9 @@ export interface McpTokenAuthRecord {
   expires_at: string;
   revoked_at: string | null;
   created_at: string;
+  user_plan: AppUserPlan;
   user_status: AppUserStatus;
+  user_onboarding_status: AppUserOnboardingStatus;
   client_status: McpClientStatus;
 }
 
@@ -768,6 +770,25 @@ export async function linkIdentity(
   });
 }
 
+export async function ensureUserIdentity(
+  provider: string,
+  providerUserId: string,
+  userId: string,
+): Promise<"linked" | "already_linked" | "conflict"> {
+  const existing = await findUserByIdentity(provider, providerUserId);
+  if (existing) {
+    return existing.id === userId ? "already_linked" : "conflict";
+  }
+
+  try {
+    await linkIdentity(provider, providerUserId, userId);
+    return "linked";
+  } catch {
+    const raced = await findUserByIdentity(provider, providerUserId);
+    return raced?.id === userId ? "already_linked" : "conflict";
+  }
+}
+
 export async function getUserIdentity(
   userId: string,
 ): Promise<AppUserIdentityRecord | null> {
@@ -1191,7 +1212,7 @@ export async function getUserMessageCount(
   now = new Date(),
 ): Promise<number> {
   const { windowStartUtc, nextWindowStartUtc } = getCurrentChatUsageCycle(now);
-  const result = await client.execute({
+  const chatResult = await client.execute({
     sql: `SELECT COUNT(*) as count
           FROM chat_messages
           WHERE user_id = ?
@@ -1200,7 +1221,22 @@ export async function getUserMessageCount(
             AND created_at < ?`,
     args: [userId, windowStartUtc, nextWindowStartUtc],
   });
-  return (result.rows[0]?.count as number) ?? 0;
+  const mcpAskResult = await client.execute({
+    sql: `SELECT COUNT(*) as count
+          FROM mcp_audit_events
+          WHERE user_id = ?
+            AND event = 'tool_call_completed'
+            AND tool_name = 'ask_astral_guide_v1'
+            AND status = 'success'
+            AND created_at >= ?
+            AND created_at < ?`,
+    args: [userId, windowStartUtc, nextWindowStartUtc],
+  });
+
+  return (
+    Number(chatResult.rows[0]?.count ?? 0) +
+    Number(mcpAskResult.rows[0]?.count ?? 0)
+  );
 }
 
 /**
@@ -1412,6 +1448,28 @@ export async function findMcpClientAuthRecord(
   };
 }
 
+export async function ensureMcpClient(input: {
+  id: string;
+  name: string;
+  status?: McpClientStatus;
+}): Promise<McpClientAuthRecord> {
+  const existing = await findMcpClientAuthRecord(input.id);
+  if (existing) {
+    return existing;
+  }
+
+  await createMcpClient({
+    id: input.id,
+    name: input.name,
+    status: input.status ?? "active",
+  });
+
+  return {
+    id: input.id,
+    status: input.status ?? "active",
+  };
+}
+
 export async function createMcpConsent(input: {
   id?: string;
   userId: string;
@@ -1435,6 +1493,29 @@ export async function createMcpConsent(input: {
     ],
   });
   return id;
+}
+
+export async function upsertActiveMcpConsent(input: {
+  userId: string;
+  clientId: string;
+  scopes: Array<string>;
+}): Promise<string> {
+  const active = await findActiveMcpConsent(input.userId, input.clientId);
+  const scopesJson = JSON.stringify(input.scopes);
+
+  if (active) {
+    await client.execute({
+      sql: "UPDATE mcp_consents SET scopes_json = ? WHERE id = ?",
+      args: [scopesJson, active.id],
+    });
+    return active.id;
+  }
+
+  return createMcpConsent({
+    userId: input.userId,
+    clientId: input.clientId,
+    scopes: input.scopes,
+  });
 }
 
 export async function createMcpToken(input: {
@@ -1481,7 +1562,9 @@ export async function findMcpTokenAuthRecordByHash(
         mcp_tokens.expires_at,
         mcp_tokens.revoked_at,
         mcp_tokens.created_at,
+        users.plan AS user_plan,
         users.status AS user_status,
+        users.onboarding_status AS user_onboarding_status,
         mcp_clients.status AS client_status
       FROM mcp_tokens
       INNER JOIN users ON users.id = mcp_tokens.user_id
@@ -1504,7 +1587,9 @@ export async function findMcpTokenAuthRecordByHash(
     expires_at: row.expires_at as string,
     revoked_at: typeof row.revoked_at === "string" ? row.revoked_at : null,
     created_at: row.created_at as string,
+    user_plan: row.user_plan as AppUserPlan,
     user_status: row.user_status as AppUserStatus,
+    user_onboarding_status: row.user_onboarding_status as AppUserOnboardingStatus,
     client_status: row.client_status as McpClientStatus,
   };
 }

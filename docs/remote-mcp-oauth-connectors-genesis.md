@@ -142,17 +142,22 @@ Ya existe:
 - `initialize`, `notifications/initialized`, `ping`, `tools/list`, `tools/call`;
 - auth beta con PAT hasheado en `mcp_tokens`;
 - validacion OAuth/JWT WorkOS por issuer/JWKS/audience/resource;
+- Login URI gate/bridge en `/auth/workos/connect` para sesion, plan y
+  onboarding;
+- creacion real de `user_identities(provider='workos')` durante el flow OAuth;
+- creacion/actualizacion lazy de `mcp_clients` y `mcp_consents` al validar el
+  primer access token WorkOS real;
 - consentimiento en `mcp_consents`;
 - audit en `mcp_audit_events`;
 - `McpPrincipal` con `userId`, `clientId`, `scopes`, `audience`, `tokenId`;
-- budgets por usuario+cliente+tool;
+- cuota mensual compartida para `mcp:ask` y budgets tecnicos para tools read-only;
 - `ask_astral_guide_v1` en `mcp_read_only`;
 - deterministic HD tools:
   - `find_channel_by_gates_v1`
   - `find_channels_by_gate_v1`
   - `get_center_for_gate_v1`
 - smoke verde con Claude Code HTTP + bearer;
-- `npm run smoke:mcp` cubriendo auth, transport, scopes, tools, budget y
+- `npm run smoke:mcp` cubriendo auth, transport, scopes, tools, cuota y
   discovery OAuth/MCP.
 
 No existe todavia:
@@ -161,9 +166,6 @@ No existe todavia:
 - authorization code + PKCE para usuarios;
 - Dynamic Client Registration o Client ID Metadata Documents propios de
   Astral; hoy se delegan a WorkOS;
-- Login URI gate/bridge para sesion, plan, onboarding y scopes;
-- Login URI implementada en Astral (`/auth/workos/connect`);
-- creacion real de `user_identities(provider='workos')` durante el flow OAuth;
 - smoke real de Claude Desktop / Claude Web / ChatGPT.
 
 ---
@@ -264,7 +266,7 @@ Cliente lee metadata de Astral
 Cliente abre WorkOS/AuthKit OAuth
         |
         v
-WorkOS manda al usuario a:
+  WorkOS manda al usuario a:
   https://astral.soydanielamedina.com/auth/workos/connect
   ?external_auth_id=...
         |
@@ -695,8 +697,9 @@ audit igual queda agrupable por `userId + clientId + toolName`.
 
 Decisiones resueltas en Slice 10:
 
-- `sub` del token WorkOS se mapea via
-  `user_identities(provider='workos', provider_user_id=<sub>)`;
+- `external_id`/`externalId` firmado del token WorkOS se prefiere como subject
+  de Astral cuando existe; si no viene, se usa `sub`. Ese valor se mapea via
+  `user_identities(provider='workos', provider_user_id=<subject>)`;
 - el `audience/resource` validado es la resource URI absoluta:
   `https://astral.soydanielamedina.com/api/mcp/v1`;
 - los scopes MCP se leen desde `scope`, `scp`, `scopes` o `permissions`;
@@ -753,9 +756,9 @@ mcp:ask consume la misma cuota mensual que el chat web:
   premium: consume del limite mensual premium vigente.
 ```
 
-Implicacion: `mcp:ask` no debe ser un bypass de `/api/chat`. La implementacion
-puede conservar los budgets MCP defensivos como guardrail tecnico, pero la
-regla producto visible es la cuota mensual normal del plan.
+Implicacion: `mcp:ask` no debe ser un bypass de `/api/chat`. Para `mcp:ask`, la
+regla producto visible y operativa es la cuota mensual normal del plan. Los
+budgets MCP defensivos quedan para herramientas read-only cuando aplique.
 
 ### Gating obligatorio
 
@@ -766,10 +769,16 @@ Antes de completar el flow OAuth con WorkOS, Astral debe validar:
 2. el usuario existe en users;
 3. users.status = active;
 4. users.onboarding_status = complete;
-5. users.plan permite los scopes solicitados;
-6. el OAuth client es aceptable para beta/producto;
-7. no se estan pidiendo scopes futuros/no expuestos.
+5. users.plan habilita Remote MCP;
+6. WORKOS_API_KEY esta configurado para completar el flow.
 ```
+
+WorkOS Standalone Connect redirige a la Login URI con `external_auth_id`. En la
+documentacion revisada, esa redireccion no trae `client_id` ni scopes. Por eso
+Astral no debe inventarlos en `/auth/workos/connect`: el bridge completa la
+autenticacion de usuario; el resource server crea/actualiza el espejo interno
+de `mcp_clients/mcp_consents` cuando recibe el access token real con `client_id`
+y scopes.
 
 Despues de recibir un token en `/api/mcp/v1`, Astral debe volver a validar:
 
@@ -784,7 +793,9 @@ Despues de recibir un token en `/api/mcp/v1`, Astral debe volver a validar:
 8. users.onboarding_status;
 9. users.plan;
 10. mcp_clients.status;
-11. consentimiento/grant interno vigente.
+11. consentimiento/grant interno vigente o espejo OAuth derivable del token
+    WorkOS valido;
+12. para `mcp:ask`, cuota mensual del chat web.
 ```
 
 No alcanza con que WorkOS emita un token. El resource server sigue siendo Astral.
@@ -862,7 +873,7 @@ Astral web/backend
   - mcp_clients/mcp_consents como espejo interno
   - token validation en /api/mcp/v1
   - tools/list/tools/call filtrados por scope/plan
-  - cuota mensual chat para mcp:ask, budgets defensivos, audit y rollback
+  - cuota mensual chat para mcp:ask, audit y rollback
 ```
 
 ### Decision de consentimiento interno
@@ -877,17 +888,19 @@ Implicacion tecnica para Slice 11:
 ```text
 /auth/workos/connect
   - autentica usuario Astral;
-  - valida plan/status/onboarding/scopes;
+  - si no hay sesion, redirige a /auth con redirectToPath al flow WorkOS;
+  - valida status/onboarding/plan;
   - llama WorkOS completion API;
   - crea/actualiza user_identities(provider='workos');
-  - crea/actualiza mcp_clients;
-  - crea/actualiza mcp_consents con scopes permitidos como grant interno;
   - redirige al redirect_uri de WorkOS.
 
 /api/mcp/v1
   - no confia solo en mcp_consents;
   - valida token y scopes en cada request;
   - revalida usuario/plan/status/onboarding;
+  - crea/actualiza mcp_clients desde el client_id del JWT WorkOS;
+  - crea/actualiza mcp_consents como espejo interno desde scopes permitidos
+    por token + plan;
   - hace que mcp:ask consuma cuota mensual de chat web;
   - filtra tools y bloquea tool calls fuera de contrato.
 ```
@@ -966,6 +979,7 @@ Config nueva:
 FEATURE_REMOTE_MCP=false
 MCP_RESOURCE_URL=https://astral.soydanielamedina.com/api/mcp/v1
 MCP_AUTHORIZATION_SERVER_ISSUER=https://thoughtful-trinket-33-staging.authkit.app
+WORKOS_API_KEY=<secret in Render/dashboard only>
 ```
 
 Notas:
@@ -973,6 +987,7 @@ Notas:
 - `MCP_RESOURCE_URL` debe coincidir con el Resource Indicator configurado en
   WorkOS.
 - `MCP_AUTHORIZATION_SERVER_ISSUER` no es secreto.
+- `WORKOS_API_KEY` es secreto; no commitear valores reales.
 - si `FEATURE_REMOTE_MCP=false`, discovery y `/api/mcp/v1` siguen sin
   registrarse.
 - si falta `MCP_AUTHORIZATION_SERVER_ISSUER`, la metadata responde 503 para no
@@ -989,8 +1004,9 @@ Implementar:
 - audience/resource validation; **implementado contra `MCP_RESOURCE_URL`**.
 - scope extraction; **implementado desde `scope`, `scp`, `scopes` y
   `permissions`**.
-- mapping a `McpPrincipal`; **implementado usando
-  `user_identities(provider='workos', provider_user_id=<token.sub>)`**.
+- mapping a `McpPrincipal`; **implementado usando `external_id`/`externalId`
+  firmado cuando existe, con fallback a `sub`, via
+  `user_identities(provider='workos', provider_user_id=<subject>)`**.
 - coexistencia con PAT beta; **PAT se intenta primero y sigue usando
   `mcp_tokens`**.
 - audit con `tokenId/jti`; **parcial**: OAuth no inserta `token_id` porque
@@ -1002,14 +1018,15 @@ Decision de mapping:
 
 ```text
 WorkOS access token
-  sub=<workos subject>
+  external_id|externalId=<astral users.id> si WorkOS lo emite;
+  si no, sub=<workos subject>
   client_id|azp|cid=<OAuth client id>
   scope/scp/scopes/permissions includes mcp:ask / mcp:read_hd
         |
         v
 user_identities
   provider='workos'
-  provider_user_id=<sub>
+  provider_user_id=<subject>
         |
         v
 users.id
@@ -1034,14 +1051,15 @@ Implementar:
 - Login URI hacia Astral (`/auth/workos/connect`);
 - SuperTokens session check y login/signup redirect si no hay sesion;
 - resolve user + auto-link existente;
-- gates de `status`, `onboarding_status`, `plan` y scopes solicitados;
+- gates de `status`, `onboarding_status` y `plan`;
 - enforcement de producto: `free=no MCP`, `basic=mcp:read_hd`,
   `premium=mcp:read_hd+mcp:ask`;
 - `mcp:ask` consume la cuota mensual del chat web;
 - WorkOS completion API usando `external_auth_id`;
-- creacion/actualizacion de `user_identities(provider='workos')`;
-- creacion/actualizacion de `mcp_clients`;
-- espejo interno en `mcp_consents` como grant operativo;
+- creacion/actualizacion de `user_identities(provider='workos')` con el
+  `users.id` enviado a WorkOS como id externo;
+- creacion/actualizacion lazy de `mcp_clients` y `mcp_consents` al validar el
+  primer access token WorkOS real;
 - tests para premium/basic/free/pending/inactive/missing consent;
 - no duplicar consentimiento OAuth si WorkOS ya lo maneja.
 
@@ -1056,7 +1074,7 @@ Checks:
 - `tools/list` con scopes correctos;
 - call `get_center_for_gate_v1`;
 - call `ask_astral_guide_v1`;
-- audit y budgets correctos.
+- audit y cuota compartida correctos.
 
 ### Slice 13 - ChatGPT smoke
 
@@ -1096,7 +1114,8 @@ La direccion queda validada cuando:
 - `mcp:read_hd` y `mcp:ask` filtran tools correctamente;
 - `ask_astral_guide_v1` sigue `mcp_read_only`;
 - no hay `chat_messages` ni `memory_writer` desde MCP;
-- budgets/audit siguen activos;
+- cuota compartida/audit siguen activos para `mcp:ask`;
+- budgets tecnicos read-only siguen activos donde correspondan;
 - Claude Code/Codex pueden seguir usando PAT beta para desarrollo;
 - rollback sigue siendo por feature flag/env.
 

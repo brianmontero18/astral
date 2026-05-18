@@ -37,8 +37,8 @@ Estas decisiones cierran el primer bloqueo de arquitectura. No habilitan MCP tod
 | Auth produccion | OAuth/OIDC-compatible antes de soporte consumer o ChatGPT/App publicable. La forma interna del principal queda fija desde Slice 2: `userId`, `clientId`, `scopes`, `audience`, `tokenId`. |
 | Consentimiento | Obligatorio desde Slice 2 incluso para PAT beta: `mcp_consents(user_id, client_id, scopes_json, status, created_at, revoked_at)`. Sin consentimiento activo no se listan ni ejecutan tools. |
 | Primer smoke beta | Orden: Claude Code con HTTP + bearer; Codex y Cursor si aceptan configuracion remote HTTP/OAuth-bearer en la version local; ChatGPT solo despues de OAuth real. Gemini queda research-only hasta validar soporte MCP actual. |
-| Budgets MVP | Separados por `clientId + userId + tool`: `ask_astral_guide_v1` max 20 llamadas/dia y 100/mes por usuario en beta; deterministic HD/transit tools max 100 llamadas/dia y 500/mes; concurrency max 1 `ask` por usuario y 3 por client; timeout duro 45s para `ask` y 5s para deterministic tools. |
-| Relacion con chat quota | MCP no consume la cuota mensual de chat web. Usa cuota MCP separada para evitar que un cliente externo degrade la experiencia nativa. Billing/telemetry igual debe poder atribuir costo por usuario, cliente y tool. |
+| Budgets MVP | Superseded en Slice 11 para `ask_astral_guide_v1`: `mcp:ask` consume la misma cuota mensual que el chat web. Los budgets tecnicos siguen aplicando a tools read-only deterministicas: max 100 llamadas/dia y 500/mes por usuario+cliente+tool; timeout duro 45s para `ask` y 5s para deterministic tools. |
+| Relacion con chat quota | Superseded en Slice 11: `mcp:ask` consume la cuota mensual de chat web del plan. Billing/telemetry igual debe poder atribuir costo por usuario, cliente y tool. |
 | Persistencia | MVP `mcp_read_only`: no escribe `chat_messages`, no dispara `memory_writer`, no muta profile/intake/memory. Solo audit, cost telemetry y counters. |
 
 Exit criteria cumplido para Slice 0:
@@ -439,9 +439,9 @@ mcp_budget_exceeded
 9. Stateless transport preferido; no session affinity.
 10. Validar `Origin`/headers donde aplique.
 11. Respuestas minimizadas: no prompt interno, no secrets, no stack traces.
-12. Todo costo MCP debe quedar medible por separado del chat web.
+12. Todo costo MCP debe quedar atribuible por usuario, cliente y tool.
 13. Tokens short-lived, scoped, revocables y ligados a `clientId + userId + audience`.
-14. Cuota MCP separada de la cuota web; nunca consumir `chat_messages` para budget MCP.
+14. `mcp:ask` consume la misma cuota mensual del chat web; tools read-only pueden conservar budgets tecnicos propios.
 
 ---
 
@@ -495,7 +495,7 @@ El route HTTP y MCP deben ser adapters finos sobre esa funcion.
 10. Rollback = cambiar una env var.
 11. Un cliente sin consentimiento activo no puede listar ni ejecutar tools.
 12. Token expirado, wrong audience o scope insuficiente falla antes de tocar DB/LLM.
-13. Si excede budget por cliente/usuario/tool, responde error controlado sin llamar al agente.
+13. Si `mcp:ask` excede cuota mensual compartida, o una tool read-only excede budget tecnico, responde error controlado sin llamar al agente.
 14. Ninguna respuesta MCP contiene prompt, `memory_md`, intake completo, profile raw ni secrets.
 
 ---

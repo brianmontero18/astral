@@ -60,6 +60,8 @@ const AUTH_ERROR_CODES: Record<McpAuthError, number> = {
   insufficient_scope: -32006,
   client_inactive: -32007,
   account_inactive: -32008,
+  onboarding_required: -32012,
+  plan_upgrade_required: -32013,
   consent_required: -32009,
 };
 

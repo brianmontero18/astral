@@ -125,7 +125,7 @@ function claimsFromPayload(
     return { kind: "invalid", error: "invalid_audience" };
   }
 
-  const subject = payload.sub;
+  const subject = readStringClaim(payload, ["external_id", "externalId"]) ?? payload.sub;
   const clientId = readStringClaim(payload, ["client_id", "azp", "cid"]);
   const scopes = readScopes(payload);
 

@@ -384,6 +384,8 @@ describe("Remote MCP route", () => {
       humanDesign: {
         type: "Generator",
       },
+    }, {
+      plan: "premium",
     });
     const clientId = await db.createMcpClient({
       id: "codex-beta",
@@ -594,6 +596,7 @@ describe("Remote MCP route", () => {
 
     const messages = await db.getChatMessages(userId);
     expect(messages).toEqual([]);
+    expect(await db.getUserMessageCount(userId)).toBe(1);
     const auditEvents = await db.getMcpAuditEventsForUser(userId);
     expect(auditEvents).toEqual([
       expect.objectContaining({
@@ -977,12 +980,12 @@ describe("Remote MCP route", () => {
     expect(runAstralAgentMock).not.toHaveBeenCalled();
   });
 
-  it("blocks ask_astral_guide_v1 before the agent call when MCP budget is exhausted", async () => {
+  it("blocks ask_astral_guide_v1 before the agent call when monthly chat quota is exhausted", async () => {
     const harness = await buildMcpTestApp(true);
     const db = await import("../db.js");
     const { userId, clientId } = await seedMcpAccess(db);
 
-    for (let i = 0; i < 20; i += 1) {
+    for (let i = 0; i < 300; i += 1) {
       await db.insertMcpAuditEvent({
         userId,
         clientId,
@@ -1002,17 +1005,17 @@ describe("Remote MCP route", () => {
       }),
     });
 
-    expect(res.statusCode).toBe(429);
+    expect(res.statusCode).toBe(200);
     expect(JSON.parse(res.body)).toMatchObject({
       jsonrpc: "2.0",
       id: "req-1",
       error: {
-        code: -32011,
-        message: "budget_exceeded",
+        code: -32012,
+        message: "message_limit_reached",
         data: {
-          period: "day",
-          limit: 20,
-          used: 20,
+          plan: "premium",
+          used: 300,
+          limit: 300,
         },
       },
     });
@@ -1021,14 +1024,11 @@ describe("Remote MCP route", () => {
     expect(auditEvents.at(-1)).toMatchObject({
       user_id: userId,
       client_id: clientId,
-      event: "tool_call_blocked",
+      event: "tool_call_failed",
       tool_name: "ask_astral_guide_v1",
-      status: "denied",
+      status: "error",
       metadata: {
-        reason: "budget_exceeded",
-        period: "day",
-        limit: 20,
-        used: 20,
+        message: "message_limit_reached",
       },
     });
   });

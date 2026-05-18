@@ -1,7 +1,14 @@
 import type { FastifyInstance } from "fastify";
 
 import type { ChatMessage, UserProfile } from "../../agent-service.js";
-import { getUser } from "../../db.js";
+import {
+  getUser,
+  getUserMessageCount,
+} from "../../db.js";
+import {
+  buildChatUsageSnapshot,
+  getMessageLimitForPlan,
+} from "../../chat-limits.js";
 import { runGuideTurn } from "../../services/guide-service.js";
 import type { McpPrincipal } from "../auth.js";
 import {
@@ -32,10 +39,6 @@ export const askAstralGuideToolDefinition = {
     required: ["question"],
   },
   requiredScopes: ["mcp:ask"],
-  budget: {
-    dailyLimit: 20,
-    monthlyLimit: 100,
-  },
 } as const;
 
 function readQuestion(args: unknown): string {
@@ -82,6 +85,15 @@ export async function callAskAstralGuideV1(
   const user = await getUser(context.principal.userId);
   if (!user) {
     throw new McpToolCallError(-32010, "user_not_found");
+  }
+
+  const now = new Date();
+  const messageLimit = getMessageLimitForPlan(user.plan);
+  const used = await getUserMessageCount(user.id, now);
+  if (messageLimit !== null && used >= messageLimit) {
+    throw new McpToolCallError(-32012, "message_limit_reached", {
+      ...buildChatUsageSnapshot(user.plan, used, now),
+    });
   }
 
   const testResult = testModeReply(question);

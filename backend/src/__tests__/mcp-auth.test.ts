@@ -6,6 +6,8 @@ import {
   createMcpConsent,
   createMcpToken,
   createUserWithIdentity,
+  findActiveMcpConsent,
+  findMcpClientAuthRecord,
   type AppUserStatus,
   type McpConsentRecord,
   type McpTokenAuthRecord,
@@ -45,7 +47,9 @@ function makeTokenRecord(
     expires_at: FUTURE,
     revoked_at: null,
     created_at: "2026-05-17T10:00:00.000Z",
+    user_plan: "premium",
     user_status: "active",
+    user_onboarding_status: "complete",
     client_status: "active",
     ...overrides,
   };
@@ -76,10 +80,14 @@ async function seedDbAccess(input: {
   revokedAt?: string | null;
   consentStatus?: "active" | "revoked";
   consentRevokedAt?: string | null;
+  userPlan?: "free" | "basic" | "premium";
+  onboardingStatus?: "pending" | "complete";
 } = {}): Promise<{ userId: string; clientId: string; tokenId: string }> {
   app = await createTestApp();
   const userId = await createTestUser(app, "MCP User", undefined, {
     status: input.userStatus ?? "active",
+    plan: input.userPlan ?? "premium",
+    onboardingStatus: input.onboardingStatus ?? "complete",
   });
   const clientId = await createMcpClient({
     id: "claude-code-beta",
@@ -115,7 +123,11 @@ async function seedDbOAuthAccess(input: {
   clientId?: string;
   consentScopes?: Array<string>;
   userStatus?: AppUserStatus;
+  userPlan?: "free" | "basic" | "premium";
+  onboardingStatus?: "pending" | "complete";
   clientStatus?: "active" | "disabled";
+  seedClient?: boolean;
+  seedConsent?: boolean;
 } = {}): Promise<{ userId: string; clientId: string; subject: string }> {
   app = await createTestApp();
   const subject = input.subject ?? "workos-user-1";
@@ -138,19 +150,25 @@ async function seedDbOAuthAccess(input: {
     subject,
     {
       status: input.userStatus ?? "active",
+      plan: input.userPlan ?? "premium",
+      onboardingStatus: input.onboardingStatus ?? "complete",
       email: "workos-user@astral.test",
     },
   );
-  await createMcpClient({
-    id: clientId,
-    name: "WorkOS Astral MCP",
-    status: input.clientStatus ?? "active",
-  });
-  await createMcpConsent({
-    userId,
-    clientId,
-    scopes: input.consentScopes ?? ["mcp:ask", "mcp:read_hd"],
-  });
+  if (input.seedClient ?? true) {
+    await createMcpClient({
+      id: clientId,
+      name: "WorkOS Astral MCP",
+      status: input.clientStatus ?? "active",
+    });
+  }
+  if (input.seedConsent ?? true) {
+    await createMcpConsent({
+      userId,
+      clientId,
+      scopes: input.consentScopes ?? ["mcp:ask", "mcp:read_hd"],
+    });
+  }
 
   return { userId, clientId, subject };
 }
@@ -242,6 +260,50 @@ describe("resolveMcpPrincipal", () => {
         tokenId: null,
       },
     });
+  });
+
+  it("creates the WorkOS OAuth client and consent mirror lazily from a valid token", async () => {
+    const seeded = await seedDbOAuthAccess({
+      seedClient: false,
+      seedConsent: false,
+    });
+
+    await expect(
+      resolveMcpPrincipal(
+        {
+          authorizationHeader: `Bearer ${RAW_OAUTH_TOKEN}`,
+          requiredScopes: ["mcp:read_hd"],
+          oauthAudience: OAUTH_AUDIENCE,
+          now: NOW,
+        },
+        {
+          findTokenByHash: async () => null,
+          verifyOAuthToken: async () => ({
+            kind: "verified",
+            claims: {
+              subject: seeded.subject,
+              clientId: seeded.clientId,
+              scopes: ["mcp:read_hd"],
+              audience: OAUTH_AUDIENCE,
+            },
+          }),
+        },
+      ),
+    ).resolves.toMatchObject({
+      kind: "authorized",
+      principal: {
+        userId: seeded.userId,
+        clientId: seeded.clientId,
+        scopes: ["mcp:read_hd"],
+      },
+    });
+
+    await expect(findMcpClientAuthRecord(seeded.clientId)).resolves.toEqual({
+      id: seeded.clientId,
+      status: "active",
+    });
+    const consent = await findActiveMcpConsent(seeded.userId, seeded.clientId);
+    expect(consent?.scopes_json).toBe(JSON.stringify(["mcp:read_hd"]));
   });
 
   it("keeps PAT beta precedence before trying WorkOS OAuth verification", async () => {
@@ -360,7 +422,7 @@ describe("resolveMcpPrincipal", () => {
     });
   });
 
-  it("requires active MCP consent for WorkOS OAuth client scopes", async () => {
+  it("updates the internal consent mirror from WorkOS OAuth token scopes", async () => {
     const seeded = await seedDbOAuthAccess({
       consentScopes: ["mcp:read_hd"],
     });
@@ -387,9 +449,115 @@ describe("resolveMcpPrincipal", () => {
         },
       ),
     ).resolves.toMatchObject({
+      kind: "authorized",
+      principal: {
+        userId: seeded.userId,
+        clientId: seeded.clientId,
+        scopes: ["mcp:ask", "mcp:read_hd"],
+      },
+    });
+
+    const consent = await findActiveMcpConsent(seeded.userId, seeded.clientId);
+    expect(consent?.scopes_json).toBe(JSON.stringify(["mcp:read_hd", "mcp:ask"]));
+  });
+
+  it("rejects free users before accepting MCP OAuth scopes", async () => {
+    const seeded = await seedDbOAuthAccess({
+      userPlan: "free",
+    });
+
+    await expect(
+      resolveMcpPrincipal(
+        {
+          authorizationHeader: `Bearer ${RAW_OAUTH_TOKEN}`,
+          requiredScopes: ["mcp:read_hd"],
+          oauthAudience: OAUTH_AUDIENCE,
+          now: NOW,
+        },
+        {
+          findTokenByHash: async () => null,
+          verifyOAuthToken: async () => ({
+            kind: "verified",
+            claims: {
+              subject: seeded.subject,
+              clientId: seeded.clientId,
+              scopes: ["mcp:read_hd"],
+              audience: OAUTH_AUDIENCE,
+            },
+          }),
+        },
+      ),
+    ).resolves.toMatchObject({
       kind: "unauthorized",
       statusCode: 403,
-      error: "consent_required",
+      error: "plan_upgrade_required",
+    });
+  });
+
+  it("rejects basic users for mcp:ask even when token and consent contain the scope", async () => {
+    const seeded = await seedDbOAuthAccess({
+      userPlan: "basic",
+      consentScopes: ["mcp:ask", "mcp:read_hd"],
+    });
+
+    await expect(
+      resolveMcpPrincipal(
+        {
+          authorizationHeader: `Bearer ${RAW_OAUTH_TOKEN}`,
+          requiredScopes: ["mcp:ask"],
+          oauthAudience: OAUTH_AUDIENCE,
+          now: NOW,
+        },
+        {
+          findTokenByHash: async () => null,
+          verifyOAuthToken: async () => ({
+            kind: "verified",
+            claims: {
+              subject: seeded.subject,
+              clientId: seeded.clientId,
+              scopes: ["mcp:ask", "mcp:read_hd"],
+              audience: OAUTH_AUDIENCE,
+            },
+          }),
+        },
+      ),
+    ).resolves.toMatchObject({
+      kind: "unauthorized",
+      statusCode: 403,
+      error: "plan_upgrade_required",
+    });
+  });
+
+  it("rejects onboarding-pending users before accepting MCP OAuth scopes", async () => {
+    const seeded = await seedDbOAuthAccess({
+      onboardingStatus: "pending",
+    });
+
+    await expect(
+      resolveMcpPrincipal(
+        {
+          authorizationHeader: `Bearer ${RAW_OAUTH_TOKEN}`,
+          requiredScopes: ["mcp:read_hd"],
+          oauthAudience: OAUTH_AUDIENCE,
+          now: NOW,
+        },
+        {
+          findTokenByHash: async () => null,
+          verifyOAuthToken: async () => ({
+            kind: "verified",
+            claims: {
+              subject: seeded.subject,
+              clientId: seeded.clientId,
+              scopes: ["mcp:read_hd"],
+              audience: OAUTH_AUDIENCE,
+            },
+          }),
+        },
+      ),
+    ).resolves.toMatchObject({
+      kind: "unauthorized",
+      statusCode: 403,
+      error: "onboarding_required",
     });
   });
 

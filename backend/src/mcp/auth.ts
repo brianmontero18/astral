@@ -2,8 +2,12 @@ import { createHash } from "node:crypto";
 import {
   findUserByIdentity,
   findActiveMcpConsent,
+  ensureMcpClient,
   findMcpClientAuthRecord,
   findMcpTokenAuthRecordByHash,
+  upsertActiveMcpConsent,
+  type AppUserOnboardingStatus,
+  type AppUserPlan,
   type AppUserRecord,
   type McpClientAuthRecord,
   type McpConsentRecord,
@@ -13,6 +17,11 @@ import {
   verifyMcpOAuthBearerToken,
   type McpOAuthVerifyResult,
 } from "./oauth.js";
+import {
+  allowedMcpScopesForPlan,
+  isRemoteMcpPlan,
+  planAllowsMcpScopes,
+} from "./policy.js";
 
 export const MCP_AUDIENCE = "astral-mcp";
 
@@ -40,6 +49,8 @@ export type McpAuthError =
   | "insufficient_scope"
   | "client_inactive"
   | "account_inactive"
+  | "onboarding_required"
+  | "plan_upgrade_required"
   | "consent_required";
 
 export type ResolveMcpPrincipalResult =
@@ -70,6 +81,12 @@ export interface ResolveMcpPrincipalDeps {
   findActiveConsent(userId: string, clientId: string): Promise<McpConsentRecord | null>;
   findUserIdentity(provider: string, providerUserId: string): Promise<AppUserRecord | undefined>;
   findClientById(clientId: string): Promise<McpClientAuthRecord | null>;
+  ensureClient(input: { id: string; name: string }): Promise<McpClientAuthRecord>;
+  upsertActiveConsent(input: {
+    userId: string;
+    clientId: string;
+    scopes: Array<string>;
+  }): Promise<string>;
   verifyOAuthToken(input: {
     token: string;
     audience?: string;
@@ -82,6 +99,8 @@ const defaultDeps: ResolveMcpPrincipalDeps = {
   findActiveConsent: findActiveMcpConsent,
   findUserIdentity: findUserByIdentity,
   findClientById: findMcpClientAuthRecord,
+  ensureClient: (input) => ensureMcpClient(input),
+  upsertActiveConsent: upsertActiveMcpConsent,
   verifyOAuthToken: verifyMcpOAuthBearerToken,
 };
 
@@ -153,6 +172,50 @@ function unauthorized(input: {
     clientId: input.clientId,
     requiredScopes: input.requiredScopes,
   };
+}
+
+function userPolicyError(input: {
+  plan: AppUserPlan;
+  onboardingStatus: AppUserOnboardingStatus;
+  requiredScopes: Array<string>;
+  tokenId?: string | null;
+  userId: string;
+  clientId: string;
+}): Exclude<ResolveMcpPrincipalResult, { kind: "authorized" }> | null {
+  if (input.onboardingStatus === "pending") {
+    return unauthorized({
+      statusCode: 403,
+      error: "onboarding_required",
+      tokenId: input.tokenId,
+      userId: input.userId,
+      clientId: input.clientId,
+      requiredScopes: input.requiredScopes,
+    });
+  }
+
+  if (!isRemoteMcpPlan(input.plan)) {
+    return unauthorized({
+      statusCode: 403,
+      error: "plan_upgrade_required",
+      tokenId: input.tokenId,
+      userId: input.userId,
+      clientId: input.clientId,
+      requiredScopes: input.requiredScopes,
+    });
+  }
+
+  if (!planAllowsMcpScopes(input.plan, input.requiredScopes)) {
+    return unauthorized({
+      statusCode: 403,
+      error: "plan_upgrade_required",
+      tokenId: input.tokenId,
+      userId: input.userId,
+      clientId: input.clientId,
+      requiredScopes: input.requiredScopes,
+    });
+  }
+
+  return null;
 }
 
 async function resolvePatPrincipal(input: {
@@ -242,6 +305,18 @@ async function resolvePatPrincipal(input: {
     });
   }
 
+  const policyError = userPolicyError({
+    plan: token.user_plan,
+    onboardingStatus: token.user_onboarding_status,
+    requiredScopes,
+    tokenId: token.id,
+    userId: token.user_id,
+    clientId: token.client_id,
+  });
+  if (policyError) {
+    return policyError;
+  }
+
   const consent = await deps.findActiveConsent(token.user_id, token.client_id);
   const consentScopes = consent ? parseScopes(consent.scopes_json) : null;
   if (!consentScopes || !includesAllScopes(consentScopes, requiredScopes)) {
@@ -327,8 +402,26 @@ async function resolveOAuthPrincipal(input: {
     });
   }
 
-  const client = await deps.findClientById(verified.claims.clientId);
-  if (client?.status !== "active") {
+  const policyError = userPolicyError({
+    plan: user.plan,
+    onboardingStatus: user.onboarding_status,
+    requiredScopes,
+    tokenId: null,
+    userId: user.id,
+    clientId: verified.claims.clientId,
+  });
+  if (policyError) {
+    return policyError;
+  }
+
+  const existingClient = await deps.findClientById(verified.claims.clientId);
+  const client =
+    existingClient ??
+    await deps.ensureClient({
+      id: verified.claims.clientId,
+      name: `WorkOS OAuth client ${verified.claims.clientId}`,
+    });
+  if (client.status !== "active") {
     return unauthorized({
       statusCode: 403,
       error: "client_inactive",
@@ -337,6 +430,14 @@ async function resolveOAuthPrincipal(input: {
       requiredScopes,
     });
   }
+
+  const allowedScopes = allowedMcpScopesForPlan(user.plan)
+    .filter((scope) => verified.claims.scopes.includes(scope));
+  await deps.upsertActiveConsent({
+    userId: user.id,
+    clientId: verified.claims.clientId,
+    scopes: allowedScopes,
+  });
 
   const consent = await deps.findActiveConsent(user.id, verified.claims.clientId);
   const consentScopes = consent ? parseScopes(consent.scopes_json) : null;

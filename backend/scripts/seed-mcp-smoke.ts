@@ -122,30 +122,30 @@ const askOnly = await seedToken({
   scopes: ["mcp:ask"],
 });
 
-const budgetUserId = await createUser("MCP Budget Smoke User", profile, {
-  email: "mcp-smoke-budget@astral.test",
+const quotaUserId = await createUser("MCP Quota Smoke User", profile, {
+  email: "mcp-smoke-quota@astral.test",
   plan: "premium",
 });
-const budgetClientId = await createMcpClient({
-  id: `mcp-smoke-budget-client-${Date.now()}`,
-  name: "MCP Smoke Budget Client",
+const quotaClientId = await createMcpClient({
+  id: `mcp-smoke-quota-client-${Date.now()}`,
+  name: "MCP Smoke Quota Client",
 });
 await createMcpConsent({
-  userId: budgetUserId,
-  clientId: budgetClientId,
+  userId: quotaUserId,
+  clientId: quotaClientId,
   scopes: ["mcp:ask"],
 });
-const budgetExceeded = await seedToken({
-  label: "budget_exceeded",
-  userId: budgetUserId,
-  clientId: budgetClientId,
+const quotaExceeded = await seedToken({
+  label: "quota_exceeded",
+  userId: quotaUserId,
+  clientId: quotaClientId,
   scopes: ["mcp:ask"],
 });
-for (let i = 0; i < 20; i += 1) {
+for (let i = 0; i < 300; i += 1) {
   await insertMcpAuditEvent({
-    userId: budgetUserId,
-    clientId: budgetClientId,
-    tokenId: budgetExceeded.tokenId,
+    userId: quotaUserId,
+    clientId: quotaClientId,
+    tokenId: quotaExceeded.tokenId,
     event: "tool_call_completed",
     toolName: "ask_astral_guide_v1",
     sideEffectsMode: "mcp_read_only",
@@ -156,8 +156,8 @@ for (let i = 0; i < 20; i += 1) {
 console.log(JSON.stringify({
   userId,
   clientId,
-  budgetUserId,
-  budgetClientId,
+  quotaUserId,
+  quotaClientId,
   tokens: {
     valid,
     noConsent,
@@ -166,6 +166,6 @@ console.log(JSON.stringify({
     revoked,
     readOnly,
     askOnly,
-    budgetExceeded,
+    quotaExceeded,
   },
 }));

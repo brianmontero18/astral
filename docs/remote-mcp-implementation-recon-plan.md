@@ -311,8 +311,8 @@ Locked decisions:
 - production auth: OAuth/OIDC-compatible before consumer/ChatGPT support;
 - consent: required in `mcp_consents` from Slice 2, including PAT beta;
 - first smoke order: Claude Code first; Codex/Cursor if their local config supports remote HTTP bearer/OAuth; ChatGPT after OAuth; Gemini research-only;
-- initial budgets: `ask_astral_guide_v1` 20/day and 100/month per user in beta; deterministic tools 100/day and 500/month; concurrency max 1 `ask` per user and 3 per client; 45s `ask` timeout, 5s deterministic timeout;
-- quota relationship: MCP quota is separate from web chat quota and must not consume `chat_messages`.
+- Slice 11 product gate update: `ask_astral_guide_v1` now consumes the same monthly quota as web chat; deterministic tools keep 100/day and 500/month technical budgets per user/client/tool; 45s `ask` timeout, 5s deterministic timeout;
+- quota relationship: `mcp:ask` shares the web chat monthly quota, while read-only deterministic tool budgets remain MCP-specific.
 
 Exit criteria:
 
@@ -534,7 +534,7 @@ Current coverage:
 - verifies a read-only token can call deterministic HD tools;
 - verifies an ask-only token cannot call deterministic HD tools;
 - verifies a token without `mcp:ask` cannot list or call `ask_astral_guide_v1`;
-- verifies budget exhaustion blocks `ask_astral_guide_v1` before the agent path.
+- verifies monthly shared quota exhaustion blocks `ask_astral_guide_v1` before the agent path.
 
 Fastify integration coverage also asserts:
 

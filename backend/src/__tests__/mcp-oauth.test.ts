@@ -74,6 +74,27 @@ describe("verifyMcpOAuthJwt", () => {
     });
   });
 
+  it("prefers WorkOS external_id as the Astral identity subject when present", async () => {
+    const { token, publicKey } = await signedToken({
+      external_id: "astral-user-1",
+    });
+
+    await expect(
+      verifyMcpOAuthJwt({
+        token,
+        issuer: ISSUER,
+        audience: AUDIENCE,
+        key: publicKey,
+        now: NOW,
+      }),
+    ).resolves.toMatchObject({
+      kind: "verified",
+      claims: {
+        subject: "astral-user-1",
+      },
+    });
+  });
+
   it("rejects the wrong issuer", async () => {
     const { token, publicKey } = await signedToken({}, {
       issuer: "https://evil.example.test",

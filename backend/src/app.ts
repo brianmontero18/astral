@@ -19,6 +19,7 @@ import { transcribeRoutes } from "./routes/transcribe.js";
 import { reportRoutes } from "./routes/report.js";
 import { mcpRoutes } from "./routes/mcp.js";
 import { mcpDiscoveryRoutes } from "./routes/mcp-discovery.js";
+import { workosConnectRoutes } from "./routes/workos-connect.js";
 import { FLAGS } from "./config/flags.js";
 
 function isHtmlAuthEntryRequest(acceptHeader: string | undefined, requestUrl: string) {
@@ -72,6 +73,7 @@ export async function buildApp(opts?: { logger?: boolean; auth?: AuthRuntime }) 
 
   if (FLAGS.REMOTE_MCP) {
     await app.register(mcpDiscoveryRoutes);
+    await app.register(workosConnectRoutes);
   }
 
   if (auth.enabled) {
