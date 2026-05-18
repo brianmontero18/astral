@@ -48,10 +48,12 @@ export async function renderBodygraphPdf(profile: UserProfile): Promise<Buffer> 
       },
     });
 
-    // Embeber las fonts TTF en el PDF. Mapeamos los font-family del SVG
-    // (Helvetica/Arial/sans-serif por defecto) a Inter para que el texto del
-    // header/footer salga con kerning consistente y embedded.
+    // Embeber las fonts TTF en el PDF. Inter Regular + Inter Bold cubre los
+    // dos weights que el SVG usa (font-weight="normal" implícito y
+    // font-weight="bold" para títulos / labels). Cormorant queda registrado
+    // por compatibilidad con el flow de reportes; el bodygraph no lo usa.
     doc.registerFont("Inter", path.join(fontsDir, "Inter-Regular.ttf"));
+    doc.registerFont("Inter-Bold", path.join(fontsDir, "Inter-Bold.ttf"));
     doc.registerFont("Cormorant", path.join(fontsDir, "CormorantGaramond-Bold.ttf"));
 
     const chunks: Buffer[] = [];
@@ -63,10 +65,11 @@ export async function renderBodygraphPdf(profile: UserProfile): Promise<Buffer> 
       SVGtoPDF(doc, svg, MARGIN, MARGIN, {
         width: USABLE_WIDTH,
         preserveAspectRatio: "xMidYMin meet",
-        // El SVG usa font-family="Helvetica, Arial, sans-serif". Lo mapeamos
-        // a Inter (embedded). svg-to-pdfkit pide retornar el nombre de la
-        // font registrada en pdfkit.
-        fontCallback: () => "Inter",
+        // fontCallback recibe (family, bold, italic). El SVG usa
+        // font-family="Helvetica, Arial, sans-serif" + font-weight="bold"
+        // selectivo en títulos y labels. Mapeamos a Inter (regular) / Inter-Bold
+        // según el flag de bold.
+        fontCallback: (_family: string, bold: boolean) => (bold ? "Inter-Bold" : "Inter"),
       });
       doc.end();
     } catch (err) {

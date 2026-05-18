@@ -63,6 +63,7 @@ interface BodygraphProfile {
     dateLocalIso: string;
     dateUtcIso: string;
     placeLabel?: string;
+    coordinates?: { lat: number; lon: number };
     ageYears: number;
   };
   humanDesign: {
@@ -172,6 +173,18 @@ function HeaderBlock({ profile }: { profile: BodygraphProfile }) {
           <>
             <dt>Lugar</dt>
             <dd>{birth.placeLabel}</dd>
+          </>
+        )}
+        {birth?.coordinates && (
+          <>
+            <dt>Coordenadas</dt>
+            <dd>{birth.coordinates.lat}, {birth.coordinates.lon}</dd>
+          </>
+        )}
+        {birth?.ageYears !== undefined && birth.ageYears > 0 && (
+          <>
+            <dt>Edad</dt>
+            <dd>{birth.ageYears} años</dd>
           </>
         )}
         <dt>Perfil</dt>

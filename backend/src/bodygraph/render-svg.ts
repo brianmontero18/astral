@@ -726,6 +726,19 @@ function renderHeader(profile: UserProfile, opts: HeaderOptions): string {
   ];
 
   if (birth) {
+    // Append Coordinates + Age al final si están presentes (GM premium parity).
+    if (birth.coordinates) {
+      fields.push({
+        label: "Coordenadas",
+        value: `${birth.coordinates.lat}, ${birth.coordinates.lon}`,
+      });
+    }
+    if (typeof birth.ageYears === "number" && birth.ageYears > 0) {
+      fields.push({
+        label: "Edad",
+        value: `${birth.ageYears} años`,
+      });
+    }
     if (birth.placeLabel) {
       fields.unshift({ label: "Lugar", value: birth.placeLabel });
     }
@@ -750,10 +763,14 @@ function renderHeader(profile: UserProfile, opts: HeaderOptions): string {
     const row = Math.floor(i / 2);
     const x = left + col * colGap;
     const y = startY + row * rowH;
-    const text = `${fields[i].label}: ${fields[i].value || "—"}`;
+    const label = escapeXml(fields[i].label);
+    const value = escapeXml(fields[i].value || "—");
+    // tspan bold para la clave (label), regular para el valor. svg-to-pdfkit
+    // resuelve el font-weight via fontCallback → Inter / Inter-Bold.
     svg +=
       `<text x="${f(x)}" y="${f(y)}" font-size="${f(lineSize)}" fill="${COLOR_BODY_TEXT}" ` +
-      `font-family="Helvetica, Arial, sans-serif">${escapeXml(text)}</text>`;
+      `font-family="Helvetica, Arial, sans-serif">` +
+      `<tspan font-weight="bold">${label}:</tspan> ${value}</text>`;
   }
 
   return svg;
@@ -815,10 +832,14 @@ function renderFooter(profile: UserProfile, opts: FooterOptions): string {
     for (let i = 0; i < rows.length; i++) {
       const y = startY + i * lineH;
       const sep = rows[i].separator ?? ": ";
-      const text = `${rows[i].label}${sep}${rows[i].value || "—"}`;
+      const label = escapeXml(rows[i].label);
+      const value = escapeXml(rows[i].value || "—");
+      const sepEsc = escapeXml(sep);
+      // tspan bold para la clave (label), regular para el valor.
       chunk +=
         `<text x="${f(x)}" y="${f(y)}" font-size="${f(lineSize)}" ` +
-        `fill="${COLOR_BODY_TEXT}" font-family="Helvetica, Arial, sans-serif">${escapeXml(text)}</text>`;
+        `fill="${COLOR_BODY_TEXT}" font-family="Helvetica, Arial, sans-serif">` +
+        `<tspan font-weight="bold">${label}</tspan>${sepEsc}${value}</text>`;
     }
     return chunk;
   };

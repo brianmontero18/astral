@@ -39,8 +39,12 @@
 }
 
 .bg-header-meta dt {
-  color: #666;
-  font-weight: 500;
+  color: #1f1f1f;
+  font-weight: 700;
+}
+
+.bg-header-meta dt::after {
+  content: ":";
 }
 
 .bg-header-meta dd {
@@ -287,8 +291,12 @@
 }
 
 .bg-footer-list dt {
-  color: #666;
-  font-weight: 500;
+  color: #1f1f1f;
+  font-weight: 700;
+}
+
+.bg-footer-list dt::after {
+  content: ":";
 }
 
 .bg-footer-list dd {

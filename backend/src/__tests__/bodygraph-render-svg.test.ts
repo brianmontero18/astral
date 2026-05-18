@@ -312,27 +312,37 @@ describe("renderBodygraphSvg", () => {
       expect(footer).toContain(">Canales<");
 
       // Diseño block — Spanish labels + Spanish values (default language).
-      expect(footer).toContain("Fecha del Diseño: 01 oct 1988");
-      expect(footer).toContain("Cerebro: Activo");
-      expect(footer).toContain("Determinación: Abierto");
-      expect(footer).toContain("Cognición: Olfato");
-      expect(footer).toContain("Ambiente: Montañas - Pasivo");
-      expect(footer).toContain("Estilo de Ambiente: Observadora");
+      // El SVG ahora separa label en <tspan bold>...</tspan> y el valor afuera,
+      // por lo que el assertion verifica que ambos fragmentos estén presentes.
+      const expectRow = (label: string, value: string) => {
+        expect(footer).toContain(`>${label}</tspan>`);
+        expect(footer).toContain(value);
+      };
+      expectRow("Fecha del Diseño", "01 oct 1988");
+      expectRow("Cerebro", "Activo");
+      expectRow("Determinación", "Abierto");
+      expectRow("Cognición", "Olfato");
+      expectRow("Ambiente", "Montañas - Pasivo");
+      expectRow("Estilo de Ambiente", "Observadora");
 
       // Personalidad block.
-      expect(footer).toContain("Personalidad: Estratégico");
-      expect(footer).toContain("Motivación: Miedo");
-      expect(footer).toContain("Sentido: Incertidumbre");
-      expect(footer).toContain("Trayectoria: Comunalista");
-      expect(footer).toContain("Perspectiva: Enfocada");
-      expect(footer).toContain("Visión: Personal");
-      expect(footer).toContain("Motivación Transferida: Necesidad");
-      expect(footer).toContain("Visión Transferida: Poder");
+      expectRow("Personalidad", "Estratégico");
+      expectRow("Motivación", "Miedo");
+      expectRow("Sentido", "Incertidumbre");
+      expectRow("Trayectoria", "Comunalista");
+      expectRow("Perspectiva", "Enfocada");
+      expectRow("Visión", "Personal");
+      expectRow("Motivación Transferida", "Necesidad");
+      expectRow("Visión Transferida", "Poder");
 
-      // Canales block — Genetic Matrix format "GGgg - English Name".
-      expect(footer).toContain("0108 - Inspiration");
-      expect(footer).toContain("1858 - Judgment");
-      expect(footer).toContain("3740 - Community");
+      // Canales block — Genetic Matrix format "GGgg - English Name". Separator
+      // es " - " (no ":") así que el padded-id va en el bold tspan.
+      expect(footer).toContain(">0108</tspan>");
+      expect(footer).toContain("Inspiration");
+      expect(footer).toContain(">1858</tspan>");
+      expect(footer).toContain("Judgment");
+      expect(footer).toContain(">3740</tspan>");
+      expect(footer).toContain("Community");
     });
 
     it("colors the design panel red and the personality panel black", async () => {
