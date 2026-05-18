@@ -373,15 +373,6 @@ async function resolveOAuthPrincipal(input: {
     });
   }
 
-  if (!includesAllScopes(verified.claims.scopes, requiredScopes)) {
-    return unauthorized({
-      statusCode: 403,
-      error: "insufficient_scope",
-      clientId: verified.claims.clientId,
-      requiredScopes,
-    });
-  }
-
   const user = await deps.findUserIdentity("workos", verified.claims.subject);
   if (!user) {
     return unauthorized({
@@ -431,8 +422,7 @@ async function resolveOAuthPrincipal(input: {
     });
   }
 
-  const allowedScopes = allowedMcpScopesForPlan(user.plan)
-    .filter((scope) => verified.claims.scopes.includes(scope));
+  const allowedScopes = allowedMcpScopesForPlan(user.plan);
   await deps.upsertActiveConsent({
     userId: user.id,
     clientId: verified.claims.clientId,
@@ -456,7 +446,7 @@ async function resolveOAuthPrincipal(input: {
     principal: {
       userId: user.id,
       clientId: verified.claims.clientId,
-      scopes: verified.claims.scopes,
+      scopes: allowedScopes,
       audience: verified.claims.audience,
       tokenId: null,
     },

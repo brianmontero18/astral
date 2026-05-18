@@ -243,7 +243,7 @@ describe("resolveMcpPrincipal", () => {
               claims: {
                 subject: seeded.subject,
                 clientId: seeded.clientId,
-                scopes: ["mcp:ask", "mcp:read_hd"],
+                scopes: ["openid", "profile", "email"],
                 audience: OAUTH_AUDIENCE,
               },
             };
@@ -255,7 +255,7 @@ describe("resolveMcpPrincipal", () => {
       principal: {
         userId: seeded.userId,
         clientId: seeded.clientId,
-        scopes: ["mcp:ask", "mcp:read_hd"],
+        scopes: ["mcp:read_hd", "mcp:ask"],
         audience: OAUTH_AUDIENCE,
         tokenId: null,
       },
@@ -283,7 +283,7 @@ describe("resolveMcpPrincipal", () => {
             claims: {
               subject: seeded.subject,
               clientId: seeded.clientId,
-              scopes: ["mcp:read_hd"],
+              scopes: ["openid", "profile", "email"],
               audience: OAUTH_AUDIENCE,
             },
           }),
@@ -294,7 +294,7 @@ describe("resolveMcpPrincipal", () => {
       principal: {
         userId: seeded.userId,
         clientId: seeded.clientId,
-        scopes: ["mcp:read_hd"],
+        scopes: ["mcp:read_hd", "mcp:ask"],
       },
     });
 
@@ -303,7 +303,7 @@ describe("resolveMcpPrincipal", () => {
       status: "active",
     });
     const consent = await findActiveMcpConsent(seeded.userId, seeded.clientId);
-    expect(consent?.scopes_json).toBe(JSON.stringify(["mcp:read_hd"]));
+    expect(consent?.scopes_json).toBe(JSON.stringify(["mcp:read_hd", "mcp:ask"]));
   });
 
   it("keeps PAT beta precedence before trying WorkOS OAuth verification", async () => {
@@ -360,7 +360,7 @@ describe("resolveMcpPrincipal", () => {
     });
   });
 
-  it("rejects WorkOS OAuth tokens without the requested MCP scope", async () => {
+  it("authorizes WorkOS OAuth tokens with standard OAuth scopes and derives MCP scopes from plan", async () => {
     const seeded = await seedDbOAuthAccess();
 
     await expect(
@@ -378,16 +378,19 @@ describe("resolveMcpPrincipal", () => {
             claims: {
               subject: seeded.subject,
               clientId: seeded.clientId,
-              scopes: ["mcp:read_hd"],
+              scopes: ["openid", "profile", "email"],
               audience: OAUTH_AUDIENCE,
             },
           }),
         },
       ),
     ).resolves.toMatchObject({
-      kind: "unauthorized",
-      statusCode: 403,
-      error: "insufficient_scope",
+      kind: "authorized",
+      principal: {
+        userId: seeded.userId,
+        clientId: seeded.clientId,
+        scopes: ["mcp:read_hd", "mcp:ask"],
+      },
     });
   });
 
@@ -409,7 +412,7 @@ describe("resolveMcpPrincipal", () => {
             claims: {
               subject: "different-workos-user",
               clientId: seeded.clientId,
-              scopes: ["mcp:ask"],
+              scopes: ["openid", "profile", "email"],
               audience: OAUTH_AUDIENCE,
             },
           }),
@@ -422,7 +425,7 @@ describe("resolveMcpPrincipal", () => {
     });
   });
 
-  it("updates the internal consent mirror from WorkOS OAuth token scopes", async () => {
+  it("updates the internal consent mirror from the Astral product plan", async () => {
     const seeded = await seedDbOAuthAccess({
       consentScopes: ["mcp:read_hd"],
     });
@@ -442,7 +445,7 @@ describe("resolveMcpPrincipal", () => {
             claims: {
               subject: seeded.subject,
               clientId: seeded.clientId,
-              scopes: ["mcp:ask", "mcp:read_hd"],
+              scopes: ["openid", "profile", "email"],
               audience: OAUTH_AUDIENCE,
             },
           }),
@@ -453,7 +456,7 @@ describe("resolveMcpPrincipal", () => {
       principal: {
         userId: seeded.userId,
         clientId: seeded.clientId,
-        scopes: ["mcp:ask", "mcp:read_hd"],
+        scopes: ["mcp:read_hd", "mcp:ask"],
       },
     });
 
@@ -461,7 +464,7 @@ describe("resolveMcpPrincipal", () => {
     expect(consent?.scopes_json).toBe(JSON.stringify(["mcp:read_hd", "mcp:ask"]));
   });
 
-  it("rejects free users before accepting MCP OAuth scopes", async () => {
+  it("rejects free users before deriving MCP access from OAuth identity", async () => {
     const seeded = await seedDbOAuthAccess({
       userPlan: "free",
     });
@@ -481,7 +484,7 @@ describe("resolveMcpPrincipal", () => {
             claims: {
               subject: seeded.subject,
               clientId: seeded.clientId,
-              scopes: ["mcp:read_hd"],
+              scopes: ["openid", "profile", "email"],
               audience: OAUTH_AUDIENCE,
             },
           }),
@@ -494,7 +497,7 @@ describe("resolveMcpPrincipal", () => {
     });
   });
 
-  it("rejects basic users for mcp:ask even when token and consent contain the scope", async () => {
+  it("rejects basic users for mcp:ask even when existing consent contains the scope", async () => {
     const seeded = await seedDbOAuthAccess({
       userPlan: "basic",
       consentScopes: ["mcp:ask", "mcp:read_hd"],
@@ -515,7 +518,7 @@ describe("resolveMcpPrincipal", () => {
             claims: {
               subject: seeded.subject,
               clientId: seeded.clientId,
-              scopes: ["mcp:ask", "mcp:read_hd"],
+              scopes: ["openid", "profile", "email"],
               audience: OAUTH_AUDIENCE,
             },
           }),
@@ -528,7 +531,7 @@ describe("resolveMcpPrincipal", () => {
     });
   });
 
-  it("rejects onboarding-pending users before accepting MCP OAuth scopes", async () => {
+  it("rejects onboarding-pending users before deriving MCP access from OAuth identity", async () => {
     const seeded = await seedDbOAuthAccess({
       onboardingStatus: "pending",
     });
@@ -548,7 +551,7 @@ describe("resolveMcpPrincipal", () => {
             claims: {
               subject: seeded.subject,
               clientId: seeded.clientId,
-              scopes: ["mcp:read_hd"],
+              scopes: ["openid", "profile", "email"],
               audience: OAUTH_AUDIENCE,
             },
           }),
@@ -581,7 +584,7 @@ describe("resolveMcpPrincipal", () => {
             claims: {
               subject: seeded.subject,
               clientId: seeded.clientId,
-              scopes: ["mcp:ask"],
+              scopes: ["openid", "profile", "email"],
               audience: OAUTH_AUDIENCE,
             },
           }),
@@ -614,7 +617,7 @@ describe("resolveMcpPrincipal", () => {
             claims: {
               subject: seeded.subject,
               clientId: seeded.clientId,
-              scopes: ["mcp:ask"],
+              scopes: ["openid", "profile", "email"],
               audience: OAUTH_AUDIENCE,
             },
           }),
