@@ -335,14 +335,14 @@ describe("renderBodygraphSvg", () => {
       expectRow("Motivación Transferida", "Necesidad");
       expectRow("Visión Transferida", "Poder");
 
-      // Canales block — Genetic Matrix format "GGgg - English Name". Separator
-      // es " - " (no ":") así que el padded-id va en el bold tspan.
+      // Canales block — format "GGgg - Nombre" (short Spanish form).
+      // Separator es " - " (no ":") así que el padded-id va en el bold tspan.
       expect(footer).toContain(">0108</tspan>");
-      expect(footer).toContain("Inspiration");
+      expect(footer).toContain("Inspiración");
       expect(footer).toContain(">1858</tspan>");
-      expect(footer).toContain("Judgment");
+      expect(footer).toContain("Corrección");
       expect(footer).toContain(">3740</tspan>");
-      expect(footer).toContain("Community");
+      expect(footer).toContain("Comunidad");
     });
 
     it("colors the design panel red and the personality panel black", async () => {

@@ -123,6 +123,14 @@ function padGateId(id: string): string {
   return String(a).padStart(2, "0") + String(b).padStart(2, "0");
 }
 
+/** Strip "Canal de la / del / de " prefix to get the short Spanish channel name. */
+function stripChannelPrefix(name: string): string {
+  return name
+    .replace(/^Canal de la /, "")
+    .replace(/^Canal del /, "")
+    .replace(/^Canal de /, "");
+}
+
 // Planet glyphs (Unicode chars). Same order as the SVG renderer.
 const PLANET_GLYPHS: Record<string, string> = {
   Sun: "☉",
@@ -334,7 +342,7 @@ function FooterBlock({ profile }: { profile: BodygraphProfile }) {
         <ul className="bg-channel-list">
           {hd.channels.map((ch) => (
             <li key={ch.id}>
-              <strong>{padGateId(ch.id)}</strong> — {ch.nameEn || ch.name}
+              <strong>{padGateId(ch.id)}</strong> — {stripChannelPrefix(ch.name)}
             </li>
           ))}
         </ul>

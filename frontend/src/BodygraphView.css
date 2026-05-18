@@ -12,6 +12,7 @@
   padding: 16px;
   color: #1f1f1f;
   font-family: "Inter", system-ui, sans-serif;
+  font-size: 1rem;
 }
 
 /* ─── Header ────────────────────────────────────────────────────────────── */
@@ -25,7 +26,7 @@
 .bg-title {
   color: #2e5e3f;
   font-family: "Inter", "Helvetica", sans-serif;
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   font-weight: 700;
   margin: 0 0 24px 0;
 }
@@ -33,9 +34,9 @@
 .bg-header-meta {
   display: grid;
   grid-template-columns: max-content 1fr;
-  gap: 4px 12px;
+  gap: 6px 14px;
   margin: 0;
-  font-size: 0.875rem;
+  font-size: 1rem;
 }
 
 .bg-header-meta dt {
@@ -54,7 +55,7 @@
 
 @media (min-width: 768px) {
   .bg-title {
-    font-size: 1.875rem;
+    font-size: 2rem;
   }
   .bg-header-meta {
     grid-template-columns: max-content 1fr max-content 1fr;
@@ -126,9 +127,9 @@
 }
 
 .bg-panel-title {
-  font-size: 1rem;
+  font-size: 1.125rem;
   font-weight: 700;
-  margin: 0 0 8px 0;
+  margin: 0 0 12px 0;
   text-align: center;
   color: inherit;
 }
@@ -138,7 +139,7 @@
   padding: 0;
   margin: 0;
   font-family: "ui-monospace", "Menlo", monospace;
-  font-size: 0.875rem;
+  font-size: 1rem;
   display: grid;
   /* On mobile, planets in 2 cols to save vertical space. */
   grid-template-columns: 1fr 1fr;
@@ -198,7 +199,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 0.875rem;
+  font-size: 1rem;
 }
 
 .bg-tone-group.bg-tone-design {
@@ -272,16 +273,16 @@
 .bg-footer-title {
   color: #2e5e3f;
   font-family: "Inter", "Helvetica", sans-serif;
-  font-size: 1.125rem;
+  font-size: 1.25rem;
   font-weight: 700;
-  margin: 0 0 16px 0;
+  margin: 0 0 18px 0;
 }
 
 .bg-footer-list {
   margin: 0;
   display: grid;
-  gap: 4px;
-  font-size: 0.875rem;
+  gap: 6px;
+  font-size: 1rem;
 }
 
 .bg-footer-list > div {
@@ -308,9 +309,9 @@
   list-style: none;
   padding: 0;
   margin: 0;
-  font-size: 0.875rem;
+  font-size: 1rem;
   display: grid;
-  gap: 4px;
+  gap: 6px;
 }
 
 .bg-channel-list strong {

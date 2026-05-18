@@ -701,8 +701,11 @@ function renderHeader(profile: UserProfile, opts: HeaderOptions): string {
   const padX = 0.02;
   const left = opts.x + padX;
   const right = opts.x + opts.width - padX;
-  const titleSize = opts.height * 0.18;
-  const lineSize = opts.height * 0.085;
+  // Font sizes bumped (titleSize 0.18 → 0.20, lineSize 0.085 → 0.10) para
+  // mejor legibilidad — el header se renderea en una franja muy alta cuando
+  // el PDF se escala a A4.
+  const titleSize = opts.height * 0.20;
+  const lineSize = opts.height * 0.10;
 
   let svg = "";
   // Title (name + type prefixed by qualifier when present).
@@ -808,12 +811,12 @@ function renderFooter(profile: UserProfile, opts: FooterOptions): string {
 
   const colGap = opts.width * 0.02;
   const colW = (opts.width - 2 * colGap) / 3;
-  // Font sizes matched to renderHeader (titleSize = header.h*0.18 ≈ 0.054,
-  // lineSize = header.h*0.085 ≈ 0.0255). We use fixed values so they're not
-  // sensitive to footer.height changes.
-  const titleSize = 0.040;
-  const lineSize = 0.0255;
-  const lineH = lineSize * 1.45;
+  // Font sizes bumped (titleSize 0.040 → 0.046, lineSize 0.0255 → 0.030)
+  // para legibilidad consistente con el header. Fixed values — no
+  // dependientes de footer.height.
+  const titleSize = 0.046;
+  const lineSize = 0.030;
+  const lineH = lineSize * 1.55;
 
   const renderBlock = (
     title: string,
@@ -871,12 +874,13 @@ function renderFooter(profile: UserProfile, opts: FooterOptions): string {
     { label: "Visión Transferida", value: labels.transferredView },
   ];
 
-  // Channels block. Format: "GGgg - Name" (Genetic Matrix dialect). English
-  // name from hd-channels.ts `nameEn`.
+  // Channels block. Format: "GGgg - Nombre" (short Spanish form, ej
+  // "Inspiración", "Pulso", "Comunidad"). Strip "Canal de la/del/de " del
+  // canon español de hd-channels.ts para que el row no se desborde.
+  const stripChannelPrefix = (name: string): string =>
+    name.replace(/^Canal de la /, "").replace(/^Canal del /, "").replace(/^Canal de /, "");
   const channelRows: Array<{ label: string; value: string; separator?: string }> = hd.channels.map((ch) => {
-    const meta = findChannelById(ch.id);
-    const nameEn = meta?.nameEn ?? ch.name;
-    return { label: formatChannelIdPadded(ch.id), value: nameEn, separator: " - " };
+    return { label: formatChannelIdPadded(ch.id), value: stripChannelPrefix(ch.name), separator: " - " };
   });
 
   let svg = "";
