@@ -770,22 +770,16 @@ interface FooterOptions {
   height: number;
 }
 
-const MONTH_FULL_EN = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
-
-/** Format an ISO date for the "Design Date" row (style: "01 October 1988, 17:14:58"). */
-function formatDesignDateEn(iso: string): string {
+/** Format an ISO date for the "Fecha del Diseño" row (short ES, matches header style). */
+function formatDesignDateEs(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   const day = String(d.getUTCDate()).padStart(2, "0");
-  const month = MONTH_FULL_EN[d.getUTCMonth()];
+  const month = MONTH_SHORT_ES[d.getUTCMonth()];
   const year = d.getUTCFullYear();
   const hh = String(d.getUTCHours()).padStart(2, "0");
   const mm = String(d.getUTCMinutes()).padStart(2, "0");
-  const ss = String(d.getUTCSeconds()).padStart(2, "0");
-  return `${day} ${month} ${year}, ${hh}:${mm}:${ss}`;
+  return `${day} ${month} ${year} ${hh}:${mm}`;
 }
 
 function renderFooter(profile: UserProfile, opts: FooterOptions): string {
@@ -795,8 +789,11 @@ function renderFooter(profile: UserProfile, opts: FooterOptions): string {
 
   const colGap = opts.width * 0.02;
   const colW = (opts.width - 2 * colGap) / 3;
-  const titleSize = opts.height * 0.10;
-  const lineSize = opts.height * 0.060;
+  // Font sizes matched to renderHeader (titleSize = header.h*0.18 ≈ 0.054,
+  // lineSize = header.h*0.085 ≈ 0.0255). We use fixed values so they're not
+  // sensitive to footer.height changes.
+  const titleSize = 0.040;
+  const lineSize = 0.0255;
   const lineH = lineSize * 1.45;
 
   const renderBlock = (
@@ -821,29 +818,31 @@ function renderFooter(profile: UserProfile, opts: FooterOptions): string {
     return chunk;
   };
 
-  // Design block.
+  // Design block. Labels en español (consistencia con header); valores en HD
+  // canon (inglés) por ahora — añadir i18n de valores cuando haya tablas
+  // validadas de traducción.
   const designRows: Array<{ label: string; value: string }> = [];
   if (hd.design?.date) {
-    designRows.push({ label: "Design Date", value: formatDesignDateEn(hd.design.date) });
+    designRows.push({ label: "Fecha del Diseño", value: formatDesignDateEs(hd.design.date) });
   }
   designRows.push(
-    { label: "Brain", value: labels.brain },
-    { label: "Determination", value: labels.determination },
-    { label: "Cognition", value: labels.cognition },
-    { label: "Environment", value: labels.environmentDetail },
-    { label: "Environment Style", value: labels.environmentStyle },
+    { label: "Cerebro", value: labels.brain },
+    { label: "Determinación", value: labels.determination },
+    { label: "Cognición", value: labels.cognition },
+    { label: "Ambiente", value: labels.environmentDetail },
+    { label: "Estilo de Ambiente", value: labels.environmentStyle },
   );
 
   // Personality block.
   const personalityRows: Array<{ label: string; value: string }> = [
-    { label: "Personality", value: labels.personality },
-    { label: "Motivation", value: labels.motivation },
-    { label: "Sense", value: labels.sense },
-    { label: "Trajectory", value: labels.trajectory },
-    { label: "View Perspective", value: labels.viewPerspective },
-    { label: "View", value: labels.view },
-    { label: "Transferred Motivation", value: labels.transferredMotivation },
-    { label: "Transferred View", value: labels.transferredView },
+    { label: "Personalidad", value: labels.personality },
+    { label: "Motivación", value: labels.motivation },
+    { label: "Sentido", value: labels.sense },
+    { label: "Trayectoria", value: labels.trajectory },
+    { label: "Perspectiva", value: labels.viewPerspective },
+    { label: "Visión", value: labels.view },
+    { label: "Motivación Transferida", value: labels.transferredMotivation },
+    { label: "Visión Transferida", value: labels.transferredView },
   ];
 
   // Channels block. Format: "GGgg - Name" (Genetic Matrix dialect). English
@@ -855,9 +854,9 @@ function renderFooter(profile: UserProfile, opts: FooterOptions): string {
   });
 
   let svg = "";
-  svg += renderBlock("Design", designRows, 0);
-  svg += renderBlock("Personality", personalityRows, 1);
-  svg += renderBlock("Channels", channelRows, 2);
+  svg += renderBlock("Diseño", designRows, 0);
+  svg += renderBlock("Personalidad", personalityRows, 1);
+  svg += renderBlock("Canales", channelRows, 2);
   return svg;
 }
 

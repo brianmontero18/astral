@@ -1,0 +1,318 @@
+/**
+ * BodygraphView styles — responsive Foundation Chart layout.
+ *
+ * Mobile-first: everything stacks vertically below 768px. At 768px+ the
+ * planet panels move to the sides of the chart. At 1024px+ the footer
+ * splits into 3 columns.
+ */
+
+.bg-view {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px;
+  color: #1f1f1f;
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+/* ─── Header ────────────────────────────────────────────────────────────── */
+
+.bg-header {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+}
+
+.bg-title {
+  color: #2e5e3f;
+  font-family: "Inter", "Helvetica", sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 12px 0;
+}
+
+.bg-header-meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.bg-header-meta dt {
+  color: #666;
+  font-weight: 500;
+}
+
+.bg-header-meta dd {
+  margin: 0;
+  color: #1f1f1f;
+}
+
+@media (min-width: 768px) {
+  .bg-title {
+    font-size: 1.875rem;
+  }
+  .bg-header-meta {
+    grid-template-columns: max-content 1fr max-content 1fr;
+  }
+  /* Headers wrap in 2 columns on desktop. */
+}
+
+/* ─── Body (panels + chart) ─────────────────────────────────────────────── */
+
+.bg-body {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.bg-chart {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}
+
+.bg-chart-svg {
+  width: 100%;
+  max-width: 600px;
+}
+
+.bg-chart-svg svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.bg-chart-loading,
+.bg-chart-error {
+  color: #666;
+  font-size: 0.875rem;
+  padding: 24px;
+  text-align: center;
+}
+
+.bg-chart-error {
+  color: #c33;
+}
+
+/* Desktop: 3-column with panels on sides. */
+@media (min-width: 768px) {
+  .bg-body {
+    grid-template-columns: minmax(140px, 200px) 1fr minmax(140px, 200px);
+    gap: 24px;
+  }
+}
+
+/* ─── Planet panels ─────────────────────────────────────────────────────── */
+
+.bg-panel {
+  border-radius: 8px;
+  padding: 12px;
+  background: #fafafa;
+}
+
+.bg-panel-design {
+  color: #c8102e;
+}
+
+.bg-panel-personality {
+  color: #000;
+}
+
+.bg-panel-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  text-align: center;
+  color: inherit;
+}
+
+.bg-planet-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-family: "ui-monospace", "Menlo", monospace;
+  font-size: 0.875rem;
+  display: grid;
+  /* On mobile, planets in 2 cols to save vertical space. */
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 12px;
+}
+
+.bg-planet-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.bg-planet-glyph {
+  font-family: serif;
+  font-size: 1.1em;
+  width: 1.2em;
+  text-align: center;
+}
+
+.bg-planet-gate {
+  font-weight: 600;
+}
+
+.bg-fix {
+  font-size: 0.75em;
+  line-height: 1;
+}
+
+.bg-fix-exalted {
+  color: #22a33c;
+}
+
+.bg-fix-detriment {
+  color: #e5a800;
+}
+
+/* Desktop: planets in 1 col inside narrower side panels. */
+@media (min-width: 768px) {
+  .bg-planet-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── Tone groups ──────────────────────────────────────────────────────── */
+
+.bg-tone-groups {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  padding: 12px 0;
+  margin-top: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.bg-tone-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.875rem;
+}
+
+.bg-tone-group.bg-tone-design {
+  color: #c8102e;
+}
+
+.bg-tone-group.bg-tone-personality {
+  color: #000;
+}
+
+.bg-tone-label {
+  font-weight: 500;
+  flex: 1 1 50%;
+  color: #666;
+}
+
+.bg-arrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-weight: 700;
+}
+
+.bg-arrow-letter {
+  display: inline-block;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  width: 1.4em;
+  height: 1.4em;
+  text-align: center;
+  line-height: 1.2;
+  font-size: 0.75em;
+  background: #fff;
+}
+
+.bg-tri {
+  font-weight: 700;
+  font-size: 1em;
+}
+
+.bg-tri-green {
+  color: #22a33c;
+}
+
+.bg-tri-yellow {
+  color: #e5a800;
+}
+
+@media (min-width: 768px) {
+  .bg-tone-groups {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px 24px;
+  }
+}
+
+/* ─── Footer (Design / Personality / Channels) ─────────────────────────── */
+
+.bg-footer {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.bg-footer-col {
+  min-width: 0;
+}
+
+.bg-footer-title {
+  color: #2e5e3f;
+  font-family: "Inter", "Helvetica", sans-serif;
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+}
+
+.bg-footer-list {
+  margin: 0;
+  display: grid;
+  gap: 4px;
+  font-size: 0.875rem;
+}
+
+.bg-footer-list > div {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 8px;
+}
+
+.bg-footer-list dt {
+  color: #666;
+  font-weight: 500;
+}
+
+.bg-footer-list dd {
+  margin: 0;
+  color: #1f1f1f;
+}
+
+.bg-channel-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 0.875rem;
+  display: grid;
+  gap: 4px;
+}
+
+.bg-channel-list strong {
+  font-family: "ui-monospace", "Menlo", monospace;
+  font-weight: 700;
+  margin-right: 4px;
+}
+
+@media (min-width: 768px) {
+  .bg-footer {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}

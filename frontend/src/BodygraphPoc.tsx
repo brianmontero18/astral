@@ -6,28 +6,69 @@
  * la UX del flow nuevo antes de integrarlo al onboarding real.
  */
 import { useState } from "react";
+import BodygraphView from "./BodygraphView";
 
 interface ActivatedGate {
   number: number;
   line: number;
   planet: string;
   isPersonality: boolean;
+  isRetrograde?: boolean;
+  fixingState?: "exalted" | "detriment" | null;
+  color?: number;
+  tone?: number;
+  base?: number;
 }
 
 interface Channel {
   id: string;
   name: string;
-  circuit: string;
+  nameEn?: string;
+  circuit?: string;
+}
+
+interface HdVariable {
+  orientation: "left" | "right";
+  color: number;
+  tone: number;
+  base: number;
 }
 
 interface HumanDesignProfile {
   type: string;
+  typeQualifier?: string;
   strategy: string;
   authority: string;
   profile: string;
+  profileName?: string;
   definition: string;
   incarnationCross: string;
+  themes?: { positive: string; notSelf: string };
   notSelfTheme: string;
+  design?: { date: string };
+  variables?: {
+    digestion: HdVariable;
+    awareness: HdVariable;
+    environment: HdVariable;
+    perspective: HdVariable;
+  };
+  variableLabels?: {
+    brain: string;
+    determination: string;
+    determinationCategory: string;
+    cognition: string;
+    environment: string;
+    environmentDetail: string;
+    environmentStyle: string;
+    personality: string;
+    motivation: string;
+    sense: string;
+    trajectory: string;
+    viewPerspective: string;
+    view: string;
+    transferredMotivation: string;
+    transferredView: string;
+  };
   channels: Channel[];
   activatedGates: ActivatedGate[];
   definedCenters: string[];
@@ -36,6 +77,12 @@ interface HumanDesignProfile {
 
 interface UserProfileResponse {
   name: string;
+  birthData?: {
+    dateLocalIso: string;
+    dateUtcIso: string;
+    placeLabel?: string;
+    ageYears: number;
+  };
   humanDesign: HumanDesignProfile;
 }
 
@@ -146,13 +193,6 @@ export default function BodygraphPoc() {
     }
   };
 
-  const designGates = result?.humanDesign.activatedGates
-    .filter((g) => !g.isPersonality)
-    .sort((a, b) => a.planet.localeCompare(b.planet));
-  const personalityGates = result?.humanDesign.activatedGates
-    .filter((g) => g.isPersonality)
-    .sort((a, b) => a.planet.localeCompare(b.planet));
-
   return (
     <div style={{ maxWidth: 900, margin: "40px auto", padding: 24, fontFamily: "system-ui, sans-serif", color: "#222" }}>
       <h1 style={{ fontSize: 28, marginBottom: 8 }}>Calculadora de Bodygraph (POC)</h1>
@@ -245,8 +285,7 @@ export default function BodygraphPoc() {
 
       {result && (
         <div style={{ marginTop: 32 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-            <h2 style={{ fontSize: 22, margin: 0 }}>Resultado{result.name ? ` para ${result.name}` : ""}</h2>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 16, flexWrap: "wrap", marginBottom: 12 }}>
             <button
               type="button"
               onClick={handleDownloadPdf}
@@ -266,61 +305,16 @@ export default function BodygraphPoc() {
             </button>
           </div>
           {pdfError && (
-            <div style={{ marginTop: 12, padding: 12, background: "#fee", border: "1px solid #f88", borderRadius: 4, color: "#900", fontSize: 14 }}>
+            <div style={{ marginTop: 12, marginBottom: 12, padding: 12, background: "#fee", border: "1px solid #f88", borderRadius: 4, color: "#900", fontSize: 14 }}>
               <strong>Error al generar PDF:</strong> {pdfError}
             </div>
           )}
-          {placeLabel && <p style={{ color: "#666" }}>{placeLabel}</p>}
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginTop: 16 }}>
-            <Field label="Tipo" value={result.humanDesign.type} />
-            <Field label="Perfil" value={result.humanDesign.profile} />
-            <Field label="Autoridad" value={result.humanDesign.authority} />
-            <Field label="Definición" value={result.humanDesign.definition} />
-            <Field label="Estrategia" value={result.humanDesign.strategy} />
-            <Field label="Tema No-Self" value={result.humanDesign.notSelfTheme} />
-          </div>
-
-          <h3 style={{ fontSize: 18, marginTop: 24 }}>Centros definidos ({result.humanDesign.definedCenters.length}/9)</h3>
-          <p style={{ color: "#444" }}>{result.humanDesign.definedCenters.join(", ")}</p>
-
-          <h3 style={{ fontSize: 18, marginTop: 24 }}>Canales activos ({result.humanDesign.channels.length})</h3>
-          <ul style={{ paddingLeft: 20 }}>
-            {result.humanDesign.channels.map((ch) => (
-              <li key={ch.id}><strong>{ch.id}</strong> — {ch.name}</li>
-            ))}
-          </ul>
-
-          <h3 style={{ fontSize: 18, marginTop: 24 }}>26 gates activados</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
-            <div>
-              <h4 style={{ color: "#c33" }}>Design (subconsciente)</h4>
-              <ul style={{ paddingLeft: 20, fontFamily: "ui-monospace, monospace", fontSize: 14 }}>
-                {designGates?.map((g) => (
-                  <li key={`d-${g.planet}`}>{g.planet.padEnd(11)} <strong>{g.number}.{g.line}</strong></li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h4 style={{ color: "#333" }}>Personality (consciente)</h4>
-              <ul style={{ paddingLeft: 20, fontFamily: "ui-monospace, monospace", fontSize: 14 }}>
-                {personalityGates?.map((g) => (
-                  <li key={`p-${g.planet}`}>{g.planet.padEnd(11)} <strong>{g.number}.{g.line}</strong></li>
-                ))}
-              </ul>
-            </div>
-          </div>
+          <BodygraphView
+            profile={result}
+            birthQuery={{ date, time, tz }}
+          />
         </div>
       )}
-    </div>
-  );
-}
-
-function Field({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={{ padding: 12, background: "#f7f7f7", borderRadius: 4 }}>
-      <div style={{ fontSize: 12, color: "#888", textTransform: "uppercase" }}>{label}</div>
-      <div style={{ fontSize: 16, marginTop: 4 }}>{value || "—"}</div>
     </div>
   );
 }

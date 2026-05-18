@@ -11,7 +11,7 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { calculateBodygraph, type BirthData } from "../bodygraph/calculate.js";
 import { renderBodygraphPdf } from "../bodygraph/render-pdf.js";
-import { renderFullDocument } from "../bodygraph/render-svg.js";
+import { renderBodygraphSvg, renderFullDocument } from "../bodygraph/render-svg.js";
 
 interface RequestBody {
   date?: unknown;
@@ -101,7 +101,13 @@ export async function bodygraphRoutes(app: FastifyInstance): Promise<void> {
       const profile = await calculateBodygraph(parsed.birth);
       const widthRaw = q.width !== undefined ? Number(q.width) : undefined;
       const width = widthRaw && !Number.isNaN(widthRaw) ? widthRaw : 1400;
-      const svg = renderFullDocument(profile, { width });
+      // mode=chart → solo el bodygraph (centers + channels + gates), sin
+      // header/footer/panels. Útil para embeber el chart en una UI HTML
+      // responsive donde el texto va por fuera. Default: full document.
+      const isChartOnly = q.mode === "chart";
+      const svg = isChartOnly
+        ? renderBodygraphSvg(profile, { width })
+        : renderFullDocument(profile, { width });
       return reply
         .header("Content-Type", "image/svg+xml; charset=utf-8")
         .header("Cache-Control", "no-store")
