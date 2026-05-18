@@ -1,0 +1,31 @@
+backend/src/bodygraph/render-pdf.tsx
+  s_b261358f8f8c95::t_701c01627d79ed 2,4-7,9-11,13-17,22-25,29-30,32-36,38-39,41-49,51-55,57-75,77-84
+backend/package-lock.json
+  ai_agent 23,25,32-33,1899-1922,3157-3166,3176-3185,4847-4852,5362-5375,5440-5447,6014-6021
+backend/package.json
+  s_4c18123980327d::t_80d004b94b25d5 41-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.9",
+  "base_commit_sha": "0d3754c353291cc150ea1af7575930f46a067150",
+  "prompts": {},
+  "sessions": {
+    "s_4c18123980327d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e3830-933b-7f01-89ae-1bffb20d9890",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    },
+    "s_b261358f8f8c95": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "546a20e1-3614-4c30-8828-b50165594b08",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
