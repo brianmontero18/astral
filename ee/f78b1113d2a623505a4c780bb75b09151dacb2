@@ -1,0 +1,23 @@
+docs/INDEX.md
+  s_4c18123980327d::t_e151537d2cb411 67
+docs/remote-mcp-oauth-connectors-genesis.md
+  s_4c18123980327d::t_2cd4d050a28fd2 1
+  s_4c18123980327d::t_867570ec7247a2 446,468,480,493,506,519,530
+  s_4c18123980327d::t_e151537d2cb411 2-445,447-467,469-479,481-492,494-505,507-518,520-529,531-620
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "eef78b1113d2a623505a4c780bb75b09151dacb2",
+  "prompts": {},
+  "sessions": {
+    "s_4c18123980327d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e3830-933b-7f01-89ae-1bffb20d9890",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
