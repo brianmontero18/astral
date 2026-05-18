@@ -757,9 +757,9 @@ function renderHeader(profile: UserProfile, opts: HeaderOptions): string {
 
   // Two columns, side-by-side. Each row about `lineSize * 1.4` tall.
   const colGap = (right - left) * 0.5;
-  // Gap entre el título (nombre + tipo) y la primera fila de datos. Aumentado
-  // de 1.3 → 2.2 lineSize para que el título respire.
-  const startY = opts.y + titleSize + lineSize * 2.2;
+  // Gap entre el título y la primera fila de datos. Bump iterativo: 2.2 → 3.5
+  // lineSize tras founder review (el título estaba muy pegado a la tabla).
+  const startY = opts.y + titleSize + lineSize * 3.5;
   const rowH = lineSize * 1.45;
   for (let i = 0; i < fields.length; i++) {
     const col = i % 2;
@@ -958,24 +958,24 @@ export function renderFullDocument(
 ): string {
   const lookup = buildLookup(profile);
 
-  // Outer viewBox. Height extended from 2.5 → 2.95 to accommodate the footer
-  // (Design + Personality + Channels blocks below the chart).
+  // Outer viewBox. Height extended (2.95 → 3.10) para acomodar mayor gap
+  // entre header y chart tras founder review.
   const vbX = 0;
   const vbY = 0;
   const vbW = 2.4;
-  const vbH = 2.95;
+  const vbH = 3.10;
   const width = opts.width ?? 1000;
   // Preserve aspect ratio.
   const height = opts.height ?? Math.round((width * vbH) / vbW);
 
-  // Layout regions.
-  const header = { x: 0.10, y: 0.05, w: 2.20, h: 0.30 };
-  const chart =  { x: 0.65, y: 0.45, w: 1.00, h: 1.50 };
-  // Panels shrunk slightly (0.45 → 0.40) to make room for the tone groups
-  // between panels and chart (was 0.10 wide, now 0.15 — Genetic Matrix style).
-  const designP = { x: 0.10, y: 0.50, w: 0.40, h: 1.40 };
-  const personP = { x: 1.80, y: 0.50, w: 0.40, h: 1.40 };
-  const footer =  { x: 0.10, y: 2.05, w: 2.20, h: 0.85 };
+  // Layout regions. Header crece 0.30 → 0.35 (más espacio para título +
+  // tabla con bold labels). Chart y panels se shiftean 0.10 hacia abajo
+  // (chart.y 0.45 → 0.60, panels.y 0.50 → 0.65) para gap visible.
+  const header = { x: 0.10, y: 0.05, w: 2.20, h: 0.35 };
+  const chart =  { x: 0.65, y: 0.60, w: 1.00, h: 1.50 };
+  const designP = { x: 0.10, y: 0.65, w: 0.40, h: 1.40 };
+  const personP = { x: 1.80, y: 0.65, w: 0.40, h: 1.40 };
+  const footer =  { x: 0.10, y: 2.20, w: 2.20, h: 0.85 };
 
   // 1. Header (reads birth metadata from profile.birthData if present).
   const headerSvg = renderHeader(profile, {
