@@ -1,0 +1,22 @@
+backend/src/agent-service.ts
+  s_b261358f8f8c95::t_a6c9a7eaa52ee8 147
+backend/src/bodygraph/calculate.ts
+  s_b261358f8f8c95::t_1146232e53b521 361-369
+  s_b261358f8f8c95::t_f2491b3def16db 19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "c16e0bb47ee8ecf28f03d2121fc24dec9652e1d6",
+  "prompts": {},
+  "sessions": {
+    "s_b261358f8f8c95": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "546a20e1-3614-4c30-8828-b50165594b08",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
