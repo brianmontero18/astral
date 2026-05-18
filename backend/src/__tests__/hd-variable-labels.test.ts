@@ -20,7 +20,7 @@ const AGOS_VARIABLES = {
 
 describe("computeVariableLabels", () => {
   describe("Agos ground truth (13/13 labels validated against Foundation Chart)", () => {
-    const labels = computeVariableLabels(AGOS_VARIABLES);
+    const labels = computeVariableLabels(AGOS_VARIABLES, "en");
 
     it("Brain: digestion.tone=1 (left) → Active", () => {
       expect(labels.brain).toBe("Active");
@@ -77,7 +77,7 @@ describe("computeVariableLabels", () => {
     });
   });
 
-  describe("orientation cutoff (tone 1-3 = left, 4-6 = right)", () => {
+  describe("orientation cutoff (tone 1-3 = left, 4-6 = right) — English", () => {
     const baseVars = {
       digestion:   { orientation: "left" as const,  color: 1, tone: 1, base: 1 },
       awareness:   { orientation: "left" as const,  color: 1, tone: 1, base: 1 },
@@ -86,38 +86,64 @@ describe("computeVariableLabels", () => {
     };
 
     it("Brain flips at tone=4 (digestion)", () => {
-      expect(computeVariableLabels({ ...baseVars, digestion: { ...baseVars.digestion, tone: 3 } }).brain).toBe("Active");
-      expect(computeVariableLabels({ ...baseVars, digestion: { ...baseVars.digestion, tone: 4 } }).brain).toBe("Passive");
+      expect(computeVariableLabels({ ...baseVars, digestion: { ...baseVars.digestion, tone: 3 } }, "en").brain).toBe("Active");
+      expect(computeVariableLabels({ ...baseVars, digestion: { ...baseVars.digestion, tone: 4 } }, "en").brain).toBe("Passive");
     });
 
     it("Personality flips at tone=4 (awareness)", () => {
-      expect(computeVariableLabels({ ...baseVars, awareness: { ...baseVars.awareness, tone: 3 } }).personality).toBe("Strategic");
-      expect(computeVariableLabels({ ...baseVars, awareness: { ...baseVars.awareness, tone: 4 } }).personality).toBe("Receptive");
+      expect(computeVariableLabels({ ...baseVars, awareness: { ...baseVars.awareness, tone: 3 } }, "en").personality).toBe("Strategic");
+      expect(computeVariableLabels({ ...baseVars, awareness: { ...baseVars.awareness, tone: 4 } }, "en").personality).toBe("Receptive");
     });
 
     it("Environment Style flips at tone=4", () => {
-      expect(computeVariableLabels({ ...baseVars, environment: { ...baseVars.environment, tone: 3 } }).environmentStyle).toBe("Observed");
-      expect(computeVariableLabels({ ...baseVars, environment: { ...baseVars.environment, tone: 4 } }).environmentStyle).toBe("Observer");
+      expect(computeVariableLabels({ ...baseVars, environment: { ...baseVars.environment, tone: 3 } }, "en").environmentStyle).toBe("Observed");
+      expect(computeVariableLabels({ ...baseVars, environment: { ...baseVars.environment, tone: 4 } }, "en").environmentStyle).toBe("Observer");
     });
 
     it("View Perspective flips at tone=4", () => {
-      expect(computeVariableLabels({ ...baseVars, perspective: { ...baseVars.perspective, tone: 3 } }).viewPerspective).toBe("Focused");
-      expect(computeVariableLabels({ ...baseVars, perspective: { ...baseVars.perspective, tone: 4 } }).viewPerspective).toBe("Peripheral");
+      expect(computeVariableLabels({ ...baseVars, perspective: { ...baseVars.perspective, tone: 3 } }, "en").viewPerspective).toBe("Focused");
+      expect(computeVariableLabels({ ...baseVars, perspective: { ...baseVars.perspective, tone: 4 } }, "en").viewPerspective).toBe("Peripheral");
     });
   });
 
-  describe("transference pairs (color +3 mod 6)", () => {
+  describe("Spanish translation (default language)", () => {
+    it("Agos labels in Spanish — full validation", () => {
+      const labels = computeVariableLabels(AGOS_VARIABLES); // default "es"
+      expect(labels.brain).toBe("Activo");
+      expect(labels.determination).toBe("Abierto");
+      expect(labels.determinationCategory).toBe("Sabor");
+      expect(labels.cognition).toBe("Olfato");
+      expect(labels.environment).toBe("Montañas");
+      expect(labels.environmentDetail).toBe("Montañas - Pasivo");
+      expect(labels.environmentStyle).toBe("Observadora");
+      expect(labels.personality).toBe("Estratégico");
+      expect(labels.motivation).toBe("Miedo");
+      expect(labels.sense).toBe("Incertidumbre");
+      expect(labels.trajectory).toBe("Comunalista");
+      expect(labels.viewPerspective).toBe("Enfocada");
+      expect(labels.view).toBe("Personal");
+      expect(labels.transferredMotivation).toBe("Necesidad");
+      expect(labels.transferredView).toBe("Poder");
+    });
+
+    it("computeVariableLabels defaults to Spanish", () => {
+      const labels = computeVariableLabels(AGOS_VARIABLES);
+      expect(labels.brain).toBe("Activo");
+    });
+  });
+
+  describe("transference pairs (color +3 mod 6) — English", () => {
     it("Motivation transference: Fear↔Need, Hope↔Guilt, Desire↔Innocence", () => {
       const make = (color: number) => ({
         ...AGOS_VARIABLES,
         awareness: { ...AGOS_VARIABLES.awareness, color },
       });
-      expect(computeVariableLabels(make(1)).transferredMotivation).toBe("Need");
-      expect(computeVariableLabels(make(4)).transferredMotivation).toBe("Fear");
-      expect(computeVariableLabels(make(2)).transferredMotivation).toBe("Guilt");
-      expect(computeVariableLabels(make(5)).transferredMotivation).toBe("Hope");
-      expect(computeVariableLabels(make(3)).transferredMotivation).toBe("Innocence");
-      expect(computeVariableLabels(make(6)).transferredMotivation).toBe("Desire");
+      expect(computeVariableLabels(make(1), "en").transferredMotivation).toBe("Need");
+      expect(computeVariableLabels(make(4), "en").transferredMotivation).toBe("Fear");
+      expect(computeVariableLabels(make(2), "en").transferredMotivation).toBe("Guilt");
+      expect(computeVariableLabels(make(5), "en").transferredMotivation).toBe("Hope");
+      expect(computeVariableLabels(make(3), "en").transferredMotivation).toBe("Innocence");
+      expect(computeVariableLabels(make(6), "en").transferredMotivation).toBe("Desire");
     });
 
     it("View transference: Survival↔Wanting, Possibility↔Probability, Power↔Personal", () => {
@@ -125,12 +151,12 @@ describe("computeVariableLabels", () => {
         ...AGOS_VARIABLES,
         perspective: { ...AGOS_VARIABLES.perspective, color },
       });
-      expect(computeVariableLabels(make(1)).transferredView).toBe("Wanting");
-      expect(computeVariableLabels(make(4)).transferredView).toBe("Survival");
-      expect(computeVariableLabels(make(2)).transferredView).toBe("Probability");
-      expect(computeVariableLabels(make(5)).transferredView).toBe("Possibility");
-      expect(computeVariableLabels(make(3)).transferredView).toBe("Personal");
-      expect(computeVariableLabels(make(6)).transferredView).toBe("Power");
+      expect(computeVariableLabels(make(1), "en").transferredView).toBe("Wanting");
+      expect(computeVariableLabels(make(4), "en").transferredView).toBe("Survival");
+      expect(computeVariableLabels(make(2), "en").transferredView).toBe("Probability");
+      expect(computeVariableLabels(make(5), "en").transferredView).toBe("Possibility");
+      expect(computeVariableLabels(make(3), "en").transferredView).toBe("Personal");
+      expect(computeVariableLabels(make(6), "en").transferredView).toBe("Power");
     });
   });
 
@@ -152,7 +178,7 @@ describe("computeVariableLabels", () => {
 });
 
 describe("calculateBodygraph populates variableLabels", () => {
-  it("Agos: all 13 labels match Foundation Chart", async () => {
+  it("Agos: all 13 labels in Spanish (default language)", async () => {
     const profile = await calculateBodygraph({
       date: "1988-12-28",
       time: "06:13",
@@ -160,19 +186,19 @@ describe("calculateBodygraph populates variableLabels", () => {
     });
     const labels = profile.humanDesign.variableLabels;
     expect(labels).toBeDefined();
-    expect(labels!.brain).toBe("Active");
-    expect(labels!.determination).toBe("Open");
-    expect(labels!.cognition).toBe("Smell");
-    expect(labels!.environment).toBe("Mountains");
-    expect(labels!.environmentDetail).toBe("Mountains - Passive");
-    expect(labels!.environmentStyle).toBe("Observer");
-    expect(labels!.personality).toBe("Strategic");
-    expect(labels!.motivation).toBe("Fear");
-    expect(labels!.sense).toBe("Uncertainty");
-    expect(labels!.trajectory).toBe("Communalist");
-    expect(labels!.viewPerspective).toBe("Focused");
+    expect(labels!.brain).toBe("Activo");
+    expect(labels!.determination).toBe("Abierto");
+    expect(labels!.cognition).toBe("Olfato");
+    expect(labels!.environment).toBe("Montañas");
+    expect(labels!.environmentDetail).toBe("Montañas - Pasivo");
+    expect(labels!.environmentStyle).toBe("Observadora");
+    expect(labels!.personality).toBe("Estratégico");
+    expect(labels!.motivation).toBe("Miedo");
+    expect(labels!.sense).toBe("Incertidumbre");
+    expect(labels!.trajectory).toBe("Comunalista");
+    expect(labels!.viewPerspective).toBe("Enfocada");
     expect(labels!.view).toBe("Personal");
-    expect(labels!.transferredMotivation).toBe("Need");
-    expect(labels!.transferredView).toBe("Power");
+    expect(labels!.transferredMotivation).toBe("Necesidad");
+    expect(labels!.transferredView).toBe("Poder");
   });
 });

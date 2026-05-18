@@ -293,9 +293,9 @@ describe("renderBodygraphSvg", () => {
       expect(circles).toBe(4);
     });
 
-    it("renders footer block with Design + Personality + Channels for Agos", async () => {
-      // Validates the 13 Variable Wheel labels + canonical English channel
-      // names against Agos's Foundation Chart de Genetic Matrix.
+    it("renders footer block with Diseño + Personalidad + Canales for Agos", async () => {
+      // Validates the 13 Variable Wheel labels (Spanish labels, HD canon values)
+      // + canonical English channel names against Agos's Foundation Chart.
       const profile = await calculateBodygraph({
         date: "1988-12-28",
         time: "06:13",
@@ -306,30 +306,30 @@ describe("renderBodygraphSvg", () => {
       expect(footerMatch).toBeTruthy();
       const footer = footerMatch![1];
 
-      // Block titles.
-      expect(footer).toContain(">Design<");
-      expect(footer).toContain(">Personality<");
-      expect(footer).toContain(">Channels<");
+      // Block titles (Spanish, matching header convention).
+      expect(footer).toContain(">Diseño<");
+      expect(footer).toContain(">Personalidad<");
+      expect(footer).toContain(">Canales<");
 
-      // Design block — 13 labels confirmados contra Foundation Chart de Agos.
-      expect(footer).toContain("Design Date: 01 October 1988");
-      expect(footer).toContain("Brain: Active");
-      expect(footer).toContain("Determination: Open");
-      expect(footer).toContain("Cognition: Smell");
-      expect(footer).toContain("Environment: Mountains - Passive");
-      expect(footer).toContain("Environment Style: Observer");
+      // Diseño block — Spanish labels + Spanish values (default language).
+      expect(footer).toContain("Fecha del Diseño: 01 oct 1988");
+      expect(footer).toContain("Cerebro: Activo");
+      expect(footer).toContain("Determinación: Abierto");
+      expect(footer).toContain("Cognición: Olfato");
+      expect(footer).toContain("Ambiente: Montañas - Pasivo");
+      expect(footer).toContain("Estilo de Ambiente: Observadora");
 
-      // Personality block.
-      expect(footer).toContain("Personality: Strategic");
-      expect(footer).toContain("Motivation: Fear");
-      expect(footer).toContain("Sense: Uncertainty");
-      expect(footer).toContain("Trajectory: Communalist");
-      expect(footer).toContain("View Perspective: Focused");
-      expect(footer).toContain("View: Personal");
-      expect(footer).toContain("Transferred Motivation: Need");
-      expect(footer).toContain("Transferred View: Power");
+      // Personalidad block.
+      expect(footer).toContain("Personalidad: Estratégico");
+      expect(footer).toContain("Motivación: Miedo");
+      expect(footer).toContain("Sentido: Incertidumbre");
+      expect(footer).toContain("Trayectoria: Comunalista");
+      expect(footer).toContain("Perspectiva: Enfocada");
+      expect(footer).toContain("Visión: Personal");
+      expect(footer).toContain("Motivación Transferida: Necesidad");
+      expect(footer).toContain("Visión Transferida: Poder");
 
-      // Channels block — Genetic Matrix format "GGgg - English Name".
+      // Canales block — Genetic Matrix format "GGgg - English Name".
       expect(footer).toContain("0108 - Inspiration");
       expect(footer).toContain("1858 - Judgment");
       expect(footer).toContain("3740 - Community");

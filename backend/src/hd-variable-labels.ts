@@ -68,6 +68,14 @@ const COGNITION_BY_COLOR: Record<number, string> = {
   5: "Feeling",
   6: "Touch",
 };
+const COGNITION_BY_COLOR_ES: Record<number, string> = {
+  1: "Olfato",
+  2: "Gusto",
+  3: "Visión Externa",
+  4: "Visión Interna",
+  5: "Sentimiento",
+  6: "Tacto",
+};
 
 /** Motivation — awareness.color. */
 const MOTIVATION_BY_COLOR: Record<number, string> = {
@@ -77,6 +85,14 @@ const MOTIVATION_BY_COLOR: Record<number, string> = {
   4: "Need",
   5: "Guilt",
   6: "Innocence",
+};
+const MOTIVATION_BY_COLOR_ES: Record<number, string> = {
+  1: "Miedo",
+  2: "Esperanza",
+  3: "Deseo",
+  4: "Necesidad",
+  5: "Culpa",
+  6: "Inocencia",
 };
 
 /** Sense — awareness.tone. */
@@ -88,6 +104,14 @@ const SENSE_BY_TONE: Record<number, string> = {
   5: "Judgment",
   6: "Acceptance",
 };
+const SENSE_BY_TONE_ES: Record<number, string> = {
+  1: "Seguridad",
+  2: "Incertidumbre",
+  3: "Acción",
+  4: "Meditación",
+  5: "Juicio",
+  6: "Aceptación",
+};
 
 /** Environment color — environment.color (D.NN.color). */
 const ENVIRONMENT_BY_COLOR: Record<number, string> = {
@@ -97,6 +121,14 @@ const ENVIRONMENT_BY_COLOR: Record<number, string> = {
   4: "Mountains",
   5: "Valleys",
   6: "Shores",
+};
+const ENVIRONMENT_BY_COLOR_ES: Record<number, string> = {
+  1: "Cuevas",
+  2: "Mercados",
+  3: "Cocinas",
+  4: "Montañas",
+  5: "Valles",
+  6: "Costas",
 };
 
 /**
@@ -112,6 +144,14 @@ const ENVIRONMENT_SUB_BY_COLOR: Record<number, { left: string; right: string }> 
   5: { left: "Narrow", right: "Wide" },
   6: { left: "Natural", right: "Artificial" },
 };
+const ENVIRONMENT_SUB_BY_COLOR_ES: Record<number, { left: string; right: string }> = {
+  1: { left: "Selectivo", right: "Mezclado" },
+  2: { left: "Interno", right: "Externo" },
+  3: { left: "Húmedo", right: "Seco" },
+  4: { left: "Activo", right: "Pasivo" },
+  5: { left: "Estrecho", right: "Amplio" },
+  6: { left: "Natural", right: "Artificial" },
+};
 
 /** View — perspective.color (P.NN.color). */
 const VIEW_BY_COLOR: Record<number, string> = {
@@ -120,6 +160,14 @@ const VIEW_BY_COLOR: Record<number, string> = {
   3: "Power",
   4: "Wanting",
   5: "Probability",
+  6: "Personal",
+};
+const VIEW_BY_COLOR_ES: Record<number, string> = {
+  1: "Supervivencia",
+  2: "Posibilidad",
+  3: "Poder",
+  4: "Anhelo",      // "Wanting" — uso "Anhelo" para evitar colisión con "Deseo" (Desire/Motivation)
+  5: "Probabilidad",
   6: "Personal",
 };
 
@@ -136,6 +184,14 @@ const DETERMINATION_COLOR_NAMES: Record<number, string> = {
   5: "Sound",
   6: "Light",
 };
+const DETERMINATION_COLOR_NAMES_ES: Record<number, string> = {
+  1: "Apetito",
+  2: "Sabor",   // "Taste" como Determination Category. Cognition "Taste" → "Gusto" porque son ejes distintos (digestion vs cognition).
+  3: "Sed",
+  4: "Tacto",
+  5: "Sonido",
+  6: "Luz",
+};
 
 const DETERMINATION_SUB_BY_COLOR: Record<number, { left: string; right: string }> = {
   1: { left: "Consecutive", right: "Alternating" },
@@ -144,6 +200,14 @@ const DETERMINATION_SUB_BY_COLOR: Record<number, { left: string; right: string }
   4: { left: "Calm", right: "Nervous" },
   5: { left: "High", right: "Low" },
   6: { left: "Direct", right: "Indirect" },
+};
+const DETERMINATION_SUB_BY_COLOR_ES: Record<number, { left: string; right: string }> = {
+  1: { left: "Consecutivo", right: "Alternante" },
+  2: { left: "Abierto", right: "Cerrado" },
+  3: { left: "Caliente", right: "Frío" },
+  4: { left: "Calmo", right: "Nervioso" },
+  5: { left: "Alto", right: "Bajo" },
+  6: { left: "Directo", right: "Indirecto" },
 };
 
 /**
@@ -159,12 +223,28 @@ const TRAJECTORY_PAIRS_BY_COLOR: Record<number, { left: string; right: string }>
   5: { left: "Conditioner", right: "Conditioned" },        // Guilt
   6: { left: "Observer", right: "Observed" },              // Innocence
 };
+const TRAJECTORY_PAIRS_BY_COLOR_ES: Record<number, { left: string; right: string }> = {
+  1: { left: "Comunalista", right: "Separatista" },        // Fear
+  2: { left: "Teísta", right: "Anti-Teísta" },             // Hope
+  3: { left: "Líder", right: "Seguidor" },                 // Desire
+  4: { left: "Maestro", right: "Novato" },                 // Need
+  5: { left: "Condicionador", right: "Condicionado" },     // Guilt
+  6: { left: "Observador", right: "Observado" },           // Innocence
+};
+
+// Binary L/R labels (Spanish translations for the universal cutoff tone 1-3 / 4-6).
+const BRAIN_ES = { left: "Activo", right: "Pasivo" } as const;
+const PERSONALITY_ES = { left: "Estratégico", right: "Receptivo" } as const;
+const VIEW_PERSPECTIVE_ES = { left: "Enfocada", right: "Periférica" } as const;
+const ENV_STYLE_ES = { left: "Observada", right: "Observadora" } as const;
 
 // ─── Public API ─────────────────────────────────────────────────────────────
 
+export type VariableLabelsLanguage = "en" | "es";
+
 export interface VariableLabels {
   /** From digestion.tone L/R. */
-  brain: "Active" | "Passive";
+  brain: string;
   /** From digestion.color + tone L/R sub-expression. Genetic Matrix surfaces just the sub-expression (e.g. "Open"). */
   determination: string;
   /** From digestion.color (the noun, e.g. "Taste"). Útil cuando se necesita el color name sin sub-expression. */
@@ -176,9 +256,9 @@ export interface VariableLabels {
   /** From environment.color + tone L/R (e.g. "Mountains - Passive"). */
   environmentDetail: string;
   /** From environment.tone L/R (universal observer/observed). */
-  environmentStyle: "Observed" | "Observer";
+  environmentStyle: string;
   /** From awareness.tone L/R. */
-  personality: "Strategic" | "Receptive";
+  personality: string;
   /** From awareness.color. */
   motivation: string;
   /** From awareness.tone (the tone-keynote). */
@@ -186,7 +266,7 @@ export interface VariableLabels {
   /** From awareness.color → pair, awareness.tone L/R → side. */
   trajectory: string;
   /** From perspective.tone L/R. */
-  viewPerspective: "Focused" | "Peripheral";
+  viewPerspective: string;
   /** From perspective.color. */
   view: string;
   /** awareness.color +3 mod 6 → Motivation table. */
@@ -199,68 +279,104 @@ export interface VariableLabels {
  * Computa los 13 labels semánticos del Variable Wheel a partir de las 4
  * Variables canónicas. Retorna strings vacíos si los inputs no son válidos
  * (color/tone fuera de rango).
+ *
+ * @param language Idioma de los labels. Default "es" (consistencia con header
+ *   en español del Foundation Chart). Pasá "en" para canon HD English.
  */
 export function computeVariableLabels(vars: {
   digestion: HdVariable;
   awareness: HdVariable;
   environment: HdVariable;
   perspective: HdVariable;
-}): VariableLabels {
+}, language: VariableLabelsLanguage = "es"): VariableLabels {
   const dig = vars.digestion;
   const aw = vars.awareness;
   const env = vars.environment;
   const persp = vars.perspective;
 
+  // Pick the right table family by language.
+  const T = language === "es"
+    ? {
+        cognition: COGNITION_BY_COLOR_ES,
+        motivation: MOTIVATION_BY_COLOR_ES,
+        sense: SENSE_BY_TONE_ES,
+        environment: ENVIRONMENT_BY_COLOR_ES,
+        envSub: ENVIRONMENT_SUB_BY_COLOR_ES,
+        view: VIEW_BY_COLOR_ES,
+        detCategory: DETERMINATION_COLOR_NAMES_ES,
+        detSub: DETERMINATION_SUB_BY_COLOR_ES,
+        trajectory: TRAJECTORY_PAIRS_BY_COLOR_ES,
+        brain: BRAIN_ES,
+        personality: PERSONALITY_ES,
+        viewPerspective: VIEW_PERSPECTIVE_ES,
+        envStyle: ENV_STYLE_ES,
+      }
+    : {
+        cognition: COGNITION_BY_COLOR,
+        motivation: MOTIVATION_BY_COLOR,
+        sense: SENSE_BY_TONE,
+        environment: ENVIRONMENT_BY_COLOR,
+        envSub: ENVIRONMENT_SUB_BY_COLOR,
+        view: VIEW_BY_COLOR,
+        detCategory: DETERMINATION_COLOR_NAMES,
+        detSub: DETERMINATION_SUB_BY_COLOR,
+        trajectory: TRAJECTORY_PAIRS_BY_COLOR,
+        brain: { left: "Active", right: "Passive" } as const,
+        personality: { left: "Strategic", right: "Receptive" } as const,
+        viewPerspective: { left: "Focused", right: "Peripheral" } as const,
+        envStyle: { left: "Observed", right: "Observer" } as const,
+      };
+
   // Brain — digestion.tone L/R.
-  const brain: "Active" | "Passive" = isLeftTone(dig.tone) ? "Active" : "Passive";
+  const brain = isLeftTone(dig.tone) ? T.brain.left : T.brain.right;
 
   // Determination — digestion.color + tone L/R sub-expression.
-  const detCategory = DETERMINATION_COLOR_NAMES[dig.color] ?? "";
-  const detSub = DETERMINATION_SUB_BY_COLOR[dig.color];
+  const detCategory = T.detCategory[dig.color] ?? "";
+  const detSub = T.detSub[dig.color];
   const determination = detSub
     ? isLeftTone(dig.tone) ? detSub.left : detSub.right
     : "";
 
   // Cognition — awareness.color.
-  const cognition = COGNITION_BY_COLOR[aw.color] ?? "";
+  const cognition = T.cognition[aw.color] ?? "";
 
-  // Environment — environment.color (e.g. "Mountains").
-  const envName = ENVIRONMENT_BY_COLOR[env.color] ?? "";
-  const envSub = ENVIRONMENT_SUB_BY_COLOR[env.color];
+  // Environment — environment.color (e.g. "Mountains" / "Montañas").
+  const envName = T.environment[env.color] ?? "";
+  const envSub = T.envSub[env.color];
   const envSubLabel = envSub
     ? isLeftTone(env.tone) ? envSub.left : envSub.right
     : "";
   const environmentDetail = envName && envSubLabel ? `${envName} - ${envSubLabel}` : envName;
 
   // Environment Style — environment.tone L/R (universal).
-  const environmentStyle: "Observed" | "Observer" = isLeftTone(env.tone) ? "Observed" : "Observer";
+  const environmentStyle = isLeftTone(env.tone) ? T.envStyle.left : T.envStyle.right;
 
   // Personality — awareness.tone L/R.
-  const personality: "Strategic" | "Receptive" = isLeftTone(aw.tone) ? "Strategic" : "Receptive";
+  const personality = isLeftTone(aw.tone) ? T.personality.left : T.personality.right;
 
   // Motivation — awareness.color.
-  const motivation = MOTIVATION_BY_COLOR[aw.color] ?? "";
+  const motivation = T.motivation[aw.color] ?? "";
 
   // Sense — awareness.tone.
-  const sense = SENSE_BY_TONE[aw.tone] ?? "";
+  const sense = T.sense[aw.tone] ?? "";
 
   // Trajectory — awareness.color → pair, awareness.tone L/R → side.
-  const trajPair = TRAJECTORY_PAIRS_BY_COLOR[aw.color];
+  const trajPair = T.trajectory[aw.color];
   const trajectory = trajPair
     ? isLeftTone(aw.tone) ? trajPair.left : trajPair.right
     : "";
 
   // View Perspective — perspective.tone L/R.
-  const viewPerspective: "Focused" | "Peripheral" = isLeftTone(persp.tone) ? "Focused" : "Peripheral";
+  const viewPerspective = isLeftTone(persp.tone) ? T.viewPerspective.left : T.viewPerspective.right;
 
   // View — perspective.color.
-  const view = VIEW_BY_COLOR[persp.color] ?? "";
+  const view = T.view[persp.color] ?? "";
 
-  // Transferred Motivation — awareness.color +3 mod 6 → MOTIVATION_BY_COLOR.
-  const transferredMotivation = MOTIVATION_BY_COLOR[transferColor(aw.color)] ?? "";
+  // Transferred Motivation — awareness.color +3 mod 6 → motivation table.
+  const transferredMotivation = T.motivation[transferColor(aw.color)] ?? "";
 
-  // Transferred View — perspective.color +3 mod 6 → VIEW_BY_COLOR.
-  const transferredView = VIEW_BY_COLOR[transferColor(persp.color)] ?? "";
+  // Transferred View — perspective.color +3 mod 6 → view table.
+  const transferredView = T.view[transferColor(persp.color)] ?? "";
 
   return {
     brain,
