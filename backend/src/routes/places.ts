@@ -1,16 +1,17 @@
 /**
  * Places autocomplete endpoint.
  *
- * Backend proxy a GeoNames con auth requerida y cache 24h. El frontend nunca
- * pega directo a GeoNames porque (1) el username es secreto y (2) queremos
- * controlar cache, rate-limit y telemetría server-side.
+ * Backend proxy a GeoNames con cache 24h. **Endpoint público**: no expone
+ * PII (solo nombres de ciudades públicos), y el step birthData del onboarding
+ * lo necesita ANTES de que el users row esté bootstrap-ado/linkeado a la
+ * sesión SuperTokens — atar este endpoint a `kind: "linked"` rompería el
+ * flow porque el bootstrap ocurre recién al submit del cálculo. El rate-limit
+ * lo aporta GeoNames (20k credits/día por username) + nuestro LRU cache.
+ *
+ * El frontend nunca pega directo a GeoNames porque (1) el username es secreto
+ * y (2) queremos cachear server-side y controlar telemetría.
  */
 import type { FastifyInstance } from "fastify";
-import { type AuthenticatedRequest } from "../auth/session.js";
-import {
-  resolveRequestCurrentUser,
-  sendCurrentUserError,
-} from "../auth/current-user.js";
 import {
   autocompletePlaces,
   PlacesProviderError,
@@ -26,15 +27,6 @@ export async function placesRoutes(app: FastifyInstance): Promise<void> {
   app.get<{ Querystring: AutocompleteQuery }>(
     "/places/autocomplete",
     async (req, reply) => {
-      const currentUser = await resolveRequestCurrentUser(
-        req as AuthenticatedRequest,
-        reply,
-      );
-      if (reply.sent) return;
-      if (currentUser.kind !== "linked") {
-        return sendCurrentUserError(reply, currentUser);
-      }
-
       const q = (req.query.q ?? "").trim();
       if (q.length < 2) {
         return reply.status(200).send({ results: [] });

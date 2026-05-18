@@ -601,6 +601,11 @@ export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
                       No pudimos buscar lugares ahora. Intentá de nuevo en un momento.
                     </div>
                   )}
+                  {!placeError && !placeLoading && !selectedPlace && placeQuery.trim().length >= 2 && placeResults.length === 0 && (
+                    <div style={{ marginTop: 8, color: "var(--text-muted)", fontSize: 12, fontFamily: "var(--font-sans)" }}>
+                      No encontramos ese lugar. Probá con otro nombre o ortografía.
+                    </div>
+                  )}
                 </div>
               </BirthField>
             </div>
