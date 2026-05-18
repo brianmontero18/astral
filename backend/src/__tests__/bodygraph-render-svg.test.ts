@@ -248,19 +248,19 @@ describe("renderBodygraphSvg", () => {
       expect(toneMatch).toBeTruthy();
       const toneBlock = toneMatch![1];
 
-      // Topology: 8 numbered triangles + 4 orientation arrows.
-      const numberedTriangles = (toneBlock.match(/<polygon points="[^"]*" fill="none" stroke="(#22A33C|#E5A800)"/g) ?? []).length;
-      expect(numberedTriangles).toBe(8);
-      const orientationArrows = (toneBlock.match(/<polygon points="[^"]*" fill="none" stroke="(#C8102E|#000000)"/g) ?? []).length;
-      expect(orientationArrows).toBe(4);
+      // Topology: 8 outlined triangles (stroke green or yellow, no fill) +
+      // arrows (Genetic-Matrix style: filled head + stem rectangle, side color).
+      const outlinedTriangles = (toneBlock.match(/<polygon points="[^"]*" fill="none" stroke="(#22A33C|#E5A800)"/g) ?? []).length;
+      expect(outlinedTriangles).toBe(8);
 
-      // Ground-truth color/tone values appear as text labels (any order).
-      // Helper: count text elements containing a given label with a specific fill color.
+      // Numbers render in the SAME color as the triangle outline. Match the
+      // <text fill="..."> label right after each triangle's polygon.
       const countLabel = (label: string, color: string) => {
-        const re = new RegExp(`fill="${color}"[^>]*>${label}<`, "g");
+        const re = new RegExp(`<polygon[^/]*stroke="${color}"[^/]*/>` +
+          `<text [^>]*fill="${color}"[^>]*>${label}<`, "g");
         return (toneBlock.match(re) ?? []).length;
       };
-      // GREEN labels (tone): D.Sun=1, D.NN=5, P.Sun=2, P.NN=3 — 4 distinct numbers each appearing once.
+      // GREEN labels (tone): D.Sun=1, D.NN=5, P.Sun=2, P.NN=3.
       expect(countLabel("1", "#22A33C")).toBe(1);
       expect(countLabel("5", "#22A33C")).toBe(1);
       expect(countLabel("2", "#22A33C")).toBe(1);
@@ -288,8 +288,8 @@ describe("renderBodygraphSvg", () => {
       const rLetters = (toneBlock.match(/>R</g) ?? []).length;
       expect(lLetters).toBe(3);
       expect(rLetters).toBe(1);
-      // Each letter has a paired circle outline.
-      const circles = (toneBlock.match(/<circle [^/]+fill="none"/g) ?? []).length;
+      // Each letter circle has white fill (so the letter reads on a clean disc).
+      const circles = (toneBlock.match(/<circle [^/]+fill="white"/g) ?? []).length;
       expect(circles).toBe(4);
     });
 

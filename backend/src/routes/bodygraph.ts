@@ -11,6 +11,7 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { calculateBodygraph, type BirthData } from "../bodygraph/calculate.js";
 import { renderBodygraphPdf } from "../bodygraph/render-pdf.js";
+import { renderFullDocument } from "../bodygraph/render-svg.js";
 
 interface RequestBody {
   date?: unknown;
@@ -77,6 +78,39 @@ export async function bodygraphRoutes(app: FastifyInstance): Promise<void> {
       const message = err instanceof Error ? err.message : String(err);
       app.log.error({ err }, "bodygraph preview failed");
       return reply.status(500).send({ error: "calculation_failed", message });
+    }
+  });
+
+  // Iteración visual: pegás los birth params en la URL y abrís el SVG en el
+  // navegador. Útil para iterar el render sin pasar por el endpoint PDF
+  // (que rasteriza a PNG → más lento y sin zoom infinito).
+  app.get<{ Querystring: Record<string, string | undefined> }>("/bodygraph/preview-svg", async (req, reply) => {
+    const q = req.query ?? {};
+    const tzRaw = q.timezoneOffsetHours ?? q.tz;
+    const body: RequestBody = {
+      date: q.date,
+      time: q.time,
+      timezoneOffsetHours: tzRaw !== undefined ? Number(tzRaw) : undefined,
+      placeLabel: q.placeLabel,
+      name: q.name,
+    };
+    const parsed = parseBirthBody(body);
+    if (!parsed.ok) return sendValidationError(reply, parsed.status, parsed.error, parsed.message);
+
+    try {
+      const profile = await calculateBodygraph(parsed.birth);
+      const widthRaw = q.width !== undefined ? Number(q.width) : undefined;
+      const width = widthRaw && !Number.isNaN(widthRaw) ? widthRaw : 1400;
+      const svg = renderFullDocument(profile, { width });
+      return reply
+        .header("Content-Type", "image/svg+xml; charset=utf-8")
+        .header("Cache-Control", "no-store")
+        .status(200)
+        .send(svg);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      app.log.error({ err }, "bodygraph svg preview failed");
+      return reply.status(500).send({ error: "svg_render_failed", message });
     }
   });
 
