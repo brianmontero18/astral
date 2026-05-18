@@ -1,0 +1,23 @@
+backend/src/__tests__/api-places.test.ts
+  s_ac7c64e9db953c::t_246d8fb0e297ea 63-64,69-70,111-112,124,134,145
+backend/src/routes/places.ts
+  s_ac7c64e9db953c::t_d638c268331710 4-12
+frontend/src/components/OnboardingFlow.tsx
+  s_ac7c64e9db953c::t_6132e6585725a0 604-608
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.9",
+  "base_commit_sha": "f3e26f5d8a6e74a90cddb5d451986592498e998f",
+  "prompts": {},
+  "sessions": {
+    "s_ac7c64e9db953c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b1e17abf-f020-4a54-95d9-4c95b247ef3b",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
