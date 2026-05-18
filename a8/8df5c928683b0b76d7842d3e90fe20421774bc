@@ -1,0 +1,30 @@
+backend/src/bodygraph/render-svg.ts
+  s_b261358f8f8c95::t_be86bf5258c1bb 760-803,805-811,813,817-848,852-853,855-863
+  s_b261358f8f8c95::t_d6528c4b135c9a 812,814
+  s_b261358f8f8c95::t_bb1e33d2fe11cb 1011-1015,1024
+  s_b261358f8f8c95::t_e2d38df5e541ff 33
+  s_b261358f8f8c95::t_421cfd82be16fd 932-933,937,949
+  s_b261358f8f8c95::t_bf933033c9b819 804,815-816
+  s_b261358f8f8c95::t_ca4c56b279a653 849-851,854
+backend/src/__tests__/bodygraph-render-svg.test.ts
+  s_b261358f8f8c95::t_3b9d20d4209e58 333-335
+  s_b261358f8f8c95::t_550cfc00b1e41a 296-332,336-337
+backend/src/hd-channels.ts
+  s_b261358f8f8c95::t_639dbffe12853d 23,25-26,33-41,43-48,50-56,58-64,66-69,71-73,76-84
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "a88df5c928683b0b76d7842d3e90fe20421774bc",
+  "prompts": {},
+  "sessions": {
+    "s_b261358f8f8c95": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "546a20e1-3614-4c30-8828-b50165594b08",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
