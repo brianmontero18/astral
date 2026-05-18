@@ -30,6 +30,7 @@ import {
   renderPlanetGlyph,
   type PlanetName,
 } from "./planet-symbols.js";
+import { findChannelById, formatChannelIdPadded } from "../hd-channels.js";
 
 // ─── Activation helpers ─────────────────────────────────────────────────────
 
@@ -756,6 +757,110 @@ function renderHeader(profile: UserProfile, opts: HeaderOptions): string {
   return svg;
 }
 
+// ─── Footer (Design + Personality + Channels blocks) ────────────────────────
+//
+// Tres columnas debajo del chart con los 13 labels del Variable Wheel + lista
+// de canales activos (con names en inglés, en formato "GGgg - Name" matching
+// Genetic Matrix).
+
+interface FooterOptions {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+const MONTH_FULL_EN = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+/** Format an ISO date for the "Design Date" row (style: "01 October 1988, 17:14:58"). */
+function formatDesignDateEn(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  const month = MONTH_FULL_EN[d.getUTCMonth()];
+  const year = d.getUTCFullYear();
+  const hh = String(d.getUTCHours()).padStart(2, "0");
+  const mm = String(d.getUTCMinutes()).padStart(2, "0");
+  const ss = String(d.getUTCSeconds()).padStart(2, "0");
+  return `${day} ${month} ${year}, ${hh}:${mm}:${ss}`;
+}
+
+function renderFooter(profile: UserProfile, opts: FooterOptions): string {
+  const hd = profile.humanDesign;
+  const labels = hd.variableLabels;
+  if (!labels) return "";
+
+  const colGap = opts.width * 0.02;
+  const colW = (opts.width - 2 * colGap) / 3;
+  const titleSize = opts.height * 0.10;
+  const lineSize = opts.height * 0.060;
+  const lineH = lineSize * 1.45;
+
+  const renderBlock = (
+    title: string,
+    rows: Array<{ label: string; value: string; separator?: string }>,
+    colIndex: number,
+  ): string => {
+    const x = opts.x + colIndex * (colW + colGap);
+    let chunk = "";
+    chunk +=
+      `<text x="${f(x)}" y="${f(opts.y + titleSize)}" font-size="${f(titleSize)}" ` +
+      `fill="${COLOR_HEADER_TEXT}" font-family="Helvetica, Arial, sans-serif" font-weight="bold">${escapeXml(title)}</text>`;
+    const startY = opts.y + titleSize + lineH * 0.6;
+    for (let i = 0; i < rows.length; i++) {
+      const y = startY + i * lineH;
+      const sep = rows[i].separator ?? ": ";
+      const text = `${rows[i].label}${sep}${rows[i].value || "—"}`;
+      chunk +=
+        `<text x="${f(x)}" y="${f(y)}" font-size="${f(lineSize)}" ` +
+        `fill="${COLOR_BODY_TEXT}" font-family="Helvetica, Arial, sans-serif">${escapeXml(text)}</text>`;
+    }
+    return chunk;
+  };
+
+  // Design block.
+  const designRows: Array<{ label: string; value: string }> = [];
+  if (hd.design?.date) {
+    designRows.push({ label: "Design Date", value: formatDesignDateEn(hd.design.date) });
+  }
+  designRows.push(
+    { label: "Brain", value: labels.brain },
+    { label: "Determination", value: labels.determination },
+    { label: "Cognition", value: labels.cognition },
+    { label: "Environment", value: labels.environmentDetail },
+    { label: "Environment Style", value: labels.environmentStyle },
+  );
+
+  // Personality block.
+  const personalityRows: Array<{ label: string; value: string }> = [
+    { label: "Personality", value: labels.personality },
+    { label: "Motivation", value: labels.motivation },
+    { label: "Sense", value: labels.sense },
+    { label: "Trajectory", value: labels.trajectory },
+    { label: "View Perspective", value: labels.viewPerspective },
+    { label: "View", value: labels.view },
+    { label: "Transferred Motivation", value: labels.transferredMotivation },
+    { label: "Transferred View", value: labels.transferredView },
+  ];
+
+  // Channels block. Format: "GGgg - Name" (Genetic Matrix dialect). English
+  // name from hd-channels.ts `nameEn`.
+  const channelRows: Array<{ label: string; value: string; separator?: string }> = hd.channels.map((ch) => {
+    const meta = findChannelById(ch.id);
+    const nameEn = meta?.nameEn ?? ch.name;
+    return { label: formatChannelIdPadded(ch.id), value: nameEn, separator: " - " };
+  });
+
+  let svg = "";
+  svg += renderBlock("Design", designRows, 0);
+  svg += renderBlock("Personality", personalityRows, 1);
+  svg += renderBlock("Channels", channelRows, 2);
+  return svg;
+}
+
 // ─── Public API: chart-only SVG ─────────────────────────────────────────────
 
 export interface RenderOptions {
@@ -824,11 +929,12 @@ export function renderFullDocument(
 ): string {
   const lookup = buildLookup(profile);
 
-  // Outer viewBox.
+  // Outer viewBox. Height extended from 2.5 → 2.95 to accommodate the footer
+  // (Design + Personality + Channels blocks below the chart).
   const vbX = 0;
   const vbY = 0;
   const vbW = 2.4;
-  const vbH = 2.5;
+  const vbH = 2.95;
   const width = opts.width ?? 1000;
   // Preserve aspect ratio.
   const height = opts.height ?? Math.round((width * vbH) / vbW);
@@ -840,6 +946,7 @@ export function renderFullDocument(
   // between panels and chart (was 0.10 wide, now 0.15 — Genetic Matrix style).
   const designP = { x: 0.10, y: 0.50, w: 0.40, h: 1.40 };
   const personP = { x: 1.80, y: 0.50, w: 0.40, h: 1.40 };
+  const footer =  { x: 0.10, y: 2.05, w: 2.20, h: 0.85 };
 
   // 1. Header (reads birth metadata from profile.birthData if present).
   const headerSvg = renderHeader(profile, {
@@ -901,6 +1008,11 @@ export function renderFullDocument(
     });
   }
 
+  // 6. Footer: Design + Personality + Channels blocks.
+  const footerSvg = renderFooter(profile, {
+    x: footer.x, y: footer.y, width: footer.w, height: footer.h,
+  });
+
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vbX} ${vbY} ${vbW} ${vbH}" width="${width}" height="${height}">` +
     `<rect x="0" y="0" width="${vbW}" height="${vbH}" fill="#FFFFFF"/>` +
@@ -909,6 +1021,7 @@ export function renderFullDocument(
     `<g id="chart">${chartGroup}</g>` +
     `<g id="panel-personality">${personPanelSvg}</g>` +
     `<g id="tone-groups">${toneGroupsSvg}</g>` +
+    `<g id="footer">${footerSvg}</g>` +
     `</svg>`
   );
 }
