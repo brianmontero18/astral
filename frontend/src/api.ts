@@ -435,6 +435,68 @@ export async function replaceBodygraph(
   return res.json();
 }
 
+export interface BirthPlace {
+  /** Coordenadas geográficas — único input que el backend usa para resolver
+   *  el timezone histórico (geo-tz + luxon). */
+  lat: number;
+  lon: number;
+  /** Display label (ej "Esquel, Chubut, Argentina") para mostrar al usuario. */
+  label: string;
+}
+
+export interface BodygraphFromBirthInput {
+  name?: string;
+  /** ISO yyyy-mm-dd, fecha local en el lugar de nacimiento. */
+  date: string;
+  /** HH:mm 24h, hora local en el lugar de nacimiento. */
+  time: string;
+  place: BirthPlace;
+}
+
+export interface BodygraphFromBirthResponse {
+  user: CurrentUserResponse;
+  profile: UserProfile;
+}
+
+export async function submitBodygraphFromBirth(
+  input: BodygraphFromBirthInput,
+): Promise<BodygraphFromBirthResponse> {
+  const res = await fetch(`${BASE}/me/bodygraph/from-birth`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    const err = await readErrorMessage(res);
+    throw new Error(err);
+  }
+  return res.json();
+}
+
+export interface PlaceResult {
+  geonameId: number;
+  name: string;
+  admin1: string;
+  country: string;
+  countryCode: string;
+  lat: number;
+  lon: number;
+  population: number;
+}
+
+export async function searchPlaces(query: string): Promise<PlaceResult[]> {
+  const trimmed = query.trim();
+  if (trimmed.length < 2) return [];
+  const url = `${BASE}/places/autocomplete?q=${encodeURIComponent(trimmed)}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    const err = await readErrorMessage(res);
+    throw new Error(err);
+  }
+  const data = (await res.json()) as { results: PlaceResult[] };
+  return data.results ?? [];
+}
+
 export async function getAdminUsers({
   query,
   page,

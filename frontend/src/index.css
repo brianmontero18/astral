@@ -1174,6 +1174,38 @@ textarea { outline: none !important; }
   font-size: 22px;
 }
 
+/* Birth-data form input — left-aligned, rectangular, padding 12×14,
+   coherente con la jerarquía de inputs del sistema sin reusar el underline
+   center-aligned de .astral-auth-input (que es para inputs hero). */
+.onboarding-birth-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--surface-deeper);
+  border: 1px solid rgba(248, 244, 232, 0.12);
+  border-radius: 10px;
+  padding: 12px 14px;
+  color: var(--text-main);
+  font-size: 14px;
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  color-scheme: dark;
+}
+
+.onboarding-birth-input::placeholder {
+  color: rgba(248, 244, 232, 0.4);
+}
+
+.onboarding-birth-input:hover {
+  border-color: rgba(232, 201, 132, 0.35);
+}
+
+.onboarding-birth-input:focus,
+.onboarding-birth-input:focus-visible {
+  border-color: #e8c984;
+  box-shadow: 0 0 0 3px rgba(232, 201, 132, 0.12);
+}
+
 .astral-auth-primary,
 .astral-auth-secondary {
   width: 100%;

@@ -23,9 +23,18 @@ export interface HumanDesignGate {
 export interface UserProfile {
   name: string;
   birthData?: {
-    date: string;
-    time: string;
-    location: string;
+    /** Local ISO datetime con offset (ej "1988-12-28T04:13:00-02:00"). */
+    dateLocalIso: string;
+    /** UTC ISO datetime (ej "1988-12-28T06:13:00.000Z"). */
+    dateUtcIso: string;
+    /** Display label del lugar (ej "Esquel, Chubut, Argentina"). */
+    placeLabel?: string;
+    /** Coordenadas geográficas — fuente de verdad para resolver tz histórica. */
+    coordinates?: { lat: number; lon: number };
+    /** Offset UTC efectivo, signed hours fraccionales (ej -2 para Esquel DST 1988). */
+    timezoneOffsetHours?: number;
+    /** Edad calculada al momento de la lectura. */
+    ageYears?: number;
   };
   humanDesign: {
     type: string;

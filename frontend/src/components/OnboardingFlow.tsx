@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   AppUserOnboardingStep,
   UserProfile,
@@ -8,8 +8,10 @@ import type {
 import {
   bootstrapCurrentUser,
   patchOnboarding,
-  replaceBodygraph,
+  searchPlaces,
+  submitBodygraphFromBirth,
   updateCurrentUser,
+  type PlaceResult,
 } from "../api";
 import { getOnboardingFailureMessage } from "../onboarding-errors";
 import { ChannelChips } from "./ChannelChips";
@@ -33,31 +35,63 @@ interface Props {
   resumeFrom?: ResumeContext;
 }
 
-type Step = "welcome" | "name" | "upload" | "extracting" | "review" | "intake";
+type Step = "welcome" | "name" | "birthData" | "calculating" | "review" | "intake";
 
-interface FileSlot {
-  file: File | null;
-  label: string;
+// El backend persiste "upload" para representar "falta cargar/calcular bodygraph";
+// el frontend renderiza ese estado con el step birthData (form de fecha/hora/lugar).
+function toOnboardingStep(step: Step): AppUserOnboardingStep | null {
+  switch (step) {
+    case "name": return "name";
+    case "birthData": return "upload";
+    case "calculating": return "upload";
+    case "review": return "review";
+    case "intake": return "intake";
+    case "welcome": return null;
+  }
 }
 
-const STEP_ORDER: Step[] = ["name", "upload", "review", "intake"];
+const STEP_ORDER: Step[] = ["name", "birthData", "review", "intake"];
 const STEP_LABEL: Record<Step, string> = {
   welcome: "",
   name: "Empecemos",
-  upload: "Tu carta",
-  extracting: "Tu carta",
+  birthData: "Tu nacimiento",
+  calculating: "Tu nacimiento",
   review: "Tu identidad",
   intake: "Tu contexto",
 };
 
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_RE = /^\d{2}:\d{2}$/;
+
+function formatPlaceLabel(p: PlaceResult): string {
+  const parts = [p.name, p.admin1, p.country].filter((s) => s && s.length > 0);
+  // Si admin1 duplica el name (capitales tipo Buenos Aires F.D.), evitar repetir.
+  if (parts.length >= 2 && parts[1] === parts[0]) parts.splice(1, 1);
+  return parts.join(", ");
+}
+
 export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
   const isResume = !!resumeFrom;
-  const [step, setStep] = useState<Step>(
-    resumeFrom ? resumeFrom.initialStep : "welcome",
-  );
+  // Mapear el step persistido del backend al step interno (upload → birthData).
+  const initialInternalStep: Step = resumeFrom
+    ? (resumeFrom.initialStep === "upload" ? "birthData" : resumeFrom.initialStep)
+    : "welcome";
+  const [step, setStep] = useState<Step>(initialInternalStep);
   const [name, setName] = useState(resumeFrom?.user.name ?? "");
   const [nameError, setNameError] = useState<string | null>(null);
-  const [slot, setSlot] = useState<FileSlot>({ file: null, label: "Carta de Diseño Humano" });
+
+  // Birth-data form state
+  const [birthDate, setBirthDate] = useState("");
+  const [birthTime, setBirthTime] = useState("");
+  const [selectedPlace, setSelectedPlace] = useState<PlaceResult | null>(null);
+  const [placeQuery, setPlaceQuery] = useState("");
+  const [placeResults, setPlaceResults] = useState<PlaceResult[]>([]);
+  const [placeLoading, setPlaceLoading] = useState(false);
+  const [placeOpen, setPlaceOpen] = useState(false);
+  const [placeError, setPlaceError] = useState<string | null>(null);
+  const placeInputRef = useRef<HTMLInputElement>(null);
+  const placeBoxRef = useRef<HTMLDivElement>(null);
+
   const [bootstrappedUser, setBootstrappedUser] = useState<LocalUser | null>(
     resumeFrom?.user ?? null,
   );
@@ -66,17 +100,60 @@ export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
   );
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
 
-  const hasFile = !!slot.file;
-  const currentStepIndex = step === "extracting" ? STEP_ORDER.indexOf("review") : STEP_ORDER.indexOf(step);
+  const currentStepIndex = step === "calculating"
+    ? STEP_ORDER.indexOf("review")
+    : STEP_ORDER.indexOf(step);
   const showStepIndicator = step !== "welcome";
 
-  const handleFileChange = (file: File | null) => {
-    setError(null);
-    setSlot((prev) => ({ ...prev, file }));
-  };
+  // ─── Places autocomplete: debounce + abort previo en cada cambio ─────────
+  useEffect(() => {
+    if (selectedPlace && placeQuery === formatPlaceLabel(selectedPlace)) {
+      // El usuario ya seleccionó este lugar; no relanzar búsqueda.
+      return;
+    }
+    const q = placeQuery.trim();
+    if (q.length < 2) {
+      setPlaceResults([]);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      setPlaceLoading(true);
+      try {
+        const results = await searchPlaces(q);
+        if (!cancelled) {
+          setPlaceResults(results);
+          setPlaceOpen(true);
+          setPlaceError(null);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setPlaceError(err instanceof Error ? err.message : String(err));
+          setPlaceResults([]);
+        }
+      } finally {
+        if (!cancelled) setPlaceLoading(false);
+      }
+    }, 250);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [placeQuery, selectedPlace]);
+
+  // Cerrar el dropdown si el click va afuera.
+  useEffect(() => {
+    if (!placeOpen) return;
+    const onDocClick = (ev: MouseEvent) => {
+      if (!placeBoxRef.current) return;
+      if (!placeBoxRef.current.contains(ev.target as Node)) {
+        setPlaceOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [placeOpen]);
 
   const handleNameContinue = async () => {
     if (!name.trim()) {
@@ -86,13 +163,13 @@ export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
     setNameError(null);
     if (isResume) {
       try {
-        await patchOnboarding({ name: name.trim(), step: "upload" });
+        await patchOnboarding({ name: name.trim(), step: toOnboardingStep("birthData") });
       } catch (e) {
         setError(getOnboardingFailureMessage(e));
         return;
       }
     }
-    setStep("upload");
+    setStep("birthData");
   };
 
   const handleNameChange = (value: string) => {
@@ -100,44 +177,48 @@ export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
     if (nameError) setNameError(null);
   };
 
-  const handleSubmitUpload = () => {
-    if (!hasFile) {
-      setError("Subí tu PDF para canalizar tu energía.");
-      return;
-    }
-    handleExtract();
+  const handlePlacePick = (p: PlaceResult) => {
+    setSelectedPlace(p);
+    setPlaceQuery(formatPlaceLabel(p));
+    setPlaceResults([]);
+    setPlaceOpen(false);
+    setPlaceError(null);
   };
 
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    if (!isDragging) setIsDragging(true);
-  };
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (!file) return;
-    if (file.type !== "application/pdf") {
-      setError("Solo aceptamos PDF exportado desde MyHumanDesign o Genetic Matrix.");
-      return;
+  const handlePlaceInputChange = (value: string) => {
+    setPlaceQuery(value);
+    if (selectedPlace && value !== formatPlaceLabel(selectedPlace)) {
+      setSelectedPlace(null);
     }
-    handleFileChange(file);
+    setError(null);
   };
 
-  const handleExtract = async () => {
-    setStep("extracting");
+  const handleSubmitBirthData = () => {
+    if (!DATE_RE.test(birthDate)) {
+      setError("Ingresá una fecha válida (formato YYYY-MM-DD).");
+      return;
+    }
+    if (!TIME_RE.test(birthTime)) {
+      setError("Ingresá una hora válida (formato HH:mm 24h).");
+      return;
+    }
+    if (!selectedPlace) {
+      setError("Elegí un lugar de la lista para que podamos resolver tu zona horaria.");
+      return;
+    }
+    handleCompute();
+  };
+
+  const handleCompute = async () => {
+    if (!selectedPlace) return;
+    setStep("calculating");
     setError(null);
     setLoading(true);
 
     try {
       if (!isResume) {
-        // Legacy self-signup path: the users row does not exist yet, so
-        // we have to bootstrap it before uploading and extracting. Resume
-        // mode skips this — the row was created by POST /api/admin/users.
+        // Legacy self-signup: bootstrap el users row con placeholder antes
+        // de calcular. Resume mode skips this — el row ya existe.
         const tempProfile: UserProfile = {
           name,
           humanDesign: {
@@ -149,11 +230,18 @@ export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
         };
         await bootstrapCurrentUser(name, tempProfile);
       }
-      if (!slot.file) {
-        throw new Error("Subí tu PDF para canalizar tu energía.");
-      }
 
-      const { user: currentUser, profile } = await replaceBodygraph(slot.file);
+      const { user: currentUser, profile } = await submitBodygraphFromBirth({
+        name: name.trim() || undefined,
+        date: birthDate,
+        time: birthTime,
+        place: {
+          lat: selectedPlace.lat,
+          lon: selectedPlace.lon,
+          label: formatPlaceLabel(selectedPlace),
+        },
+      });
+
       if (isResume) {
         await patchOnboarding({ step: "review" });
       }
@@ -166,11 +254,10 @@ export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
         status: currentUser.status,
       });
       setExtractedProfile(profile);
-
       setStep("review");
     } catch (e) {
       setError(getOnboardingFailureMessage(e));
-      setStep("upload");
+      setStep("birthData");
     } finally {
       setLoading(false);
     }
@@ -178,9 +265,6 @@ export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
 
   const handleConfirm = async () => {
     if (!bootstrappedUser || !extractedProfile) return;
-    // Bridge to the intake step before handing off to the chat. The bodygraph
-    // is the cold/technical artifact; the intake is where the user tells us
-    // about their business so chat answers stop being generic from turn 1.
     if (isResume) {
       try {
         await patchOnboarding({ step: "intake" });
@@ -197,16 +281,12 @@ export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
     setError(null);
     try {
       if (isResume) {
-        // Atomic: persist intake + flip onboarding_status to 'complete' so
-        // the next bootstrap routes straight to chat.
         await patchOnboarding({ intake, complete: true });
       } else {
         await updateCurrentUser(extractedProfile.name, extractedProfile, intake);
       }
       onComplete(bootstrappedUser, extractedProfile);
     } catch (e) {
-      // Re-throw so IntakeView re-enables the form for retry; the error UI
-      // above the form is hydrated from `error` state.
       setError(getOnboardingFailureMessage(e));
       throw e;
     }
@@ -216,7 +296,7 @@ export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
     setBootstrappedUser(null);
     setExtractedProfile(null);
     setError(null);
-    setStep("upload");
+    setStep("birthData");
   };
 
   return (
@@ -397,8 +477,8 @@ export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
           </div>
         )}
 
-        {/* Step: Upload */}
-        {step === "upload" && (
+        {/* Step: Birth data */}
+        {step === "birthData" && (
           <div
             className="animate-fade-in"
             style={{
@@ -411,91 +491,131 @@ export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
             }}
           >
             <div style={{ color: "var(--color-primary)", fontSize: 10, letterSpacing: "0.20em", fontFamily: "var(--font-sans)", fontWeight: 700, marginBottom: 14, textTransform: "uppercase", textAlign: "center" }}>
-              Tu carta
+              Tu nacimiento
             </div>
             <h2 style={{ color: "var(--text-main)", fontSize: "28px", marginBottom: "12px", textAlign: "center", fontFamily: "var(--font-serif)", fontWeight: 500, lineHeight: 1.15 }}>
-              Sincronizá tu energía
+              Coordenadas de tu carta
             </h2>
             <p style={{ color: "var(--text-muted)", fontSize: "14px", textAlign: "center", marginBottom: "28px", fontWeight: 400, lineHeight: 1.6 }}>
-              Subí el gráfico de Diseño Humano para sintonizar el reporte a tu esencia.
+              Tu Diseño Humano se calcula desde el momento exacto y el lugar en que naciste.
             </p>
 
             {error && (
-              <div className="onboarding-inline-error" style={{ marginBottom: "20px" }}>
+              <div className="onboarding-inline-error" style={{ marginBottom: 20 }}>
                 {error}
               </div>
             )}
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "28px" }}>
-              <div
-                onClick={() => fileRef.current?.click()}
-                onDragOver={handleDragOver}
-                onDragEnter={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                role="button"
-                tabIndex={0}
-                aria-label={slot.file ? `Archivo seleccionado: ${slot.file.name}. Hacé clic para reemplazar.` : "Subí tu PDF de Diseño Humano"}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    fileRef.current?.click();
-                  }
-                }}
-                className={
-                  "onboarding-dropzone" +
-                  (slot.file ? " has-file" : "") +
-                  (isDragging ? " is-dragging" : "")
-                }
-              >
+            <div style={{ display: "flex", flexDirection: "column", gap: 20, marginBottom: 28 }}>
+              <BirthField label="Fecha de nacimiento">
                 <input
-                  ref={fileRef}
-                  type="file"
-                  accept="application/pdf,.pdf"
-                  style={{
-                    position: "absolute",
-                    width: 0,
-                    height: 0,
-                    opacity: 0,
-                    pointerEvents: "none",
-                  }}
-                  aria-hidden="true"
-                  tabIndex={-1}
-                  onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
+                  type="date"
+                  value={birthDate}
+                  onChange={(e) => { setBirthDate(e.target.value); setError(null); }}
+                  className="onboarding-birth-input"
+                  max={new Date().toISOString().slice(0, 10)}
                 />
-                <div className="onboarding-dropzone-icon" aria-hidden="true">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 16V4" />
-                    <path d="M6 10l6-6 6 6" />
-                    <path d="M4 20h16" />
-                  </svg>
+              </BirthField>
+
+              <BirthField label="Hora local (24h)">
+                <input
+                  type="time"
+                  value={birthTime}
+                  onChange={(e) => { setBirthTime(e.target.value); setError(null); }}
+                  className="onboarding-birth-input"
+                />
+              </BirthField>
+
+              <BirthField label="Lugar de nacimiento">
+                <div ref={placeBoxRef} style={{ position: "relative" }}>
+                  <input
+                    ref={placeInputRef}
+                    type="text"
+                    value={placeQuery}
+                    onChange={(e) => handlePlaceInputChange(e.target.value)}
+                    onFocus={() => { if (placeResults.length > 0) setPlaceOpen(true); }}
+                    placeholder="Empezá a escribir (ej. Buenos Aires, Esquel...)"
+                    className="onboarding-birth-input"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                  {placeLoading && (
+                    <div style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", fontSize: 12, fontFamily: "var(--font-sans)" }}>
+                      buscando…
+                    </div>
+                  )}
+                  {placeOpen && placeResults.length > 0 && (
+                    <ul
+                      role="listbox"
+                      style={{
+                        position: "absolute",
+                        top: "calc(100% + 6px)",
+                        left: 0,
+                        right: 0,
+                        background: "var(--surface-deeper)",
+                        border: "1px solid rgba(248, 244, 232, 0.1)",
+                        borderRadius: 10,
+                        padding: 6,
+                        margin: 0,
+                        listStyle: "none",
+                        maxHeight: 240,
+                        overflowY: "auto",
+                        zIndex: 10,
+                        boxShadow: "0 12px 32px rgba(0,0,0,0.35)",
+                      }}
+                    >
+                      {placeResults.map((p) => (
+                        <li key={p.geonameId}>
+                          <button
+                            type="button"
+                            onClick={() => handlePlacePick(p)}
+                            style={{
+                              width: "100%",
+                              textAlign: "left",
+                              background: "transparent",
+                              border: "none",
+                              color: "var(--text-main)",
+                              padding: "10px 12px",
+                              borderRadius: 6,
+                              fontFamily: "var(--font-sans)",
+                              fontSize: 14,
+                              cursor: "pointer",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 2,
+                            }}
+                            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(248, 244, 232, 0.06)"; }}
+                            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
+                          >
+                            <span style={{ fontFamily: "var(--font-serif)", fontSize: 15 }}>{p.name}</span>
+                            <span style={{ color: "var(--text-muted)", fontSize: 12 }}>
+                              {[p.admin1, p.country].filter(Boolean).join(", ")}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {placeError && (
+                    <div className="onboarding-inline-error" style={{ marginTop: 8, fontSize: 13 }}>
+                      No pudimos buscar lugares ahora. Intentá de nuevo en un momento.
+                    </div>
+                  )}
                 </div>
-                <div className="onboarding-dropzone-label">{slot.label}</div>
-                <div className="onboarding-dropzone-hint">
-                  {slot.file
-                    ? slot.file.name
-                    : isDragging
-                      ? "Soltá tu archivo aquí"
-                      : "Arrastrá tu PDF o hacé clic para elegirlo"}
-                </div>
-              </div>
-              <div className="onboarding-dropzone-meta">PDF de MyHumanDesign o Genetic Matrix · Hasta 10 MB</div>
+              </BirthField>
             </div>
 
             <button
-              onClick={handleSubmitUpload}
+              onClick={handleSubmitBirthData}
               className="astral-auth-primary"
               style={{ width: "100%" }}
             >
-              Canalizar energía
+              Calcular mi carta
             </button>
             <div className="onboarding-secondary-row">
               <button
                 type="button"
-                onClick={() => {
-                  setError(null);
-                  setStep("name");
-                }}
+                onClick={() => { setError(null); setStep("name"); }}
                 className="astral-auth-text-link"
               >
                 ← Volver
@@ -504,8 +624,8 @@ export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
           </div>
         )}
 
-        {/* Step: Extracting */}
-        {step === "extracting" && (
+        {/* Step: Calculating */}
+        {step === "calculating" && (
           <div
             style={{
               textAlign: "center",
@@ -530,10 +650,10 @@ export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
               }}
             />
             <h2 style={{ color: "var(--text-main)", fontSize: "22px", marginBottom: "12px", fontFamily: "var(--font-serif)", fontWeight: 500 }}>
-              Leyendo tu carta...
+              Calculando tu carta…
             </h2>
             <p style={{ color: "var(--text-muted)", fontSize: "14px", fontWeight: 400, lineHeight: 1.6 }}>
-              Nuestro motor está extrayendo tu Diseño Humano.
+              Sincronizando coordenadas astronómicas con tu Diseño Humano.
             </p>
           </div>
         )}
@@ -555,10 +675,10 @@ export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
               Tu identidad
             </div>
             <h2 style={{ color: "var(--text-main)", fontSize: "28px", marginBottom: "12px", textAlign: "center", fontFamily: "var(--font-serif)", fontWeight: 500, lineHeight: 1.15 }}>
-              Esto es lo que leímos
+              Esto es lo que calculamos
             </h2>
             <p style={{ color: "var(--text-muted)", fontSize: "14px", textAlign: "center", marginBottom: "28px", fontWeight: 400, lineHeight: 1.6 }}>
-              Revisá los datos extraídos. Si algo no cierra, volvé y subí otra carta.
+              Revisá los datos derivados de tu nacimiento. Si algo no cierra, volvé y ajustá las coordenadas.
             </p>
 
             <div className="profile-grid">
@@ -574,10 +694,10 @@ export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
             </div>
 
             <div className="profile-wide">
-              {extractedProfile.birthData?.date && (
+              {extractedProfile.birthData?.dateLocalIso && (
                 <ProfileField
                   label="Encarnación"
-                  value={`${extractedProfile.birthData.date}, ${extractedProfile.birthData.time || ""} — ${extractedProfile.birthData.location || ""}`}
+                  value={`${birthDate || extractedProfile.birthData.dateLocalIso.slice(0, 10)}, ${birthTime || ""} — ${extractedProfile.birthData.placeLabel || ""}`}
                 />
               )}
               <ProfileField label="Cruz" value={extractedProfile.humanDesign.incarnationCross} />
@@ -595,10 +715,10 @@ export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
             </div>
 
             <div style={{ display: "flex", gap: "12px", marginTop: 28 }}>
-              <button onClick={handleRetry} className="astral-auth-secondary" style={{ flex: 1 }}>
-                Volver
+              <button onClick={handleRetry} className="astral-auth-secondary" style={{ flex: 1 }} disabled={loading}>
+                Ajustar datos
               </button>
-              <button onClick={handleConfirm} className="astral-auth-primary" style={{ flex: 2 }}>
+              <button onClick={handleConfirm} className="astral-auth-primary" style={{ flex: 2 }} disabled={loading}>
                 Continuar
               </button>
             </div>
@@ -642,6 +762,26 @@ export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
         </div>
       </div>
     </div>
+  );
+}
+
+function BirthField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <span
+        style={{
+          color: "var(--text-muted)",
+          fontFamily: "var(--font-sans)",
+          fontSize: 11,
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          fontWeight: 600,
+        }}
+      >
+        {label}
+      </span>
+      {children}
+    </label>
   );
 }
 
