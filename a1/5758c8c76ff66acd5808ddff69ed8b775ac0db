@@ -1,0 +1,37 @@
+backend/src/places/geonames.ts
+  s_ac7c64e9db953c::t_04342be356b9c0 1-175
+backend/src/app.ts
+  s_ac7c64e9db953c::t_c0d46749d9365c 20
+  s_ac7c64e9db953c::t_079886812f01b9 104
+e2e/specs/28-onboarding-birth-data.spec.ts
+  s_ac7c64e9db953c::t_f5dfc4f4a09d83 1-199
+frontend/src/index.css
+  s_ac7c64e9db953c::t_c4ba96a9b0f504 1177-1208
+backend/src/routes/places.ts
+  s_ac7c64e9db953c::t_e6c516514ac5e6 1-68
+backend/src/__tests__/api-places.test.ts
+  s_ac7c64e9db953c::t_5fefd92ed73814 1-183
+frontend/src/api.ts
+  s_ac7c64e9db953c::t_e79be3d1c89fd5 438-499
+frontend/src/types.ts
+  s_ac7c64e9db953c::t_74fa04441cbf7b 26-37
+frontend/src/components/OnboardingFlow.tsx
+  s_ac7c64e9db953c::t_8918e4b8ed6928 120,122,125,131,136,140
+  s_ac7c64e9db953c::t_5b174de7f2a47e 1,11-12,14,38-50,53,57-58,63-72,75-79,82-94,104-106,109-119,121,123-124,126-130,132-135,137-139,141-156,166,172,180-185,188-193,195-202,205-209,212-214,220-221,234-244,260,299,480-481,494,497,500,504,509-510,512-516,518-603,605,609,613,618,627-628,653,656,678,681,697,700,718-719,721,768-784
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.9",
+  "base_commit_sha": "a15758c8c76ff66acd5808ddff69ed8b775ac0db",
+  "prompts": {},
+  "sessions": {
+    "s_ac7c64e9db953c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b1e17abf-f020-4a54-95d9-4c95b247ef3b",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
