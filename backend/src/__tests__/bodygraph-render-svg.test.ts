@@ -165,7 +165,7 @@ describe("renderBodygraphSvg", () => {
       expect(svg).toContain('id="panel-personality"');
       // Identity in header — now prefixed by typeQualifier ("Emotional").
       expect(svg).toContain("Brian Montero");
-      expect(svg).toContain("Emotional Generador Manifestante");
+      expect(svg).toContain("Emocional Generador Manifestante");
       expect(svg).toContain("Punta Cardón");
       // Panel labels.
       expect(svg).toContain("Diseño");

@@ -13,18 +13,18 @@
 // ─── Profile line names ─────────────────────────────────────────────────────
 
 /**
- * Nombres canónicos de las 6 líneas de profile, en el dialecto de Genetic
- * Matrix (que es la fuente que validamos visualmente). Otras fuentes HD usan
- * "Opportunist" en lugar de "Opportunistic" — si en algún momento hay que
- * matchear ambas, exponer un segundo Record alias.
+ * Nombres canónicos de las 6 líneas de profile, traducidos al español.
+ * Genetic Matrix usa "Opportunistic"/"Role Model"/etc (inglés); las traducimos
+ * acá para que el UI sea consistente con el resto del proyecto (que está en
+ * español). Source of truth para SVG y HTML.
  */
 export const PROFILE_LINE_NAMES: Record<number, string> = {
-  1: "Investigator",
-  2: "Hermit",
-  3: "Martyr",
-  4: "Opportunistic",
-  5: "Heretic",
-  6: "Role Model",
+  1: "Investigador",
+  2: "Ermitaño",
+  3: "Mártir",
+  4: "Oportunista",
+  5: "Hereje",
+  6: "Modelo a Seguir",
 };
 
 /**
@@ -48,11 +48,11 @@ export function lookupProfileName(profile: string): string {
 // `TYPE_ES` en bodygraph/calculate.ts).
 
 export const TYPE_POSITIVE_THEME: Record<string, string> = {
-  "Proyector": "Success",
-  "Generador": "Satisfaction",
-  "Generador Manifestante": "Satisfaction",
-  "Manifestador": "Peace",
-  "Reflector": "Surprise",
+  "Proyector": "Éxito",
+  "Generador": "Satisfacción",
+  "Generador Manifestante": "Satisfacción",
+  "Manifestador": "Paz",
+  "Reflector": "Sorpresa",
 };
 
 export function lookupPositiveTheme(type: string): string {
@@ -69,11 +69,11 @@ export function lookupPositiveTheme(type: string): string {
 // el display canónico es solo el type ("Generator" / "Manifesting Generator").
 
 export const TYPE_QUALIFIER_BY_AUTHORITY: Record<string, string> = {
-  "Emocional (Plexo Solar)": "Emotional",
+  "Emocional (Plexo Solar)": "Emocional",
   "Sacral": "",
-  "Esplénica": "Splenic",
+  "Esplénica": "Esplénica",
   "Ego/Corazón": "Ego",
-  "Auto-proyectada": "Self-Projected",
+  "Auto-proyectada": "Auto-Proyectada",
   "Mental/Ambiente": "Mental",
   "Lunar": "Lunar",
 };

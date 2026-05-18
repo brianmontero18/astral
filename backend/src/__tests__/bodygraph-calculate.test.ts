@@ -95,9 +95,9 @@ describe("calculateBodygraph", () => {
       expect(profile.birthData!.ageYears).toBeLessThan(60);
 
       // HD identity enriched
-      expect(profile.humanDesign.typeQualifier).toBe("Emotional");
-      expect(profile.humanDesign.profileName).toBe("Opportunistic / Role Model");
-      expect(profile.humanDesign.themes).toEqual({ positive: "Success", notSelf: "Amargura" });
+      expect(profile.humanDesign.typeQualifier).toBe("Emocional");
+      expect(profile.humanDesign.profileName).toBe("Oportunista / Modelo a Seguir");
+      expect(profile.humanDesign.themes).toEqual({ positive: "Éxito", notSelf: "Amargura" });
       expect(profile.humanDesign.incarnationCross).toBe("RAX Service 4");
 
       // designDate ~88° before personality (≈ early October 1988).
@@ -198,9 +198,9 @@ describe("calculateBodygraph", () => {
 
     it("populates the new P0 fields for Brian", async () => {
       const profile = await calculateBodygraph(BRIAN);
-      expect(profile.humanDesign.typeQualifier).toBe("Emotional");
-      expect(profile.humanDesign.profileName).toBe("Role Model / Hermit");
-      expect(profile.humanDesign.themes).toEqual({ positive: "Satisfaction", notSelf: "Frustración" });
+      expect(profile.humanDesign.typeQualifier).toBe("Emocional");
+      expect(profile.humanDesign.profileName).toBe("Modelo a Seguir / Ermitaño");
+      expect(profile.humanDesign.themes).toEqual({ positive: "Satisfacción", notSelf: "Frustración" });
       expect(profile.humanDesign.design!.date).toMatch(/^1988-11-2\dT/);
     });
 

@@ -741,7 +741,9 @@ function renderHeader(profile: UserProfile, opts: HeaderOptions): string {
 
   // Two columns, side-by-side. Each row about `lineSize * 1.4` tall.
   const colGap = (right - left) * 0.5;
-  const startY = opts.y + titleSize + lineSize * 1.3;
+  // Gap entre el título (nombre + tipo) y la primera fila de datos. Aumentado
+  // de 1.3 → 2.2 lineSize para que el título respire.
+  const startY = opts.y + titleSize + lineSize * 2.2;
   const rowH = lineSize * 1.45;
   for (let i = 0; i < fields.length; i++) {
     const col = i % 2;
@@ -806,7 +808,10 @@ function renderFooter(profile: UserProfile, opts: FooterOptions): string {
     chunk +=
       `<text x="${f(x)}" y="${f(opts.y + titleSize)}" font-size="${f(titleSize)}" ` +
       `fill="${COLOR_HEADER_TEXT}" font-family="Helvetica, Arial, sans-serif" font-weight="bold">${escapeXml(title)}</text>`;
-    const startY = opts.y + titleSize + lineH * 0.6;
+    // Gap entre título de bloque (Diseño / Personalidad / Canales) y la
+    // primera fila de datos. Aumentado de 0.6 → 1.4 lineH para que el título
+    // verde no quede pegado a la primera línea.
+    const startY = opts.y + titleSize + lineH * 1.4;
     for (let i = 0; i < rows.length; i++) {
       const y = startY + i * lineH;
       const sep = rows[i].separator ?? ": ";
