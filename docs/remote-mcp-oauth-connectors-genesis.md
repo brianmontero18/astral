@@ -38,6 +38,22 @@ La idea no es reescribir MCP ni cambiar la app web. La idea es agregar una capa
 de autorizacion OAuth para que clientes externos puedan obtener tokens validos
 para `/api/mcp/v1`.
 
+Actualizacion de factibilidad WorkOS:
+
+```text
+WorkOS pasa los 4 checks preliminares:
+  1. pricing viable para beta/proyecto personal;
+  2. Standalone Connect existe para apps con auth propia;
+  3. permite Login URI HTTPS hacia Astral;
+  4. soporta MCP auth con CIMD/DCR/resource indicators.
+
+Queda por validar con cuenta/dashboard real:
+  - toggles CIMD/DCR;
+  - billing info en production;
+  - redirect URI exacta para ChatGPT;
+  - smoke real Claude/ChatGPT.
+```
+
 ---
 
 ## Estado actual de Astral
@@ -242,12 +258,67 @@ Claude/ChatGPT
 - Permite mantener el mismo backend Render.
 - Es un buen balance entre "no inventar auth" y "no migrar toda la identidad".
 
+### Factibilidad WorkOS investigada
+
+WorkOS encaja para un proyecto personal/beta sin necesidades enterprise.
+
+Confirmado desde la investigacion:
+
+- **Pricing beta**: AuthKit tiene un tramo gratis hasta 1M monthly active users.
+  OAuth connections no aparecen como costo separado en el material revisado. En
+  produccion puede pedir billing info, pero el uso MCP/OAuth sin enterprise
+  add-ons deberia ser costo bajo o cero al inicio.
+- **Standalone Connect**: existe justamente para apps que ya tienen auth propia
+  y quieren usar AuthKit/WorkOS como authorization server OAuth sin migrar login.
+- **Login URI hacia Astral**: se puede configurar una Login URI HTTPS por
+  environment. WorkOS redirige con `external_auth_id`; Astral autentica con
+  SuperTokens y llama la completion API server-side.
+- **Consent**: WorkOS/AuthKit maneja el consentimiento OAuth. Astral igual debe
+  autorizar server-side tools, plan, scopes y `mcp_consents`.
+- **CIMD/DCR**: WorkOS documenta soporte MCP con Client ID Metadata Documents,
+  Dynamic Client Registration, Resource Indicators, PKCE y metadata OAuth. CIMD
+  esta off por default y debe habilitarse en Dashboard; DCR es opcional para
+  compatibilidad con clientes mas viejos.
+- **Token validation**: Astral debe validar JWT via JWKS/issuer/audience y mapear
+  el token a `McpPrincipal`.
+
+Configuracion esperada para Astral:
+
+```text
+Login URI:
+  https://astral.soydanielamedina.com/auth/workos/connect
+
+MCP resource indicator:
+  https://astral.soydanielamedina.com/api/mcp/v1
+
+Claude redirect URI:
+  https://claude.ai/api/mcp/auth_callback
+
+ChatGPT redirect URI:
+  pendiente de confirmar en el flow real de ChatGPT developer/custom connector.
+```
+
+Decision de scope:
+
+```text
+No necesitamos enterprise ahora.
+No usar SSO enterprise.
+No usar SCIM / Directory Sync.
+No pagar custom domain WorkOS al inicio.
+No comprar soporte premium.
+No activar Audit Logs/Radar pagos salvo necesidad futura.
+```
+
 ### Riesgos de WorkOS
 
 - Vendor nuevo.
-- Pricing real debe validarse antes de comprometerse.
-- Hay que confirmar que Standalone Connect cubre el flow exacto para Claude y
-  ChatGPT.
+- Pricing de beta parece viable, pero hay que validar billing/product gating en
+  una cuenta real antes de implementar.
+- Una sola Login URI por environment puede condicionar staging/prod.
+- Hay que elegir un identificador estable para WorkOS (`users.id`) desde el dia
+  uno para evitar conflictos de email/external user.
+- Hay que confirmar en Dashboard que CIMD/DCR esten habilitables en el plan real.
+- Hay que confirmar redirect URI y flow exacto de ChatGPT.
 - Igual hay que implementar correctamente token verification, mapping de usuario,
   consent y scopes en Astral.
 
@@ -326,12 +397,14 @@ SuperTokens sigue siendo login web.
 
 Tecnologicamente fuerte, pero probablemente demasiado enterprise/overkill para
 Astral ahora. Tiene costo/plataforma propia y empuja hacia una estrategia de
-identity mas amplia.
+identity mas amplia. Queda como referencia futura, no como alternativa activa
+para el ciclo personal/beta.
 
 ### Stytch
 
 Viable y serio para Connected Apps/OAuth, pero menos obvio que WorkOS si el
-objetivo es preservar SuperTokens y sumar solo OAuth MCP.
+objetivo es preservar SuperTokens y sumar solo OAuth MCP. Queda como referencia
+futura, no como alternativa activa para el ciclo personal/beta.
 
 ### OAuth casero sin libreria/proveedor
 
@@ -450,19 +523,28 @@ Objetivo: validar antes de comprometer arquitectura.
 Checks:
 
 - crear cuenta/proyecto WorkOS;
-- confirmar pricing real;
-- confirmar Standalone Connect disponible;
+- confirmar en dashboard real que el uso AuthKit/Connect/MCP no agrega costo
+  para beta/proyecto personal;
+- confirmar si production requiere billing info;
 - configurar resource/application para Astral MCP;
+- configurar Login URI:
+  `https://astral.soydanielamedina.com/auth/workos/connect`;
 - definir resource indicator:
   `https://astral.soydanielamedina.com/api/mcp/v1`;
 - probar metadata/discovery esperado;
-- decidir DCR vs CIMD vs credenciales pre-registradas;
+- habilitar/verificar CIMD;
+- habilitar/verificar DCR si hace falta para compatibilidad;
 - documentar redirect URIs de Claude y ChatGPT;
+- confirmar que no estamos activando enterprise SSO, SCIM, custom domain, soporte
+  pago, Audit Logs pagos ni Radar pago;
 - no tocar tools.
 
 Exit criteria:
 
 - queda claro si WorkOS puede ser el primary path;
+- no hay costos enterprise ni add-ons pagos necesarios para beta;
+- Login URI hacia Astral funciona conceptualmente con `external_auth_id`;
+- CIMD/DCR quedan confirmados o descartados con evidencia de dashboard;
 - si no puede, se activa fallback `oidc-provider`.
 
 ### Slice 9 - Discovery compliance en Astral
@@ -591,8 +673,9 @@ La direccion queda validada cuando:
 
 Bloqueantes antes de implementar:
 
-- Cual es el pricing real de WorkOS para este uso?
-- WorkOS Standalone Connect soporta el flow exacto que Claude/ChatGPT esperan?
+- WorkOS requiere billing info para habilitar production aunque el costo sea
+  cero bajo 1M MAU?
+- Los toggles CIMD/DCR aparecen habilitables en la cuenta real?
 - Claude/ChatGPT en las cuentas actuales tienen acceso a custom connectors?
 - Que redirect URIs exactas exige ChatGPT en este modo?
 - Se quiere habilitar `mcp:ask` solo para premium?
@@ -602,7 +685,8 @@ No bloqueantes:
 - si `mcp.astral.guide` existira en Fase 2;
 - si se retirara PAT beta despues de OAuth;
 - si se agregaran transit tools en otro ciclo;
-- si se publica directory/listing o queda beta privada.
+- si se publica directory/listing o queda beta privada;
+- si algun dia se agregan enterprise SSO/SCIM, fuera del alcance actual.
 
 ---
 
