@@ -1010,7 +1010,7 @@ describe("Remote MCP route", () => {
       jsonrpc: "2.0",
       id: "req-1",
       error: {
-        code: -32012,
+        code: -32014,
         message: "message_limit_reached",
         data: {
           plan: "premium",

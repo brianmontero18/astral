@@ -1458,11 +1458,19 @@ export async function ensureMcpClient(input: {
     return existing;
   }
 
-  await createMcpClient({
-    id: input.id,
-    name: input.name,
-    status: input.status ?? "active",
-  });
+  try {
+    await createMcpClient({
+      id: input.id,
+      name: input.name,
+      status: input.status ?? "active",
+    });
+  } catch {
+    const raced = await findMcpClientAuthRecord(input.id);
+    if (raced) {
+      return raced;
+    }
+    throw new Error("failed_to_ensure_mcp_client");
+  }
 
   return {
     id: input.id,
@@ -1511,11 +1519,23 @@ export async function upsertActiveMcpConsent(input: {
     return active.id;
   }
 
-  return createMcpConsent({
-    userId: input.userId,
-    clientId: input.clientId,
-    scopes: input.scopes,
-  });
+  try {
+    return await createMcpConsent({
+      userId: input.userId,
+      clientId: input.clientId,
+      scopes: input.scopes,
+    });
+  } catch {
+    const raced = await findActiveMcpConsent(input.userId, input.clientId);
+    if (!raced) {
+      throw new Error("failed_to_upsert_mcp_consent");
+    }
+    await client.execute({
+      sql: "UPDATE mcp_consents SET scopes_json = ? WHERE id = ?",
+      args: [scopesJson, raced.id],
+    });
+    return raced.id;
+  }
 }
 
 export async function createMcpToken(input: {

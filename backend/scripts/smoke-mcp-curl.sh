@@ -361,7 +361,7 @@ request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"quota-call","met
   -H "accept: application/json, text/event-stream" \
   -H "authorization: Bearer ${QUOTA_EXCEEDED_TOKEN}"
 assert_status "200" "ask tool monthly chat quota"
-assert_json "quota-exhausted token cannot call ask" "data.error.code === -32012 && data.error.message === 'message_limit_reached' && data.error.data.plan === 'premium' && data.error.data.used === 300 && data.error.data.limit === 300"
+assert_json "quota-exhausted token cannot call ask" "data.error.code === -32014 && data.error.message === 'message_limit_reached' && data.error.data.plan === 'premium' && data.error.data.used === 300 && data.error.data.limit === 300"
 pass "quota-exhausted token cannot call ask"
 
 echo "Remote MCP curl smoke complete"

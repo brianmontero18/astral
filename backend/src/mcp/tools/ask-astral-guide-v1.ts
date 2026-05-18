@@ -91,7 +91,7 @@ export async function callAskAstralGuideV1(
   const messageLimit = getMessageLimitForPlan(user.plan);
   const used = await getUserMessageCount(user.id, now);
   if (messageLimit !== null && used >= messageLimit) {
-    throw new McpToolCallError(-32012, "message_limit_reached", {
+    throw new McpToolCallError(-32014, "message_limit_reached", {
       ...buildChatUsageSnapshot(user.plan, used, now),
     });
   }

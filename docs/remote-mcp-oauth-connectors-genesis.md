@@ -834,9 +834,6 @@ onboarding_required:
 plan_upgrade_required:
   "Remote MCP esta disponible para planes pagos."
 
-scope_not_allowed:
-  "Este cliente pidio un permiso que tu plan actual no incluye."
-
 account_inactive:
   "Tu cuenta no esta activa. Contacta soporte."
 
@@ -845,6 +842,9 @@ consent_required:
 
 insufficient_scope:
   "Este cliente no tiene permiso para usar esta herramienta."
+
+message_limit_reached:
+  "Alcanzaste la cuota mensual de chat de tu plan."
 ```
 
 ### Responsabilidades por capa
