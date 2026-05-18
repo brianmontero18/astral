@@ -16,7 +16,7 @@
  */
 import SwissEph from "swisseph-wasm";
 import type { UserProfile } from "../agent-service.js";
-import { HD_CHANNELS } from "../hd-channels.js";
+import { HD_CHANNELS, findChannelById } from "../hd-channels.js";
 import { degreeToGate, GATE_TO_CENTER } from "../hd-gates.js";
 import { deriveImpliedFields } from "../extraction-service.js";
 import { lookupFixingState } from "../hd-fixings.js";
@@ -358,11 +358,15 @@ export async function calculateBodygraph(birth: BirthData): Promise<UserProfile>
 
   const undefinedCenters = ALL_CENTERS.filter((c) => !definedCenters.includes(c));
 
-  const channels = channelIds.map((id) => ({
-    id,
-    name: HD_CHANNELS[id] ?? "",
-    circuit: "",
-  }));
+  const channels = channelIds.map((id) => {
+    const meta = findChannelById(id);
+    return {
+      id,
+      name: HD_CHANNELS[id] ?? "",
+      nameEn: meta?.nameEn ?? "",
+      circuit: meta?.circuit ?? "",
+    };
+  });
 
   const dateLocalIso = buildLocalIso(birth.date, birth.time, birth.timezoneOffsetHours);
   const dateUtcIso = new Date(dateLocalIso).toISOString();

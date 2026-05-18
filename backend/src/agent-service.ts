@@ -144,7 +144,7 @@ export interface UserProfile {
      * con consenso doble-source pendiente de cross-check con 2do chart.
      */
     variableLabels?: import("./hd-variable-labels.js").VariableLabels;
-    channels: Array<{ id: string; name: string; circuit: string }>;
+    channels: Array<{ id: string; name: string; nameEn?: string; circuit: string }>;
     activatedGates: Array<{
       number: number;
       line: number;
