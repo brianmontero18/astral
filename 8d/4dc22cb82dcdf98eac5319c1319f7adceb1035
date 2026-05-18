@@ -1,0 +1,32 @@
+backend/src/hd-meta.ts
+  s_b261358f8f8c95::t_20e7b297c2c1be 16-19,22-27
+  s_b261358f8f8c95::t_fc42f93dfe0fc6 51-55
+  s_b261358f8f8c95::t_1ae1072646ab20 72,74,76
+backend/src/__tests__/bodygraph-calculate.test.ts
+  s_b261358f8f8c95::t_37fbd226fe3199 98-100
+  s_b261358f8f8c95::t_a1d1983b0f548a 201-203
+backend/src/__tests__/bodygraph-render-svg.test.ts
+  s_b261358f8f8c95::t_79fe864a8d7090 168
+backend/src/bodygraph/render-svg.ts
+  s_b261358f8f8c95::t_883a30c7aa8dd3 744-746
+  s_b261358f8f8c95::t_6b4402dcacb27e 811-814
+frontend/src/BodygraphView.css
+  s_b261358f8f8c95::t_04bc442c567982 273
+  s_b261358f8f8c95::t_9f696736f4e215 30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.9",
+  "base_commit_sha": "8d4dc22cb82dcdf98eac5319c1319f7adceb1035",
+  "prompts": {},
+  "sessions": {
+    "s_b261358f8f8c95": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "546a20e1-3614-4c30-8828-b50165594b08",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
