@@ -54,6 +54,18 @@ Queda por validar con cuenta/dashboard real:
   - smoke real Claude/ChatGPT.
 ```
 
+Actualizacion Slice 9:
+
+```text
+Astral ya publica discovery OAuth/MCP minimo cuando FEATURE_REMOTE_MCP=true:
+  - GET /.well-known/oauth-protected-resource
+  - GET /.well-known/oauth-protected-resource/api/mcp/v1
+  - 401 WWW-Authenticate con resource_metadata
+
+Esto solo hace discoverable el resource server. No valida tokens OAuth todavia.
+La validacion JWT/OAuth y el puente con usuario Astral quedan para Slice 10/11.
+```
+
 ---
 
 ## Estado actual de Astral
@@ -74,16 +86,15 @@ Ya existe:
   - `find_channels_by_gate_v1`
   - `get_center_for_gate_v1`
 - smoke verde con Claude Code HTTP + bearer;
-- `npm run smoke:mcp` cubriendo auth, transport, scopes, tools y budget.
+- `npm run smoke:mcp` cubriendo auth, transport, scopes, tools, budget y
+  discovery OAuth/MCP.
 
 No existe todavia:
 
-- OAuth discovery;
-- Protected Resource Metadata;
-- Authorization Server Metadata / OIDC discovery;
-- `WWW-Authenticate` con `resource_metadata`;
+- Authorization Server Metadata / OIDC discovery propia de Astral;
 - authorization code + PKCE para usuarios;
-- Dynamic Client Registration o Client ID Metadata Documents;
+- Dynamic Client Registration o Client ID Metadata Documents propios de
+  Astral; hoy se delegan a WorkOS;
 - consent UX para conectores externos;
 - token validation OAuth/JWT en `mcp/auth.ts`;
 - smoke real de Claude Desktop / Claude Web / ChatGPT.
@@ -553,11 +564,30 @@ Objetivo: que `/api/mcp/v1` sea discoverable por clientes MCP modernos.
 
 Implementar:
 
-- `401 WWW-Authenticate` con `resource_metadata`;
-- Protected Resource Metadata;
-- Authorization Server Metadata linkeada a WorkOS o issuer propio;
-- tests para 401/discovery;
-- smoke curl de metadata.
+- `401 WWW-Authenticate` con `resource_metadata`; **implementado**.
+- Protected Resource Metadata; **implementado**.
+- Authorization Server Metadata linkeada a WorkOS o issuer propio; **linkeada
+  via `MCP_AUTHORIZATION_SERVER_ISSUER`**.
+- tests para 401/discovery; **implementado**.
+- smoke curl de metadata; **implementado**.
+
+Config nueva:
+
+```text
+FEATURE_REMOTE_MCP=false
+MCP_RESOURCE_URL=https://astral.soydanielamedina.com/api/mcp/v1
+MCP_AUTHORIZATION_SERVER_ISSUER=<issuer publico de WorkOS/AuthKit>
+```
+
+Notas:
+
+- `MCP_RESOURCE_URL` debe coincidir con el Resource Indicator configurado en
+  WorkOS.
+- `MCP_AUTHORIZATION_SERVER_ISSUER` no es secreto.
+- si `FEATURE_REMOTE_MCP=false`, discovery y `/api/mcp/v1` siguen sin
+  registrarse.
+- si falta `MCP_AUTHORIZATION_SERVER_ISSUER`, la metadata responde 503 para no
+  anunciar un OAuth flow incompleto.
 
 ### Slice 10 - Token verification bridge
 

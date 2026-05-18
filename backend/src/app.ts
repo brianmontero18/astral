@@ -18,6 +18,7 @@ import { extractRoutes } from "./routes/extract.js";
 import { transcribeRoutes } from "./routes/transcribe.js";
 import { reportRoutes } from "./routes/report.js";
 import { mcpRoutes } from "./routes/mcp.js";
+import { mcpDiscoveryRoutes } from "./routes/mcp-discovery.js";
 import { FLAGS } from "./config/flags.js";
 
 function isHtmlAuthEntryRequest(acceptHeader: string | undefined, requestUrl: string) {
@@ -68,6 +69,10 @@ export async function buildApp(opts?: { logger?: boolean; auth?: AuthRuntime }) 
   await app.register(cors, buildCorsOptions(auth));
   await app.register(multipart, { limits: { fileSize: 10 * 1024 * 1024 } });
   await auth.register(app);
+
+  if (FLAGS.REMOTE_MCP) {
+    await app.register(mcpDiscoveryRoutes);
+  }
 
   if (auth.enabled) {
     // Fastify only runs preHandler hooks for matched routes, so auth endpoints

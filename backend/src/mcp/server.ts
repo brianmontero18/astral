@@ -19,6 +19,7 @@ import {
   checkMcpToolBudget,
   MCP_TOOL_CALL_COMPLETED_EVENT,
 } from "./budgets.js";
+import { addMcpAuthenticateHeader } from "./discovery.js";
 
 const MCP_PROTOCOL_VERSION = "2025-06-18";
 const JSONRPC_VERSION = "2.0";
@@ -317,6 +318,9 @@ export async function handleMcpPost(
   const message = request.body;
   const auth = await authorizeForMethod(request);
   if (auth.kind !== "authorized") {
+    if (auth.statusCode === 401) {
+      addMcpAuthenticateHeader(request, reply);
+    }
     await reply
       .status(auth.statusCode)
       .type("application/json")
@@ -379,6 +383,9 @@ export async function handleMcpPost(
 
     const toolAuth = await authorizeToolCall(request, tool);
     if (toolAuth.kind !== "authorized") {
+      if (toolAuth.statusCode === 401) {
+        addMcpAuthenticateHeader(request, reply);
+      }
       await recordMcpToolAudit(request, auditIdentityFromAuth(toolAuth), {
         event: "tool_call_blocked",
         toolName: tool.name,

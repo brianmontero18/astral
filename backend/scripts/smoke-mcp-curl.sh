@@ -8,6 +8,7 @@ DB_PATH="$(mktemp -t astral-mcp-smoke.XXXXXX)"
 LOG_PATH="$(mktemp -t astral-mcp-server.XXXXXX)"
 SERVER_PID=""
 LAST_BODY=""
+LAST_HEADERS=""
 LAST_STATUS=""
 
 cleanup() {
@@ -18,6 +19,9 @@ cleanup() {
   rm -f "${DB_PATH}" "${DB_PATH}-shm" "${DB_PATH}-wal" "${LOG_PATH}"
   if [[ -n "${LAST_BODY}" ]]; then
     rm -f "${LAST_BODY}"
+  fi
+  if [[ -n "${LAST_HEADERS}" ]]; then
+    rm -f "${LAST_HEADERS}"
   fi
 }
 trap cleanup EXIT
@@ -78,6 +82,14 @@ assert_json() {
   " || fail "${label}"
 }
 
+assert_header_contains() {
+  local label="$1"
+  local expected="$2"
+  local headers
+  headers="$(tr -d '\r' < "${LAST_HEADERS}")"
+  [[ "${headers}" == *"${expected}"* ]] || fail "${label}: expected header fragment '${expected}', got: ${headers}"
+}
+
 request() {
   local method="$1"
   local url="$2"
@@ -88,10 +100,11 @@ request() {
     rm -f "${LAST_BODY}"
   fi
   LAST_BODY="$(mktemp -t astral-mcp-curl.XXXXXX)"
+  LAST_HEADERS="$(mktemp -t astral-mcp-headers.XXXXXX)"
   if [[ -n "${body}" ]]; then
-    LAST_STATUS="$(curl -sS -o "${LAST_BODY}" -w "%{http_code}" -X "${method}" "${url}" "$@" --data "${body}")"
+    LAST_STATUS="$(curl -sS -D "${LAST_HEADERS}" -o "${LAST_BODY}" -w "%{http_code}" -X "${method}" "${url}" "$@" --data "${body}")"
   else
-    LAST_STATUS="$(curl -sS -o "${LAST_BODY}" -w "%{http_code}" -X "${method}" "${url}" "$@")"
+    LAST_STATUS="$(curl -sS -D "${LAST_HEADERS}" -o "${LAST_BODY}" -w "%{http_code}" -X "${method}" "${url}" "$@")"
   fi
 }
 
@@ -114,6 +127,8 @@ start_server() {
   OPENAI_API_KEY="test-key-not-real" \
   NODE_ENV="test" \
   MCP_ASK_ASTRAL_GUIDE_TEST_REPLY="MCP smoke Astral Guide reply" \
+  MCP_RESOURCE_URL="${BASE_URL}/api/mcp/v1" \
+  MCP_AUTHORIZATION_SERVER_ISSUER="https://auth.astral.test" \
   PORT="${PORT}" \
   node --import tsx/esm src/server.ts >"${LOG_PATH}" 2>&1 &
   SERVER_PID="$!"
@@ -153,9 +168,25 @@ request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"off","method":"i
   -H "authorization: Bearer ${VALID_TOKEN}"
 assert_status "404" "flag off keeps MCP unregistered"
 pass "flag off keeps /api/mcp/v1 unavailable"
+
+request "GET" "${BASE_URL}/.well-known/oauth-protected-resource" ""
+assert_status "404" "flag off keeps MCP discovery unregistered"
+pass "flag off keeps MCP discovery unavailable"
 stop_server
 
 start_server "true"
+
+request "GET" "${BASE_URL}/.well-known/oauth-protected-resource" ""
+assert_status "200" "protected resource metadata is available"
+assert_json "protected resource metadata uses the MCP resource URL" "data.resource === '${BASE_URL}/api/mcp/v1'"
+assert_json "protected resource metadata links the authorization server" "Array.isArray(data.authorization_servers) && data.authorization_servers.includes('https://auth.astral.test/')"
+assert_json "protected resource metadata lists supported MCP scopes" "Array.isArray(data.scopes_supported) && data.scopes_supported.includes('mcp:ask') && data.scopes_supported.includes('mcp:read_hd')"
+pass "protected resource metadata is available"
+
+request "GET" "${BASE_URL}/.well-known/oauth-protected-resource/api/mcp/v1" ""
+assert_status "200" "path-specific protected resource metadata is available"
+assert_json "path-specific protected resource metadata uses the MCP resource URL" "data.resource === '${BASE_URL}/api/mcp/v1'"
+pass "path-specific protected resource metadata is available"
 
 request "GET" "${BASE_URL}/api/mcp/v1" "" \
   -H "accept: application/json, text/event-stream"
@@ -173,6 +204,7 @@ request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"missing-auth","m
   -H "content-type: application/json" \
   -H "accept: application/json, text/event-stream"
 assert_status "401" "missing bearer"
+assert_header_contains "missing bearer includes OAuth protected resource discovery" "resource_metadata=\"${BASE_URL}/.well-known/oauth-protected-resource\""
 assert_json "missing bearer returns auth error" "data.error.message === 'authentication_required'"
 pass "missing bearer returns authentication_required"
 

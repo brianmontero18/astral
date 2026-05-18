@@ -9,6 +9,8 @@ const RAW_TOKEN = "astral_mcp_route_token";
 let app: FastifyInstance | null = null;
 const originalRemoteMcpFlag = process.env.FEATURE_REMOTE_MCP;
 const originalMcpTestReply = process.env.MCP_ASK_ASTRAL_GUIDE_TEST_REPLY;
+const originalMcpResourceUrl = process.env.MCP_RESOURCE_URL;
+const originalMcpAuthorizationServerIssuer = process.env.MCP_AUTHORIZATION_SERVER_ISSUER;
 
 const runAstralAgentMock = vi.fn();
 const runAstralAgentStreamMock = vi.fn();
@@ -71,6 +73,16 @@ afterEach(async () => {
   } else {
     process.env.MCP_ASK_ASTRAL_GUIDE_TEST_REPLY = originalMcpTestReply;
   }
+  if (originalMcpResourceUrl === undefined) {
+    delete process.env.MCP_RESOURCE_URL;
+  } else {
+    process.env.MCP_RESOURCE_URL = originalMcpResourceUrl;
+  }
+  if (originalMcpAuthorizationServerIssuer === undefined) {
+    delete process.env.MCP_AUTHORIZATION_SERVER_ISSUER;
+  } else {
+    process.env.MCP_AUTHORIZATION_SERVER_ISSUER = originalMcpAuthorizationServerIssuer;
+  }
   runAstralAgentMock.mockReset();
   runAstralAgentStreamMock.mockReset();
   runAstralAgentV2Mock.mockReset();
@@ -132,6 +144,8 @@ async function buildMcpTestApp(flagEnabled: boolean): Promise<{
   process.env.FEATURE_REMOTE_MCP = flagEnabled ? "true" : "false";
   process.env.TURSO_DATABASE_URL = "file::memory:";
   process.env.OPENAI_API_KEY ??= "test-key-not-real";
+  process.env.MCP_RESOURCE_URL = "https://mcp.astral.test/api/mcp/v1";
+  process.env.MCP_AUTHORIZATION_SERVER_ISSUER = "https://auth.astral.test";
   vi.resetModules();
 
   const [{ buildApp }, db] = await Promise.all([
@@ -251,6 +265,40 @@ describe("Remote MCP route", () => {
     expect(res.statusCode).toBe(404);
   });
 
+  it("does not register MCP OAuth discovery while FEATURE_REMOTE_MCP is false", async () => {
+    const harness = await buildMcpTestApp(false);
+
+    const res = await harness.app.inject({
+      method: "GET",
+      url: "/.well-known/oauth-protected-resource",
+    });
+
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("serves protected resource metadata for MCP OAuth discovery", async () => {
+    const harness = await buildMcpTestApp(true);
+
+    for (const url of [
+      "/.well-known/oauth-protected-resource",
+      "/.well-known/oauth-protected-resource/api/mcp/v1",
+    ]) {
+      const res = await harness.app.inject({
+        method: "GET",
+        url,
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.headers["cache-control"]).toBe("no-store");
+      expect(JSON.parse(res.body)).toEqual({
+        resource: "https://mcp.astral.test/api/mcp/v1",
+        authorization_servers: ["https://auth.astral.test/"],
+        bearer_methods_supported: ["header"],
+        scopes_supported: ["mcp:ask", "mcp:read_hd"],
+      });
+    }
+  });
+
   it.each(["GET", "PUT", "PATCH", "DELETE"])(
     "rejects %s requests because Streamable HTTP messages use POST",
     async (method) => {
@@ -285,6 +333,9 @@ describe("Remote MCP route", () => {
     });
 
     expect(res.statusCode).toBe(401);
+    expect(res.headers["www-authenticate"]).toContain(
+      'resource_metadata="https://mcp.astral.test/.well-known/oauth-protected-resource"',
+    );
     expect(JSON.parse(res.body)).toMatchObject({
       jsonrpc: "2.0",
       id: "req-1",
