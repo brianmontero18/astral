@@ -15,7 +15,7 @@ async function signedToken(
   const token = await new SignJWT({
     aud: AUDIENCE,
     client_id: "client_workos_mcp",
-    scope: "openid profile mcp:ask mcp:read_hd",
+    scope: "openid profile email",
     ...claims,
   })
     .setProtectedHeader({ alg: "RS256" })
@@ -29,7 +29,7 @@ async function signedToken(
 }
 
 describe("verifyMcpOAuthJwt", () => {
-  it("verifies issuer, signature, audience, client id, subject, and MCP scopes", async () => {
+  it("verifies issuer, signature, audience, client id, subject, and OAuth scopes", async () => {
     const { token, publicKey } = await signedToken();
 
     await expect(
@@ -45,7 +45,7 @@ describe("verifyMcpOAuthJwt", () => {
       claims: {
         subject: "workos-user-1",
         clientId: "client_workos_mcp",
-        scopes: ["openid", "profile", "mcp:ask", "mcp:read_hd"],
+        scopes: ["openid", "profile", "email"],
         audience: AUDIENCE,
       },
     });

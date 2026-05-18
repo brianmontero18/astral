@@ -112,24 +112,24 @@ Connect / MCP Auth:
   External Sign-in URI:
     https://astral.soydanielamedina.com/auth/workos/connect
 
-Connect app:
-  Name: Astral MCP
-  Type: OAuth
-  Redirect URI Claude:
-    https://claude.ai/api/mcp/auth_callback
-  Redirect URI ChatGPT:
-    https://chatgpt.com/connector/oauth/{callback_id}
-    El callback_id se obtiene en la pantalla real de administracion de la app.
-  Permissions asignados como scopes:
-    mcp:ask
-    mcp:read_hd
+Connect dynamic app:
+  Claude/ChatGPT pueden crear la app via DCR/CIMD.
+  No configurar ni depender de mcp:ask / mcp:read_hd como OAuth scopes.
 ```
 
-Nota importante: la metadata publica de AuthKit lista `openid`, `profile`,
-`email` y `offline_access` en `scopes_supported`, pero la UI de la app OAuth
-si muestra `mcp:ask` y `mcp:read_hd` como permissions disponibles como OAuth
-scopes. Por eso Slice 10 extrae scopes desde `scope`, `scp`, `scopes` o
-`permissions` del access token real y no depende solo de `scopes_supported`.
+Nota importante aprendida en el smoke Claude Web: AuthKit anuncia scopes OAuth
+estandar (`openid`, `profile`, `email`, `offline_access`). Astral no debe
+anunciar `mcp:ask` / `mcp:read_hd` como OAuth scopes publicos para WorkOS,
+porque clientes como Claude pueden pedirlos durante OAuth y WorkOS puede
+rechazar el flujo con `invalid_scope` o fallar el token exchange. En V1, OAuth
+solo autentica identidad; Astral deriva permisos MCP internamente desde plan y
+onboarding:
+
+```text
+free    -> sin MCP
+basic   -> mcp:read_hd
+premium -> mcp:read_hd + mcp:ask
+```
 
 ---
 
@@ -1002,8 +1002,9 @@ Implementar:
 - validacion JWT/OAuth token; **implementado con `jose`**.
 - issuer/JWKS WorkOS; **implementado via `MCP_AUTHORIZATION_SERVER_ISSUER`**.
 - audience/resource validation; **implementado contra `MCP_RESOURCE_URL`**.
-- scope extraction; **implementado desde `scope`, `scp`, `scopes` y
-  `permissions`**.
+- OAuth scope extraction; **implementado desde `scope`, `scp`, `scopes` y
+  `permissions`, pero solo como validacion del token OAuth estandar; los
+  permisos MCP no dependen de scopes WorkOS**.
 - mapping a `McpPrincipal`; **implementado usando `external_id`/`externalId`
   firmado cuando existe, con fallback a `sub`, via
   `user_identities(provider='workos', provider_user_id=<subject>)`**.
@@ -1021,7 +1022,7 @@ WorkOS access token
   external_id|externalId=<astral users.id> si WorkOS lo emite;
   si no, sub=<workos subject>
   client_id|azp|cid=<OAuth client id>
-  scope/scp/scopes/permissions includes mcp:ask / mcp:read_hd
+  scope/scp/scopes/permissions incluye scopes OAuth estandar
         |
         v
 user_identities
@@ -1033,6 +1034,7 @@ users.id
         |
         v
 mcp_consents(user_id, client_id)
+  scopes derivados del plan Astral, no de scopes WorkOS
         |
         v
 McpPrincipal

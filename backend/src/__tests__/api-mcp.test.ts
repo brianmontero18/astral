@@ -292,9 +292,9 @@ describe("Remote MCP route", () => {
       expect(res.headers["cache-control"]).toBe("no-store");
       expect(JSON.parse(res.body)).toEqual({
         resource: "https://mcp.astral.test/api/mcp/v1",
-        authorization_servers: ["https://auth.astral.test/"],
+        authorization_servers: ["https://auth.astral.test"],
         bearer_methods_supported: ["header"],
-        scopes_supported: ["mcp:ask", "mcp:read_hd"],
+        scopes_supported: ["openid", "profile", "email", "offline_access"],
       });
     }
   });

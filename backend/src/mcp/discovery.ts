@@ -5,13 +5,13 @@ export const MCP_PROTECTED_RESOURCE_METADATA_PATH = "/.well-known/oauth-protecte
 export const MCP_PROTECTED_RESOURCE_METADATA_PATH_FOR_RESOURCE =
   `${MCP_PROTECTED_RESOURCE_METADATA_PATH}${MCP_RESOURCE_PATH}`;
 
-const SUPPORTED_SCOPES = ["mcp:ask", "mcp:read_hd"] as const;
+const SUPPORTED_OAUTH_SCOPES = ["openid", "profile", "email", "offline_access"] as const;
 
 type ProtectedResourceMetadata = {
   resource: string;
   authorization_servers: string[];
   bearer_methods_supported: ["header"];
-  scopes_supported: typeof SUPPORTED_SCOPES;
+  scopes_supported: typeof SUPPORTED_OAUTH_SCOPES;
 };
 
 function firstHeaderValue(header: string | string[] | undefined): string | undefined {
@@ -24,6 +24,14 @@ function readConfiguredUrl(key: string): string | null {
 
   try {
     return new URL(raw).toString();
+  } catch {
+    return null;
+  }
+}
+
+function readConfiguredIssuer(value: string): string | null {
+  try {
+    return new URL(value).toString().replace(/\/$/, "");
   } catch {
     return null;
   }
@@ -68,11 +76,8 @@ export function mcpAuthorizationServers(): string[] {
     .map((value) => value.trim())
     .filter(Boolean)
     .flatMap((value) => {
-      try {
-        return [new URL(value).toString()];
-      } catch {
-        return [];
-      }
+      const issuer = readConfiguredIssuer(value);
+      return issuer ? [issuer] : [];
     });
 }
 
@@ -88,7 +93,7 @@ export function mcpProtectedResourceMetadata(
     resource: mcpResourceUrl(request),
     authorization_servers: authorizationServers,
     bearer_methods_supported: ["header"],
-    scopes_supported: SUPPORTED_SCOPES,
+    scopes_supported: SUPPORTED_OAUTH_SCOPES,
   };
 }
 
