@@ -505,3 +505,190 @@ describe("DELETE /api/assets/:id", () => {
     expect(res.statusCode).toBe(404);
   });
 });
+
+describe("POST /api/me/bodygraph/from-birth", () => {
+  /** Body fixture: Agos's birth data in Esquel (validated against the
+   *  Genetic Matrix PDF in bodygraph-calculate.test.ts). */
+  const AGOS_FROM_BIRTH = {
+    name: "Agos",
+    date: "1988-12-28",
+    time: "04:13",
+    place: { lat: -42.9135, lon: -71.3217, label: "Esquel, Chubut, Argentina" },
+  };
+
+  it("returns authentication_required without a validated session", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/me/bodygraph/from-birth",
+      headers: { "content-type": "application/json" },
+      payload: AGOS_FROM_BIRTH,
+    });
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("calculates and persists the bodygraph from birth data (Agos)", async () => {
+    const sessionSubject = "st-from-birth-agos";
+    const userId = await createLinkedTestUser(app, sessionSubject);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/me/bodygraph/from-birth",
+      headers: {
+        "content-type": "application/json",
+        ...sessionHeaders(sessionSubject),
+      },
+      payload: AGOS_FROM_BIRTH,
+    });
+
+    expect(res.statusCode).toBe(201);
+    const data = JSON.parse(res.body);
+    expect(data.user.id).toBe(userId);
+    expect(data.profile.humanDesign.type).toBe("Proyector");
+    expect(data.profile.humanDesign.profile).toBe("4/6");
+    expect(data.profile.humanDesign.authority).toBe("Emocional (Plexo Solar)");
+    expect(data.profile.birthData.placeLabel).toBe("Esquel, Chubut, Argentina");
+    expect(data.profile.birthData.timezoneOffsetHours).toBe(-2);
+    expect(data.profile.birthData.coordinates).toEqual({ lat: -42.9135, lon: -71.3217 });
+  });
+
+  it("leaves profile_asset_id NULL (asset is generated on-demand)", async () => {
+    const sessionSubject = "st-from-birth-asset-null";
+    const userId = await createLinkedTestUser(app, sessionSubject);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/me/bodygraph/from-birth",
+      headers: {
+        "content-type": "application/json",
+        ...sessionHeaders(sessionSubject),
+      },
+      payload: AGOS_FROM_BIRTH,
+    });
+    expect(res.statusCode).toBe(201);
+
+    // /me/assets exposes isActive driven by users.profile_asset_id. With
+    // from-birth there is no active asset.
+    const listRes = await app.inject({
+      method: "GET",
+      url: "/api/me/assets",
+      headers: sessionHeaders(sessionSubject),
+    });
+    const { assets } = JSON.parse(listRes.body);
+    expect(assets.every((a: { isActive: boolean }) => !a.isActive)).toBe(true);
+
+    // Direct DB check: getUser exposes profile_asset_id.
+    const { getUser } = await import("../db.js");
+    const user = await getUser(userId);
+    expect(user!.profile_asset_id).toBeNull();
+  });
+
+  it("replaces the previous PDF asset when from-birth is called over an upload", async () => {
+    const sessionSubject = "st-from-birth-replaces-asset";
+    const linkedUserId = await createLinkedTestUser(app, sessionSubject);
+
+    // Seed with a natal asset and link it as the active bodygraph (mimics
+    // a PDF upload through /me/bodygraph without going through extraction).
+    const { headers, body } = multipartPayload("old-chart.pdf", "%PDF", "application/pdf", "natal");
+    const uploadRes = await app.inject({
+      method: "POST",
+      url: `/api/users/${linkedUserId}/assets`,
+      headers: { ...headers, ...sessionHeaders(sessionSubject) },
+      body,
+    });
+    const { id: oldAssetId } = JSON.parse(uploadRes.body);
+    await updateUserBodygraph(linkedUserId, { humanDesign: { type: "Projector" } }, oldAssetId);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/me/bodygraph/from-birth",
+      headers: {
+        "content-type": "application/json",
+        ...sessionHeaders(sessionSubject),
+      },
+      payload: AGOS_FROM_BIRTH,
+    });
+    expect(res.statusCode).toBe(201);
+
+    // Old asset is gone; the new profile_asset_id is NULL.
+    const { getUser } = await import("../db.js");
+    const user = await getUser(linkedUserId);
+    expect(user!.profile_asset_id).toBeNull();
+
+    const rawAssets = await getUserAssets(linkedUserId);
+    expect(rawAssets.find((a) => a.id === oldAssetId)).toBeUndefined();
+  });
+
+  it("rejects invalid date format", async () => {
+    const sessionSubject = "st-from-birth-bad-date";
+    await createLinkedTestUser(app, sessionSubject);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/me/bodygraph/from-birth",
+      headers: {
+        "content-type": "application/json",
+        ...sessionHeaders(sessionSubject),
+      },
+      payload: { ...AGOS_FROM_BIRTH, date: "12/28/1988" },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(JSON.parse(res.body).error).toBe("invalid_date");
+  });
+
+  it("rejects invalid time format", async () => {
+    const sessionSubject = "st-from-birth-bad-time";
+    await createLinkedTestUser(app, sessionSubject);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/me/bodygraph/from-birth",
+      headers: {
+        "content-type": "application/json",
+        ...sessionHeaders(sessionSubject),
+      },
+      payload: { ...AGOS_FROM_BIRTH, time: "4:13am" },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(JSON.parse(res.body).error).toBe("invalid_time");
+  });
+
+  it("rejects out-of-range coordinates", async () => {
+    const sessionSubject = "st-from-birth-bad-coords";
+    await createLinkedTestUser(app, sessionSubject);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/me/bodygraph/from-birth",
+      headers: {
+        "content-type": "application/json",
+        ...sessionHeaders(sessionSubject),
+      },
+      payload: {
+        ...AGOS_FROM_BIRTH,
+        place: { lat: 999, lon: 999, label: "Nowhere" },
+      },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(JSON.parse(res.body).error).toBe("invalid_place");
+  });
+
+  it("rejects missing place label", async () => {
+    const sessionSubject = "st-from-birth-no-label";
+    await createLinkedTestUser(app, sessionSubject);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/me/bodygraph/from-birth",
+      headers: {
+        "content-type": "application/json",
+        ...sessionHeaders(sessionSubject),
+      },
+      payload: {
+        ...AGOS_FROM_BIRTH,
+        place: { lat: -42.9135, lon: -71.3217, label: "" },
+      },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(JSON.parse(res.body).error).toBe("invalid_place");
+  });
+});

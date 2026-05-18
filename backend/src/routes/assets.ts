@@ -14,6 +14,53 @@ import {
   resolveRequestCurrentUser,
   sendCurrentUserError,
 } from "../auth/current-user.js";
+import { calculateBodygraph, type BirthData } from "../bodygraph/calculate.js";
+
+const FROM_BIRTH_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const FROM_BIRTH_TIME_RE = /^\d{2}:\d{2}$/;
+
+interface FromBirthBody {
+  name?: unknown;
+  date?: unknown;
+  time?: unknown;
+  place?: unknown;
+}
+
+type FromBirthParse =
+  | { ok: true; birth: BirthData }
+  | { ok: false; status: number; error: string; message: string };
+
+function parseFromBirthBody(body: FromBirthBody): FromBirthParse {
+  if (typeof body.date !== "string" || !FROM_BIRTH_DATE_RE.test(body.date)) {
+    return { ok: false, status: 400, error: "invalid_date", message: "date must be YYYY-MM-DD" };
+  }
+  if (typeof body.time !== "string" || !FROM_BIRTH_TIME_RE.test(body.time)) {
+    return { ok: false, status: 400, error: "invalid_time", message: "time must be HH:mm" };
+  }
+  if (typeof body.place !== "object" || body.place === null) {
+    return { ok: false, status: 400, error: "invalid_place", message: "place must be { lat, lon, label }" };
+  }
+  const place = body.place as { lat?: unknown; lon?: unknown; label?: unknown };
+  if (typeof place.lat !== "number" || Number.isNaN(place.lat) || place.lat < -90 || place.lat > 90) {
+    return { ok: false, status: 400, error: "invalid_place", message: "place.lat must be a number in [-90, 90]" };
+  }
+  if (typeof place.lon !== "number" || Number.isNaN(place.lon) || place.lon < -180 || place.lon > 180) {
+    return { ok: false, status: 400, error: "invalid_place", message: "place.lon must be a number in [-180, 180]" };
+  }
+  if (typeof place.label !== "string" || place.label.length === 0) {
+    return { ok: false, status: 400, error: "invalid_place", message: "place.label must be a non-empty string" };
+  }
+  return {
+    ok: true,
+    birth: {
+      date: body.date,
+      time: body.time,
+      coordinates: { lat: place.lat, lon: place.lon },
+      placeLabel: place.label,
+      name: typeof body.name === "string" ? body.name : undefined,
+    },
+  };
+}
 
 const ALLOWED_MIMES = new Set([
   "application/pdf",
@@ -267,6 +314,60 @@ export async function assetRoutes(app: FastifyInstance) {
       user: serializeCurrentUser(updatedUser),
       profile: updatedUser.profile,
       asset: serializeAsset(rawAsset, assetId),
+    });
+  });
+
+  // Birth-data path: calcula el bodygraph determinístico desde { date, time,
+  // place } sin upload de PDF. profile_asset_id queda en NULL — el PDF se
+  // genera on-demand cuando la usuaria pide descargarlo. Si tenía una carta
+  // previa (PDF subido o asset sintético), se borra para preservar el
+  // modelo "una carta activa".
+  app.post<{ Body: FromBirthBody }>("/me/bodygraph/from-birth", async (req, reply) => {
+    const userId = await resolveOwnedUser(req as AuthenticatedRequest, reply);
+    if (!userId) return;
+
+    const parsed = parseFromBirthBody(req.body ?? {});
+    if (!parsed.ok) {
+      return reply.status(parsed.status).send({ error: parsed.error, message: parsed.message });
+    }
+
+    let profile: UserProfile;
+    try {
+      profile = await calculateBodygraph(parsed.birth);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      app.log.error({ err }, "bodygraph from-birth calculation failed");
+      return reply.status(500).send({ error: "calculation_failed", message });
+    }
+
+    const existing = await getUser(userId);
+    if (!existing) return reply.status(404).send({ error: "User not found" });
+
+    profile.name = profile.name || existing.name;
+    const previousAssetId = existing.profile_asset_id;
+
+    const updated = await updateUserBodygraph(userId, profile, null);
+    if (!updated) return reply.status(404).send({ error: "User not found" });
+
+    if (previousAssetId) {
+      try {
+        await deleteAsset(previousAssetId);
+      } catch (err) {
+        app.log.warn(
+          { err, userId, previousAssetId },
+          "Failed to delete previous bodygraph asset after from-birth",
+        );
+      }
+    }
+
+    const updatedUser = await getUser(userId);
+    if (!updatedUser) {
+      return reply.status(404).send({ error: "Bodygraph not found after update" });
+    }
+
+    return reply.status(201).send({
+      user: serializeCurrentUser(updatedUser),
+      profile: updatedUser.profile,
     });
   });
 

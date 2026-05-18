@@ -706,7 +706,7 @@ export async function updateUserProfile(
 export async function updateUserBodygraph(
   id: string,
   profile: object,
-  profileAssetId: string,
+  profileAssetId: string | null,
 ): Promise<boolean> {
   const result = await client.execute({
     sql: "UPDATE users SET profile = ?, profile_asset_id = ?, updated_at = datetime('now') WHERE id = ?",
