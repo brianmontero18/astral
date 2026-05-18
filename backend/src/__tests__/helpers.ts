@@ -134,6 +134,9 @@ export async function createTestUser(
     plan?: "free" | "basic" | "premium";
     role?: "user" | "admin";
     status?: "active" | "disabled" | "banned";
+    onboardingStatus?: "pending" | "complete";
+    onboardingStep?: "name" | "upload" | "review" | "intake" | null;
+    accessSource?: "self" | "manual" | "payment";
   } = {},
 ): Promise<string> {
   const { createUser } = await import("../db.js");
@@ -180,6 +183,9 @@ export async function createLinkedTestUser(
     plan?: "free" | "basic" | "premium";
     role?: "user" | "admin";
     status?: "active" | "disabled" | "banned";
+    onboardingStatus?: "pending" | "complete";
+    onboardingStep?: "name" | "upload" | "review" | "intake" | null;
+    accessSource?: "self" | "manual" | "payment";
   } = {},
 ): Promise<string> {
   const { createUserWithIdentity } = await import("../db.js");

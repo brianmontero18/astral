@@ -16,8 +16,8 @@ import {
   getAdminRoleLabel,
   getAdminStatusLabel,
   getAdminUserDetailDisplay,
-  useCopyToClipboard,
 } from "../admin-support";
+import { useCopyToClipboard } from "../admin-clipboard";
 import {
   createAdminInvite,
   deleteAdminUser,
