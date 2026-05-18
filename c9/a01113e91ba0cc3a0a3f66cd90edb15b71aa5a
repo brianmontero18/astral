@@ -1,0 +1,32 @@
+backend/src/hd-variable-labels.ts
+  s_b261358f8f8c95::t_fa6c6fe139a1df 125-132,147-152
+  s_b261358f8f8c95::t_9ba60ded7bf3dc 226-239
+  s_b261358f8f8c95::t_a4415d5a72f800 243-244,247,259,261,269
+  s_b261358f8f8c95::t_39d6f2d1829e97 165-172
+  s_b261358f8f8c95::t_cf965eb987a046 89-96,107-113
+  s_b261358f8f8c95::t_f55405e305cfb4 282-284,291,297-329,331,334-335,341,343-345,352,355,358,361,364,370,373,375-376,378-379
+  s_b261358f8f8c95::t_e228278d3c41f5 187-194,204-210
+backend/src/__tests__/hd-variable-labels.test.ts
+  s_b261358f8f8c95::t_8bf8be4b83c2d0 135,141-146,154-159,181,189-199,201-202
+  s_b261358f8f8c95::t_8c153ec04064bd 23
+  s_b261358f8f8c95::t_3b338fd7fb719c 80,89-90,94-95,99-100,104-105,109-131
+backend/src/__tests__/bodygraph-render-svg.test.ts
+  s_b261358f8f8c95::t_c612cef71024b3 314,316-320,323-327,329-330
+  s_b261358f8f8c95::t_072b70d535ff7c 296-298,309-312,315,322,328,332
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "c9a01113e91ba0cc3a0a3f66cd90edb15b71aa5a",
+  "prompts": {},
+  "sessions": {
+    "s_b261358f8f8c95": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "546a20e1-3614-4c30-8828-b50165594b08",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
