@@ -1,0 +1,23 @@
+frontend/src/admin-clipboard.ts
+  s_4c18123980327d::t_6887c7e576b0d4 1-46
+frontend/src/components/AdminInviteModal.tsx
+  s_4c18123980327d::t_f3ee89e525f94e 9
+frontend/src/components/AdminUserDetailView.tsx
+  s_4c18123980327d::t_bc9b6a15db7d25 20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.9",
+  "base_commit_sha": "4624e767703475d82800f860f5bbd8feae1b67bf",
+  "prompts": {},
+  "sessions": {
+    "s_4c18123980327d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e3830-933b-7f01-89ae-1bffb20d9890",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
