@@ -20,55 +20,68 @@ export type HdSubCircuit =
 
 export interface HdChannel {
   id: string;
+  /** Spanish canonical name (used by chat / extraction layer). */
   name: string;
+  /** English short name (used by Genetic Matrix Foundation Chart). */
+  nameEn: string;
   gates: [number, number];
   circuit: HdCircuit;
   subCircuit: HdSubCircuit;
 }
 
 export const HD_CHANNELS_FULL: ReadonlyArray<HdChannel> = [
-  { id: "1-8",   name: "Canal de Inspiración",          gates: [1, 8],   circuit: "Individual", subCircuit: "Knowing" },
-  { id: "2-14",  name: "Canal del Pulso",                gates: [2, 14],  circuit: "Individual", subCircuit: "Knowing" },
-  { id: "3-60",  name: "Canal de la Mutación",           gates: [3, 60],  circuit: "Individual", subCircuit: "Knowing" },
-  { id: "12-22", name: "Canal de la Apertura",           gates: [12, 22], circuit: "Individual", subCircuit: "Knowing" },
-  { id: "23-43", name: "Canal de la Estructuración",     gates: [23, 43], circuit: "Individual", subCircuit: "Knowing" },
-  { id: "24-61", name: "Canal del Conocimiento",         gates: [24, 61], circuit: "Individual", subCircuit: "Knowing" },
-  { id: "25-51", name: "Canal de la Iniciación",         gates: [25, 51], circuit: "Individual", subCircuit: "Knowing" },
-  { id: "28-38", name: "Canal de la Lucha",              gates: [28, 38], circuit: "Individual", subCircuit: "Knowing" },
-  { id: "39-55", name: "Canal de la Emoción",            gates: [39, 55], circuit: "Individual", subCircuit: "Knowing" },
+  { id: "1-8",   name: "Canal de Inspiración",          nameEn: "Inspiration",          gates: [1, 8],   circuit: "Individual", subCircuit: "Knowing" },
+  { id: "2-14",  name: "Canal del Pulso",                nameEn: "The Beat",             gates: [2, 14],  circuit: "Individual", subCircuit: "Knowing" },
+  { id: "3-60",  name: "Canal de la Mutación",           nameEn: "Mutation",             gates: [3, 60],  circuit: "Individual", subCircuit: "Knowing" },
+  { id: "12-22", name: "Canal de la Apertura",           nameEn: "Openness",             gates: [12, 22], circuit: "Individual", subCircuit: "Knowing" },
+  { id: "23-43", name: "Canal de la Estructuración",     nameEn: "Structuring",          gates: [23, 43], circuit: "Individual", subCircuit: "Knowing" },
+  { id: "24-61", name: "Canal del Conocimiento",         nameEn: "Awareness",            gates: [24, 61], circuit: "Individual", subCircuit: "Knowing" },
+  { id: "25-51", name: "Canal de la Iniciación",         nameEn: "Initiation",           gates: [25, 51], circuit: "Individual", subCircuit: "Knowing" },
+  { id: "28-38", name: "Canal de la Lucha",              nameEn: "Struggle",             gates: [28, 38], circuit: "Individual", subCircuit: "Knowing" },
+  { id: "39-55", name: "Canal de la Emoción",            nameEn: "Emoting",              gates: [39, 55], circuit: "Individual", subCircuit: "Knowing" },
 
-  { id: "10-20", name: "Canal del Despertar",            gates: [10, 20], circuit: "Individual", subCircuit: "Integration" },
-  { id: "10-34", name: "Canal de la Exploración",        gates: [10, 34], circuit: "Individual", subCircuit: "Integration" },
-  { id: "10-57", name: "Canal del Perfeccionismo",       gates: [10, 57], circuit: "Individual", subCircuit: "Integration" },
-  { id: "20-34", name: "Canal de Carisma",               gates: [20, 34], circuit: "Individual", subCircuit: "Integration" },
-  { id: "20-57", name: "Canal de la Mente Cerebral",     gates: [20, 57], circuit: "Individual", subCircuit: "Integration" },
-  { id: "34-57", name: "Canal del Poder",                gates: [34, 57], circuit: "Individual", subCircuit: "Integration" },
+  { id: "10-20", name: "Canal del Despertar",            nameEn: "Awakening",            gates: [10, 20], circuit: "Individual", subCircuit: "Integration" },
+  { id: "10-34", name: "Canal de la Exploración",        nameEn: "Exploration",          gates: [10, 34], circuit: "Individual", subCircuit: "Integration" },
+  { id: "10-57", name: "Canal del Perfeccionismo",       nameEn: "Perfected Form",       gates: [10, 57], circuit: "Individual", subCircuit: "Integration" },
+  { id: "20-34", name: "Canal de Carisma",               nameEn: "Charisma",             gates: [20, 34], circuit: "Individual", subCircuit: "Integration" },
+  { id: "20-57", name: "Canal de la Mente Cerebral",     nameEn: "Brain Wave",           gates: [20, 57], circuit: "Individual", subCircuit: "Integration" },
+  { id: "34-57", name: "Canal del Poder",                nameEn: "Power",                gates: [34, 57], circuit: "Individual", subCircuit: "Integration" },
 
-  { id: "4-63",  name: "Canal de la Lógica",             gates: [4, 63],  circuit: "Colectivo",  subCircuit: "Logic" },
-  { id: "5-15",  name: "Canal del Ritmo",                gates: [5, 15],  circuit: "Colectivo",  subCircuit: "Logic" },
-  { id: "7-31",  name: "Canal del Alfa",                 gates: [7, 31],  circuit: "Colectivo",  subCircuit: "Logic" },
-  { id: "9-52",  name: "Canal de la Concentración",      gates: [9, 52],  circuit: "Colectivo",  subCircuit: "Logic" },
-  { id: "16-48", name: "Canal de la Longitud de Onda",   gates: [16, 48], circuit: "Colectivo",  subCircuit: "Logic" },
-  { id: "17-62", name: "Canal de la Aceptación",         gates: [17, 62], circuit: "Colectivo",  subCircuit: "Logic" },
-  { id: "18-58", name: "Canal de la Corrección",         gates: [18, 58], circuit: "Colectivo",  subCircuit: "Logic" },
+  { id: "4-63",  name: "Canal de la Lógica",             nameEn: "Logic",                gates: [4, 63],  circuit: "Colectivo",  subCircuit: "Logic" },
+  { id: "5-15",  name: "Canal del Ritmo",                nameEn: "Rhythm",               gates: [5, 15],  circuit: "Colectivo",  subCircuit: "Logic" },
+  { id: "7-31",  name: "Canal del Alfa",                 nameEn: "The Alpha",            gates: [7, 31],  circuit: "Colectivo",  subCircuit: "Logic" },
+  { id: "9-52",  name: "Canal de la Concentración",      nameEn: "Concentration",        gates: [9, 52],  circuit: "Colectivo",  subCircuit: "Logic" },
+  { id: "16-48", name: "Canal de la Longitud de Onda",   nameEn: "The Wave Length",      gates: [16, 48], circuit: "Colectivo",  subCircuit: "Logic" },
+  { id: "17-62", name: "Canal de la Aceptación",         nameEn: "Acceptance",           gates: [17, 62], circuit: "Colectivo",  subCircuit: "Logic" },
+  { id: "18-58", name: "Canal de la Corrección",         nameEn: "Judgment",             gates: [18, 58], circuit: "Colectivo",  subCircuit: "Logic" },
 
-  { id: "11-56", name: "Canal de la Curiosidad",         gates: [11, 56], circuit: "Colectivo",  subCircuit: "Abstract" },
-  { id: "13-33", name: "Canal del Testimonio",           gates: [13, 33], circuit: "Colectivo",  subCircuit: "Abstract" },
-  { id: "29-46", name: "Canal del Descubrimiento",       gates: [29, 46], circuit: "Colectivo",  subCircuit: "Abstract" },
-  { id: "30-41", name: "Canal del Reconocimiento",       gates: [30, 41], circuit: "Colectivo",  subCircuit: "Abstract" },
-  { id: "35-36", name: "Canal de lo Transitorio",        gates: [35, 36], circuit: "Colectivo",  subCircuit: "Abstract" },
-  { id: "42-53", name: "Canal de la Madurez",            gates: [42, 53], circuit: "Colectivo",  subCircuit: "Abstract" },
-  { id: "47-64", name: "Canal de la Abstracción",        gates: [47, 64], circuit: "Colectivo",  subCircuit: "Abstract" },
+  { id: "11-56", name: "Canal de la Curiosidad",         nameEn: "Curiosity",            gates: [11, 56], circuit: "Colectivo",  subCircuit: "Abstract" },
+  { id: "13-33", name: "Canal del Testimonio",           nameEn: "The Prodigal",         gates: [13, 33], circuit: "Colectivo",  subCircuit: "Abstract" },
+  { id: "29-46", name: "Canal del Descubrimiento",       nameEn: "Discovery",            gates: [29, 46], circuit: "Colectivo",  subCircuit: "Abstract" },
+  { id: "30-41", name: "Canal del Reconocimiento",       nameEn: "Recognition",          gates: [30, 41], circuit: "Colectivo",  subCircuit: "Abstract" },
+  { id: "35-36", name: "Canal de lo Transitorio",        nameEn: "Transitoriness",       gates: [35, 36], circuit: "Colectivo",  subCircuit: "Abstract" },
+  { id: "42-53", name: "Canal de la Madurez",            nameEn: "Maturation",           gates: [42, 53], circuit: "Colectivo",  subCircuit: "Abstract" },
+  { id: "47-64", name: "Canal de la Abstracción",        nameEn: "Abstraction",          gates: [47, 64], circuit: "Colectivo",  subCircuit: "Abstract" },
 
-  { id: "19-49", name: "Canal de la Síntesis",           gates: [19, 49], circuit: "Tribal",     subCircuit: "Ego" },
-  { id: "21-45", name: "Canal del Dinero",               gates: [21, 45], circuit: "Tribal",     subCircuit: "Ego" },
-  { id: "26-44", name: "Canal de la Transmisión",        gates: [26, 44], circuit: "Tribal",     subCircuit: "Ego" },
-  { id: "37-40", name: "Canal de la Comunidad",          gates: [37, 40], circuit: "Tribal",     subCircuit: "Ego" },
+  { id: "19-49", name: "Canal de la Síntesis",           nameEn: "Synthesis",            gates: [19, 49], circuit: "Tribal",     subCircuit: "Ego" },
+  { id: "21-45", name: "Canal del Dinero",               nameEn: "Money",                gates: [21, 45], circuit: "Tribal",     subCircuit: "Ego" },
+  { id: "26-44", name: "Canal de la Transmisión",        nameEn: "Surrender",            gates: [26, 44], circuit: "Tribal",     subCircuit: "Ego" },
+  { id: "37-40", name: "Canal de la Comunidad",          nameEn: "Community",            gates: [37, 40], circuit: "Tribal",     subCircuit: "Ego" },
 
-  { id: "6-59",  name: "Canal de Mating",                gates: [6, 59],  circuit: "Tribal",     subCircuit: "Defense" },
-  { id: "27-50", name: "Canal de la Preservación",       gates: [27, 50], circuit: "Tribal",     subCircuit: "Defense" },
-  { id: "32-54", name: "Canal de la Transformación",     gates: [32, 54], circuit: "Tribal",     subCircuit: "Defense" },
+  { id: "6-59",  name: "Canal de Mating",                nameEn: "Mating",               gates: [6, 59],  circuit: "Tribal",     subCircuit: "Defense" },
+  { id: "27-50", name: "Canal de la Preservación",       nameEn: "Preservation",         gates: [27, 50], circuit: "Tribal",     subCircuit: "Defense" },
+  { id: "32-54", name: "Canal de la Transformación",     nameEn: "Transformation",       gates: [32, 54], circuit: "Tribal",     subCircuit: "Defense" },
 ];
+
+/**
+ * Format a channel id (ej "18-58") in the 4-digit padded form used by Genetic
+ * Matrix Foundation Charts (ej "1858"). For a 1-digit gate ("1-8" → "0108").
+ */
+export function formatChannelIdPadded(id: string): string {
+  const [a, b] = id.split("-").map(Number);
+  if (Number.isNaN(a) || Number.isNaN(b)) return id;
+  return String(a).padStart(2, "0") + String(b).padStart(2, "0");
+}
 
 export const HD_CHANNELS: Record<string, string> = Object.fromEntries(
   HD_CHANNELS_FULL.map((c) => [c.id, c.name]),

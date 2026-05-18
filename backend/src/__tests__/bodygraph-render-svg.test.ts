@@ -293,6 +293,48 @@ describe("renderBodygraphSvg", () => {
       expect(circles).toBe(4);
     });
 
+    it("renders footer block with Design + Personality + Channels for Agos", async () => {
+      // Validates the 13 Variable Wheel labels + canonical English channel
+      // names against Agos's Foundation Chart de Genetic Matrix.
+      const profile = await calculateBodygraph({
+        date: "1988-12-28",
+        time: "06:13",
+        timezoneOffsetHours: 0,
+      });
+      const svg = renderFullDocument(profile);
+      const footerMatch = svg.match(/<g id="footer">([\s\S]*?)<\/g><\/svg>$/);
+      expect(footerMatch).toBeTruthy();
+      const footer = footerMatch![1];
+
+      // Block titles.
+      expect(footer).toContain(">Design<");
+      expect(footer).toContain(">Personality<");
+      expect(footer).toContain(">Channels<");
+
+      // Design block — 13 labels confirmados contra Foundation Chart de Agos.
+      expect(footer).toContain("Design Date: 01 October 1988");
+      expect(footer).toContain("Brain: Active");
+      expect(footer).toContain("Determination: Open");
+      expect(footer).toContain("Cognition: Smell");
+      expect(footer).toContain("Environment: Mountains - Passive");
+      expect(footer).toContain("Environment Style: Observer");
+
+      // Personality block.
+      expect(footer).toContain("Personality: Strategic");
+      expect(footer).toContain("Motivation: Fear");
+      expect(footer).toContain("Sense: Uncertainty");
+      expect(footer).toContain("Trajectory: Communalist");
+      expect(footer).toContain("View Perspective: Focused");
+      expect(footer).toContain("View: Personal");
+      expect(footer).toContain("Transferred Motivation: Need");
+      expect(footer).toContain("Transferred View: Power");
+
+      // Channels block — Genetic Matrix format "GGgg - English Name".
+      expect(footer).toContain("0108 - Inspiration");
+      expect(footer).toContain("1858 - Judgment");
+      expect(footer).toContain("3740 - Community");
+    });
+
     it("colors the design panel red and the personality panel black", async () => {
       const profile = await calculateBodygraph({
         date: "1989-02-18",
