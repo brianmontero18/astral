@@ -96,6 +96,11 @@ export interface McpConsentRecord {
   revoked_at: string | null;
 }
 
+export interface McpClientAuthRecord {
+  id: string;
+  status: McpClientStatus;
+}
+
 export interface McpAuditEventRecord {
   id: number;
   user_id: string | null;
@@ -1389,6 +1394,22 @@ export async function createMcpClient(input: {
     args: [id, input.name, input.status ?? "active"],
   });
   return id;
+}
+
+export async function findMcpClientAuthRecord(
+  clientId: string,
+): Promise<McpClientAuthRecord | null> {
+  const result = await client.execute({
+    sql: "SELECT id, status FROM mcp_clients WHERE id = ? LIMIT 1",
+    args: [clientId],
+  });
+  const row = result.rows[0];
+  if (!row) return null;
+
+  return {
+    id: row.id as string,
+    status: row.status as McpClientStatus,
+  };
 }
 
 export async function createMcpConsent(input: {

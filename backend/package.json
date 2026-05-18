@@ -25,6 +25,7 @@
     "@types/react": "^19.2.14",
     "ai": "^6.0.174",
     "fastify": "^5.3.2",
+    "jose": "^6.2.3",
     "pdfjs-dist": "^4.0.379",
     "supertokens-node": "^24.0.2",
     "swisseph-wasm": "^0.0.4",

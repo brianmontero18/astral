@@ -48,7 +48,6 @@ WorkOS pasa los 4 checks preliminares:
   4. soporta MCP auth con CIMD/DCR/resource indicators.
 
 Queda por validar con cuenta/dashboard real:
-  - toggles CIMD/DCR;
   - billing info en production;
   - redirect URI exacta para ChatGPT;
   - smoke real Claude/ChatGPT.
@@ -62,9 +61,53 @@ Astral ya publica discovery OAuth/MCP minimo cuando FEATURE_REMOTE_MCP=true:
   - GET /.well-known/oauth-protected-resource/api/mcp/v1
   - 401 WWW-Authenticate con resource_metadata
 
-Esto solo hace discoverable el resource server. No valida tokens OAuth todavia.
-La validacion JWT/OAuth y el puente con usuario Astral quedan para Slice 10/11.
+En Slice 9 esto solo hacia discoverable el resource server. La validacion
+JWT/OAuth se agrego despues en Slice 10; el login/consent bridge de usuario real
+queda para Slice 11.
 ```
+
+Actualizacion WorkOS dashboard + metadata real:
+
+```text
+Proyecto WorkOS: aurea-core
+Environment: Staging
+AuthKit issuer:
+  https://thoughtful-trinket-33-staging.authkit.app
+
+Authorization Server Metadata confirmado:
+  /.well-known/oauth-authorization-server
+  issuer=https://thoughtful-trinket-33-staging.authkit.app
+  jwks_uri=https://thoughtful-trinket-33-staging.authkit.app/oauth2/jwks
+  authorization_endpoint=/oauth2/authorize
+  token_endpoint=/oauth2/token
+  registration_endpoint=/oauth2/register
+  client_id_metadata_document_supported=true
+  grant_types_supported=authorization_code, refresh_token
+  code_challenge_methods_supported=S256
+
+Connect / MCP Auth:
+  Dynamic Client Registration: enabled
+  Client ID Metadata Document: enabled
+  Resource Indicator:
+    https://astral.soydanielamedina.com/api/mcp/v1
+  External Sign-in URI:
+    https://astral.soydanielamedina.com/auth/workos/connect
+
+Connect app:
+  Name: Astral MCP
+  Type: OAuth
+  Redirect URI Claude:
+    https://claude.ai/api/mcp/auth_callback
+  Permissions asignados como scopes:
+    mcp:ask
+    mcp:read_hd
+```
+
+Nota importante: la metadata publica de AuthKit lista `openid`, `profile`,
+`email` y `offline_access` en `scopes_supported`, pero la UI de la app OAuth
+si muestra `mcp:ask` y `mcp:read_hd` como permissions disponibles como OAuth
+scopes. Por eso Slice 10 extrae scopes desde `scope`, `scp`, `scopes` o
+`permissions` del access token real y no depende solo de `scopes_supported`.
 
 ---
 
@@ -76,6 +119,7 @@ Ya existe:
 - transporte Streamable HTTP stateless;
 - `initialize`, `notifications/initialized`, `ping`, `tools/list`, `tools/call`;
 - auth beta con PAT hasheado en `mcp_tokens`;
+- validacion OAuth/JWT WorkOS por issuer/JWKS/audience/resource;
 - consentimiento en `mcp_consents`;
 - audit en `mcp_audit_events`;
 - `McpPrincipal` con `userId`, `clientId`, `scopes`, `audience`, `tokenId`;
@@ -96,7 +140,8 @@ No existe todavia:
 - Dynamic Client Registration o Client ID Metadata Documents propios de
   Astral; hoy se delegan a WorkOS;
 - consent UX para conectores externos;
-- token validation OAuth/JWT en `mcp/auth.ts`;
+- Login URI implementada en Astral (`/auth/workos/connect`);
+- creacion real de `user_identities(provider='workos')` durante el flow OAuth;
 - smoke real de Claude Desktop / Claude Web / ChatGPT.
 
 ---
@@ -595,12 +640,46 @@ Objetivo: aceptar OAuth access tokens ademas de PAT beta.
 
 Implementar:
 
-- validacion JWT/OAuth token;
-- audience/resource validation;
-- scope extraction;
-- mapping a `McpPrincipal`;
-- coexistencia con PAT beta;
-- audit con `tokenId/jti`.
+- validacion JWT/OAuth token; **implementado con `jose`**.
+- issuer/JWKS WorkOS; **implementado via `MCP_AUTHORIZATION_SERVER_ISSUER`**.
+- audience/resource validation; **implementado contra `MCP_RESOURCE_URL`**.
+- scope extraction; **implementado desde `scope`, `scp`, `scopes` y
+  `permissions`**.
+- mapping a `McpPrincipal`; **implementado usando
+  `user_identities(provider='workos', provider_user_id=<token.sub>)`**.
+- coexistencia con PAT beta; **PAT se intenta primero y sigue usando
+  `mcp_tokens`**.
+- audit con `tokenId/jti`; **parcial**: OAuth no inserta `token_id` porque
+  `mcp_audit_events.token_id` referencia `mcp_tokens`. Para OAuth queda
+  `tokenId=null` y audit sigue agrupando por user+client+tool. Si se necesita
+  jti persistido, agregar columna/tabla OAuth en otro slice.
+
+Decision de mapping:
+
+```text
+WorkOS access token
+  sub=<workos subject>
+  client_id|azp|cid=<OAuth client id>
+  scope/scp/scopes/permissions includes mcp:ask / mcp:read_hd
+        |
+        v
+user_identities
+  provider='workos'
+  provider_user_id=<sub>
+        |
+        v
+users.id
+        |
+        v
+mcp_consents(user_id, client_id)
+        |
+        v
+McpPrincipal
+```
+
+Implicacion: Slice 10 deja la verificacion lista, pero un token real no va a
+autorizar hasta que Slice 11 cree el link `workos -> users.id` y el
+`mcp_consents` correspondiente.
 
 ### Slice 11 - Astral login + consent bridge
 
