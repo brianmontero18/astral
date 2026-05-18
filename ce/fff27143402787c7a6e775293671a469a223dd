@@ -1,0 +1,22 @@
+docs/remote-mcp-oauth-connectors-genesis.md
+  s_4c18123980327d::t_d2979463fea784 1123-1127
+  s_4c18123980327d::t_134d57a5ddfae5 4,71,120-122,242-347,707-708,714-900
+  s_4c18123980327d::t_561642f46cab46 14-32
+  s_4c18123980327d::t_7fa62e7bc0fa80 164,416,419-420,484-485,661-662,710-711,1021-1030
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.9",
+  "base_commit_sha": "cefff27143402787c7a6e775293671a469a223dd",
+  "prompts": {},
+  "sessions": {
+    "s_4c18123980327d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e3830-933b-7f01-89ae-1bffb20d9890",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
