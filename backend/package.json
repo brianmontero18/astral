@@ -25,8 +25,9 @@
     "ai": "^6.0.174",
     "fastify": "^5.3.2",
     "pdfjs-dist": "^4.0.379",
-    "sharp": "^0.34.5",
+    "pdfkit": "^0.18.0",
     "supertokens-node": "^24.0.2",
+    "svg-to-pdfkit": "^0.1.8",
     "swisseph-wasm": "^0.0.4",
     "tsx": "^4.19.3",
     "typescript": "^5.8.3",
@@ -37,6 +38,8 @@
     "@libsql/darwin-arm64": "^0.5.22"
   },
   "devDependencies": {
+    "@types/pdfkit": "^0.17.6",
+    "@types/svg-to-pdfkit": "^0.1.4",
     "vitest": "^3.2.4"
   }
 }
