@@ -1,0 +1,33 @@
+backend/src/__tests__/api-mcp.test.ts
+  s_4c18123980327d::t_710a295c6d6ba1 295,297
+docs/remote-mcp-oauth-connectors-genesis.md
+  s_4c18123980327d::t_729823f6cd9206 115-117,120-132,1005-1007,1025,1037
+backend/src/__tests__/mcp-auth.test.ts
+  s_4c18123980327d::t_84c164512b401e 467,534
+  s_4c18123980327d::t_724f75fc662536 500
+  s_4c18123980327d::t_4fc89c6f75c0d5 246,258,286,297,306,363,381,388-393,415,428,448,459,487,521,554,587,620
+backend/src/__tests__/mcp-oauth.test.ts
+  s_4c18123980327d::t_d70a4db70e284a 18,32,48
+backend/src/mcp/discovery.ts
+  s_4c18123980327d::t_cf519912f347a3 8,14,32-39,79-80,96
+backend/scripts/smoke-mcp-curl.sh
+  s_4c18123980327d::t_b449916d5901f8 182-183
+backend/src/mcp/auth.ts
+  s_4c18123980327d::t_1f412f83681414 425,449
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.9",
+  "base_commit_sha": "692f1fe487a15b778162c3290174a846ce14f1dc",
+  "prompts": {},
+  "sessions": {
+    "s_4c18123980327d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e3830-933b-7f01-89ae-1bffb20d9890",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
