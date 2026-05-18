@@ -391,4 +391,152 @@ describe("calculateBodygraph", () => {
       expect(a.humanDesign.activatedGates).toEqual(b.humanDesign.activatedGates);
     });
   });
+
+  describe("DST-aware path via coordinates (geo-tz + luxon)", () => {
+    describe("Agos — 1988-12-28 04:13 local Esquel (Chubut, AR)", () => {
+      // Argentina DST 1988 verano activo → offset histórico -2. UTC = 06:13.
+      const AGOS_COORDS: BirthData = {
+        date: "1988-12-28",
+        time: "04:13",
+        coordinates: { lat: -42.9135, lon: -71.3217 },
+        placeLabel: "Esquel, Chubut, Argentina",
+        name: "Agos",
+      };
+
+      it("derives the same 26 gates as the UTC=06:13 fixture", async () => {
+        const fromCoords = await calculateBodygraph(AGOS_COORDS);
+        const fromUtc = await calculateBodygraph({
+          date: "1988-12-28",
+          time: "06:13",
+          timezoneOffsetHours: 0,
+          name: "Agos",
+        });
+        expect(fromCoords.humanDesign.activatedGates).toEqual(
+          fromUtc.humanDesign.activatedGates,
+        );
+      });
+
+      it("resolves the historical DST offset to -2", async () => {
+        const profile = await calculateBodygraph(AGOS_COORDS);
+        expect(profile.birthData!.timezoneOffsetHours).toBe(-2);
+      });
+
+      it("records the resolved coordinates in birthData", async () => {
+        const profile = await calculateBodygraph(AGOS_COORDS);
+        expect(profile.birthData!.coordinates).toEqual({ lat: -42.9135, lon: -71.3217 });
+        expect(profile.birthData!.placeLabel).toBe("Esquel, Chubut, Argentina");
+      });
+    });
+
+    describe("Brian — 1989-02-18 08:00 local Punta Cardón (Falcón, VE)", () => {
+      // Venezuela 1989 sin DST → offset histórico -4. UTC = 12:00.
+      const BRIAN_COORDS: BirthData = {
+        date: "1989-02-18",
+        time: "08:00",
+        coordinates: { lat: 11.6757, lon: -70.2197 },
+        name: "Brian Montero",
+      };
+
+      it("derives the same 26 gates as the UTC=12:00 fixture", async () => {
+        const fromCoords = await calculateBodygraph(BRIAN_COORDS);
+        const fromUtc = await calculateBodygraph({
+          date: "1989-02-18",
+          time: "12:00",
+          timezoneOffsetHours: 0,
+        });
+        expect(fromCoords.humanDesign.activatedGates).toEqual(
+          fromUtc.humanDesign.activatedGates,
+        );
+      });
+
+      it("resolves Venezuela 1989 offset to -4", async () => {
+        const profile = await calculateBodygraph(BRIAN_COORDS);
+        expect(profile.birthData!.timezoneOffsetHours).toBe(-4);
+      });
+    });
+
+    describe("Venezuela huso history (2007 / 2016)", () => {
+      // Caracas coordinates. Venezuela cambió a UTC-4:30 el 2007-12-09 y volvió
+      // a UTC-4 el 2016-05-01. Validamos que la tzdb captura el switch.
+      const CARACAS = { lat: 10.4806, lon: -66.9036 };
+
+      it("applies offset -4 pre-2007", async () => {
+        const profile = await calculateBodygraph({
+          date: "2000-06-15",
+          time: "12:00",
+          coordinates: CARACAS,
+        });
+        expect(profile.birthData!.timezoneOffsetHours).toBe(-4);
+      });
+
+      it("applies offset -4.5 during Chávez period (2007–2016)", async () => {
+        const profile = await calculateBodygraph({
+          date: "2010-06-15",
+          time: "12:00",
+          coordinates: CARACAS,
+        });
+        expect(profile.birthData!.timezoneOffsetHours).toBe(-4.5);
+      });
+
+      it("applies offset -4 again post-2016 (Maduro reverted)", async () => {
+        const profile = await calculateBodygraph({
+          date: "2020-06-15",
+          time: "12:00",
+          coordinates: CARACAS,
+        });
+        expect(profile.birthData!.timezoneOffsetHours).toBe(-4);
+      });
+    });
+
+    describe("Argentina DST repealed in 2000", () => {
+      // Buenos Aires coords. Validamos que luxon respeta la derogación DST.
+      const BS_AS = { lat: -34.6037, lon: -58.3816 };
+
+      it("applies standard offset -3 in 2010 (post-DST repeal)", async () => {
+        const profile = await calculateBodygraph({
+          date: "2010-06-15",
+          time: "12:00",
+          coordinates: BS_AS,
+        });
+        expect(profile.birthData!.timezoneOffsetHours).toBe(-3);
+      });
+    });
+
+    describe("validation", () => {
+      it("throws when neither coordinates nor timezoneOffsetHours are provided", async () => {
+        await expect(
+          calculateBodygraph({ date: "1988-12-28", time: "06:13" } as BirthData),
+        ).rejects.toThrow(/coordinates or timezoneOffsetHours/);
+      });
+
+      it("throws on out-of-range coordinates", async () => {
+        await expect(
+          calculateBodygraph({
+            date: "1988-12-28",
+            time: "06:13",
+            coordinates: { lat: 999, lon: 999 },
+          }),
+        ).rejects.toThrow();
+      });
+
+      it("prefers coordinates over legacy timezoneOffsetHours when both are provided", async () => {
+        // Brian-en-VE: legacy con offset incorrecto (0) Y coordinates correctas.
+        // Coordinates ganan → resuelve a -4 y produce el bodygraph correcto.
+        const fromBoth = await calculateBodygraph({
+          date: "1989-02-18",
+          time: "08:00",
+          timezoneOffsetHours: 0, // intentionally wrong, should be ignored
+          coordinates: { lat: 11.6757, lon: -70.2197 },
+        });
+        const fromUtcOnly = await calculateBodygraph({
+          date: "1989-02-18",
+          time: "12:00",
+          timezoneOffsetHours: 0,
+        });
+        expect(fromBoth.humanDesign.activatedGates).toEqual(
+          fromUtcOnly.humanDesign.activatedGates,
+        );
+      });
+    });
+  });
 });

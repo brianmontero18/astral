@@ -15,6 +15,8 @@
  * de algunos planetas rápidos como la Luna).
  */
 import SwissEph from "swisseph-wasm";
+import { find as geoTzFind } from "geo-tz";
+import { DateTime } from "luxon";
 import type { UserProfile } from "../agent-service.js";
 import { HD_CHANNELS, findChannelById } from "../hd-channels.js";
 import { degreeToGate, GATE_TO_CENTER } from "../hd-gates.js";
@@ -38,14 +40,54 @@ export interface BirthData {
   date: string;
   /** Local time HH:mm 24h. */
   time: string;
-  /** UTC offset in hours, e.g. -3 for Argentina, 5.5 for India. */
-  timezoneOffsetHours: number;
+  /**
+   * UTC offset in hours, e.g. -3 for Argentina, 5.5 for India.
+   * Legacy path. Either this OR `coordinates` must be provided. If both are
+   * provided, `coordinates` wins and the historically-correct offset is
+   * resolved from the IANA tzdb.
+   */
+  timezoneOffsetHours?: number;
+  /**
+   * Geographic coordinates of the birth place. When present, the IANA
+   * timezone is resolved via geo-tz polygons and the historical UTC offset
+   * (DST + huso changes) is computed by luxon for the local date/time.
+   * Preferred over `timezoneOffsetHours` because it handles cases like
+   * Argentina pre-2000 DST or Venezuela 2007/2016 huso changes correctly.
+   */
+  coordinates?: { lat: number; lon: number };
   /** Optional display label — not used in astronomy. */
   placeLabel?: string;
-  /** Optional geographic coordinates — reserved for future timezone DB lookups. */
-  coordinates?: { lat: number; lon: number };
   /** Optional name to put in profile.name. Otherwise empty string. */
   name?: string;
+}
+
+interface ResolvedOffset {
+  /** Signed hours, possibly fractional (e.g. -4.5 for VE 2007-2016). */
+  offsetHours: number;
+  /** IANA tz id (e.g. "America/Argentina/Buenos_Aires") when path is coordinates; null when legacy. */
+  ianaZone: string | null;
+}
+
+function resolveOffset(birth: BirthData): ResolvedOffset {
+  if (birth.coordinates) {
+    const { lat, lon } = birth.coordinates;
+    const zones = geoTzFind(lat, lon);
+    if (zones.length === 0) {
+      throw new Error(`No timezone found for coordinates lat=${lat}, lon=${lon}`);
+    }
+    const zone = zones[0];
+    const dt = DateTime.fromISO(`${birth.date}T${birth.time}`, { zone });
+    if (!dt.isValid) {
+      throw new Error(
+        `Invalid local datetime ${birth.date}T${birth.time} in zone ${zone}: ${dt.invalidReason ?? "unknown"}`,
+      );
+    }
+    return { offsetHours: dt.offset / 60, ianaZone: zone };
+  }
+  if (typeof birth.timezoneOffsetHours === "number") {
+    return { offsetHours: birth.timezoneOffsetHours, ianaZone: null };
+  }
+  throw new Error("BirthData requires either coordinates or timezoneOffsetHours");
 }
 
 /** Build an ISO 8601 string with explicit offset from local date+time+tz. */
@@ -126,12 +168,12 @@ function normLon(lon: number): number {
   return ((lon % 360) + 360) % 360;
 }
 
-function birthToUtcJulianDay(swe: Swe, birth: BirthData): number {
+function birthToUtcJulianDay(swe: Swe, birth: BirthData, offsetHours: number): number {
   const [y, m, d] = birth.date.split("-").map(Number);
   const [hh, mm] = birth.time.split(":").map(Number);
   const localHourDec = hh + mm / 60;
   // Convert local → UTC: subtract the offset (positive offset = east of UTC).
-  const utcHourDec = localHourDec - birth.timezoneOffsetHours;
+  const utcHourDec = localHourDec - offsetHours;
   return swe.julday(y, m, d, utcHourDec);
 }
 
@@ -340,7 +382,8 @@ async function getSwe(): Promise<Swe> {
 
 export async function calculateBodygraph(birth: BirthData): Promise<UserProfile> {
   const swe = await getSwe();
-  const personalityJd = birthToUtcJulianDay(swe, birth);
+  const { offsetHours } = resolveOffset(birth);
+  const personalityJd = birthToUtcJulianDay(swe, birth, offsetHours);
   const designJd = await findDesignJd(swe, personalityJd);
   const gates = computeAllGates(swe, personalityJd, designJd);
   const { channelIds, definedCenters, components } = deriveStructure(gates);
@@ -368,7 +411,7 @@ export async function calculateBodygraph(birth: BirthData): Promise<UserProfile>
     };
   });
 
-  const dateLocalIso = buildLocalIso(birth.date, birth.time, birth.timezoneOffsetHours);
+  const dateLocalIso = buildLocalIso(birth.date, birth.time, offsetHours);
   const dateUtcIso = new Date(dateLocalIso).toISOString();
   const designDateIso = julianDayToIsoUtc(designJd);
   const ageYears = calcAgeYears(dateUtcIso);
@@ -391,7 +434,7 @@ export async function calculateBodygraph(birth: BirthData): Promise<UserProfile>
       dateUtcIso,
       placeLabel: birth.placeLabel ?? "",
       coordinates: birth.coordinates,
-      timezoneOffsetHours: birth.timezoneOffsetHours,
+      timezoneOffsetHours: offsetHours,
       ageYears,
     },
     humanDesign: {
