@@ -711,12 +711,12 @@ Decisiones pendientes para Slice 11+:
   activo por `user_id + client_id`;
 - si se necesita persistir `jti`/grant OAuth en una tabla propia.
 
-## Contrato producto recomendado para V1
+## Contrato producto decidido para V1
 
-Esta seccion baja el criterio PM antes de codear Slice 11. No es una limitacion
-tecnica de OAuth; es la politica de producto que Astral deberia aplicar.
+Esta seccion baja el criterio PM decidido antes de codear Slice 11. No es una
+limitacion tecnica de OAuth; es la politica de producto que Astral debe aplicar.
 
-### Recomendacion de planes
+### Decision de planes
 
 ```text
 free:
@@ -737,13 +737,25 @@ Razonamiento:
 - `mcp:read_hd` exporta parte del activo central de Astral; no conviene abrirlo
   gratis por defecto.
 - `mcp:ask` consume LLM y puede transformarse en un canal paralelo de uso. No
-  debe ser ilimitado. Hoy MCP tiene presupuesto propio beta; para producto V1
-  hay que mantener un limite explicito o decidir integrarlo con la cuota mensual
-  de chat antes de habilitarlo masivamente.
+  debe ser ilimitado ni quedar separado del producto principal. En V1,
+  `mcp:ask` debe consumir la misma cuota mensual del chat web del usuario.
 - `mcp:ask` no debe implicar `mcp:read_hd`. Un cliente puede hacer preguntas a
   Astral sin recibir datos HD crudos/exportables.
 - `mcp:read_hd` no debe implicar `mcp:ask`. Leer datos deterministas y pedir
   guia LLM son permisos distintos.
+
+### Decision de cuota para `mcp:ask`
+
+```text
+mcp:ask consume la misma cuota mensual que el chat web:
+  free: no aplica porque free no tiene Remote MCP;
+  basic: no aplica en V1 porque basic no tiene mcp:ask;
+  premium: consume del limite mensual premium vigente.
+```
+
+Implicacion: `mcp:ask` no debe ser un bypass de `/api/chat`. La implementacion
+puede conservar los budgets MCP defensivos como guardrail tecnico, pero la
+regla producto visible es la cuota mensual normal del plan.
 
 ### Gating obligatorio
 
@@ -782,7 +794,7 @@ No alcanza con que WorkOS emita un token. El resource server sigue siendo Astral
 | Escenario | Experiencia esperada | Comportamiento server | Slice 11 |
 |---|---|---|---|
 | Usuario premium activo y onboarded pide `mcp:read_hd` | Conecta, consiente y ve tools HD. | Link WorkOS->Astral, valida plan, token y grant; lista solo HD tools. | Implementar |
-| Usuario premium activo y onboarded pide `mcp:ask` | Conecta, consiente y puede preguntar. | Valida `mcp:ask`; aplica budget MCP beta o cuota definida; audit `mcp_ask`. | Implementar si se confirma premium-only |
+| Usuario premium activo y onboarded pide `mcp:ask` | Conecta, consiente y puede preguntar mientras tenga cuota mensual. | Valida `mcp:ask`; consume la misma cuota mensual del chat web; audit `mcp_ask`. | Implementar |
 | Usuario premium pide ambos scopes | Conecta y ve ambos grupos de tools. | Grant con ambos scopes; `tools/list` filtra por scope. | Implementar |
 | Usuario basic pide `mcp:read_hd` | Conecta y ve tools HD deterministicas. | Permite `mcp:read_hd`; bloquea `mcp:ask`. | Implementar |
 | Usuario basic pide `mcp:ask` | Ve upgrade/premium required. | No completar grant util para `mcp:ask`; tool call devuelve 403. | Implementar como rechazo |
@@ -850,7 +862,7 @@ Astral web/backend
   - mcp_clients/mcp_consents como espejo interno
   - token validation en /api/mcp/v1
   - tools/list/tools/call filtrados por scope/plan
-  - budgets/audit/rollback
+  - cuota mensual chat para mcp:ask, budgets defensivos, audit y rollback
 ```
 
 ### Decision de consentimiento interno
@@ -876,6 +888,7 @@ Implicacion tecnica para Slice 11:
   - no confia solo en mcp_consents;
   - valida token y scopes en cada request;
   - revalida usuario/plan/status/onboarding;
+  - hace que mcp:ask consuma cuota mensual de chat web;
   - filtra tools y bloquea tool calls fuera de contrato.
 ```
 
@@ -897,7 +910,7 @@ No implementar todavia:
 - `get_my_profile_summary_v1`;
 - `analyze_my_transit_impact_v1`;
 - MCP para usuarios free;
-- quota engine nuevo si se conserva el budget MCP beta.
+- cuota MCP separada como contrato de producto para `mcp:ask`.
 
 ---
 
@@ -1022,6 +1035,9 @@ Implementar:
 - SuperTokens session check y login/signup redirect si no hay sesion;
 - resolve user + auto-link existente;
 - gates de `status`, `onboarding_status`, `plan` y scopes solicitados;
+- enforcement de producto: `free=no MCP`, `basic=mcp:read_hd`,
+  `premium=mcp:read_hd+mcp:ask`;
+- `mcp:ask` consume la cuota mensual del chat web;
 - WorkOS completion API usando `external_auth_id`;
 - creacion/actualizacion de `user_identities(provider='workos')`;
 - creacion/actualizacion de `mcp_clients`;
@@ -1121,10 +1137,6 @@ Bloqueantes antes de implementar:
   cero bajo 1M MAU?
 - Claude/ChatGPT en las cuentas actuales tienen acceso a custom connectors?
 - Cual es el `callback_id` real de ChatGPT cuando se cree la app/connector?
-- Confirmar decision producto: V1 paid-only, `basic=mcp:read_hd` y
-  `premium=mcp:read_hd+mcp:ask`.
-- Confirmar decision quota: `mcp:ask` usa budget MCP beta separado o se integra
-  con la cuota mensual de chat antes de beta publica.
 
 No bloqueantes:
 
