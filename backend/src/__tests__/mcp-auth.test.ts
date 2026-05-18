@@ -393,6 +393,72 @@ describe("resolveMcpPrincipal", () => {
     });
   });
 
+  it("rejects WorkOS OAuth tokens mapped to inactive Astral users", async () => {
+    const seeded = await seedDbOAuthAccess({
+      userStatus: "disabled",
+    });
+
+    await expect(
+      resolveMcpPrincipal(
+        {
+          authorizationHeader: `Bearer ${RAW_OAUTH_TOKEN}`,
+          requiredScopes: ["mcp:ask"],
+          oauthAudience: OAUTH_AUDIENCE,
+          now: NOW,
+        },
+        {
+          findTokenByHash: async () => null,
+          verifyOAuthToken: async () => ({
+            kind: "verified",
+            claims: {
+              subject: seeded.subject,
+              clientId: seeded.clientId,
+              scopes: ["mcp:ask"],
+              audience: OAUTH_AUDIENCE,
+            },
+          }),
+        },
+      ),
+    ).resolves.toMatchObject({
+      kind: "unauthorized",
+      statusCode: 403,
+      error: "account_inactive",
+    });
+  });
+
+  it("rejects WorkOS OAuth tokens for disabled MCP clients", async () => {
+    const seeded = await seedDbOAuthAccess({
+      clientStatus: "disabled",
+    });
+
+    await expect(
+      resolveMcpPrincipal(
+        {
+          authorizationHeader: `Bearer ${RAW_OAUTH_TOKEN}`,
+          requiredScopes: ["mcp:ask"],
+          oauthAudience: OAUTH_AUDIENCE,
+          now: NOW,
+        },
+        {
+          findTokenByHash: async () => null,
+          verifyOAuthToken: async () => ({
+            kind: "verified",
+            claims: {
+              subject: seeded.subject,
+              clientId: seeded.clientId,
+              scopes: ["mcp:ask"],
+              audience: OAUTH_AUDIENCE,
+            },
+          }),
+        },
+      ),
+    ).resolves.toMatchObject({
+      kind: "unauthorized",
+      statusCode: 403,
+      error: "client_inactive",
+    });
+  });
+
   it("requires a bearer token", async () => {
     await expect(
       resolveMcpPrincipal({ requiredScopes: ["mcp:ask"], now: NOW }),

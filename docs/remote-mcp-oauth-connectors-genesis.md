@@ -323,7 +323,7 @@ Confirmado desde la investigacion:
 - **Pricing beta**: AuthKit tiene un tramo gratis hasta 1M monthly active users.
   OAuth connections no aparecen como costo separado en el material revisado. En
   produccion puede pedir billing info, pero el uso MCP/OAuth sin enterprise
-  add-ons deberia ser costo bajo o cero al inicio.
+  add-ons se espera de costo bajo o cero al inicio.
 - **Standalone Connect**: existe justamente para apps que ya tienen auth propia
   y quieren usar AuthKit/WorkOS como authorization server OAuth sin migrar login.
 - **Login URI hacia Astral**: se puede configurar una Login URI HTTPS por
@@ -335,8 +335,8 @@ Confirmado desde la investigacion:
   Dynamic Client Registration, Resource Indicators, PKCE y metadata OAuth. CIMD
   esta off por default y debe habilitarse en Dashboard; DCR es opcional para
   compatibilidad con clientes mas viejos.
-- **Token validation**: Astral debe validar JWT via JWKS/issuer/audience y mapear
-  el token a `McpPrincipal`.
+- **Token validation**: Astral valida JWT via JWKS/issuer/audience y mapea el
+  token a `McpPrincipal` desde Slice 10.
 
 Configuracion esperada para Astral:
 
@@ -545,7 +545,7 @@ resolveCurrentUser
 users.id
 ```
 
-La identidad MCP deberia terminar siempre en:
+La identidad MCP termina siempre en:
 
 ```ts
 McpPrincipal {
@@ -553,20 +553,29 @@ McpPrincipal {
   clientId: string;
   scopes: string[];
   audience: string;
-  tokenId: string;
+  tokenId: string | null;
 }
 ```
 
-Con OAuth, `tokenId` podria ser `jti` o un mirror interno del token/grant.
+Con PAT beta, `tokenId` es el id de `mcp_tokens`. Con OAuth WorkOS, `tokenId`
+queda `null` porque `mcp_audit_events.token_id` referencia `mcp_tokens`; el
+audit igual queda agrupable por `userId + clientId + toolName`.
 
-Decisiones pendientes:
+Decisiones resueltas en Slice 10:
 
-- si `sub` del token debe ser `users.id` o un subject externo que se mapea;
+- `sub` del token WorkOS se mapea via
+  `user_identities(provider='workos', provider_user_id=<sub>)`;
+- el `audience/resource` validado es la resource URI absoluta:
+  `https://astral.soydanielamedina.com/api/mcp/v1`;
+- los scopes MCP se leen desde `scope`, `scp`, `scopes` o `permissions`;
+- `client_id`, `azp` o `cid` del token debe resolver a `mcp_clients.id`.
+
+Decisiones pendientes para Slice 11+:
+
 - si usuarios `onboarding_status=pending` pueden conectar MCP;
 - si solo `plan=premium` puede usar `mcp:ask`;
 - como representar revocacion en `mcp_consents` y/o proveedor externo;
-- si el `audience` final debe ser la resource URI absoluta:
-  `https://astral.soydanielamedina.com/api/mcp/v1`.
+- si se necesita persistir `jti`/grant OAuth en una tabla propia.
 
 ---
 
@@ -621,7 +630,7 @@ Config nueva:
 ```text
 FEATURE_REMOTE_MCP=false
 MCP_RESOURCE_URL=https://astral.soydanielamedina.com/api/mcp/v1
-MCP_AUTHORIZATION_SERVER_ISSUER=<issuer publico de WorkOS/AuthKit>
+MCP_AUTHORIZATION_SERVER_ISSUER=https://thoughtful-trinket-33-staging.authkit.app
 ```
 
 Notas:
