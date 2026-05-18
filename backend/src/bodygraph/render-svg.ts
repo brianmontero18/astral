@@ -429,8 +429,8 @@ function renderFixingMarker(
 
 /**
  * Triangle with a number inside — used by `renderToneGroup` to display the
- * color/tone values of a Variable. Outlined (stroke), not filled, with the
- * number rendered in the stroke color.
+ * color/tone values of a Variable. Genetic Matrix dialect: OUTLINE-only with
+ * rounded corners, label in the same color (no white-on-fill).
  */
 function renderNumberedTriangle(
   cx: number,
@@ -447,15 +447,105 @@ function renderNumberedTriangle(
   const pts = pointDown
     ? `${f(cx - halfW)},${f(top)} ${f(cx + halfW)},${f(top)} ${f(cx)},${f(bot)}`
     : `${f(cx - halfW)},${f(bot)} ${f(cx + halfW)},${f(bot)} ${f(cx)},${f(top)}`;
-  // Numbers in down-pointing triangles look better when shifted up; up-pointing,
-  // shifted down. Empirical adjustment.
-  const labelY = pointDown ? cy - halfH * 0.30 : cy + halfH * 0.30;
+  // Number sits roughly at the geometric centroid (offset 1/6 toward the base).
+  const labelY = pointDown ? cy - halfH * 0.18 : cy + halfH * 0.18;
   return (
-    `<polygon points="${pts}" fill="none" stroke="${color}" stroke-width="${f(size * 0.08)}"/>` +
+    `<polygon points="${pts}" fill="none" stroke="${color}" stroke-width="${f(size * 0.13)}" stroke-linejoin="round"/>` +
     `<text x="${f(cx)}" y="${f(labelY)}" font-size="${f(size * 0.55)}" text-anchor="middle" ` +
     `dominant-baseline="central" fill="${color}" font-family="Helvetica, Arial, sans-serif" ` +
     `font-weight="bold">${escapeXml(label)}</text>`
   );
+}
+
+/**
+ * Stylized orientation arrow + L/R circle, drawn as a single assembly à la
+ * Genetic Matrix.
+ *
+ * The assembly is anchored by its HORIZONTAL CENTER (`cx`) so left- and
+ * right-pointing variants share the exact same bounding box [cx-W/2, cx+W/2]
+ * and align vertically in a column.
+ *
+ * Layout (totalWidth = W):
+ *   - Head: triangular arrow with rounded corners. Occupies 36% of W on the
+ *     `direction` side. Height ≈ 62% of W.
+ *   - Stem: thick rectangle linking head and circle. Occupies 20% of W.
+ *   - Letter circle: outline-only, radius ≈ 22% of W (= 44% diameter).
+ *   - 36% + 20% + 44% = 100% — head, stem and circle exactly fill W.
+ */
+function renderOrientationArrowWithLetter(opts: {
+  cx: number;
+  cy: number;
+  totalWidth: number;
+  color: string;
+  direction: "left" | "right";
+  letter: "L" | "R";
+}): string {
+  const W = opts.totalWidth;
+  const halfW = W / 2;
+  const headW = W * 0.36;
+  const headH = W * 0.62;
+  const stemW = W * 0.20;
+  const stemH = W * 0.22;
+  const circleR = W * 0.22;
+  const cornerR = headH * 0.18;
+  const sw = W * 0.04;
+
+  const headTopY = opts.cy - headH / 2;
+  const headBotY = opts.cy + headH / 2;
+  const stemTopY = opts.cy - stemH / 2;
+
+  // Compute element X coordinates with a sign that flips by direction.
+  // For LEFT: head at left end, circle at right end.
+  // For RIGHT: circle at left end, head at right end.
+  const isLeft = opts.direction === "left";
+  const leftEdge = opts.cx - halfW;
+  const rightEdge = opts.cx + halfW;
+
+  let tipX: number;
+  let headBaseX: number;
+  let stemStartX: number;
+  let circleCx: number;
+
+  if (isLeft) {
+    tipX = leftEdge;
+    headBaseX = tipX + headW;
+    stemStartX = headBaseX;
+    circleCx = rightEdge - circleR;
+  } else {
+    circleCx = leftEdge + circleR;
+    stemStartX = leftEdge + 2 * circleR;
+    headBaseX = stemStartX + stemW;
+    tipX = headBaseX + headW;
+  }
+
+  // Rounded triangle head. Quadratic curves at the 3 corners. `isLeft` flips
+  // the horizontal direction of the curves.
+  const sign = isLeft ? 1 : -1;
+  const headPath = `<path d="${[
+    `M ${f(tipX + sign * cornerR * 0.4)} ${f(opts.cy - cornerR * 0.2)}`,
+    `Q ${f(tipX)} ${f(opts.cy)} ${f(tipX + sign * cornerR * 0.4)} ${f(opts.cy + cornerR * 0.2)}`,
+    `L ${f(headBaseX - sign * cornerR)} ${f(headBotY - cornerR)}`,
+    `Q ${f(headBaseX)} ${f(headBotY)} ${f(headBaseX)} ${f(headBotY - cornerR)}`,
+    `L ${f(headBaseX)} ${f(headTopY + cornerR)}`,
+    `Q ${f(headBaseX)} ${f(headTopY)} ${f(headBaseX - sign * cornerR)} ${f(headTopY + cornerR)}`,
+    `Z`,
+  ].join(" ")}" fill="${opts.color}" stroke="${opts.color}" stroke-width="${f(sw)}" stroke-linejoin="round"/>`;
+
+  // Stem: rectangle from headBase to the circle's near edge (slight overlap).
+  const stemX = isLeft ? stemStartX - sw * 0.5 : stemStartX;
+  const stemRectW = stemW + sw * 0.5;
+  const stemRect = `<rect x="${f(stemX)}" y="${f(stemTopY)}" width="${f(stemRectW)}" height="${f(stemH)}" fill="${opts.color}" stroke="${opts.color}" stroke-width="${f(sw * 0.5)}"/>`;
+
+  // Letter circle: outline-only with white fill so the letter reads on a clean disc.
+  const circleStrokeW = circleR * 0.22;
+  const letterCircle =
+    `<circle cx="${f(circleCx)}" cy="${f(opts.cy)}" r="${f(circleR)}" ` +
+    `fill="white" stroke="${opts.color}" stroke-width="${f(circleStrokeW)}"/>` +
+    `<text x="${f(circleCx)}" y="${f(opts.cy)}" font-size="${f(circleR * 1.25)}" ` +
+    `text-anchor="middle" dominant-baseline="central" fill="${opts.color}" ` +
+    `font-family="Helvetica, Arial, sans-serif" font-weight="bold">${opts.letter}</text>`;
+
+  return headPath + stemRect + letterCircle;
 }
 
 interface ToneGroupOptions {
@@ -488,15 +578,25 @@ interface ToneGroupOptions {
  * Orientation comes from `toneToOrientation(tone)` in hd-meta (tone ≤ 3 → left).
  */
 function renderToneGroup(opts: ToneGroupOptions): string {
-  const triSize = opts.width * 0.22;
-  const arrowSize = opts.width * 0.18;
-  const letterRadius = opts.width * 0.08;
+  // Genetic Matrix layout: arrow assembly stacked ABOVE the two triangles.
+  //
+  //   ┌─────────────────────┐
+  //   │  [arrow + L circle] │  ← top row, spans full width
+  //   │     [▲]    [▽]      │  ← bottom row, 2 triangles side by side
+  //   └─────────────────────┘
+  const rowGap = opts.width * 0.05;
+  const arrowCy = opts.cy - opts.width * 0.30; // upper row vertical center
+  const triCy = opts.cy + opts.width * 0.30;   // lower row vertical center
 
-  // Layout: arrow → letter circle → ▲ triangle → ▽ triangle, spread evenly.
-  const xArrow = opts.x + opts.width * 0.11;
-  const xLetter = opts.x + opts.width * 0.30;
-  const xUp = opts.x + opts.width * 0.56;
-  const xDown = opts.x + opts.width * 0.85;
+  // Arrow + L circle assembly: spans most of the group width, centered.
+  const assemblyWidth = opts.width * 0.85;
+  const assemblyCx = opts.x + opts.width / 2;
+
+  // Two triangles side by side, sharing the full width of the row.
+  const triSize = opts.width * 0.40;
+  const xUp = opts.x + opts.width * 0.30;
+  const xDown = opts.x + opts.width * 0.70;
+  void rowGap; // keep for future spacing tweaks
 
   // Per-side mapping. Universal rule: green = tone, yellow = color. Which one
   // sits on top (▲) flips by side.
@@ -507,30 +607,20 @@ function renderToneGroup(opts: ToneGroupOptions): string {
   const downValue = upIsGreen ? opts.variable.color : opts.variable.tone;
   const sideColor = opts.side === "design" ? COLOR_DESIGN : COLOR_PERSONALITY;
 
-  // Arrow as a horizontal triangle pointing left or right.
   const arrowLeft = opts.variable.orientation === "left";
-  const sw = arrowSize * 0.10;
-  const arrowHalfW = arrowSize / 2;
-  const arrowHalfH = arrowSize / 2;
-  const arrowPts = arrowLeft
-    ? `${f(xArrow + arrowHalfW)},${f(opts.cy - arrowHalfH)} ${f(xArrow + arrowHalfW)},${f(opts.cy + arrowHalfH)} ${f(xArrow - arrowHalfW)},${f(opts.cy)}`
-    : `${f(xArrow - arrowHalfW)},${f(opts.cy - arrowHalfH)} ${f(xArrow - arrowHalfW)},${f(opts.cy + arrowHalfH)} ${f(xArrow + arrowHalfW)},${f(opts.cy)}`;
-  const arrowSvg = `<polygon points="${arrowPts}" fill="none" stroke="${sideColor}" stroke-width="${f(sw)}"/>`;
-
-  // L or R letter inside a small circle, sharing the side color.
-  const letter = arrowLeft ? "L" : "R";
-  const letterSvg =
-    `<circle cx="${f(xLetter)}" cy="${f(opts.cy)}" r="${f(letterRadius)}" ` +
-    `fill="none" stroke="${sideColor}" stroke-width="${f(letterRadius * 0.18)}"/>` +
-    `<text x="${f(xLetter)}" y="${f(opts.cy)}" font-size="${f(letterRadius * 1.2)}" ` +
-    `text-anchor="middle" dominant-baseline="central" fill="${sideColor}" ` +
-    `font-family="Helvetica, Arial, sans-serif" font-weight="bold">${letter}</text>`;
+  const arrowAssembly = renderOrientationArrowWithLetter({
+    cx: assemblyCx,
+    cy: arrowCy,
+    totalWidth: assemblyWidth,
+    color: sideColor,
+    direction: arrowLeft ? "left" : "right",
+    letter: arrowLeft ? "L" : "R",
+  });
 
   return (
-    arrowSvg +
-    letterSvg +
-    renderNumberedTriangle(xUp, opts.cy, triSize, upColor, false, String(upValue)) +
-    renderNumberedTriangle(xDown, opts.cy, triSize, downColor, true, String(downValue))
+    arrowAssembly +
+    renderNumberedTriangle(xUp, triCy, triSize, upColor, false, String(upValue)) +
+    renderNumberedTriangle(xDown, triCy, triSize, downColor, true, String(downValue))
   );
 }
 
@@ -746,8 +836,10 @@ export function renderFullDocument(
   // Layout regions.
   const header = { x: 0.10, y: 0.05, w: 2.20, h: 0.30 };
   const chart =  { x: 0.65, y: 0.45, w: 1.00, h: 1.50 };
-  const designP = { x: 0.10, y: 0.50, w: 0.45, h: 1.40 };
-  const personP = { x: 1.75, y: 0.50, w: 0.45, h: 1.40 };
+  // Panels shrunk slightly (0.45 → 0.40) to make room for the tone groups
+  // between panels and chart (was 0.10 wide, now 0.15 — Genetic Matrix style).
+  const designP = { x: 0.10, y: 0.50, w: 0.40, h: 1.40 };
+  const personP = { x: 1.80, y: 0.50, w: 0.40, h: 1.40 };
 
   // 1. Header (reads birth metadata from profile.birthData if present).
   const headerSvg = renderHeader(profile, {
