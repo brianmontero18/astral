@@ -1,0 +1,71 @@
+docs/remote-mcp-implementation-recon-plan.md
+  s_4c18123980327d::t_2e64ea1e0fe2d2 314-315,537
+backend/scripts/smoke-mcp-curl.sh
+  s_4c18123980327d::t_312d07d2816a46 158,359,362-365
+backend/src/mcp/auth.ts
+  s_4c18123980327d::t_bbe6d6abb721ff 405-424,434-440
+  s_4c18123980327d::t_1ca1c8d0ef4820 308-319
+  s_4c18123980327d::t_2a0943783c190a 5,8,20-24,52-53,84-89,102-103,177,180-218
+  s_4c18123980327d::t_7a79540f2433f4 9-10,178-179
+backend/src/mcp/server.ts
+  s_4c18123980327d::t_7db847b7194b4c 63-64
+backend/.env.example
+  s_4c18123980327d::t_fc5ce8a9bbba5d 85,90
+docs/remote-mcp-oauth-connectors-genesis.md
+  s_4c18123980327d::t_b9fc5f8d6d230f 145-149
+  s_4c18123980327d::t_5b1333453cae77 153,160,759-761,876,1007-1009,1021-1022,1029,1077,1117-1118
+  s_4c18123980327d::t_344bb56dc2e250 269,772-773,776-782,796-798,891-892,901-903,982,990,1054,1059-1062
+  s_4c18123980327d::t_1a4df736d7bc8e 700-702
+backend/src/mcp/oauth.ts
+  s_4c18123980327d::t_837c08b1aaffbe 128
+backend/src/__tests__/api-workos-connect.test.ts
+  s_4c18123980327d::t_65c97254e42b0b 217-252
+  s_4c18123980327d::t_43b7d0d8567a01 1-216,253
+backend/src/__tests__/helpers.ts
+  s_4c18123980327d::t_03979ebdffef9a 137-139,186-188
+backend/src/__tests__/api-mcp.test.ts
+  s_4c18123980327d::t_e30f56ae2bb711 387-388
+  s_4c18123980327d::t_031dba4f4334ad 599,983,988,1008,1013-1014,1016-1018,1027,1029,1031
+backend/src/__tests__/mcp-oauth.test.ts
+  s_4c18123980327d::t_afd1cdd4fc2878 77-97
+backend/scripts/seed-mcp-smoke.ts
+  s_4c18123980327d::t_c9f2a1f5d48bee 125-126,129-131,134-135,138-141,144,146-148,159-160,169
+backend/src/routes/workos-connect.ts
+  s_4c18123980327d::t_4139593675e2f4 161-165
+  s_4c18123980327d::t_08850304dcd8bc 5,131-139,151
+  s_4c18123980327d::t_879d7d946b95d7 1-4,6-130,140-150,152-160,166-179
+backend/src/mcp/policy.ts
+  s_4c18123980327d::t_3a1eb5c09d52cd 1-35
+backend/src/app.ts
+  s_4c18123980327d::t_48ba97bba19c3f 22,76
+backend/src/mcp/tools/ask-astral-guide-v1.ts
+  s_4c18123980327d::t_62623f5b4acfaa 4-11,91,93-94,96
+  s_4c18123980327d::t_c24f74588bb0f9 90,92,95
+backend/src/db.ts
+  s_4c18123980327d::t_b76e85adb0495a 1451-1472,1498-1518
+  s_4c18123980327d::t_38264226acfb83 1215,1224-1239
+  s_4c18123980327d::t_efbbe05575a5f2 1565,1567,1590,1592
+  s_4c18123980327d::t_325ccfd1df15ef 85,87,773-789
+backend/src/__tests__/mcp-auth.test.ts
+  s_4c18123980327d::t_a7140d5beff494 9-10,50,52,83-84,89-90,126-127,129-130,153-154,158-171
+  s_4c18123980327d::t_5ed9fd690a4a6a 265-308,458,462-489,493-560
+  s_4c18123980327d::t_b158301db0ea4d 425,451-457,459-461
+docs/remote-mcp-architecture-proposal.md
+  s_4c18123980327d::t_36ade5ca2e09ce 40-41,442,444,498
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.9",
+  "base_commit_sha": "c1b8a202f77859f5ad2565a96b4bc95208a1519f",
+  "prompts": {},
+  "sessions": {
+    "s_4c18123980327d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e3830-933b-7f01-89ae-1bffb20d9890",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
