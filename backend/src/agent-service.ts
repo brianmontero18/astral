@@ -134,6 +134,16 @@ export interface UserProfile {
       environment: HdVariable;
       perspective: HdVariable;
     };
+    /**
+     * Variable Wheel labels semánticos (Genetic Matrix dialect). 13 strings
+     * derivados de `variables` via tablas canónicas HD. Ver `hd-variable-labels.ts`
+     * para la lógica completa + cross-validation con Foundation Chart de Agos.
+     *
+     * Validado contra 1 ground truth (Agos); 11/13 labels con consenso triple-source,
+     * 2/13 (Determination color-1 sub-expression, Trajectory pairs para color 2-6)
+     * con consenso doble-source pendiente de cross-check con 2do chart.
+     */
+    variableLabels?: import("./hd-variable-labels.js").VariableLabels;
     channels: Array<{ id: string; name: string; circuit: string }>;
     activatedGates: Array<{
       number: number;

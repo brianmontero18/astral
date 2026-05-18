@@ -21,6 +21,7 @@ import { degreeToGate, GATE_TO_CENTER } from "../hd-gates.js";
 import { deriveImpliedFields } from "../extraction-service.js";
 import { lookupFixingState } from "../hd-fixings.js";
 import { lookupIncarnationCross } from "../hd-crosses.js";
+import { computeVariableLabels } from "../hd-variable-labels.js";
 import {
   lookupProfileName,
   lookupPositiveTheme,
@@ -377,6 +378,7 @@ export async function calculateBodygraph(birth: BirthData): Promise<UserProfile>
     environment: variableFromGate(findGate("North Node", false),  "Design.NorthNode"),
     perspective: variableFromGate(findGate("North Node", true),   "Personality.NorthNode"),
   };
+  const variableLabels = computeVariableLabels(variables);
 
   const result: UserProfile = {
     name: birth.name ?? "",
@@ -405,6 +407,7 @@ export async function calculateBodygraph(birth: BirthData): Promise<UserProfile>
       strongestSense: "",
       design: { date: designDateIso },
       variables,
+      variableLabels,
       channels,
       activatedGates: gates,
       definedCenters,
