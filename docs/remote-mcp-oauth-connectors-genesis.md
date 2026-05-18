@@ -1,7 +1,7 @@
 # Remote MCP OAuth connectors - genesis
 
 **Estado**: material de apoyo para deliberar el siguiente ciclo de Remote MCP. No es spec ejecutable cerrada.
-**Fecha**: 2026-05-17.
+**Fecha**: 2026-05-18.
 **Branch base**: `feature/astral-mcp-architecture`.
 **Dominio objetivo**: `https://astral.soydanielamedina.com`.
 **Endpoint MCP objetivo**: `https://astral.soydanielamedina.com/api/mcp/v1`.
@@ -10,6 +10,25 @@
 - [`remote-mcp-architecture-proposal.md`](remote-mcp-architecture-proposal.md)
 - [`remote-mcp-implementation-recon-plan.md`](remote-mcp-implementation-recon-plan.md)
 - [`remote-mcp-client-smoke-matrix.md`](remote-mcp-client-smoke-matrix.md)
+
+**Fuentes oficiales revisadas para este corte**:
+
+- WorkOS Standalone Connect:
+  <https://workos.com/docs/authkit/connect/standalone>
+- WorkOS Standalone Connect API reference:
+  <https://workos.com/docs/reference/workos-connect/standalone>
+- Claude connector authentication:
+  <https://claude.com/docs/connectors/building/authentication>
+- Claude Code MCP:
+  <https://docs.claude.com/en/docs/claude-code/mcp>
+- OpenAI Apps SDK auth:
+  <https://developers.openai.com/apps-sdk/build/auth>
+- OpenAI Apps SDK connect from ChatGPT:
+  <https://developers.openai.com/apps-sdk/deploy/connect-chatgpt>
+- OpenAI Apps SDK troubleshooting:
+  <https://developers.openai.com/apps-sdk/deploy/troubleshooting>
+- MCP authorization spec 2025-06-18:
+  <https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization>
 
 ---
 
@@ -49,7 +68,7 @@ WorkOS pasa los 4 checks preliminares:
 
 Queda por validar con cuenta/dashboard real:
   - billing info en production;
-  - redirect URI exacta para ChatGPT;
+  - callback exacto de ChatGPT una vez creada la app/connector real;
   - smoke real Claude/ChatGPT.
 ```
 
@@ -98,6 +117,9 @@ Connect app:
   Type: OAuth
   Redirect URI Claude:
     https://claude.ai/api/mcp/auth_callback
+  Redirect URI ChatGPT:
+    https://chatgpt.com/connector/oauth/{callback_id}
+    El callback_id se obtiene en la pantalla real de administracion de la app.
   Permissions asignados como scopes:
     mcp:ask
     mcp:read_hd
@@ -139,7 +161,7 @@ No existe todavia:
 - authorization code + PKCE para usuarios;
 - Dynamic Client Registration o Client ID Metadata Documents propios de
   Astral; hoy se delegan a WorkOS;
-- consent UX para conectores externos;
+- Login URI gate/bridge para sesion, plan, onboarding y scopes;
 - Login URI implementada en Astral (`/auth/workos/connect`);
 - creacion real de `user_identities(provider='workos')` durante el flow OAuth;
 - smoke real de Claude Desktop / Claude Web / ChatGPT.
@@ -217,6 +239,112 @@ OAuth no es "login con Google". Google Login puede usar OAuth/OIDC, pero OAuth
 aca es el protocolo para dar permisos a apps externas. Astral puede seguir
 usando SuperTokens para login web.
 
+### Diagrama PM del flujo completo
+
+Este es el flujo que deberia ocurrir para un usuario final cuando instala Astral
+MCP en Claude, Claude Code, ChatGPT u otro cliente compatible:
+
+```text
+Usuario en Claude/ChatGPT/Claude Code
+        |
+        | configura:
+        | https://astral.soydanielamedina.com/api/mcp/v1
+        v
+Cliente intenta listar/usar tools MCP
+        |
+        v
+Astral MCP responde:
+  "necesito OAuth para este recurso"
+  401 + WWW-Authenticate + resource_metadata
+        |
+        v
+Cliente lee metadata de Astral
+        |
+        v
+Cliente abre WorkOS/AuthKit OAuth
+        |
+        v
+WorkOS manda al usuario a:
+  https://astral.soydanielamedina.com/auth/workos/connect
+  ?external_auth_id=...
+        |
+        v
+Astral resuelve usuario con SuperTokens
+        |
+        +-- no hay sesion ---------> login/signup Astral
+        |
+        +-- cuenta inactiva -------> bloqueo
+        |
+        +-- onboarding pendiente --> completar onboarding
+        |
+        +-- plan no habilitado ----> upgrade / no emitir token util
+        |
+        +-- scopes no permitidos --> upgrade / no emitir token util
+        |
+        v
+Astral llama completion API de WorkOS
+        |
+        v
+WorkOS muestra consentimiento OAuth si corresponde
+        |
+        v
+Cliente recibe access token
+        |
+        v
+Cliente llama /api/mcp/v1 con Bearer token
+        |
+        v
+Astral valida:
+  firma + issuer + audience + expiry + scopes
+  usuario Astral + estado + plan + onboarding
+  cliente + consentimiento/grant interno
+        |
+        v
+tools/list y tools/call solo con lo permitido
+```
+
+Traduccion brutalmente simple:
+
+```text
+OAuth dice: "este cliente externo tiene un token valido".
+SuperTokens dice: "este humano es este usuario de Astral".
+Astral decide: "este usuario, con este plan, puede o no puede usar este scope".
+WorkOS ayuda a emitir tokens y mostrar consentimiento OAuth.
+Claude/ChatGPT deciden como mostrar el boton Connect, errores y reintentos.
+```
+
+### Que pasa si el usuario instala el MCP
+
+Instalar/configurar el MCP en el cliente no significa que ya pueda usarlo.
+Significa que el cliente sabe donde esta el servidor. El primer uso real dispara
+autenticacion/autorizacion.
+
+```text
+Instalo connector
+        |
+        v
+Cliente prueba conexion / lista tools
+        |
+        +-- sin token:
+        |     Astral responde 401 con metadata OAuth
+        |     Cliente muestra "Connect" o abre browser OAuth
+        |
+        +-- token valido y usuario habilitado:
+        |     Astral lista/ejecuta tools permitidas
+        |
+        +-- token valido pero plan/scope no habilitado:
+        |     Astral responde 403 controlado
+        |     Cliente muestra error; Astral debe tener pagina/copy de upgrade
+        |
+        +-- token vencido/invalidado:
+              Astral responde 401
+              Cliente deberia reautenticar
+```
+
+Claude Code con PAT beta hoy puede seguir funcionando de forma manual para
+desarrollo. Claude Desktop/Web y ChatGPT como producto final necesitan OAuth; no
+deberiamos pedirle a un usuario final que copie tokens.
+
 ---
 
 ## Requisitos serios de MCP OAuth
@@ -285,9 +413,11 @@ Astral web
         |
         | SuperTokens session actual
         | resolveCurrentUser -> users.id
-        | pantalla de consentimiento MCP
+        | gate de estado/plan/onboarding/scopes
         v
 WorkOS completa OAuth
+        |
+        | consentimiento OAuth si corresponde
         |
         | access token scoped para:
         | https://astral.soydanielamedina.com/api/mcp/v1
@@ -351,7 +481,8 @@ Claude redirect URI:
   https://claude.ai/api/mcp/auth_callback
 
 ChatGPT redirect URI:
-  pendiente de confirmar en el flow real de ChatGPT developer/custom connector.
+  https://chatgpt.com/connector/oauth/{callback_id}
+  El callback_id queda pendiente hasta crear la app/connector real.
 ```
 
 Decision de scope:
@@ -527,7 +658,8 @@ mcp:ask
   - ask_astral_guide_v1
 ```
 
-Regla: `tools/list` solo muestra tools permitidas por token + consent.
+Regla: `tools/list` solo muestra tools permitidas por token + consent/grant +
+plan vigente.
 
 ---
 
@@ -572,10 +704,200 @@ Decisiones resueltas en Slice 10:
 
 Decisiones pendientes para Slice 11+:
 
-- si usuarios `onboarding_status=pending` pueden conectar MCP;
-- si solo `plan=premium` puede usar `mcp:ask`;
+- como persistir el espejo interno de consentimiento/grant cuando WorkOS maneja
+  el consentimiento OAuth real;
 - como representar revocacion en `mcp_consents` y/o proveedor externo;
+- como actualizar scopes en `mcp_consents` dado que hoy hay un unico grant
+  activo por `user_id + client_id`;
 - si se necesita persistir `jti`/grant OAuth en una tabla propia.
+
+## Contrato producto recomendado para V1
+
+Esta seccion baja el criterio PM antes de codear Slice 11. No es una limitacion
+tecnica de OAuth; es la politica de producto que Astral deberia aplicar.
+
+### Recomendacion de planes
+
+```text
+free:
+  - no Remote MCP de producto
+  - puede ver upgrade/login/onboarding, pero no recibe acceso util a tools
+
+basic:
+  - permite mcp:read_hd
+  - no permite mcp:ask en V1
+
+premium:
+  - permite mcp:read_hd
+  - permite mcp:ask
+```
+
+Razonamiento:
+
+- `mcp:read_hd` exporta parte del activo central de Astral; no conviene abrirlo
+  gratis por defecto.
+- `mcp:ask` consume LLM y puede transformarse en un canal paralelo de uso. No
+  debe ser ilimitado. Hoy MCP tiene presupuesto propio beta; para producto V1
+  hay que mantener un limite explicito o decidir integrarlo con la cuota mensual
+  de chat antes de habilitarlo masivamente.
+- `mcp:ask` no debe implicar `mcp:read_hd`. Un cliente puede hacer preguntas a
+  Astral sin recibir datos HD crudos/exportables.
+- `mcp:read_hd` no debe implicar `mcp:ask`. Leer datos deterministas y pedir
+  guia LLM son permisos distintos.
+
+### Gating obligatorio
+
+Antes de completar el flow OAuth con WorkOS, Astral debe validar:
+
+```text
+1. hay sesion web Astral o se puede iniciar login/signup;
+2. el usuario existe en users;
+3. users.status = active;
+4. users.onboarding_status = complete;
+5. users.plan permite los scopes solicitados;
+6. el OAuth client es aceptable para beta/producto;
+7. no se estan pidiendo scopes futuros/no expuestos.
+```
+
+Despues de recibir un token en `/api/mcp/v1`, Astral debe volver a validar:
+
+```text
+1. firma JWT/JWKS;
+2. issuer WorkOS esperado;
+3. audience/resource = MCP_RESOURCE_URL;
+4. expiry;
+5. scopes;
+6. user_identities(provider='workos') -> users.id;
+7. users.status;
+8. users.onboarding_status;
+9. users.plan;
+10. mcp_clients.status;
+11. consentimiento/grant interno vigente.
+```
+
+No alcanza con que WorkOS emita un token. El resource server sigue siendo Astral.
+
+### Escenarios PM
+
+| Escenario | Experiencia esperada | Comportamiento server | Slice 11 |
+|---|---|---|---|
+| Usuario premium activo y onboarded pide `mcp:read_hd` | Conecta, consiente y ve tools HD. | Link WorkOS->Astral, valida plan, token y grant; lista solo HD tools. | Implementar |
+| Usuario premium activo y onboarded pide `mcp:ask` | Conecta, consiente y puede preguntar. | Valida `mcp:ask`; aplica budget MCP beta o cuota definida; audit `mcp_ask`. | Implementar si se confirma premium-only |
+| Usuario premium pide ambos scopes | Conecta y ve ambos grupos de tools. | Grant con ambos scopes; `tools/list` filtra por scope. | Implementar |
+| Usuario basic pide `mcp:read_hd` | Conecta y ve tools HD deterministicas. | Permite `mcp:read_hd`; bloquea `mcp:ask`. | Implementar |
+| Usuario basic pide `mcp:ask` | Ve upgrade/premium required. | No completar grant util para `mcp:ask`; tool call devuelve 403. | Implementar como rechazo |
+| Usuario free intenta conectar | Ve upgrade/paywall MCP. | No crear grant util; bloquear tools. | Implementar como rechazo |
+| Visitante no registrado | Ve login/signup Astral. | Sin usuario no hay completion util; despues de signup cae en free/onboarding. | Implementar |
+| Usuario logueado pero onboarding pendiente | Ve completar onboarding. | No emitir acceso util hasta `onboarding_status=complete`. | Implementar |
+| Usuario disabled/banned | Ve bloqueo de cuenta. | 403 `account_inactive`; no grant ni tools. | Implementar |
+| Token vencido/invalido | Cliente deberia pedir reconectar. | 401 + `WWW-Authenticate` con metadata. | Ya base, reforzar tests |
+| Scope insuficiente | Cliente muestra error o step-up si lo soporta. | 403 `insufficient_scope`; no ejecutar tool. | Ya base, reforzar tests |
+| Consent/grant revocado | Cliente debe reconectar si reintenta. | 401/403 controlado; no ejecutar tool. | Minimo ahora, UI completa defer |
+| Cliente desconocido por DCR/CIMD | Puede registrarse o identificarse via WorkOS. | Crear/actualizar `mcp_clients` solo si pasa politica beta. | Implementar minimo |
+| ChatGPT no habilitado por plan/admin del usuario | Usuario no puede conectar desde ChatGPT. | Fuera de Astral; no llega o llega incompleto. | Documentar smoke |
+
+### Errores/copy que debe poder soportar Astral
+
+Estos codigos son para control interno/API. El texto exacto visible en
+Claude/ChatGPT puede estar controlado por el cliente, no por Astral.
+
+```text
+authentication_required:
+  "Inicia sesion o crea tu cuenta de Astral para conectar este MCP."
+
+onboarding_required:
+  "Completa tu carta y onboarding antes de conectar Astral a herramientas externas."
+
+plan_upgrade_required:
+  "Remote MCP esta disponible para planes pagos."
+
+scope_not_allowed:
+  "Este cliente pidio un permiso que tu plan actual no incluye."
+
+account_inactive:
+  "Tu cuenta no esta activa. Contacta soporte."
+
+consent_required:
+  "Vuelve a conectar Astral desde tu cliente MCP."
+
+insufficient_scope:
+  "Este cliente no tiene permiso para usar esta herramienta."
+```
+
+### Responsabilidades por capa
+
+```text
+Claude / ChatGPT / Claude Code
+  - UI de agregar connector
+  - boton Connect
+  - popup/browser OAuth
+  - reintentos o errores visibles
+  - confirmaciones propias del host
+
+WorkOS/AuthKit
+  - authorization endpoint
+  - token endpoint
+  - DCR/CIMD
+  - consentimiento OAuth
+  - access/refresh tokens
+  - JWKS
+
+Astral web/backend
+  - login/signup real con SuperTokens
+  - Login URI /auth/workos/connect
+  - mapping WorkOS subject -> users.id
+  - plan/status/onboarding gates
+  - mcp_clients/mcp_consents como espejo interno
+  - token validation en /api/mcp/v1
+  - tools/list/tools/call filtrados por scope/plan
+  - budgets/audit/rollback
+```
+
+### Decision de consentimiento interno
+
+WorkOS documenta que AuthKit maneja el consentimiento OAuth y que Astral no
+necesita mostrar una segunda pantalla de consentimiento. Por lo tanto, el
+`mcp_consents` interno de Astral debe tratarse como espejo/grant operativo para
+enforcement y auditoria, no como reemplazo del consentimiento OAuth.
+
+Implicacion tecnica para Slice 11:
+
+```text
+/auth/workos/connect
+  - autentica usuario Astral;
+  - valida plan/status/onboarding/scopes;
+  - llama WorkOS completion API;
+  - crea/actualiza user_identities(provider='workos');
+  - crea/actualiza mcp_clients;
+  - crea/actualiza mcp_consents con scopes permitidos como grant interno;
+  - redirige al redirect_uri de WorkOS.
+
+/api/mcp/v1
+  - no confia solo en mcp_consents;
+  - valida token y scopes en cada request;
+  - revalida usuario/plan/status/onboarding;
+  - filtra tools y bloquea tool calls fuera de contrato.
+```
+
+Si el usuario cancela consentimiento en WorkOS, no deberia existir token util.
+Puede quedar un grant interno espejado; eso no da acceso por si solo porque
+`/api/mcp/v1` siempre exige token valido. En un hardening posterior conviene
+sincronizar revocacion/cancelaciones si WorkOS expone eventos o APIs utiles.
+
+### Que queda fuera de V1
+
+No implementar todavia:
+
+- OAuth propio con `oidc-provider`;
+- enterprise SSO/SCIM;
+- custom domain WorkOS;
+- UI completa de revocacion/conectores conectados;
+- scopes personales futuros;
+- `get_current_transit_context_v1`;
+- `get_my_profile_summary_v1`;
+- `analyze_my_transit_impact_v1`;
+- MCP para usuarios free;
+- quota engine nuevo si se conserva el budget MCP beta.
 
 ---
 
@@ -696,12 +1018,16 @@ Objetivo: conectar OAuth flow con usuario real de Astral.
 
 Implementar:
 
-- Login URI hacia Astral;
-- SuperTokens session check;
-- resolve user;
-- pantalla o endpoint de consentimiento;
-- persistencia/actualizacion de `mcp_consents`;
-- revoke/deny basico.
+- Login URI hacia Astral (`/auth/workos/connect`);
+- SuperTokens session check y login/signup redirect si no hay sesion;
+- resolve user + auto-link existente;
+- gates de `status`, `onboarding_status`, `plan` y scopes solicitados;
+- WorkOS completion API usando `external_auth_id`;
+- creacion/actualizacion de `user_identities(provider='workos')`;
+- creacion/actualizacion de `mcp_clients`;
+- espejo interno en `mcp_consents` como grant operativo;
+- tests para premium/basic/free/pending/inactive/missing consent;
+- no duplicar consentimiento OAuth si WorkOS ya lo maneja.
 
 ### Slice 12 - Claude Desktop / Claude Web smoke
 
@@ -793,10 +1119,12 @@ Bloqueantes antes de implementar:
 
 - WorkOS requiere billing info para habilitar production aunque el costo sea
   cero bajo 1M MAU?
-- Los toggles CIMD/DCR aparecen habilitables en la cuenta real?
 - Claude/ChatGPT en las cuentas actuales tienen acceso a custom connectors?
-- Que redirect URIs exactas exige ChatGPT en este modo?
-- Se quiere habilitar `mcp:ask` solo para premium?
+- Cual es el `callback_id` real de ChatGPT cuando se cree la app/connector?
+- Confirmar decision producto: V1 paid-only, `basic=mcp:read_hd` y
+  `premium=mcp:read_hd+mcp:ask`.
+- Confirmar decision quota: `mcp:ask` usa budget MCP beta separado o se integra
+  con la cuota mensual de chat antes de beta publica.
 
 No bloqueantes:
 
