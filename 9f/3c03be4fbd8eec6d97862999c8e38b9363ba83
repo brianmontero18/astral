@@ -1,0 +1,33 @@
+backend/src/routes/bodygraph.ts
+  s_b261358f8f8c95::t_e102cd00f916a4 14
+  s_b261358f8f8c95::t_80f5ec592c8831 84-116
+backend/src/bodygraph/render-svg.ts
+  s_b261358f8f8c95::t_d06b00fa11b430 839-842
+  s_b261358f8f8c95::t_a511ccce2a116b 432-433,450-451,453,460,474,514,519
+  s_b261358f8f8c95::t_2dd20fc295e589 461-463,467,475,477-483,485-489,491-496,507-508,520,541-548
+  s_b261358f8f8c95::t_e427fa2edbef68 581-589,591-592,594-599,613,622-623
+  s_b261358f8f8c95::t_e251f52c3c598e 593
+  s_b261358f8f8c95::t_4e0ba8165fca06 611,614-618,621
+  s_b261358f8f8c95::t_bb9c35fee9474b 612
+  s_b261358f8f8c95::t_e3a4ff0a6b06a9 464-466,468-473,476,484,490,497-506,509-513,515-518,521-540
+  s_b261358f8f8c95::t_f32030c12b405b 590
+backend/src/__tests__/bodygraph-render-svg.test.ts
+  s_b261358f8f8c95::t_d039e477716d1f 291-292
+  s_b261358f8f8c95::t_14bf2a99078e71 251-254,256-257,259-260,263
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "9f3c03be4fbd8eec6d97862999c8e38b9363ba83",
+  "prompts": {},
+  "sessions": {
+    "s_b261358f8f8c95": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "546a20e1-3614-4c30-8828-b50165594b08",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
