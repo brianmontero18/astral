@@ -1,0 +1,38 @@
+backend/.env.example
+  s_4c18123980327d::t_a9e917cc8cd253 79-84
+backend/src/mcp/discovery.ts
+  s_4c18123980327d::t_801afa9a159ee2 1-53,59-102,104-108
+  s_4c18123980327d::t_d673c3ea612ebd 54-58,103
+backend/src/routes/mcp-discovery.ts
+  s_4c18123980327d::t_c593ed89cfebbf 1-29
+docs/remote-mcp-oauth-connectors-genesis.md
+  s_4c18123980327d::t_8e310c0209b0d6 57-68,89-90,94,567-590
+  s_4c18123980327d::t_5cd04758a54f17 96-97
+backend/src/mcp/server.ts
+  s_4c18123980327d::t_56a1d29abbbe4d 322,387
+  s_4c18123980327d::t_f514f7a51c04f6 22,321,323,386,388
+backend/src/__tests__/api-mcp.test.ts
+  s_4c18123980327d::t_127390357677d0 12-13,76-85,147-148,268-301,336,338
+  s_4c18123980327d::t_b7f77ff2f34037 337
+backend/src/app.ts
+  s_4c18123980327d::t_72fb1385294c18 21,73-75
+backend/scripts/smoke-mcp-curl.sh
+  s_4c18123980327d::t_c54993447710c8 11,23-25,85-92,103,105,107,130-131
+  s_4c18123980327d::t_028675ca1edc35 171-174,179-190,207
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.9",
+  "base_commit_sha": "a3df47e99b990db66d1f82a7cbf5dbee3ee4d058",
+  "prompts": {},
+  "sessions": {
+    "s_4c18123980327d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e3830-933b-7f01-89ae-1bffb20d9890",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
