@@ -1,0 +1,27 @@
+backend/src/__tests__/api-mcp.test.ts
+  s_4c18123980327d::t_62745f1a06c78c 1013
+backend/src/db.ts
+  s_4c18123980327d::t_e54ad929a315aa 1461-1473,1522-1538
+backend/src/mcp/tools/ask-astral-guide-v1.ts
+  s_4c18123980327d::t_ae86072605027a 94
+backend/scripts/smoke-mcp-curl.sh
+  s_4c18123980327d::t_729b0d8082cc5e 364
+docs/remote-mcp-oauth-connectors-genesis.md
+  s_4c18123980327d::t_e91680badf9a93 845-847
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.9",
+  "base_commit_sha": "530d738e0ab2367bb78e03c93a8ab50b741a9f8f",
+  "prompts": {},
+  "sessions": {
+    "s_4c18123980327d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e3830-933b-7f01-89ae-1bffb20d9890",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
