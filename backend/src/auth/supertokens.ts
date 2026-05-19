@@ -24,6 +24,25 @@ export interface AuthRuntime {
 
 let isInitialised = false;
 
+function isWorkosConnectRequest(request: FastifyRequest): boolean {
+  const requestUrl = request.raw.url ?? request.url;
+  return requestUrl.startsWith("/auth/workos/connect");
+}
+
+function redirectWorkosConnectToAuth(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): boolean {
+  if (reply.sent || !isWorkosConnectRequest(request)) {
+    return false;
+  }
+
+  const requestUrl = request.raw.url ?? request.url;
+  const search = new URLSearchParams({ redirectToPath: requestUrl });
+  void reply.redirect(`/auth?${search.toString()}`);
+  return true;
+}
+
 function initSuperTokens(): void {
   const config = readSuperTokensConfig();
   const passwordlessEmailService = createPasswordlessEmailService(
@@ -107,6 +126,10 @@ export function createAuthRuntime(): AuthRuntime {
     handleError: async (error, request, reply) => {
       if (!SuperTokensError.isErrorFromSuperTokens(error)) {
         return false;
+      }
+
+      if (redirectWorkosConnectToAuth(request, reply)) {
+        return true;
       }
 
       await fastifyErrorHandler(error, request, reply);

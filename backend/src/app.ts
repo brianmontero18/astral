@@ -55,6 +55,23 @@ function buildCorsOptions(auth: AuthRuntime) {
   };
 }
 
+function parseOctetStreamAsJson(
+  _request: unknown,
+  payload: string,
+  done: (err: Error | null, body?: unknown) => void,
+) {
+  if (!payload.trim()) {
+    done(null, {});
+    return;
+  }
+
+  try {
+    done(null, JSON.parse(payload));
+  } catch {
+    done(null, payload);
+  }
+}
+
 export async function buildApp(opts?: { logger?: boolean; auth?: AuthRuntime }) {
   const app = Fastify({ logger: opts?.logger ?? false });
   const auth = opts?.auth ?? createAuthRuntime();
@@ -68,6 +85,11 @@ export async function buildApp(opts?: { logger?: boolean; auth?: AuthRuntime }) 
   });
 
   await app.register(cors, buildCorsOptions(auth));
+  app.addContentTypeParser(
+    "application/octet-stream",
+    { parseAs: "string" },
+    parseOctetStreamAsJson,
+  );
   await app.register(multipart, { limits: { fileSize: 10 * 1024 * 1024 } });
   await auth.register(app);
 

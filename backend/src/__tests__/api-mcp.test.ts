@@ -345,6 +345,29 @@ describe("Remote MCP route", () => {
     });
   });
 
+  it("accepts ChatGPT-style octet-stream JSON payloads", async () => {
+    const harness = await buildMcpTestApp(true);
+
+    const res = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: {
+        accept: "application/json, text/event-stream",
+        "content-type": "application/octet-stream",
+      },
+      payload: jsonRpcBody("initialize"),
+    });
+
+    expect(res.statusCode).toBe(401);
+    expect(JSON.parse(res.body)).toMatchObject({
+      jsonrpc: "2.0",
+      id: "req-1",
+      error: {
+        message: "authentication_required",
+      },
+    });
+  });
+
   it("accepts protocol media types case-insensitively and rejects lookalike media types", async () => {
     const harness = await buildMcpTestApp(true);
     await harness.seedAccess();
