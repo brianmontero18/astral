@@ -1,4 +1,5 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
+import { decodeJwt, decodeProtectedHeader } from "jose";
 import {
   insertMcpAuditEvent,
   type McpAuditStatus,
@@ -165,10 +166,47 @@ function authErrorResponse(
   );
 }
 
+function bearerDiagnostics(request: FastifyRequest): object {
+  const authorization = getHeaderValue(request.headers.authorization);
+  const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
+  if (!token) {
+    return { tokenShape: "missing" };
+  }
+
+  const parts = token.split(".");
+  if (parts.length !== 3) {
+    return { tokenShape: "opaque", tokenParts: parts.length };
+  }
+
+  try {
+    const header = decodeProtectedHeader(token);
+    const payload = decodeJwt(token);
+    return {
+      tokenShape: "jwt",
+      alg: header.alg,
+      kid: typeof header.kid === "string" ? header.kid : undefined,
+      iss: typeof payload.iss === "string" ? payload.iss : undefined,
+      aud: payload.aud,
+      resource: payload.resource,
+      hasClientId: typeof payload.client_id === "string" || typeof payload.azp === "string" || typeof payload.cid === "string",
+      hasExternalId: typeof payload.external_id === "string" || typeof payload.externalId === "string",
+      hasSubject: typeof payload.sub === "string",
+      scopeType: typeof payload.scope,
+      permissionsType: Array.isArray(payload.permissions) ? "array" : typeof payload.permissions,
+    };
+  } catch {
+    return { tokenShape: "malformed_jwt", tokenParts: parts.length };
+  }
+}
+
 function logMcpAuthRejection(
   request: FastifyRequest,
   auth: Exclude<ResolveMcpPrincipalResult, { kind: "authorized" }>,
 ): void {
+  const diagnostics = auth.error === "invalid_token"
+    ? bearerDiagnostics(request)
+    : {};
+
   request.log.warn(
     {
       error: auth.error,
@@ -178,6 +216,7 @@ function logMcpAuthRejection(
       userId: auth.userId,
       clientId: auth.clientId,
       tokenId: auth.tokenId,
+      ...diagnostics,
     },
     "mcp auth rejected",
   );
