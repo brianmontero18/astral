@@ -1,0 +1,19 @@
+backend/src/mcp/server.ts
+  s_4c18123980327d::t_e2908368dff4c1 168-185,341,407
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.9",
+  "base_commit_sha": "f8ca4c9480a7a7e3439cb6a3abffcface38a0285",
+  "prompts": {},
+  "sessions": {
+    "s_4c18123980327d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e3830-933b-7f01-89ae-1bffb20d9890",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
