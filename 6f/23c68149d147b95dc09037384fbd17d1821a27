@@ -1,0 +1,23 @@
+backend/src/auth/supertokens.ts
+  s_4c18123980327d::t_39b261fc241403 27-45,131-132
+backend/src/app.ts
+  s_4c18123980327d::t_f496050fe09a54 58-74,88-92
+backend/src/__tests__/api-mcp.test.ts
+  s_4c18123980327d::t_0fc46926618b63 348-370
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.9",
+  "base_commit_sha": "6f23c68149d147b95dc09037384fbd17d1821a27",
+  "prompts": {},
+  "sessions": {
+    "s_4c18123980327d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e3830-933b-7f01-89ae-1bffb20d9890",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
