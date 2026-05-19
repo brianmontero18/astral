@@ -165,6 +165,24 @@ function authErrorResponse(
   );
 }
 
+function logMcpAuthRejection(
+  request: FastifyRequest,
+  auth: Exclude<ResolveMcpPrincipalResult, { kind: "authorized" }>,
+): void {
+  request.log.warn(
+    {
+      error: auth.error,
+      statusCode: auth.statusCode,
+      requiredScopes: auth.requiredScopes ?? [],
+      hasBearer: Boolean(getHeaderValue(request.headers.authorization)),
+      userId: auth.userId,
+      clientId: auth.clientId,
+      tokenId: auth.tokenId,
+    },
+    "mcp auth rejected",
+  );
+}
+
 function initializeResult() {
   return {
     protocolVersion: MCP_PROTOCOL_VERSION,
@@ -320,6 +338,7 @@ export async function handleMcpPost(
   const message = request.body;
   const auth = await authorizeForMethod(request);
   if (auth.kind !== "authorized") {
+    logMcpAuthRejection(request, auth);
     if (auth.statusCode === 401) {
       addMcpAuthenticateHeader(request, reply);
     }
@@ -385,6 +404,7 @@ export async function handleMcpPost(
 
     const toolAuth = await authorizeToolCall(request, tool);
     if (toolAuth.kind !== "authorized") {
+      logMcpAuthRejection(request, toolAuth);
       if (toolAuth.statusCode === 401) {
         addMcpAuthenticateHeader(request, reply);
       }
