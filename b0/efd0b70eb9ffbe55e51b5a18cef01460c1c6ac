@@ -1,0 +1,21 @@
+backend/src/mcp/oauth.ts
+  s_4c18123980327d::t_82f2f58b48c9c4 33,130-131,134
+backend/src/__tests__/mcp-oauth.test.ts
+  s_4c18123980327d::t_068cc9fdf88b19 77-97,167
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.9",
+  "base_commit_sha": "b0efd0b70eb9ffbe55e51b5a18cef01460c1c6ac",
+  "prompts": {},
+  "sessions": {
+    "s_4c18123980327d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e3830-933b-7f01-89ae-1bffb20d9890",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
