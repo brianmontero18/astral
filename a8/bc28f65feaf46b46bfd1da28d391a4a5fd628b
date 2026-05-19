@@ -1,0 +1,26 @@
+docs/remote-mcp-production-learnings.md
+  s_4c18123980327d::t_91facd2da3c403 1-25,30-54,81,89-327,345,348,379-401,423-573,604-605,609-839,914-944
+  s_4c18123980327d::t_5bd163bafe0ed7 26-29,55-80,82-88,328-344,346-347,349-378,402-422,574-603,606-608,840-913
+docs/INDEX.md
+  s_4c18123980327d::t_5bd163bafe0ed7 68
+docs/remote-mcp-oauth-connectors-genesis.md
+  s_4c18123980327d::t_f9cc7398eb8cdc 500-501,524,648,650,657-661,682-683,724-728,802-804,924-925,1048-1049
+  s_4c18123980327d::t_91fb7657c6bf0f 94
+  s_4c18123980327d::t_5bd163bafe0ed7 13-17,75-81,172,177-182
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.10",
+  "base_commit_sha": "a8bc28f65feaf46b46bfd1da28d391a4a5fd628b",
+  "prompts": {},
+  "sessions": {
+    "s_4c18123980327d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e3830-933b-7f01-89ae-1bffb20d9890",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
