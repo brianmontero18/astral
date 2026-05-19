@@ -1,0 +1,20 @@
+docs/remote-mcp-v3-domain-capability-layer-plan.md
+  s_4c18123980327d::t_69bc6f8010f299 5-6,167-168,237,460-461,465-466,471-472,477
+  s_4c18123980327d::t_6e8e3c1b6141fa 462-464,467-470,473-476
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.10",
+  "base_commit_sha": "a4b11a8c8040fa705847e3687c34f1c16006185f",
+  "prompts": {},
+  "sessions": {
+    "s_4c18123980327d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e3830-933b-7f01-89ae-1bffb20d9890",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
