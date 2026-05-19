@@ -2,8 +2,8 @@
 
 **Estado**: declaracion inicial de intencion. No es spec ejecutable.
 **Fecha**: 2026-05-19.
-**Prerequisito producto**: V2 multi-profile / multiple profiles.
-**Audiencia**: PMs tecnicos, architect, future AI agents.
+**Prerequisito producto**: V2 multiple profiles.
+**Audiencia**: PMs tecnicos, architects y futuros AI agents.
 
 Docs relacionados:
 
@@ -164,8 +164,8 @@ Tool posible:
 calculate_bodygraph_v1
 ```
 
-No empezar aceptando lugar libre como texto si no esta resuelto. Para V1 de esta
-capability, preferir input ya normalizado:
+No empezar aceptando lugar libre como texto si no esta resuelto. Para el primer
+corte de esta capability, preferir input ya normalizado:
 
 ```text
 birth_date
@@ -234,7 +234,7 @@ Host LLM llama:
 ```
 
 Prerequisito: V2 debe definir ownership, permisos y lifecycle de multiples
-perfiles.
+perfiles. Estos tools no deben entrar en ready hasta que exista ese modelo.
 
 ### 5. Transit tools
 
@@ -454,6 +454,27 @@ V3.5:
 | 6 | Transit impact tools | Aplicar tránsitos a un perfil autorizado. |
 | 7 | Content/coaching brief tools | Briefs estructurados para que el host LLM genere contenido o sesiones. |
 | 8 | Write tools decision gate | Decidir si/como habilitar escritura con confirmacion y audit. |
+
+---
+
+## Dependency policy
+
+Los beads de este plan deben quedar bloqueados por V2 multiple profiles. Esta
+decision evita que el backlog empuje V3 antes de cerrar el modelo de perfiles,
+ownership y permisos que le da sentido.
+
+```text
+gate:
+  V2 multiple profiles model ready
+
+despues del gate:
+  V3 strategy lock
+  context-pack contract
+  profile tools
+  transit impact tools
+  content/coaching brief tools
+  write tools decision gate
+```
 
 ---
 
