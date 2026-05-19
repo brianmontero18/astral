@@ -65,6 +65,7 @@ Reports de sub-agents que investigaron contra docs oficiales (Anthropic, OpenAI,
 | [`remote-mcp-implementation-recon-plan.md`](remote-mcp-implementation-recon-plan.md) | Reconocimiento del codebase y slices para implementar Remote MCP sin romper chat/auth existentes; Slices 0-7 capturados. |
 | [`remote-mcp-client-smoke-matrix.md`](remote-mcp-client-smoke-matrix.md) | Matriz de compatibilidad beta para clientes MCP reales (Claude Code, Codex, Cursor, ChatGPT, Gemini) capturada en Slice 6. |
 | [`remote-mcp-oauth-connectors-genesis.md`](remote-mcp-oauth-connectors-genesis.md) | Genesis de la siguiente etapa: OAuth/discovery para conectar Astral MCP con Claude Desktop/Web y ChatGPT sin PAT manual. |
+| [`remote-mcp-production-learnings.md`](remote-mcp-production-learnings.md) | Verdad operativa post-produccion: findings reales de WorkOS, Claude Web y ChatGPT; patrones replicables para otro Remote MCP. |
 
 ---
 

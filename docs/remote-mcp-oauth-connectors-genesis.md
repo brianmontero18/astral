@@ -10,6 +10,11 @@
 - [`remote-mcp-architecture-proposal.md`](remote-mcp-architecture-proposal.md)
 - [`remote-mcp-implementation-recon-plan.md`](remote-mcp-implementation-recon-plan.md)
 - [`remote-mcp-client-smoke-matrix.md`](remote-mcp-client-smoke-matrix.md)
+- [`remote-mcp-production-learnings.md`](remote-mcp-production-learnings.md)
+
+**Nota 2026-05-19**: este doc es el genesis historico de la decision OAuth.
+La verdad operativa posterior al smoke real con Claude Web y ChatGPT vive en
+[`remote-mcp-production-learnings.md`](remote-mcp-production-learnings.md).
 
 **Fuentes oficiales revisadas para este corte**:
 
@@ -67,9 +72,13 @@ WorkOS pasa los 4 checks preliminares:
   4. soporta MCP auth con CIMD/DCR/resource indicators.
 
 Queda por validar con cuenta/dashboard real:
-  - billing info en production;
-  - callback exacto de ChatGPT una vez creada la app/connector real;
-  - smoke real Claude/ChatGPT.
+  - billing info en production.
+
+Validado el 2026-05-19:
+  - WorkOS dashboard real;
+  - DCR/CIMD/resource indicator/Login URI;
+  - smoke real Claude Web;
+  - smoke real ChatGPT.
 ```
 
 Actualizacion Slice 9:
@@ -82,7 +91,7 @@ Astral ya publica discovery OAuth/MCP minimo cuando FEATURE_REMOTE_MCP=true:
 
 En Slice 9 esto solo hacia discoverable el resource server. La validacion
 JWT/OAuth se agrego despues en Slice 10; el login/consent bridge de usuario real
-queda para Slice 11.
+se agrego despues en Slice 11.
 ```
 
 Actualizacion WorkOS dashboard + metadata real:
@@ -160,13 +169,17 @@ Ya existe:
 - `npm run smoke:mcp` cubriendo auth, transport, scopes, tools, cuota y
   discovery OAuth/MCP.
 
-No existe todavia:
+No existe en Astral porque se delega a WorkOS:
 
 - Authorization Server Metadata / OIDC discovery propia de Astral;
 - authorization code + PKCE para usuarios;
 - Dynamic Client Registration o Client ID Metadata Documents propios de
-  Astral; hoy se delegan a WorkOS;
-- smoke real de Claude Desktop / Claude Web / ChatGPT.
+  Astral; hoy se delegan a WorkOS.
+
+Validado despues de este genesis:
+
+- smoke real de Claude Web;
+- smoke real de ChatGPT.
 
 ---
 
@@ -484,7 +497,8 @@ Claude redirect URI:
 
 ChatGPT redirect URI:
   https://chatgpt.com/connector/oauth/{callback_id}
-  El callback_id queda pendiente hasta crear la app/connector real.
+  En el smoke real no hizo falta configurar un callback_id manual en Astral;
+  el flujo quedo mediado por WorkOS/DCR/CIMD.
 ```
 
 Decision de scope:
@@ -507,7 +521,7 @@ No activar Audit Logs/Radar pagos salvo necesidad futura.
 - Hay que elegir un identificador estable para WorkOS (`users.id`) desde el dia
   uno para evitar conflictos de email/external user.
 - Hay que confirmar en Dashboard que CIMD/DCR esten habilitables en el plan real.
-- Hay que confirmar redirect URI y flow exacto de ChatGPT.
+- ChatGPT quedo validado en smoke real via WorkOS/DCR/CIMD.
 - Igual hay que implementar correctamente token verification, mapping de usuario,
   consent y scopes en Astral.
 
@@ -631,14 +645,19 @@ debe publicar resource metadata y responder `WWW-Authenticate` correctamente.
 
 ---
 
-## Scopes iniciales
+## Permisos MCP internos iniciales
 
-Mantener scopes minimos:
+Mantener permisos MCP internos minimos:
 
 ```text
 mcp:read_hd
 mcp:ask
 ```
+
+Nota posterior al smoke real: no anunciar estos valores como OAuth scopes
+publicos de WorkOS. La metadata publica debe anunciar scopes OAuth estandar
+(`openid`, `profile`, `email`, `offline_access`). Astral deriva estos permisos
+internos desde plan, onboarding, estado y consentimiento espejo.
 
 No exponer todavia:
 
@@ -660,8 +679,8 @@ mcp:ask
   - ask_astral_guide_v1
 ```
 
-Regla: `tools/list` solo muestra tools permitidas por token + consent/grant +
-plan vigente.
+Regla: `tools/list` solo muestra tools permitidas por token valido + policy
+interna + consent/grant espejo + plan vigente.
 
 ---
 
@@ -702,8 +721,11 @@ Decisiones resueltas en Slice 10:
   `user_identities(provider='workos', provider_user_id=<subject>)`;
 - el `audience/resource` validado es la resource URI absoluta:
   `https://astral.soydanielamedina.com/api/mcp/v1`;
-- los scopes MCP se leen desde `scope`, `scp`, `scopes` o `permissions`;
-- `client_id`, `azp` o `cid` del token debe resolver a `mcp_clients.id`.
+- los scopes OAuth se leen desde `scope`, `scp`, `scopes` o `permissions`, pero
+  los permisos MCP de producto se derivan internamente desde Astral;
+- `client_id`, `azp` o `cid` se usan si vienen en el token. Si WorkOS emite un
+  token validado sin client id, Astral usa el fallback interno estable
+  `workos-authkit`.
 
 Decisiones pendientes para Slice 11+:
 
@@ -777,8 +799,9 @@ WorkOS Standalone Connect redirige a la Login URI con `external_auth_id`. En la
 documentacion revisada, esa redireccion no trae `client_id` ni scopes. Por eso
 Astral no debe inventarlos en `/auth/workos/connect`: el bridge completa la
 autenticacion de usuario; el resource server crea/actualiza el espejo interno
-de `mcp_clients/mcp_consents` cuando recibe el access token real con `client_id`
-y scopes.
+de `mcp_clients/mcp_consents` cuando recibe el access token real. Si el token
+no trae `client_id`, usa `workos-authkit` como client id interno despues de
+validar firma, issuer, audience, subject y scopes OAuth.
 
 Despues de recibir un token en `/api/mcp/v1`, Astral debe volver a validar:
 
@@ -898,7 +921,8 @@ Implicacion tecnica para Slice 11:
   - no confia solo en mcp_consents;
   - valida token y scopes en cada request;
   - revalida usuario/plan/status/onboarding;
-  - crea/actualiza mcp_clients desde el client_id del JWT WorkOS;
+  - crea/actualiza mcp_clients desde el client_id del JWT WorkOS o fallback
+    interno `workos-authkit`;
   - crea/actualiza mcp_consents como espejo interno desde scopes permitidos
     por token + plan;
   - hace que mcp:ask consuma cuota mensual de chat web;
@@ -1021,7 +1045,8 @@ Decision de mapping:
 WorkOS access token
   external_id|externalId=<astral users.id> si WorkOS lo emite;
   si no, sub=<workos subject>
-  client_id|azp|cid=<OAuth client id>
+  client_id|azp|cid=<OAuth client id, si el proveedor lo emite>
+  fallback client id interno=workos-authkit
   scope/scp/scopes/permissions incluye scopes OAuth estandar
         |
         v
