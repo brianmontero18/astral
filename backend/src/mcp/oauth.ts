@@ -30,6 +30,7 @@ export type McpOAuthVerifyResult =
 type JwksKey = Parameters<typeof jwtVerify>[1];
 
 const remoteJwksCache = new Map<string, JwksKey>();
+const DEFAULT_OAUTH_CLIENT_ID = "workos-authkit";
 
 function configuredIssuer(): string | null {
   const issuer = process.env.MCP_AUTHORIZATION_SERVER_ISSUER?.trim();
@@ -126,10 +127,11 @@ function claimsFromPayload(
   }
 
   const subject = readStringClaim(payload, ["external_id", "externalId"]) ?? payload.sub;
-  const clientId = readStringClaim(payload, ["client_id", "azp", "cid"]);
+  const clientId = readStringClaim(payload, ["client_id", "azp", "cid"]) ??
+    DEFAULT_OAUTH_CLIENT_ID;
   const scopes = readScopes(payload);
 
-  if (!subject || !clientId || scopes.length === 0) {
+  if (!subject || scopes.length === 0) {
     return { kind: "invalid", error: "invalid_token" };
   }
 

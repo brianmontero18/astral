@@ -74,6 +74,27 @@ describe("verifyMcpOAuthJwt", () => {
     });
   });
 
+  it("uses a stable WorkOS client id fallback when the token omits client_id", async () => {
+    const { token, publicKey } = await signedToken({
+      client_id: undefined,
+    });
+
+    await expect(
+      verifyMcpOAuthJwt({
+        token,
+        issuer: ISSUER,
+        audience: AUDIENCE,
+        key: publicKey,
+        now: NOW,
+      }),
+    ).resolves.toMatchObject({
+      kind: "verified",
+      claims: {
+        clientId: "workos-authkit",
+      },
+    });
+  });
+
   it("prefers WorkOS external_id as the Astral identity subject when present", async () => {
     const { token, publicKey } = await signedToken({
       external_id: "astral-user-1",
@@ -143,9 +164,8 @@ describe("verifyMcpOAuthJwt", () => {
     ).resolves.toEqual({ kind: "invalid", error: "token_expired" });
   });
 
-  it("rejects tokens missing client id or scopes", async () => {
+  it("rejects tokens missing scopes", async () => {
     const { token, publicKey } = await signedToken({
-      client_id: undefined,
       scope: undefined,
     });
 
