@@ -1,4 +1,5 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
+import Session from "supertokens-node/recipe/session";
 import { verifySession } from "supertokens-node/recipe/session/framework/fastify";
 import type { SessionRequest } from "supertokens-node/framework/fastify";
 import type { AuthSessionPrincipal } from "./identity.js";
@@ -29,7 +30,13 @@ export async function getOptionalSessionPrincipal(
     return null;
   }
 
-  await verifySession({ sessionRequired: false })(request, reply);
+  try {
+    request.session = await Session.getSession(request, reply, {
+      sessionRequired: false,
+    });
+  } catch {
+    return null;
+  }
 
   if (reply.sent) {
     return null;
