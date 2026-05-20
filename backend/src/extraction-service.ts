@@ -1,45 +1,24 @@
 /**
- * Extraction Service — GPT-4o Vision
+ * Extraction Service — 100% deterministic PDF parsing
  *
- * Reads Human Design bodygraph images/PDFs/text files
- * and extracts a structured UserProfile JSON.
+ * Reads Human Design bodygraph PDFs (MyHumanDesign o Genetic Matrix) y
+ * extrae un UserProfile estructurado vía parser determinístico
+ * (pdfjs-dist + regex). Cero LLM calls, cero Vision.
  *
- * All files are processed with the HD extraction prompt.
- * Extraction is strict: if a datum isn't visible, it goes
- * as null — never invented.
+ * Si el PDF no es de un proveedor soportado o no tiene texto extraíble,
+ * tira UserFacingError pidiendo reexportar desde la fuente oficial.
+ *
+ * Historical note: el Vision fallback que existía (FEATURE_EXTRACTION_VISION_FALLBACK)
+ * fue eliminado en astral-1c6 — la calidad no era verificable a >95% y
+ * producía data incierta. Para PDFs imagen-only no aceptamos extracción.
  */
 
-import { createHash } from "node:crypto";
 import type { UserProfile } from "./agent-service.js";
-import { insertLlmCall } from "./db.js";
 import { HD_CHANNELS } from "./hd-channels.js";
 import { parseGeneticMatrixText } from "./hd-pdf/genetic-matrix.js";
 import { parseMyHumanDesignText } from "./hd-pdf/myhumandesign.js";
 import { extractPdfText } from "./hd-pdf/pdf-text.js";
-import { deriveChannelsAndCenters, validateActivatedGates } from "./hd-pdf/validate.js";
-import { calculateCost } from "./llm/pricing.js";
-
-// Vision's 13-planet set. Same membership as MyHumanDesign and Genetic
-// Matrix orderings (validateActivatedGates only checks counts, not order),
-// so a single list is enough for sanity-checking Vision output.
-const HD_PLANETS = [
-  "Sun",
-  "Earth",
-  "Moon",
-  "North Node",
-  "South Node",
-  "Mercury",
-  "Venus",
-  "Mars",
-  "Jupiter",
-  "Saturn",
-  "Uranus",
-  "Neptune",
-  "Pluto",
-] as const;
-
-const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
-const MODEL = process.env.EXTRACTION_MODEL ?? "gpt-4o";
+import { deriveChannelsAndCenters } from "./hd-pdf/validate.js";
 
 const PDF_ONLY_MESSAGE =
   "Subi un PDF exportado desde MyHumanDesign o Genetic Matrix. No aceptamos imagenes ni capturas.";
@@ -47,8 +26,6 @@ const UNSUPPORTED_SOURCE_MESSAGE =
   "Solo aceptamos PDFs oficiales de MyHumanDesign o Genetic Matrix. Reexporta el bodygraph desde la fuente oficial.";
 const UNREADABLE_PDF_MESSAGE =
   "No pudimos leer tu PDF. Reexporta el bodygraph desde la fuente oficial y vuelve a subirlo.";
-const VISION_GATES_INVALID_MESSAGE =
-  "No pudimos confirmar los datos de tu bodygraph. Reexporta el PDF desde MyHumanDesign o Genetic Matrix y volve a intentarlo.";
 
 export class UserFacingError extends Error {
   status: number;
@@ -57,101 +34,6 @@ export class UserFacingError extends Error {
     this.status = status;
   }
 }
-
-// ─── Prompts by file type ────────────────────────────────────────────────────
-
-const HD_PROMPT = `Estás viendo un BODYGRAPH o reporte de DISEÑO HUMANO. Extraé ÚNICAMENTE los datos que puedas leer con certeza del documento.
-
-El bodygraph típicamente tiene:
-- A la IZQUIERDA: columna "DESIGN" (inconsciente/rojo) con puertas por planeta
-- A la DERECHA: columna "PERSONALITY" (consciente/negro) con puertas por planeta
-- En el CENTRO: el gráfico del bodygraph con centros y canales
-- A un costado: CHART PROPERTIES con tipo, autoridad, perfil, definición, cruz, etc.
-
-Devolvé ÚNICAMENTE un JSON con esta estructura, sin texto adicional, sin markdown, sin backticks:
-
-{
-  "name": "nombre si aparece, o null",
-  "birthData": {
-    "date": "fecha de nacimiento si aparece, o null",
-    "time": "hora de nacimiento si aparece, o null",
-    "location": "lugar de nacimiento si aparece, o null"
-  },
-  "humanDesign": {
-    "type": "tipo o null",
-    "strategy": "estrategia o null",
-    "authority": "autoridad o null",
-    "profile": "perfil (ej: 6/2) o null",
-    "definition": "tipo de definición o null",
-    "incarnationCross": "cruz de encarnación completa o null",
-    "notSelfTheme": "tema del no-self o null",
-    "variable": "variable o null",
-    "digestion": "tipo de digestión si aparece, o null",
-    "environment": "tipo de ambiente si aparece, o null",
-    "strongestSense": "sentido más fuerte si aparece, o null",
-    "channels": [
-      { "id": "num-num", "name": "nombre del canal o null", "circuit": "circuito o null" }
-    ],
-    "activatedGates": [
-      { "number": número, "line": número_o_null, "planet": "planeta o null", "isPersonality": boolean_o_null }
-    ],
-    "definedCenters": ["centro1"],
-    "undefinedCenters": ["centro1"]
-  }
-}
-
-REGLAS ESTRICTAS:
-- Extraé SOLO lo que esté visible. Si un dato NO aparece, poné null. NUNCA inventes ni asumas.
-- Tipos válidos: Generador, Generador Manifestante, Proyector, Manifestador, Reflector.
-- Los 9 centros HD son: Cabeza, Ajna, Garganta, Centro G, Corazón/Ego, Sacral, Solar Plexus, Bazo, Raíz.
-- Para centros: los coloreados/definidos van en definedCenters, los blancos/abiertos en undefinedCenters.
-- Para gates de las columnas DESIGN y PERSONALITY: leé AMBAS columnas. Los planetas en orden estándar son: Sol, Tierra, Nodo Norte, Nodo Sur, Luna, Mercurio, Venus, Marte, Júpiter, Saturno, Urano, Neptuno, Plutón. Cada uno tiene un número de puerta y línea (ej: "34.2" = puerta 34, línea 2).
-- isPersonality=true para las gates de la columna PERSONALITY (derecha/negro), false para DESIGN (izquierda/rojo).
-- Para canales: el id es "gateA-gateB" con el número menor primero (ej: "20-34"). Un canal existe cuando dos centros están conectados por una línea coloreada en el bodygraph.
-- Si ves "Incarnation Cross", "Not Self Theme", "Strategy", "Digestion", "Environment", "Strongest Sense" en las propiedades, extraelos.
-- Para la cruz de encarnación: incluí el nombre completo y los números de puertas si aparecen (ej: "Left Angle Cross of Industry (30/29 | 34/20)").`;
-
-const MERGE_PROMPT = `Sos un experto en Diseño Humano. Te doy extracciones parciales de distintos archivos del mismo usuario.
-Combiná todo en un único JSON con esta estructura exacta. NO inventes datos que no estén en las extracciones.
-
-Devolvé ÚNICAMENTE el JSON, sin texto adicional, sin markdown, sin backticks:
-
-{
-  "name": "nombre",
-  "birthData": {
-    "date": "fecha",
-    "time": "hora",
-    "location": "lugar"
-  },
-  "humanDesign": {
-    "type": "tipo",
-    "strategy": "estrategia",
-    "authority": "autoridad",
-    "profile": "perfil",
-    "definition": "definición",
-    "incarnationCross": "cruz de encarnación",
-    "notSelfTheme": "tema del no-self",
-    "variable": "variable",
-    "digestion": "digestión",
-    "environment": "ambiente",
-    "strongestSense": "sentido más fuerte",
-    "channels": [
-      { "id": "num-num", "name": "nombre", "circuit": "circuito" }
-    ],
-    "activatedGates": [
-      { "number": número, "line": número, "planet": "planeta", "isPersonality": boolean }
-    ],
-    "definedCenters": [],
-    "undefinedCenters": []
-  }
-}
-
-REGLAS:
-- Usá los datos de las extracciones. Si un campo es null en todas, dejalo como string vacío "" o array vacío [].
-- Si hay un nombre en alguna extracción, usalo. Si hay nombres distintos, usá el primero.
-- Si hay birthData en alguna extracción, incluilo. Si no hay en ninguna, omití el campo.
-- Convertí nulls a valores por defecto: strings → "", números → 0, booleans → false, arrays → [].
-- No agregues datos que no estén en ninguna extracción.`;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -164,37 +46,6 @@ export interface AssetData {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function buildFileParts(asset: AssetData): any[] {
-  const parts: any[] = [];
-
-  if (asset.mimeType === "text/plain") {
-    parts.push({
-      type: "text",
-      text: `--- Contenido de ${asset.filename} ---\n${asset.data.toString("utf-8")}`,
-    });
-  } else if (asset.mimeType === "application/pdf") {
-    const base64 = asset.data.toString("base64");
-    parts.push({
-      type: "file",
-      file: {
-        filename: asset.filename,
-        file_data: `data:application/pdf;base64,${base64}`,
-      },
-    });
-  } else if (asset.mimeType.startsWith("image/")) {
-    const base64 = asset.data.toString("base64");
-    parts.push({
-      type: "image_url",
-      image_url: {
-        url: `data:${asset.mimeType};base64,${base64}`,
-        detail: "high",
-      },
-    });
-  }
-
-  return parts;
-}
-
 type PdfProvider = "myhumandesign" | "genetic-matrix";
 
 function detectPdfProvider(text: string): PdfProvider | null {
@@ -203,6 +54,7 @@ function detectPdfProvider(text: string): PdfProvider | null {
   if (/myhumandesign/i.test(text)) return "myhumandesign";
   return null;
 }
+
 
 function buildProfileFromGates(
   gates: UserProfile["humanDesign"]["activatedGates"],
@@ -641,280 +493,70 @@ function applyHdSummary(profile: UserProfile, summary: HdSummary): UserProfile {
   return profile;
 }
 
-interface OpenAiCallResult {
-  content: string;
-  tokensIn: number;
-  tokensOut: number;
-  cachedTokens: number;
-  latencyMs: number;
-}
-
-async function callOpenAI(
-  systemPrompt: string,
-  contentParts: any[],
-  openaiKey: string,
-): Promise<OpenAiCallResult> {
-  const startedAt = Date.now();
-  const response = await fetch(OPENAI_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${openaiKey}`,
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 4096,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: contentParts },
-      ],
-    }),
-  });
-
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`OpenAI API error ${response.status}: ${body}`);
-  }
-
-  const data = (await response.json()) as {
-    choices: Array<{ message: { content: string } }>;
-    usage?: {
-      prompt_tokens?: number;
-      completion_tokens?: number;
-      prompt_tokens_details?: { cached_tokens?: number };
-    };
-  };
-
-  return {
-    content: data.choices[0]?.message?.content ?? "",
-    tokensIn: data.usage?.prompt_tokens ?? 0,
-    tokensOut: data.usage?.completion_tokens ?? 0,
-    cachedTokens: data.usage?.prompt_tokens_details?.cached_tokens ?? 0,
-    latencyMs: Date.now() - startedAt,
-  };
-}
-
-export interface ExtractionTelemetryCtx {
-  userId: string;
-}
-
-async function recordExtractionTelemetry(
-  ctx: ExtractionTelemetryCtx | undefined,
-  result: OpenAiCallResult,
-  promptHash: string,
-): Promise<void> {
-  if (!ctx) return;
-  await insertLlmCall({
-    userId: ctx.userId,
-    route: "extraction",
-    model: MODEL,
-    tokensIn: result.tokensIn,
-    tokensOut: result.tokensOut,
-    cachedTokens: result.cachedTokens,
-    costUsd: calculateCost(MODEL, result.tokensIn, result.tokensOut, {
-      cachedInputTokens: result.cachedTokens,
-    }),
-    latencyMs: result.latencyMs,
-    promptHash,
-  });
-}
-
-const HD_PROMPT_HASH = createHash("sha1").update("hd-prompt-v1").digest("hex").slice(0, 16);
-const MERGE_PROMPT_HASH = createHash("sha1").update("merge-prompt-v1").digest("hex").slice(0, 16);
-
-function parseJSON(raw: string): any {
-  const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
-  try {
-    return JSON.parse(cleaned);
-  } catch {
-    throw new Error(`Failed to parse JSON. Raw: ${raw.slice(0, 500)}`);
-  }
-}
-
-// ─── Vision fallback for image-only HD PDFs ──────────────────────────────────
-
-async function extractHdViaVision(
-  asset: AssetData,
-  openaiKey: string,
-  telemetryCtx?: ExtractionTelemetryCtx,
-): Promise<UserProfile> {
-  const parts = [
-    ...buildFileParts(asset),
-    {
-      type: "text",
-      text: "Extraé los datos de Diseño Humano de este documento.",
-    },
-  ];
-
-  const result = await callOpenAI(HD_PROMPT, parts, openaiKey);
-  await recordExtractionTelemetry(telemetryCtx, result, HD_PROMPT_HASH);
-
-  const parsed = parseJSON(result.content) as Partial<UserProfile>;
-  const hd = parsed?.humanDesign;
-  const gates = hd?.activatedGates;
-
-  // Hard validation: Vision must return the canonical 26 gates with valid
-  // numbers, lines, planet counts. Anything else is treated as a failed
-  // extraction (alucinación) and surfaced to the user as a clear error.
-  if (!Array.isArray(gates) || gates.length === 0) {
-    throw new UserFacingError(VISION_GATES_INVALID_MESSAGE);
-  }
-  try {
-    validateActivatedGates(
-      gates as UserProfile["humanDesign"]["activatedGates"],
-      HD_PLANETS,
-      "Vision",
-    );
-  } catch {
-    throw new UserFacingError(VISION_GATES_INVALID_MESSAGE);
-  }
-
-  // Channels and centers are derived from gates by deterministic logic — we
-  // never trust Vision to pick them. The same goes for strategy / not-self
-  // (derived from type via deriveImpliedFields).
-  const validGates = gates as UserProfile["humanDesign"]["activatedGates"];
-  const { channelIds, definedCenters, undefinedCenters } = deriveChannelsAndCenters(
-    validGates,
-    "Vision",
-  );
-
-  const profile: UserProfile = {
-    name: typeof parsed.name === "string" ? parsed.name : "",
-    humanDesign: {
-      type: "",
-      strategy: "",
-      authority: "",
-      profile: "",
-      definition: "",
-      incarnationCross: "",
-      notSelfTheme: "",
-      variable: "",
-      digestion: "",
-      environment: "",
-      strongestSense: "",
-      channels: channelIds.map((id) => ({
-        id,
-        name: HD_CHANNELS[id] ?? "",
-        circuit: "",
-      })),
-      activatedGates: validGates,
-      definedCenters,
-      undefinedCenters,
-    },
-  };
-
-  // Vision returns its best guess of type/profile/authority/etc; we apply
-  // the same canonical maps as the deterministic path so the output shape
-  // is identical regardless of which branch ran.
-  const stringFields: Array<keyof UserProfile["humanDesign"]> = [
-    "type",
-    "profile",
-    "authority",
-    "definition",
-    "incarnationCross",
-    "strategy",
-    "notSelfTheme",
-    "variable",
-    "digestion",
-    "environment",
-    "strongestSense",
-  ];
-  for (const key of stringFields) {
-    const raw = hd?.[key];
-    if (typeof raw === "string" && raw.trim() !== "") {
-      (profile.humanDesign as any)[key] = mapHdValue(key, normalizeField(raw));
-    }
-  }
-
-  return deriveImpliedFields(profile);
-}
 
 // ─── Main extraction ─────────────────────────────────────────────────────────
 
+/**
+ * Extrae un UserProfile desde un PDF HD subido por la usuaria.
+ *
+ * Path único 100% determinístico: pdfjs-dist extrae texto → detectPdfProvider
+ * detecta MyHumanDesign o Genetic Matrix → parseGeneticMatrixText o
+ * parseMyHumanDesignText devuelve gates → buildProfileFromGates compone el
+ * profile → parseHdSummaryFromText completa type/profile/authority/etc.
+ *
+ * Rechazos:
+ * - 0 o >1 assets HD → PDF_ONLY_MESSAGE.
+ * - Asset no es PDF → PDF_ONLY_MESSAGE.
+ * - PDF sin texto extraíble (imagen/captura) → UNREADABLE_PDF_MESSAGE.
+ * - PDF con texto pero proveedor no reconocido → UNSUPPORTED_SOURCE_MESSAGE.
+ *
+ * No usa LLM bajo ninguna circunstancia (Vision fallback eliminado en astral-1c6).
+ */
 export async function extractProfileFromAssets(
   assets: AssetData[],
-  openaiKey: string,
-  telemetryCtx?: ExtractionTelemetryCtx,
 ): Promise<UserProfile> {
   if (assets.length === 0) {
     throw new Error("No assets provided");
   }
 
   const hdAssets = assets.filter((asset) => asset.fileType === "hd");
-  if (hdAssets.length > 0) {
-    if (hdAssets.length > 1) {
-      throw new UserFacingError(PDF_ONLY_MESSAGE);
-    }
-
-    const asset = hdAssets[0];
-    if (asset.mimeType !== "application/pdf") {
-      throw new UserFacingError(PDF_ONLY_MESSAGE);
-    }
-
-    const text = await extractPdfText(asset.data);
-
-    // Deterministic path: PDF tiene capa de texto extraíble + matchea un
-    // proveedor conocido. Sin costo de LLM. Es el camino preferido.
-    if (text && text.trim().length >= 20) {
-      const provider = detectPdfProvider(text);
-      if (provider) {
-        try {
-          const gates =
-            provider === "genetic-matrix"
-              ? parseGeneticMatrixText(text)
-              : parseMyHumanDesignText(text);
-          const profile = buildProfileFromGates(
-            gates,
-            provider === "genetic-matrix" ? "Genetic Matrix" : "MyHumanDesign",
-          );
-          const summary = parseHdSummaryFromText(text);
-          return deriveImpliedFields(applyHdSummary(profile, summary));
-        } catch {
-          throw new UserFacingError(UNREADABLE_PDF_MESSAGE);
-        }
-      }
-      // Texto extraído pero ningún proveedor detectado → no es un export
-      // que sepamos parsear. No tiene sentido pasar por Vision (sería texto
-      // random) — el usuario tiene que reexportar desde una fuente oficial.
-      throw new UserFacingError(UNSUPPORTED_SOURCE_MESSAGE);
-    }
-
-    // PDF sin texto extraíble (capa vectorial, imagen embebida, capturas
-    // via "Imprimir como PDF" de Chrome). El path Vision está implementado
-    // pero hoy alucina los 26 gates con shape estructuralmente válida
-    // (validation de count/lines/planets pasa pero los números son
-    // inventados). Hasta tener una solución con precisión >95% verificada,
-    // el fallback queda detrás de FEATURE_EXTRACTION_VISION_FALLBACK.
-    // Default false → tira UNREADABLE_PDF_MESSAGE como antes del refactor.
-    if (process.env.FEATURE_EXTRACTION_VISION_FALLBACK !== "true") {
-      throw new UserFacingError(UNREADABLE_PDF_MESSAGE);
-    }
-    return extractHdViaVision(asset, openaiKey, telemetryCtx);
+  if (hdAssets.length !== 1) {
+    throw new UserFacingError(PDF_ONLY_MESSAGE);
   }
 
-  const extractions: string[] = [];
-
-  // All files are processed with HD_PROMPT regardless of fileType
-  const parts: any[] = [];
-  for (const asset of assets) {
-    parts.push(...buildFileParts(asset));
+  const asset = hdAssets[0];
+  if (asset.mimeType !== "application/pdf") {
+    throw new UserFacingError(PDF_ONLY_MESSAGE);
   }
-  parts.push({ type: "text", text: "Extraé los datos de Diseño Humano de este documento." });
 
-  const extractResult = await callOpenAI(HD_PROMPT, parts, openaiKey);
-  await recordExtractionTelemetry(telemetryCtx, extractResult, HD_PROMPT_HASH);
-  const parsed = parseJSON(extractResult.content);
-  extractions.push(JSON.stringify(parsed, null, 2));
+  const text = await extractPdfText(asset.data);
 
-  // Merge to normalize nulls → defaults
-  const mergeInput = extractions
-    .map((e, i) => `--- Extracción ${i + 1} ---\n${e}`)
-    .join("\n\n");
+  // Sin texto extraíble (capa vectorial, imagen embebida, capturas vía
+  // "Imprimir como PDF" de Chrome) → rechazo limpio. No aceptamos extracción
+  // basada en LLM Vision: la calidad no era verificable >95%.
+  if (!text || text.trim().length < 20) {
+    throw new UserFacingError(UNREADABLE_PDF_MESSAGE);
+  }
 
-  const mergeResult = await callOpenAI(MERGE_PROMPT, [
-    { type: "text", text: mergeInput },
-  ], openaiKey);
-  await recordExtractionTelemetry(telemetryCtx, mergeResult, MERGE_PROMPT_HASH);
+  const provider = detectPdfProvider(text);
+  if (!provider) {
+    // Texto extraído pero ningún proveedor detectado → no es un export oficial.
+    // La usuaria debe reexportar desde MyHumanDesign o Genetic Matrix.
+    throw new UserFacingError(UNSUPPORTED_SOURCE_MESSAGE);
+  }
 
-  return deriveImpliedFields(parseJSON(mergeResult.content) as UserProfile);
+  try {
+    const gates =
+      provider === "genetic-matrix"
+        ? parseGeneticMatrixText(text)
+        : parseMyHumanDesignText(text);
+    const profile = buildProfileFromGates(
+      gates,
+      provider === "genetic-matrix" ? "Genetic Matrix" : "MyHumanDesign",
+    );
+    const summary = parseHdSummaryFromText(text);
+    return deriveImpliedFields(applyHdSummary(profile, summary));
+  } catch {
+    throw new UserFacingError(UNREADABLE_PDF_MESSAGE);
+  }
 }

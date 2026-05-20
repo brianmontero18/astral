@@ -82,11 +82,10 @@ Notación: **STATE** = `stable` · `active-dev` · `legacy-mantenido` · `gated`
 - **Depends on:** R9 (places autocomplete) · R10 (R2 storage para path PDF)
 - **Profile JSON shape canónico:** ver `backend/src/agent-service.ts` interface `UserProfile`.
 - **Tests:** `backend/src/__tests__/bodygraph-calculate.test.ts` · `api-assets.test.ts` · `extraction-service.test.ts` · `hd-pdf/pdf-fixtures.test.ts` · `e2e/specs/onboarding-from-birth.spec.ts`
-- **State:** `active-dev` — pivot a Swiss Eph terminado (`astral-e5f`), path PDF mantenido como secundario documentado. Vision fallback `gated` off en prod (`FEATURE_EXTRACTION_VISION_FALLBACK`).
+- **State:** `active-dev` — pivot a Swiss Eph terminado (`astral-e5f`), path PDF mantenido como secundario documentado y 100% determinístico (Vision fallback eliminado en `astral-1c6`).
 - **Deuda conocida:**
   - `profile.name` capitalization inconsistente según source (PDF GM ES devuelve lowercase) — pendiente fix (`astral-a2j`).
   - Path PDF no extrae `birthData` aunque Genetic Matrix lo trae inline — pendiente unificación con Swiss Eph (`astral-gwm`).
-  - Vision fallback gated off en prod — pendiente eliminación completa (`astral-1c6`).
 
 ### R4 · Bodygraph Display
 - **Purpose:** Renderizar el bodygraph computado en R3 para la usuaria — versión interactiva (UI), versión vector exportable (SVG), versión PDF descargable (on-demand desde el vector).
@@ -243,7 +242,7 @@ created_at, updated_at
 - **Dev local:** `npm run dev` desde la raíz (concurrently levanta backend `:3000` + frontend `:5173`).
 - **Build:** `cd backend && npm run build` (tsc) + `cd frontend && npm run build` (Vite). El backend en prod sirve el build estático del frontend (no Next.js, no SSR).
 - **Deploy:** Render (Dockerfile multi-stage Node 20 Alpine). Una imagen, un deploy.
-- **Env vars críticas:** OPENAI_API_KEY · TURSO_DATABASE_URL/AUTH_TOKEN · R2_* · SUPERTOKENS_* · GEONAMES_USERNAME · CHAT_MODEL · MEMORY_WRITER_MODEL · REPORT_MODEL · EXTRACTION_MODEL · FEATURE_CHAT_USE_TOOLS · FEATURE_EXTRACTION_VISION_FALLBACK · FEATURE_REMOTE_MCP
+- **Env vars críticas:** OPENAI_API_KEY · TURSO_DATABASE_URL/AUTH_TOKEN · R2_* · SUPERTOKENS_* · GEONAMES_USERNAME · CHAT_MODEL · MEMORY_WRITER_MODEL · REPORT_MODEL · FEATURE_CHAT_USE_TOOLS · FEATURE_REMOTE_MCP
 - **Schema migraciones:** idempotentes en `db.ts:initDb()` — corren al boot, validan + crean tablas/columnas faltantes.
 
 ---

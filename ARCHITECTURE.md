@@ -96,7 +96,7 @@ sequenceDiagram
   FE->>BE: POST /api/me/bodygraph PDF
   BE->>R2: Put original PDF
   BE->>DB: INSERT assets row
-  BE->>EX: Parse supported PDF or call Vision fallback
+  BE->>EX: Parse supported PDF (MyHumanDesign o Genetic Matrix, 100% determinístico)
   EX-->>BE: UserProfile
   BE->>DB: UPDATE users.profile, users.profile_asset_id
   BE-->>FE: updated user, profile, active asset

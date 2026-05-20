@@ -72,7 +72,6 @@ const ALLOWED_MIMES = new Set([
 ]);
 
 const MAX_SIZE = 10 * 1024 * 1024; // 10MB
-const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
 
 type RawAssetMeta = {
   id: string;
@@ -239,18 +238,14 @@ export async function assetRoutes(app: FastifyInstance) {
 
     let profile: UserProfile;
     try {
-      profile = await extractProfileFromAssets(
-        [
-          {
-            mimeType: data.mimetype,
-            data: buffer,
-            filename: data.filename,
-            fileType: "hd",
-          },
-        ],
-        OPENAI_KEY,
-        { userId },
-      );
+      profile = await extractProfileFromAssets([
+        {
+          mimeType: data.mimetype,
+          data: buffer,
+          filename: data.filename,
+          fileType: "hd",
+        },
+      ]);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       if (err instanceof UserFacingError) {
