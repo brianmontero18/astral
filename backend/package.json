@@ -21,11 +21,6 @@
     "@fastify/static": "^9.0.0",
     "@libsql/client": "^0.17.0",
     "@react-pdf/renderer": "^4.3.2",
-    "@types/luxon": "^3.7.1",
-    "@types/node": "^22.15.3",
-    "@types/pdfkit": "^0.17.6",
-    "@types/react": "^19.2.14",
-    "@types/svg-to-pdfkit": "^0.1.4",
     "ai": "^6.0.174",
     "fastify": "^5.3.2",
     "geo-tz": "^8.1.6",
@@ -36,8 +31,6 @@
     "supertokens-node": "^24.0.2",
     "svg-to-pdfkit": "^0.1.8",
     "swisseph-wasm": "^0.0.4",
-    "tsx": "^4.19.3",
-    "typescript": "^5.8.3",
     "zod": "^4.4.2"
   },
   "optionalDependencies": {
@@ -45,6 +38,13 @@
     "@libsql/darwin-arm64": "^0.5.22"
   },
   "devDependencies": {
+    "@types/luxon": "^3.7.1",
+    "@types/node": "^22.15.3",
+    "@types/pdfkit": "^0.17.6",
+    "@types/react": "^19.2.14",
+    "@types/svg-to-pdfkit": "^0.1.4",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3",
     "vitest": "^3.2.4"
   }
 }

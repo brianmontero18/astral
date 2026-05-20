@@ -6,7 +6,8 @@ import fs from "node:fs";
 export async function healthRoutes(app: FastifyInstance) {
   app.get("/health", async () => {
     const __dirname = path.dirname(fileURLToPath(import.meta.url));
-    const frontendDist = path.resolve(__dirname, "../../frontend/dist");
+    // health.js compila a dist/routes/, un nivel más profundo que dist/server.js
+    const frontendDist = path.resolve(__dirname, "../../../frontend/dist");
     return {
       status: "ok",
       ts: new Date().toISOString(),
