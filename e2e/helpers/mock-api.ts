@@ -656,16 +656,6 @@ export async function mockGetAssets(page: Page, assets: AssetMeta[]) {
   });
 }
 
-export async function mockExtractProfile(page: Page, profile: unknown) {
-  await page.route("**/api/extract-profile", async (route) => {
-    if (route.request().method() === "POST" && isExactPath(route.request().url(), "/api/extract-profile")) {
-      await route.fulfill({ status: 200, json: { profile } });
-    } else {
-      await route.fallback();
-    }
-  });
-}
-
 export async function mockGetAssetsError(
   page: Page,
   status = 500,

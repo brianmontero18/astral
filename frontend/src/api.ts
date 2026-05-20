@@ -744,19 +744,3 @@ export async function shareReport(
   return res.json();
 }
 
-// ─── Extraction ──────────────────────────────────────────────────────────────
-
-export async function extractProfile(
-  assetIds: string[],
-): Promise<{ profile: UserProfile }> {
-  const res = await fetch(`${BASE}/extract-profile`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ assetIds }),
-  });
-  if (!res.ok) {
-    const err = await readErrorMessage(res);
-    throw new Error(err);
-  }
-  return res.json();
-}

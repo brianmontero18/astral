@@ -116,7 +116,6 @@ const QUICK_ACTIONS = [
 | `/api/me/messages` | GET, DELETE | `chat.ts` |
 | `/api/messages/:id/feedback` | POST | `chat.ts` |
 | `/api/transits` | GET | `transits.ts` |
-| `/api/extract-profile` | POST | `extract.ts` |
 | `/api/me/report` | GET, POST | `report.ts` |
 | `/api/me/report/pdf` | GET | `report.ts` |
 | `/api/me/report/share` | POST | `report.ts` |

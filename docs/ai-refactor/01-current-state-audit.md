@@ -81,7 +81,7 @@
 - **Tools/Function calling**: No
 - **Structured outputs**: No — returns raw JSON string, then parsed
 
-**When called**: POST `/api/extract-profile` (routes/extract.ts:13-68)
+**When called**: POST `/api/me/bodygraph` (routes/assets.ts, path PDF). Anteriormente también vía `/api/extract-profile` — endpoint removido en `astral-3rn` por POC abandonado sin callers ni telemetría.
 
 #### Two extraction paths:
 
@@ -413,15 +413,18 @@ No LLM. Direct text extraction + regex parsing.
 
 ## 6. Extraction Flow (Complete Pipeline)
 
-### POST `/api/extract-profile`
+### POST `/api/me/bodygraph` (path PDF, secundario)
 
-1. Parse body: `{ assetIds: string[] }`
+1. Parse multipart: `{ file: PDF }`
 2. Resolve user
-3. Fetch assets de DB
+3. Upload asset a R2
 4. Choose extraction path:
-   - **Path A: Single HD PDF** → text + regex (no LLM)
-   - **Path B: Multi-file** → 2× LLM calls (extract + merge)
-5. Return: `{ profile }`
+   - **Path A: HD PDF con texto extraíble + proveedor detectado** → text + regex (no LLM)
+   - **Path B (legacy):** PDF sin texto → tira UNREADABLE_PDF_MESSAGE
+5. Persistir: `updateUserBodygraph(id, profile, assetId)` + borrar asset previo
+6. Return: `{ user, profile, asset }`
+
+> El endpoint `/api/extract-profile` que existía como helper "extract sin persistir" fue removido en `astral-3rn` (POC sin callers ni telemetría).
 
 ---
 

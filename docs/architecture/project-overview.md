@@ -84,9 +84,9 @@ Notación: **STATE** = `stable` · `active-dev` · `legacy-mantenido` · `gated`
 - **Tests:** `backend/src/__tests__/bodygraph-calculate.test.ts` · `api-assets.test.ts` · `extraction-service.test.ts` · `hd-pdf/pdf-fixtures.test.ts` · `e2e/specs/onboarding-from-birth.spec.ts`
 - **State:** `active-dev` — pivot a Swiss Eph terminado (`astral-e5f`), path PDF mantenido como secundario documentado. Vision fallback `gated` off en prod (`FEATURE_EXTRACTION_VISION_FALLBACK`).
 - **Deuda conocida:**
-  - `/extract-profile` endpoint legacy POC (sin callers, 0 telemetría) — pendiente cleanup (ver `astral-3rn`).
-  - `profile.name` capitalization inconsistente según source (PDF GM ES devuelve lowercase).
-  - Path PDF no extrae `birthData` aunque Genetic Matrix lo trae inline.
+  - `profile.name` capitalization inconsistente según source (PDF GM ES devuelve lowercase) — pendiente fix (`astral-a2j`).
+  - Path PDF no extrae `birthData` aunque Genetic Matrix lo trae inline — pendiente unificación con Swiss Eph (`astral-gwm`).
+  - Vision fallback gated off en prod — pendiente eliminación completa (`astral-1c6`).
 
 ### R4 · Bodygraph Display
 - **Purpose:** Renderizar el bodygraph computado en R3 para la usuaria — versión interactiva (UI), versión vector exportable (SVG), versión PDF descargable (on-demand desde el vector).
