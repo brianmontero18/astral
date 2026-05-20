@@ -1,0 +1,23 @@
+.gitignore
+  s_ac7c64e9db953c::t_a6d565bbde5ed5 41
+backend/scripts/migrate-user-to-swiss.ts
+  s_ac7c64e9db953c::t_0c67701368b947 1-199
+backend/scripts/prod-audits/examples/user-assets-detail.ts
+  s_ac7c64e9db953c::t_bd63371b82b19f 1-61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "e1751683f7a31d91ad982a5d9a14aff6fa18608b",
+  "prompts": {},
+  "sessions": {
+    "s_ac7c64e9db953c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b1e17abf-f020-4a54-95d9-4c95b247ef3b",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
