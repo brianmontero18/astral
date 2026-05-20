@@ -15,6 +15,8 @@ import {
   sendCurrentUserError,
 } from "../auth/current-user.js";
 import { calculateBodygraph, type BirthData } from "../bodygraph/calculate.js";
+import { renderFullDocument } from "../bodygraph/render-svg.js";
+import { renderBodygraphPdf } from "../bodygraph/render-pdf.js";
 
 const FROM_BIRTH_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const FROM_BIRTH_TIME_RE = /^\d{2}:\d{2}$/;
@@ -369,6 +371,100 @@ export async function assetRoutes(app: FastifyInstance) {
       user: serializeCurrentUser(updatedUser),
       profile: updatedUser.profile,
     });
+  });
+
+  // GET /me/bodygraph/chart-svg — renderiza el chart SVG con paneles planet
+  // (Diseño + Personalidad) + variables (tone groups y flechas R/L). Usado
+  // por la pantalla "Mi carta" como hero visual. Excluye header + footer
+  // textual porque la home ya muestra esa info como HTML estructurado
+  // (identity card, sección Diseño/Personalidad full-width, panel canales).
+  app.get<{ Querystring: { width?: string } }>("/me/bodygraph/chart-svg", async (req, reply) => {
+    const userId = await resolveOwnedUser(req as AuthenticatedRequest, reply);
+    if (!userId) return;
+
+    const user = await getUser(userId);
+    if (!user) return reply.status(404).send({ error: "User not found" });
+    const profile = user.profile as UserProfile;
+    if (!profile?.humanDesign?.activatedGates?.length) {
+      return reply.status(404).send({ error: "no_active_bodygraph" });
+    }
+
+    const widthRaw = req.query.width !== undefined ? Number(req.query.width) : undefined;
+    const width = widthRaw && !Number.isNaN(widthRaw) && widthRaw > 0
+      ? Math.min(Math.trunc(widthRaw), 3000)
+      : 1400;
+
+    const svg = renderFullDocument(profile, {
+      width,
+      includeHeader: false,
+      includeFooter: false,
+    });
+    return reply
+      .header("Content-Type", "image/svg+xml; charset=utf-8")
+      .header("Cache-Control", "private, max-age=60")
+      .status(200)
+      .send(svg);
+  });
+
+  // GET /me/bodygraph/full-svg — SVG completo (chart + header + paneles
+  // Diseño/Personalidad/Canales). Mismo layout que el PDF, en SVG. Usado por
+  // el frontend para exportar como PNG (rasterización client-side) sin perder
+  // los paneles que sí trae el PDF.
+  app.get<{ Querystring: { width?: string } }>("/me/bodygraph/full-svg", async (req, reply) => {
+    const userId = await resolveOwnedUser(req as AuthenticatedRequest, reply);
+    if (!userId) return;
+
+    const user = await getUser(userId);
+    if (!user) return reply.status(404).send({ error: "User not found" });
+    const profile = user.profile as UserProfile;
+    if (!profile?.humanDesign?.activatedGates?.length) {
+      return reply.status(404).send({ error: "no_active_bodygraph" });
+    }
+
+    const widthRaw = req.query.width !== undefined ? Number(req.query.width) : undefined;
+    const width = widthRaw && !Number.isNaN(widthRaw) && widthRaw > 0
+      ? Math.min(Math.trunc(widthRaw), 3000)
+      : 1400;
+
+    const svg = renderFullDocument(profile, { width });
+    return reply
+      .header("Content-Type", "image/svg+xml; charset=utf-8")
+      .header("Cache-Control", "private, max-age=60")
+      .status(200)
+      .send(svg);
+  });
+
+  // GET /me/bodygraph/pdf — genera el PDF on-demand desde users.profile.
+  // Reemplaza el POC POST /api/bodygraph/pdf (que aceptaba birth data por
+  // body). Acá el profile ya está persistido, así que no hay validación de
+  // input necesaria: la sesión es la fuente de verdad.
+  app.get("/me/bodygraph/pdf", async (req, reply) => {
+    const userId = await resolveOwnedUser(req as AuthenticatedRequest, reply);
+    if (!userId) return;
+
+    const user = await getUser(userId);
+    if (!user) return reply.status(404).send({ error: "User not found" });
+    const profile = user.profile as UserProfile;
+    if (!profile?.humanDesign?.activatedGates?.length) {
+      return reply.status(404).send({ error: "no_active_bodygraph" });
+    }
+
+    try {
+      const buffer = await renderBodygraphPdf(profile);
+      const slug = user.name
+        ? user.name.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
+        : "";
+      const filename = slug ? `bodygraph-${slug}.pdf` : "bodygraph.pdf";
+      return reply
+        .header("Content-Type", "application/pdf")
+        .header("Content-Disposition", `attachment; filename="${filename}"`)
+        .status(200)
+        .send(buffer);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      app.log.error({ err }, "bodygraph pdf failed");
+      return reply.status(500).send({ error: "pdf_render_failed", message });
+    }
   });
 
   // List user assets (metadata only)

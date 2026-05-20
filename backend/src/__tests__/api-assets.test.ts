@@ -506,6 +506,174 @@ describe("DELETE /api/assets/:id", () => {
   });
 });
 
+describe("GET /api/me/bodygraph/chart-svg", () => {
+  it("returns authentication_required without a validated session", async () => {
+    const res = await app.inject({ method: "GET", url: "/api/me/bodygraph/chart-svg" });
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("returns SVG content when the user has a calculated bodygraph", async () => {
+    const sessionSubject = "st-chart-svg-ok";
+    const userId = await createLinkedTestUser(app, sessionSubject);
+
+    // The default linked-user profile has activatedGates populated via the
+    // test helper, but the new endpoint expects a real shape from
+    // calculateBodygraph. Submit a from-birth call first to seed it.
+    await app.inject({
+      method: "POST",
+      url: "/api/me/bodygraph/from-birth",
+      headers: { "content-type": "application/json", ...sessionHeaders(sessionSubject) },
+      payload: {
+        name: "Brian",
+        date: "1989-02-18",
+        time: "08:00",
+        place: { lat: 11.6757, lon: -70.2197, label: "Punta Cardón, Falcón, Venezuela" },
+      },
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/me/bodygraph/chart-svg",
+      headers: sessionHeaders(sessionSubject),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toMatch(/image\/svg\+xml/);
+    expect(res.body).toContain("<svg");
+    expect(res.body).toContain("</svg>");
+    // userId asignado al fixture — sanity.
+    expect(userId).toBeTruthy();
+  });
+
+  it("returns no_active_bodygraph when the user profile has no gates", async () => {
+    const sessionSubject = "st-chart-svg-empty";
+    // The test helper seeds activatedGates with placeholder numbers (no
+    // line/planet/etc). For this endpoint we want to confirm the guard
+    // returns 404 when activatedGates is empty — use a user with empty profile.
+    await createLinkedTestUser(app, sessionSubject, "Empty User", {
+      humanDesign: {
+        type: "",
+        strategy: "",
+        authority: "",
+        profile: "",
+        definition: "",
+        incarnationCross: "",
+        notSelfTheme: "",
+        variable: "",
+        digestion: "",
+        environment: "",
+        strongestSense: "",
+        channels: [],
+        activatedGates: [],
+        definedCenters: [],
+        undefinedCenters: [],
+      },
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/me/bodygraph/chart-svg",
+      headers: sessionHeaders(sessionSubject),
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(JSON.parse(res.body).error).toBe("no_active_bodygraph");
+  });
+
+  it("clamps width to [1, 3000]", async () => {
+    const sessionSubject = "st-chart-svg-clamp";
+    await createLinkedTestUser(app, sessionSubject);
+    await app.inject({
+      method: "POST",
+      url: "/api/me/bodygraph/from-birth",
+      headers: { "content-type": "application/json", ...sessionHeaders(sessionSubject) },
+      payload: {
+        name: "Brian",
+        date: "1989-02-18",
+        time: "08:00",
+        place: { lat: 11.6757, lon: -70.2197, label: "Punta Cardón, Falcón, Venezuela" },
+      },
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/me/bodygraph/chart-svg?width=99999",
+      headers: sessionHeaders(sessionSubject),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toContain('width="3000"');
+  });
+});
+
+describe("GET /api/me/bodygraph/pdf", () => {
+  it("returns authentication_required without a validated session", async () => {
+    const res = await app.inject({ method: "GET", url: "/api/me/bodygraph/pdf" });
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("returns a PDF buffer when the user has a calculated bodygraph", async () => {
+    const sessionSubject = "st-pdf-ok";
+    await createLinkedTestUser(app, sessionSubject, "Brian Montero");
+
+    await app.inject({
+      method: "POST",
+      url: "/api/me/bodygraph/from-birth",
+      headers: { "content-type": "application/json", ...sessionHeaders(sessionSubject) },
+      payload: {
+        name: "Brian Montero",
+        date: "1989-02-18",
+        time: "08:00",
+        place: { lat: 11.6757, lon: -70.2197, label: "Punta Cardón, Falcón, Venezuela" },
+      },
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/me/bodygraph/pdf",
+      headers: sessionHeaders(sessionSubject),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toBe("application/pdf");
+    expect(res.headers["content-disposition"]).toContain("bodygraph-brian-montero.pdf");
+    // PDFs start with %PDF magic.
+    expect(res.rawPayload.slice(0, 4).toString()).toBe("%PDF");
+  });
+
+  it("returns no_active_bodygraph when profile has no gates", async () => {
+    const sessionSubject = "st-pdf-empty";
+    await createLinkedTestUser(app, sessionSubject, "Empty User", {
+      humanDesign: {
+        type: "",
+        strategy: "",
+        authority: "",
+        profile: "",
+        definition: "",
+        incarnationCross: "",
+        notSelfTheme: "",
+        variable: "",
+        digestion: "",
+        environment: "",
+        strongestSense: "",
+        channels: [],
+        activatedGates: [],
+        definedCenters: [],
+        undefinedCenters: [],
+      },
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/me/bodygraph/pdf",
+      headers: sessionHeaders(sessionSubject),
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(JSON.parse(res.body).error).toBe("no_active_bodygraph");
+  });
+});
+
 describe("POST /api/me/bodygraph/from-birth", () => {
   /** Body fixture: Agos's birth data in Esquel (validated against the
    *  Genetic Matrix PDF in bodygraph-calculate.test.ts). */

@@ -38,9 +38,13 @@ export interface UserProfile {
   };
   humanDesign: {
     type: string;
+    /** Cualificador del tipo (ej "Emocional", "Mental"). Derivado de la autoridad. */
+    typeQualifier?: string;
     strategy: string;
     authority: string;
     profile: string;
+    /** Nombre canónico del perfil (ej "Modelo a Seguir / Ermitaño"). */
+    profileName?: string;
     definition: string;
     incarnationCross: string;
     notSelfTheme: string;
@@ -52,6 +56,26 @@ export interface UserProfile {
     activatedGates: HumanDesignGate[];
     definedCenters: string[];
     undefinedCenters: string[];
+    /** Design moment ISO — usado en el footer "Fecha del Diseño". */
+    design?: { date: string };
+    /** Variable Wheel labels canónicas (16 properties, computeVariableLabels). */
+    variableLabels?: {
+      brain: string;
+      determination: string;
+      determinationCategory: string;
+      cognition: string;
+      environment: string;
+      environmentDetail: string;
+      environmentStyle: string;
+      personality: string;
+      motivation: string;
+      sense: string;
+      trajectory: string;
+      viewPerspective: string;
+      view: string;
+      transferredMotivation: string;
+      transferredView: string;
+    };
   };
 }
 

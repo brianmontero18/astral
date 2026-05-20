@@ -8,6 +8,7 @@ import type {
 import {
   bootstrapCurrentUser,
   patchOnboarding,
+  PlacesTimeoutError,
   searchPlaces,
   submitBodygraphFromBirth,
   updateCurrentUser,
@@ -87,6 +88,8 @@ export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
   const [placeQuery, setPlaceQuery] = useState("");
   const [placeResults, setPlaceResults] = useState<PlaceResult[]>([]);
   const [placeLoading, setPlaceLoading] = useState(false);
+  const [placeSlow, setPlaceSlow] = useState(false);
+  const [placeTimedOut, setPlaceTimedOut] = useState(false);
   const [placeOpen, setPlaceOpen] = useState(false);
   const [placeError, setPlaceError] = useState<string | null>(null);
   const placeInputRef = useRef<HTMLInputElement>(null);
@@ -106,39 +109,58 @@ export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
     : STEP_ORDER.indexOf(step);
   const showStepIndicator = step !== "welcome";
 
-  // ─── Places autocomplete: debounce + abort previo en cada cambio ─────────
+  // ─── Places autocomplete: debounce 250ms + slow signal a los 2.5s + timeout 30s.
   useEffect(() => {
     if (selectedPlace && placeQuery === formatPlaceLabel(selectedPlace)) {
-      // El usuario ya seleccionó este lugar; no relanzar búsqueda.
       return;
     }
     const q = placeQuery.trim();
     if (q.length < 2) {
       setPlaceResults([]);
+      setPlaceTimedOut(false);
+      setPlaceSlow(false);
       return;
     }
+    const callerCtrl = new AbortController();
     let cancelled = false;
-    const timer = window.setTimeout(async () => {
+    let slowTimer: number | undefined;
+    const debounceTimer = window.setTimeout(async () => {
       setPlaceLoading(true);
+      setPlaceTimedOut(false);
+      setPlaceSlow(false);
+      slowTimer = window.setTimeout(() => {
+        if (!cancelled) setPlaceSlow(true);
+      }, 2500);
       try {
-        const results = await searchPlaces(q);
+        const results = await searchPlaces(q, { signal: callerCtrl.signal });
         if (!cancelled) {
           setPlaceResults(results);
           setPlaceOpen(true);
           setPlaceError(null);
+          setPlaceTimedOut(false);
         }
       } catch (err) {
-        if (!cancelled) {
+        if (cancelled) return;
+        if (err instanceof PlacesTimeoutError) {
+          setPlaceTimedOut(true);
+          setPlaceError(null);
+        } else if (!(err instanceof DOMException && err.name === "AbortError")) {
           setPlaceError(err instanceof Error ? err.message : String(err));
-          setPlaceResults([]);
         }
+        setPlaceResults([]);
       } finally {
-        if (!cancelled) setPlaceLoading(false);
+        if (!cancelled) {
+          setPlaceLoading(false);
+          setPlaceSlow(false);
+        }
+        if (slowTimer !== undefined) window.clearTimeout(slowTimer);
       }
     }, 250);
     return () => {
       cancelled = true;
-      window.clearTimeout(timer);
+      callerCtrl.abort();
+      window.clearTimeout(debounceTimer);
+      if (slowTimer !== undefined) window.clearTimeout(slowTimer);
     };
   }, [placeQuery, selectedPlace]);
 
@@ -517,7 +539,7 @@ export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
                 />
               </BirthField>
 
-              <BirthField label="Hora local (24h)">
+              <BirthField label="Hora local">
                 <input
                   type="time"
                   value={birthTime}
@@ -534,14 +556,24 @@ export function OnboardingFlow({ onComplete, resumeFrom }: Props) {
                     value={placeQuery}
                     onChange={(e) => handlePlaceInputChange(e.target.value)}
                     onFocus={() => { if (placeResults.length > 0) setPlaceOpen(true); }}
-                    placeholder="Empezá a escribir (ej. Buenos Aires, Esquel...)"
+                    placeholder="Empezá a escribir (ej. Buenos Aires, Bogotá...)"
                     className="onboarding-birth-input"
                     autoComplete="off"
                     spellCheck={false}
                   />
-                  {placeLoading && (
+                  {placeLoading && !placeSlow && (
                     <div style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", fontSize: 12, fontFamily: "var(--font-sans)" }}>
                       buscando…
+                    </div>
+                  )}
+                  {placeLoading && placeSlow && (
+                    <div style={{ marginTop: 8, color: "var(--text-muted)", fontSize: 12, fontFamily: "var(--font-sans)" }}>
+                      Está tardando más de lo normal… seguimos buscando.
+                    </div>
+                  )}
+                  {placeTimedOut && (
+                    <div className="onboarding-inline-error" style={{ marginTop: 8, fontSize: 13 }}>
+                      La búsqueda tardó demasiado. Probá de nuevo en un momento.
                     </div>
                   )}
                   {placeOpen && placeResults.length > 0 && (

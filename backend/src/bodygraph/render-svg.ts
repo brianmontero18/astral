@@ -672,14 +672,33 @@ function renderPlanetPanel(profile: UserProfile, opts: PanelOptions): string {
 
 // ─── Header ─────────────────────────────────────────────────────────────────
 //
-// Top strip showing identity + the headline HD properties.
+// Top strip showing identity + the headline HD properties. Altura calculada
+// dinámicamente según número de fields (ver `computeHeaderHeight`) — antes
+// usaba alto fijo proporcional, y al sumar coordenadas/edad/birthData los
+// rows se desbordaban encima del panel "Diseño".
+
+interface HeaderField {
+  label: string;
+  value: string;
+}
 
 interface HeaderOptions {
   x: number;
   y: number;
   width: number;
-  height: number;
+  fields: HeaderField[];
 }
+
+// Header layout constants (FIXED). Antes eran proporcionales a opts.height
+// (titleSize = h*0.20, lineSize = h*0.10), lo que generaba un loop: más fields
+// → más altura necesaria → fuentes más grandes → aún más altura. Ahora los
+// rows tienen tamaño fijo y la altura total se computa downstream.
+const HEADER_TITLE_SIZE = 0.07;
+const HEADER_LINE_SIZE = 0.035;
+const HEADER_TITLE_GAP = HEADER_LINE_SIZE * 3.5; // gap título → primera row
+const HEADER_ROW_HEIGHT = HEADER_LINE_SIZE * 1.45;
+const HEADER_PAD_TOP = 0.05;     // gap viewBox top → título
+const HEADER_PAD_BOTTOM = 0.03;  // gap última row → chart
 
 const MONTH_SHORT_ES = [
   "ene", "feb", "mar", "abr", "may", "jun",
@@ -695,31 +714,15 @@ function formatBirthIsoForHeader(iso: string): string {
   return `${d} ${MONTH_SHORT_ES[m - 1]} ${y} ${hhmm}`;
 }
 
-function renderHeader(profile: UserProfile, opts: HeaderOptions): string {
+/**
+ * Construye la lista de fields del header en el orden canónico. Función pura
+ * — usada por `renderHeader` (para pintarlos) y por `computeHeaderHeight`
+ * (para reservar viewBox space). Mantenerlas en una sola fuente evita drift.
+ */
+function buildHeaderFields(profile: UserProfile): HeaderField[] {
   const hd = profile.humanDesign;
   const birth = profile.birthData;
-  const padX = 0.02;
-  const left = opts.x + padX;
-  const right = opts.x + opts.width - padX;
-  // Font sizes bumped (titleSize 0.18 → 0.20, lineSize 0.085 → 0.10) para
-  // mejor legibilidad — el header se renderea en una franja muy alta cuando
-  // el PDF se escala a A4.
-  const titleSize = opts.height * 0.20;
-  const lineSize = opts.height * 0.10;
-
-  let svg = "";
-  // Title (name + type prefixed by qualifier when present).
-  const typeDisplay = hd.typeQualifier
-    ? `${hd.typeQualifier} ${hd.type}`
-    : hd.type;
-  const titleText = `${profile.name || "Bodygraph"}${typeDisplay ? ` — ${typeDisplay}` : ""}`;
-  svg +=
-    `<text x="${f(left)}" y="${f(opts.y + titleSize)}" ` +
-    `font-size="${f(titleSize)}" fill="${COLOR_HEADER_TEXT}" ` +
-    `font-family="Helvetica, Arial, sans-serif" font-weight="bold">${escapeXml(titleText)}</text>`;
-
-  // Field rows. We render two columns of label/value pairs.
-  const fields: Array<{ label: string; value: string }> = [
+  const fields: HeaderField[] = [
     { label: "Perfil", value: hd.profileName ? `${hd.profile} — ${hd.profileName}` : hd.profile },
     { label: "Autoridad", value: hd.authority },
     { label: "Definición", value: hd.definition },
@@ -729,7 +732,6 @@ function renderHeader(profile: UserProfile, opts: HeaderOptions): string {
   ];
 
   if (birth) {
-    // Append Coordinates + Age al final si están presentes (GM premium parity).
     if (birth.coordinates) {
       fields.push({
         label: "Coordenadas",
@@ -737,10 +739,7 @@ function renderHeader(profile: UserProfile, opts: HeaderOptions): string {
       });
     }
     if (typeof birth.ageYears === "number" && birth.ageYears > 0) {
-      fields.push({
-        label: "Edad",
-        value: `${birth.ageYears} años`,
-      });
+      fields.push({ label: "Edad", value: `${birth.ageYears} años` });
     }
     if (birth.placeLabel) {
       fields.unshift({ label: "Lugar", value: birth.placeLabel });
@@ -754,24 +753,55 @@ function renderHeader(profile: UserProfile, opts: HeaderOptions): string {
       value: formatBirthIsoForHeader(birth.dateLocalIso),
     });
   }
+  return fields;
+}
 
-  // Two columns, side-by-side. Each row about `lineSize * 1.4` tall.
+/**
+ * Altura total que necesita el header para los fields dados (en unidades del
+ * viewBox). Determinística: depende sólo del número de filas (= ceil(n/2)).
+ */
+function computeHeaderHeight(fields: HeaderField[]): number {
+  const numRows = Math.ceil(fields.length / 2);
+  return (
+    HEADER_PAD_TOP +
+    HEADER_TITLE_SIZE +
+    HEADER_TITLE_GAP +
+    numRows * HEADER_ROW_HEIGHT +
+    HEADER_PAD_BOTTOM
+  );
+}
+
+function renderHeader(profile: UserProfile, opts: HeaderOptions): string {
+  const hd = profile.humanDesign;
+  const padX = 0.02;
+  const left = opts.x + padX;
+  const right = opts.x + opts.width - padX;
+
+  let svg = "";
+  // Title (name + type prefixed by qualifier when present).
+  const typeDisplay = hd.typeQualifier
+    ? `${hd.typeQualifier} ${hd.type}`
+    : hd.type;
+  const titleText = `${profile.name || "Bodygraph"}${typeDisplay ? ` — ${typeDisplay}` : ""}`;
+  svg +=
+    `<text x="${f(left)}" y="${f(opts.y + HEADER_TITLE_SIZE)}" ` +
+    `font-size="${f(HEADER_TITLE_SIZE)}" fill="${COLOR_HEADER_TEXT}" ` +
+    `font-family="Helvetica, Arial, sans-serif" font-weight="bold">${escapeXml(titleText)}</text>`;
+
+  // Two columns, side-by-side.
   const colGap = (right - left) * 0.5;
-  // Gap entre el título y la primera fila de datos. Bump iterativo: 2.2 → 3.5
-  // lineSize tras founder review (el título estaba muy pegado a la tabla).
-  const startY = opts.y + titleSize + lineSize * 3.5;
-  const rowH = lineSize * 1.45;
-  for (let i = 0; i < fields.length; i++) {
+  const startY = opts.y + HEADER_TITLE_SIZE + HEADER_TITLE_GAP;
+  for (let i = 0; i < opts.fields.length; i++) {
     const col = i % 2;
     const row = Math.floor(i / 2);
     const x = left + col * colGap;
-    const y = startY + row * rowH;
-    const label = escapeXml(fields[i].label);
-    const value = escapeXml(fields[i].value || "—");
+    const y = startY + row * HEADER_ROW_HEIGHT;
+    const label = escapeXml(opts.fields[i].label);
+    const value = escapeXml(opts.fields[i].value || "—");
     // tspan bold para la clave (label), regular para el valor. svg-to-pdfkit
     // resuelve el font-weight via fontCallback → Inter / Inter-Bold.
     svg +=
-      `<text x="${f(x)}" y="${f(y)}" font-size="${f(lineSize)}" fill="${COLOR_BODY_TEXT}" ` +
+      `<text x="${f(x)}" y="${f(y)}" font-size="${f(HEADER_LINE_SIZE)}" fill="${COLOR_BODY_TEXT}" ` +
       `font-family="Helvetica, Arial, sans-serif">` +
       `<tspan font-weight="bold">${label}:</tspan> ${value}</text>`;
   }
@@ -940,6 +970,19 @@ export interface FullDocumentOptions {
   width?: number;
   /** SVG height attribute. Defaults to ~1042 (px) preserving 2.4:2.5 aspect ratio. */
   height?: number;
+  /**
+   * Incluir el header (título "Brian — Type", tabla con perfil/autoridad/etc).
+   * Default true para PDF/PNG export standalone. False para la home "Mi carta",
+   * donde la identity card de HTML ya muestra esa info y duplicarla resulta
+   * redundante.
+   */
+  includeHeader?: boolean;
+  /**
+   * Incluir el footer textual (Diseño / Personalidad / Canales). Default true
+   * para PDF export. False para la home, que tiene esas secciones como HTML
+   * full-width abajo del hero.
+   */
+  includeFooter?: boolean;
 }
 
 /**
@@ -957,30 +1000,44 @@ export function renderFullDocument(
   opts: FullDocumentOptions = {},
 ): string {
   const lookup = buildLookup(profile);
+  const includeHeader = opts.includeHeader ?? true;
+  const includeFooter = opts.includeFooter ?? true;
 
-  // Outer viewBox. Height extended (2.95 → 3.10) para acomodar mayor gap
-  // entre header y chart tras founder review.
+  // Header altura dinámica: depende del # de fields (varía si hay birthData,
+  // coordinates, edad, etc.). Antes era fijo (0.40) y los rows se desbordaban
+  // sobre el panel "Diseño" cuando había 11 fields. `buildHeaderFields` +
+  // `computeHeaderHeight` viven en la misma sección que renderHeader.
+  const headerFields = includeHeader ? buildHeaderFields(profile) : [];
+  const headerHeight = includeHeader ? computeHeaderHeight(headerFields) : 0.15;
+
+  // Footer: 0.90 si se incluye (3 columnas, hasta ~12 rows de canales);
+  // 0.20 de respiro mínimo si no — los strokes del Root/Solar Plexus en la
+  // base del chart necesitan ese margen para no cortarse.
+  const footerHeight = includeFooter ? 0.90 : 0.20;
+  const chartRegionHeight = 1.50; // panels son 1.40, chart 1.50 — chart manda
+
   const vbX = 0;
   const vbY = 0;
   const vbW = 2.4;
-  const vbH = 3.10;
+  const vbH = headerHeight + chartRegionHeight + footerHeight;
   const width = opts.width ?? 1000;
-  // Preserve aspect ratio.
   const height = opts.height ?? Math.round((width * vbH) / vbW);
 
-  // Layout regions. Header crece 0.30 → 0.35 (más espacio para título +
-  // tabla con bold labels). Chart y panels se shiftean 0.10 hacia abajo
-  // (chart.y 0.45 → 0.60, panels.y 0.50 → 0.65) para gap visible.
-  const header = { x: 0.10, y: 0.05, w: 2.20, h: 0.35 };
-  const chart =  { x: 0.65, y: 0.60, w: 1.00, h: 1.50 };
-  const designP = { x: 0.10, y: 0.65, w: 0.40, h: 1.40 };
-  const personP = { x: 1.80, y: 0.65, w: 0.40, h: 1.40 };
-  const footer =  { x: 0.10, y: 2.20, w: 2.20, h: 0.85 };
+  // Layout regions. Chart y panels arrancan apenas el header termina; si no
+  // hay header arrancan en el margen mínimo de top.
+  const chartY = headerHeight + 0.05; // gap chico antes del chart
+  const header = { x: 0.10, y: 0.05, w: 2.20 };
+  const chart =  { x: 0.65, y: chartY, w: 1.00, h: 1.50 };
+  const designP = { x: 0.10, y: chartY + 0.05, w: 0.40, h: 1.40 };
+  const personP = { x: 1.80, y: chartY + 0.05, w: 0.40, h: 1.40 };
+  const footer =  { x: 0.10, y: chartY + chartRegionHeight + 0.10, w: 2.20, h: 0.85 };
 
   // 1. Header (reads birth metadata from profile.birthData if present).
-  const headerSvg = renderHeader(profile, {
-    x: header.x, y: header.y, width: header.w, height: header.h,
-  });
+  const headerSvg = includeHeader
+    ? renderHeader(profile, {
+        x: header.x, y: header.y, width: header.w, fields: headerFields,
+      })
+    : "";
 
   // 2. Chart (translated + scaled into the chart region).
   // chartInner produces shapes in viewBox 0..1 × 0..1.5. The chart region is
@@ -1038,9 +1095,11 @@ export function renderFullDocument(
   }
 
   // 6. Footer: Design + Personality + Channels blocks.
-  const footerSvg = renderFooter(profile, {
-    x: footer.x, y: footer.y, width: footer.w, height: footer.h,
-  });
+  const footerSvg = includeFooter
+    ? renderFooter(profile, {
+        x: footer.x, y: footer.y, width: footer.w, height: footer.h,
+      })
+    : "";
 
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vbX} ${vbY} ${vbW} ${vbH}" width="${width}" height="${height}">` +

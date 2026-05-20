@@ -484,17 +484,48 @@ export interface PlaceResult {
   population: number;
 }
 
-export async function searchPlaces(query: string): Promise<PlaceResult[]> {
+export class PlacesTimeoutError extends Error {
+  constructor() {
+    super("places_timeout");
+    this.name = "PlacesTimeoutError";
+  }
+}
+
+export async function searchPlaces(
+  query: string,
+  options: { signal?: AbortSignal; timeoutMs?: number } = {},
+): Promise<PlaceResult[]> {
   const trimmed = query.trim();
   if (trimmed.length < 2) return [];
-  const url = `${BASE}/places/autocomplete?q=${encodeURIComponent(trimmed)}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    const err = await readErrorMessage(res);
-    throw new Error(err);
+
+  const timeoutMs = options.timeoutMs ?? 30_000;
+  const timeoutCtrl = new AbortController();
+  const timer = setTimeout(() => timeoutCtrl.abort(), timeoutMs);
+
+  // Si el caller también pasa signal, lo encadenamos al timeoutCtrl.
+  const onCallerAbort = () => timeoutCtrl.abort();
+  options.signal?.addEventListener("abort", onCallerAbort);
+
+  try {
+    const url = `${BASE}/places/autocomplete?q=${encodeURIComponent(trimmed)}`;
+    const res = await fetch(url, { signal: timeoutCtrl.signal });
+    if (!res.ok) {
+      const err = await readErrorMessage(res);
+      throw new Error(err);
+    }
+    const data = (await res.json()) as { results: PlaceResult[] };
+    return data.results ?? [];
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      // Distinguir caller-abort (silencioso) vs timeout (mostrar).
+      if (options.signal?.aborted) throw err;
+      throw new PlacesTimeoutError();
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+    options.signal?.removeEventListener("abort", onCallerAbort);
   }
-  const data = (await res.json()) as { results: PlaceResult[] };
-  return data.results ?? [];
 }
 
 export async function getAdminUsers({

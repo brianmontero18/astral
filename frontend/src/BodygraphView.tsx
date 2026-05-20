@@ -64,7 +64,8 @@ interface BodygraphProfile {
     dateUtcIso: string;
     placeLabel?: string;
     coordinates?: { lat: number; lon: number };
-    ageYears: number;
+    timezoneOffsetHours?: number;
+    ageYears?: number;
   };
   humanDesign: {
     type: string;
@@ -355,25 +356,19 @@ function FooterBlock({ profile }: { profile: BodygraphProfile }) {
 
 export default function BodygraphView({
   profile,
-  birthQuery,
+  chartWidth = 800,
 }: {
   profile: BodygraphProfile;
-  /** Query params to pass to the chart SVG endpoint. */
-  birthQuery: { date: string; time: string; tz: number };
+  /** Width passed to the chart SVG endpoint. Default 800px. */
+  chartWidth?: number;
 }) {
   const [chartSvg, setChartSvg] = useState<string | null>(null);
   const [chartError, setChartError] = useState<string | null>(null);
 
-  const chartUrl = useMemo(() => {
-    const params = new URLSearchParams({
-      date: birthQuery.date,
-      time: birthQuery.time,
-      timezoneOffsetHours: String(birthQuery.tz),
-      mode: "chart",
-      width: "800",
-    });
-    return `/api/bodygraph/preview-svg?${params.toString()}`;
-  }, [birthQuery.date, birthQuery.time, birthQuery.tz]);
+  const chartUrl = useMemo(
+    () => `/api/me/bodygraph/chart-svg?width=${chartWidth}`,
+    [chartWidth],
+  );
 
   useEffect(() => {
     let cancelled = false;

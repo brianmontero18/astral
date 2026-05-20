@@ -141,6 +141,10 @@ spacing:
   # Semánticos
   gutter:        16px      # padding horizontal en views
   content-max:   760px     # ancho máximo de cualquier vista interior
+  archive-max:   1080px    # excepción documentada: vistas de archivo con grafos
+                           # vectoriales (MyChart). Usar SÓLO cuando el contenido
+                           # gráfico requiere superficie horizontal — el default
+                           # sigue siendo content-max
   auth-max:      1180px    # auth shell
 
 components:
@@ -244,6 +248,10 @@ No introducir tamaños fuera de esa lista sin justificar.
 - **Ancho de contenido**: `760px` máximo en cualquier vista interior, centrado
   con `margin: 0 auto`. Esto vale para chat, tránsitos, cartas, profile, intake.
 - **Auth shell**: `1180px` máximo (excepción justificada — flow standalone).
+- **Archive shell**: `1080px` máximo (excepción documentada — `MyChartView` y
+  futuras vistas de archivo con grafos vectoriales que requieren ancho
+  horizontal). No usar para texto ni listas — sólo cuando el contenido gráfico
+  manda el ancho.
 - **Mobile breakpoint**: `640px`. Arriba de eso, layout de escritorio estándar.
 - **Scroll vertical**: viven en la **vista** (`overflowY: auto`), nunca en el
   root. Root es flex column, `height: 100vh`, `overflow: hidden`. Las vistas
@@ -301,10 +309,19 @@ están entre paréntesis para facilitar la migración a un nuevo design system.
   app bg. Icon 56px + headline-sm + body-sm centrados.
 
 ### Input
-- **Text field** (`.astral-auth-input`, `.intake-textarea`): Borde subtle, padding
-  12×14, font-size 14, sin outline. Focus puede subir border a gold.
-- **Underlined minimal** (`.astral-auth-field-minimal`): Solo border-bottom,
-  para campos hero como el email de login.
+- **Text field sobre forest-dark** (`.intake-textarea`, `.intake-select`,
+  `.onboarding-birth-input`): Background `var(--surface-deeper)` (forest
+  más oscuro que la card), border `cream-alpha 0.12`, border-radius 10px,
+  padding 12×14, font-size 13–14, Inter. Hover sube el border a gold-alpha
+  0.35; focus a gold sólido con box-shadow gold-alpha 0.12 (anillo focus
+  accesible). Este es el patrón canónico para todo campo de input/select
+  dentro de una card forest — usar siempre que sea posible. Reemplaza el
+  patrón viejo "background cream-alpha 0.06" que se vio inconsistente.
+- **Hero underlined** (`.astral-auth-input`): Solo border-bottom, text-align
+  center, Cormorant 17–24px. Reservado para inputs hero del onboarding
+  (nombre, email login).
+- **Underlined minimal** (`.astral-auth-field-minimal`): Variante del
+  anterior para email de login.
 
 ### Pill / Chip
 - Background alpha cream sobre forest, padding 6×14, label-sm uppercase.
@@ -351,6 +368,38 @@ a renderer sin transición.
 - A <640px: shell de auth se apila vertical, secondary action rows pierden el `·`
   divider y se apilan, support pill mantiene su ancho natural (no se estira a 100%).
 - En todas las vistas interiores, `760px` con `width: 100%` ya hace el trabajo.
+
+### Identity card
+Variante de `.glass-panel` para presentar una identidad/registro como hero:
+nombre serif 28px (`headline-lg`) → type qualifier 15px italic (`body-lg`)
+→ divider `border cream-alpha 0.10` → `.profile-grid` con metadata key→value
+→ (opcional) `.profile-wide` con campos extra (origen, momento). Toda la card
+sobre `surface-dark` (forest), padding 28px, rounded.xl 18px, **sin sombra**.
+Usado en MyChart hoy; reusable en `/profile` y `/admin/users/:id`.
+
+### Page header with actions
+Pattern canónico para vistas con acciones inline: `.page-header--editorial`
+(kicker + título + descripción) seguido inmediatamente de `.page-header-meta`
+con `flex: space-between` — metadata textual (timestamp, contadores) a la
+izquierda, action pills `.astral-auth-secondary` a la derecha. Usado en
+Informe y MyChart. **No usar `position: absolute` para acciones flotantes** —
+rompen el flow y se solapan con el contenido.
+
+### Pills (gold accent / subtle)
+Dos pills canónicos para etiquetar y categorizar contenido **sobre superficies
+forest**. Ya usados en Tránsitos (`.transit-insight-channel`, `.transit-insight-gate`)
+y MyChart (`.mychart-channel-pill`, `.mychart-center-pill`):
+
+- **Pill gold accent**: border `gold-alpha 0.42`, background `gold-alpha 0.12`,
+  texto `--color-gold`. Para destacar elementos "joya" — los que ganan
+  atención visual primaria (canales activados, centros definidos, transit
+  channels). Usar con escasez; cada pill gold compite por la mirada.
+- **Pill subtle**: border `cream-alpha 0.16`, sin background, texto `--text-muted`.
+  Para elementos secundarios/categorización (puertas, centros abiertos,
+  metadata). Cumplen rol clasificatorio sin gritar.
+
+Forma: rounded `999px` (full pill) o `10px` (squared) según contexto. Padding
+`4×12` (pill chica) hasta `8×14` (pill multilinea con name + meta).
 
 ## Do's and Don'ts
 

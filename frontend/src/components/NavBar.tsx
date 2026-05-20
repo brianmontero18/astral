@@ -22,7 +22,7 @@ const TABS: TabDef[] = [
   { key: "chat", label: "Chat" },
   { key: "report", label: "Informe" },
   { key: "transits", label: "Tránsitos" },
-  { key: "assets", label: "Mis Cartas" },
+  { key: "assets", label: "Mi Carta" },
 ];
 
 export function NavBar({

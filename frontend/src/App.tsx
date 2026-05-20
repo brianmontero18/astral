@@ -12,7 +12,7 @@ import { AdminUserDetailView } from "./components/AdminUserDetailView";
 import { NavBar } from "./components/NavBar";
 import { ChatView } from "./components/ChatView";
 import { TransitExperienceContainer } from "./transits/TransitExperienceContainer";
-import { AssetViewer } from "./components/AssetViewer";
+import { MyChartView } from "./components/MyChartView";
 import { IntakeView } from "./components/IntakeView";
 import { ReportView } from "./components/ReportView";
 import { ConfirmModal } from "./components/ConfirmModal";
@@ -521,7 +521,18 @@ export default function App() {
                   />
                 )}
                 {currentView === "assets" && (
-                  <AssetViewer onBodygraphReplaced={handleBodygraphReplaced} />
+                  <MyChartView
+                    user={user}
+                    profile={profile}
+                    onBodygraphReplaced={handleBodygraphReplaced}
+                    onProfileUpdated={(u, p) => {
+                      setUser(u);
+                      setProfile(p);
+                      setReport(null);
+                      setReportLoading(false);
+                      setProfileRevision((v) => v + 1);
+                    }}
+                  />
                 )}
                 {currentView === "intake" && (
                   <IntakeView
