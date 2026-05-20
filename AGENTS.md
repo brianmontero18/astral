@@ -60,11 +60,35 @@
 
 ### Bugs P0 abiertos (mencionar en cualquier PR cercana)
 
-- `astral-0b7` — Bug A: `POST /me/assets` con `fileType=hd` deja profile vacío.
-- `astral-bdt` — Bug B: `PUT /users/:id` admin permite escribir profile de otro user.
-- `astral-m25` — Data fix manual para 5 cuentas premium afectadas.
+- `astral-m25` — Data fix manual para 6 cuentas premium afectadas. Estado 2026-05-20: 3/6 migradas vía Swiss Ephemeris (Daniela, Pili, Agos). Pendientes: Mayra (esperando birth data), Lucia (esperando birth data + active asset fix), Melisa Pando (decisión founder).
+- `astral-4ue` — Migration sucessor de m25 (script `migrate-user-to-swiss.ts`). Cerrar cuando las 3 pendientes estén migradas.
 
-Detalle en [`docs/architecture/bug-investigation-daniela-2026-05.md`](docs/architecture/bug-investigation-daniela-2026-05.md).
+**Históricos resueltos** (mantener referencias para contexto histórico):
+- `astral-0b7` ✅ Bug A (`/me/assets` con `fileType=hd`).
+- `astral-bdt` ✅ Bug B (`PUT /users/:id` admin write profile).
+
+Detalle de investigación original en [`docs/architecture/bug-investigation-daniela-2026-05.md`](docs/architecture/bug-investigation-daniela-2026-05.md).
+
+### V1 vs V2 — decisiones explícitas de producto
+
+**V1 (actual, en producción):**
+- **Una sola carta activa por user.** `users.profile_asset_id` apunta al PDF activo.
+- **Re-subir pisa la anterior.** No hay UI para "elegir entre múltiples cartas cargadas".
+- **Profile único** en `users.profile` (JSON con birthData + humanDesign).
+- **Chat, informe, tránsitos** todos leen el único profile activo.
+
+**V2 (próxima versión, sin definiciones de producto cerradas todavía — epic `astral-yaa`):**
+- **Multiple profiles per user.** Una coach HD puede tener su propia carta + cartas de sus clientas + carta de "Negocio Nuevo" como entidades separadas con IDs estables.
+- **Cross-profile context.** Posiblemente cómo una carta impacta sobre otra (sinastría / overlay).
+- **Profile-aware permissions.** Ownership, consentimiento, acceso por perfil (prerequisite para Remote MCP V3).
+- **Chat per-profile** (posible — TBD): un thread por carta evitaría scope-drift entre temas.
+
+**Implicancia para agentes que toquen esta área:**
+- ❌ **NO implementar features que asuman multi-profile en V1**: e.g. "seleccionar carta activa entre múltiples cargadas", "persistir profile por asset", endpoints `PATCH /me/assets/:id/active`, tabla `asset_profiles`. Todo eso será re-modelado en V2 — agregar la lógica intermedia es deuda técnica.
+- ✅ Si un pedido de producto huele a multi-profile (e.g. review Daniela #13 "cambiar carta activa sin re-subir"), **superseder por V2** en lugar de implementarlo en V1.
+- ✅ Sí mantener el modelo V1 simple y consistente — re-subir pisa, una sola carta activa, sin UI extra.
+
+**Doc base de V2:** [`docs/remote-mcp-v3-domain-capability-layer-plan.md`](docs/remote-mcp-v3-domain-capability-layer-plan.md) (sección Dependency policy — V2 multiple profiles es el gate para V3). Spec V2 dedicado pendiente.
 
 ---
 

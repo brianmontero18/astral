@@ -83,6 +83,7 @@ Notación: **STATE** = `stable` · `active-dev` · `legacy-mantenido` · `gated`
 - **Profile JSON shape canónico:** ver `backend/src/agent-service.ts` interface `UserProfile`.
 - **Tests:** `backend/src/__tests__/bodygraph-calculate.test.ts` · `api-assets.test.ts` · `extraction-service.test.ts` · `hd-pdf/pdf-fixtures.test.ts` · `e2e/specs/onboarding-from-birth.spec.ts`
 - **State:** `active-dev` — pivot a Swiss Eph terminado (`astral-e5f`), path PDF mantenido como secundario documentado y 100% determinístico (Vision fallback eliminado en `astral-1c6`).
+- **Modelo V1 (actual):** una sola carta activa por user. `users.profile_asset_id` apunta al asset activo; re-subir pisa la anterior. **NO implementar lógica de "elegir entre múltiples cartas cargadas" — V2 (`astral-yaa`) va a re-modelar esto nativamente** (multi-profile con IDs estables, ownership por perfil, cross-profile context). Ver sección "V1 vs V2" en [`AGENTS.md`](../../AGENTS.md).
 - **Deuda conocida:**
   - `profile.name` capitalization inconsistente según source (PDF GM ES devuelve lowercase) — pendiente fix (`astral-a2j`).
   - Path PDF no extrae `birthData` aunque Genetic Matrix lo trae inline — pendiente unificación con Swiss Eph (`astral-gwm`).
