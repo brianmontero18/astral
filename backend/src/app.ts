@@ -18,6 +18,10 @@ import { extractRoutes } from "./routes/extract.js";
 import { transcribeRoutes } from "./routes/transcribe.js";
 import { placesRoutes } from "./routes/places.js";
 import { reportRoutes } from "./routes/report.js";
+import { mcpRoutes } from "./routes/mcp.js";
+import { mcpDiscoveryRoutes } from "./routes/mcp-discovery.js";
+import { workosConnectRoutes } from "./routes/workos-connect.js";
+import { FLAGS } from "./config/flags.js";
 
 function isHtmlAuthEntryRequest(acceptHeader: string | undefined, requestUrl: string) {
   if (!acceptHeader?.includes("text/html")) {
@@ -52,6 +56,23 @@ function buildCorsOptions(auth: AuthRuntime) {
   };
 }
 
+function parseOctetStreamAsJson(
+  _request: unknown,
+  payload: string,
+  done: (err: Error | null, body?: unknown) => void,
+) {
+  if (!payload.trim()) {
+    done(null, {});
+    return;
+  }
+
+  try {
+    done(null, JSON.parse(payload));
+  } catch {
+    done(null, payload);
+  }
+}
+
 export async function buildApp(opts?: { logger?: boolean; auth?: AuthRuntime }) {
   const app = Fastify({ logger: opts?.logger ?? false });
   const auth = opts?.auth ?? createAuthRuntime();
@@ -65,8 +86,18 @@ export async function buildApp(opts?: { logger?: boolean; auth?: AuthRuntime }) 
   });
 
   await app.register(cors, buildCorsOptions(auth));
+  app.addContentTypeParser(
+    "application/octet-stream",
+    { parseAs: "string" },
+    parseOctetStreamAsJson,
+  );
   await app.register(multipart, { limits: { fileSize: 10 * 1024 * 1024 } });
   await auth.register(app);
+
+  if (FLAGS.REMOTE_MCP) {
+    await app.register(mcpDiscoveryRoutes);
+    await app.register(workosConnectRoutes);
+  }
 
   if (auth.enabled) {
     // Fastify only runs preHandler hooks for matched routes, so auth endpoints
@@ -100,6 +131,9 @@ export async function buildApp(opts?: { logger?: boolean; auth?: AuthRuntime }) 
       await api.register(transcribeRoutes);
       await api.register(reportRoutes);
       await api.register(placesRoutes);
+      if (FLAGS.REMOTE_MCP) {
+        await api.register(mcpRoutes);
+      }
     },
     { prefix: "/api" },
   );

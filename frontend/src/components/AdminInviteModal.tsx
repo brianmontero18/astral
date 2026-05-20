@@ -5,8 +5,8 @@ import {
   formatExpiresIn,
   getAdminPlanLabel,
   getAdminSupportFailureMessage,
-  useCopyToClipboard,
 } from "../admin-support";
+import { useCopyToClipboard } from "../admin-clipboard";
 import type { AppUserPlan } from "../types";
 
 interface Props {

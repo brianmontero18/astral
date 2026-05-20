@@ -186,5 +186,12 @@ describe("widenLlmCallsRouteCheckIfNeeded", () => {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: ["u1", "memory_writer", "gpt-4o-mini", 10, 5, 3, 0.001, 100, "hash2"],
     })).resolves.not.toThrow();
+
+    await expect(client.execute({
+      sql: `INSERT INTO llm_calls
+        (user_id, route, model, tokens_in, tokens_out, cached_tokens, cost_usd, latency_ms, prompt_hash)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: ["u1", "mcp_ask", "gpt-4o-mini", 10, 5, 3, 0.001, 100, "hash3"],
+    })).resolves.not.toThrow();
   });
 });

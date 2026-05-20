@@ -1,8 +1,8 @@
 /**
  * Feature Flags (backend)
  *
- * Each flag is a boolean read from env at module load. Default ON — flip to OFF
- * via env var for rollback in 1 line of config.
+ * Each flag is a boolean read from env at module load. Defaults are chosen per
+ * feature so rollback remains 1 line of config.
  *
  * Pattern: FEATURE_<NAME> = "true" | "false". Anything not "true"/"1" with a
  * default of true keeps the flag on; "false"/"0" turns it off.
@@ -40,4 +40,11 @@ export const FLAGS = {
    * legacy fetch-based path in agent-service.ts is used.
    */
   CHAT_USE_TOOLS: envBool("FEATURE_CHAT_USE_TOOLS", false),
+
+  /**
+   * Remote MCP surface for external clients. Default OFF while the transport,
+   * auth model, tools, budgets, and client compatibility are rolled out slice
+   * by slice.
+   */
+  REMOTE_MCP: envBool("FEATURE_REMOTE_MCP", false),
 } as const;

@@ -1,40 +1,16 @@
-import type { FastifyInstance } from "fastify";
-import {
-  CHAT_MODEL,
-  hashSystemPrompt,
-  runAstralAgent,
-  runAstralAgentStream,
-  type AgentCallMeta,
-  type ChatMessage,
-  type LlmUsage,
-  type UserProfile,
+import type { FastifyInstance, FastifyReply } from "fastify";
+import type {
+  ChatMessage,
+  UserProfile,
 } from "../agent-service.js";
-import {
-  runAstralAgentV2,
-  runAstralAgentStreamV2,
-} from "../agent-service-v2.js";
 import {
   deleteChatMessagesFrom,
   getChatMessages,
-  getRecentChatMessages,
-  getTotalUserMessageCount,
   getUser,
   getUserMessageCount,
-  insertLlmCall,
-  saveChatMessage,
   setMessageFeedback,
-  updateUserMemory,
   type FeedbackThumb,
-  type LlmCallRoute,
 } from "../db.js";
-import {
-  analyzeTransitImpact,
-  getTransitSnapshotCached,
-  isValidTimeZone,
-  transitSnapshotToWeeklyTransits,
-  type TransitSnapshotKind,
-  type WeeklyTransits,
-} from "../transit-service.js";
 import { type AuthenticatedRequest } from "../auth/session.js";
 import {
   resolveRequestCurrentUser,
@@ -44,142 +20,15 @@ import {
   buildChatUsageSnapshot,
   getMessageLimitForPlan,
 } from "../chat-limits.js";
-import { FLAGS } from "../config/flags.js";
-import { calculateCost } from "../llm/pricing.js";
 import {
-  MEMORY_WRITER_MODEL,
-  MEMORY_WRITER_RECENT_MESSAGES_WINDOW,
-  runMemoryWriter,
-  shouldTriggerMemoryWriter,
-} from "../memory-writer.js";
+  runGuideTurn,
+  streamGuideTurn,
+} from "../services/guide-service.js";
+import {
+  parseTransitChatContext,
+  type TransitChatContext,
+} from "../services/guide-transits.js";
 import type { Intake } from "../report/types.js";
-
-const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
-
-/**
- * Cap on how many turns of conversation history travel back to the LLM per
- * request. `users.memory_md` carries the persistent facts across the gap,
- * so cutting older turns trims tokens without losing identity context.
- *
- * Default 60 (≈30 user/assistant pairs). Set via sparring + architect
- * deliberation 2026-05-16: bumped from 30 → 60 to push the cliff from
- * ~5 weeks of intensive use to ~10 weeks. The marginal cost is ~$0.11/mo
- * in the current beta (10 users), justified by zero observed cases of
- * truncation in production. Counter below tracks when the cap is hit so
- * we can decide on compaction (B/C/D) only if real data demands it.
- * See `docs/architecture/refactor-2026-05-decisions.md`.
- */
-const CHAT_HISTORY_MAX = Number(process.env.CHAT_HISTORY_TURNS) || 60;
-
-function truncateChatHistory<T>(
-  messages: T[],
-  app?: FastifyInstance,
-  userId?: string,
-): T[] {
-  if (messages.length <= CHAT_HISTORY_MAX) {
-    return messages;
-  }
-  // Observability counter: log every truncation so we can query
-  // `chat_history_truncated` events in prod. When this fires consistently,
-  // re-open the compaction discussion with real data instead of speculation.
-  app?.log.info(
-    { userId, total: messages.length, cap: CHAT_HISTORY_MAX },
-    "chat_history_truncated",
-  );
-  return messages.slice(-CHAT_HISTORY_MAX);
-}
-
-/**
- * Fire-and-forget memory writer trigger.
- *
- * Called after the chat response is sent + persisted. Awaits nothing — the
- * user already has their reply. Failures are logged at warn level but never
- * propagate.
- *
- * Memory is re-read inside the closure (not captured at the call site) so a
- * fast follow-up turn can't feed the writer a snapshot that pre-dates the
- * previous writer's commit.
- */
-function triggerMemoryWriterAsync(
-  app: FastifyInstance,
-  userId: string,
-): void {
-  if (!FLAGS.MEMORY_LIVING_DOCUMENT) return;
-
-  void (async () => {
-    try {
-      const total = await getTotalUserMessageCount(userId);
-      if (!shouldTriggerMemoryWriter(total)) return;
-
-      const user = await getUser(userId);
-      if (!user) return;
-
-      const recent = await getRecentChatMessages(userId, MEMORY_WRITER_RECENT_MESSAGES_WINDOW);
-      if (recent.length === 0) return;
-
-      const result = await runMemoryWriter(user.memory_md, recent, OPENAI_KEY);
-
-      if (FLAGS.LLM_TELEMETRY) {
-        try {
-          await insertLlmCall({
-            userId,
-            route: "memory_writer",
-            model: MEMORY_WRITER_MODEL,
-            tokensIn: result.meta.usage.promptTokens,
-            tokensOut: result.meta.usage.completionTokens,
-            cachedTokens: result.meta.usage.cachedTokens ?? 0,
-            costUsd: calculateCost(
-              MEMORY_WRITER_MODEL,
-              result.meta.usage.promptTokens,
-              result.meta.usage.completionTokens,
-              { cachedInputTokens: result.meta.usage.cachedTokens ?? 0 },
-            ),
-            latencyMs: result.meta.latencyMs,
-            promptHash: hashSystemPrompt(result.meta.systemPrompt),
-          });
-        } catch (err) {
-          app.log.warn({ err, userId }, "memory writer telemetry insert failed");
-        }
-      }
-
-      if (!result.noop) {
-        await updateUserMemory(userId, result.memory);
-      }
-    } catch (err) {
-      app.log.warn({ err, userId }, "memory writer run failed");
-    }
-  })();
-}
-
-async function persistLlmCall(
-  app: FastifyInstance,
-  userId: string,
-  route: LlmCallRoute,
-  meta: { usage: LlmUsage; latencyMs: number; systemPrompt: string },
-): Promise<void> {
-  if (!FLAGS.LLM_TELEMETRY) return;
-  try {
-    await insertLlmCall({
-      userId,
-      route,
-      model: CHAT_MODEL,
-      tokensIn: meta.usage.promptTokens,
-      tokensOut: meta.usage.completionTokens,
-      cachedTokens: meta.usage.cachedTokens ?? 0,
-      costUsd: calculateCost(
-        CHAT_MODEL,
-        meta.usage.promptTokens,
-        meta.usage.completionTokens,
-        { cachedInputTokens: meta.usage.cachedTokens ?? 0 },
-      ),
-      latencyMs: meta.latencyMs,
-      promptHash: hashSystemPrompt(meta.systemPrompt),
-    });
-  } catch (err) {
-    // Telemetry must never break the user-facing response. Log and move on.
-    app.log.warn({ err, route, userId }, "llm_calls insert failed");
-  }
-}
 
 export async function chatRoutes(app: FastifyInstance) {
   // Transitional contract:
@@ -192,21 +41,6 @@ export async function chatRoutes(app: FastifyInstance) {
     transitContext?: TransitChatContext;
   }
 
-  interface TransitChatContext {
-    source: "transitScreen";
-    mode: "today" | "next7Days";
-    snapshotId: string;
-    targetAt: string;
-    timeZone: string;
-  }
-
-  type TransitChatSnapshotKind = Extract<TransitSnapshotKind, "instant" | "hour" | "panorama">;
-
-  interface ParsedTransitChatContext extends TransitChatContext {
-    snapshotKind: TransitChatSnapshotKind;
-    targetAtDate: Date;
-  }
-
   async function getPersistedChatUsage(
     userId: string,
     plan: "free" | "basic" | "premium",
@@ -214,91 +48,6 @@ export async function chatRoutes(app: FastifyInstance) {
   ) {
     const used = await getUserMessageCount(userId, now);
     return buildChatUsageSnapshot(plan, used, now);
-  }
-
-  function parseTransitChatContext(
-    context: TransitChatContext | undefined,
-  ): { context?: ParsedTransitChatContext; error?: undefined } | { context?: undefined; error: string } {
-    if (!context) {
-      return {};
-    }
-
-    if (
-      context.source !== "transitScreen" ||
-      (context.mode !== "today" && context.mode !== "next7Days") ||
-      !context.snapshotId ||
-      !context.targetAt ||
-      !context.timeZone ||
-      !isValidTimeZone(context.timeZone)
-    ) {
-      return { error: "invalid_transit_context" };
-    }
-
-    const targetAtDate = parseDate(context.targetAt);
-    const snapshot = parseTransitSnapshotId(context.snapshotId);
-
-    if (!targetAtDate || !snapshot) {
-      return { error: "invalid_transit_context" };
-    }
-
-    if (snapshot.targetAt.getTime() !== targetAtDate.getTime()) {
-      return { error: "invalid_transit_context" };
-    }
-
-    if (context.mode === "today" && snapshot.kind === "panorama") {
-      return { error: "invalid_transit_context" };
-    }
-
-    if (context.mode === "next7Days" && snapshot.kind !== "panorama") {
-      return { error: "invalid_transit_context" };
-    }
-
-    return { context: { ...context, snapshotKind: snapshot.kind, targetAtDate } };
-  }
-
-  async function getTransitsForChat(
-    context?: ParsedTransitChatContext,
-  ): Promise<WeeklyTransits> {
-    if (!context) {
-      const snapshot = await getTransitSnapshotCached("instant", new Date(), "UTC", "Ahora");
-      return transitSnapshotToWeeklyTransits(snapshot);
-    }
-
-    const label = context.mode === "next7Days"
-      ? "Panorama"
-      : context.snapshotKind === "hour"
-        ? "Tránsito seleccionado"
-        : "Ahora";
-    const snapshot = await getTransitSnapshotCached(
-      context.snapshotKind,
-      context.targetAtDate,
-      context.timeZone,
-      label,
-    );
-    return transitSnapshotToWeeklyTransits(snapshot);
-  }
-
-  function parseTransitSnapshotId(
-    snapshotId: string,
-  ): { kind: TransitChatSnapshotKind; targetAt: Date } | null {
-    const match = /^(instant|hour|panorama):(.+)$/.exec(snapshotId);
-    if (!match) return null;
-
-    const targetAt = parseDate(match[2]);
-    if (!targetAt) return null;
-
-    return {
-      kind: match[1] as TransitChatSnapshotKind,
-      targetAt,
-    };
-  }
-
-  function parseDate(value: string): Date | null {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-      return null;
-    }
-    return date;
   }
 
   app.post<{ Body: ChatBody }>("/chat", async (req, reply) => {
@@ -374,43 +123,21 @@ export async function chatRoutes(app: FastifyInstance) {
     }
 
     try {
-      const transits = await getTransitsForChat(transitContext.context);
-      const impact = analyzeTransitImpact(transits, {
-        activatedGates: profile.humanDesign?.activatedGates ?? [],
-        definedCenters: profile.humanDesign?.definedCenters ?? [],
-      });
-      const intakeForChat = FLAGS.CHAT_INTAKE_CONTEXT && userIntake ? userIntake : undefined;
-      const memoryForChat = FLAGS.MEMORY_LIVING_DOCUMENT && userMemory ? userMemory : undefined;
-      const runAgent = FLAGS.CHAT_USE_TOOLS ? runAstralAgentV2 : runAstralAgent;
-      const result = await runAgent(
+      const result = await runGuideTurn({
+        app,
         profile,
-        transits,
-        truncateChatHistory(messages, app, persistedUserId),
-        OPENAI_KEY,
-        impact,
-        intakeForChat,
-        memoryForChat,
-      );
-      const replyText = result.content;
-
-      if (persistedUserId) {
-        await persistLlmCall(app, persistedUserId, "chat", result);
-      }
-
-      // Persist messages if we have a userId
-      let userMsgId: number | undefined;
-      let assistantMsgId: number | undefined;
-      if (persistedUserId) {
-        const lastUserMsg = messages[messages.length - 1];
-        if (lastUserMsg) {
-          userMsgId = await saveChatMessage(persistedUserId, lastUserMsg.role, lastUserMsg.content);
-        }
-        assistantMsgId = await saveChatMessage(persistedUserId, "assistant", replyText);
-
-        triggerMemoryWriterAsync(app, persistedUserId);
-      }
-
-      return reply.send({ reply: replyText, transits_used: transits.fetchedAt, userMsgId, assistantMsgId });
+        persistedUserId,
+        intake: userIntake,
+        memory: userMemory,
+        messages,
+        transitContext: transitContext.context,
+      });
+      return reply.send({
+        reply: result.reply,
+        transits_used: result.transitsUsed,
+        userMsgId: result.userMsgId,
+        assistantMsgId: result.assistantMsgId,
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       app.log.error(message);
@@ -495,52 +222,28 @@ export async function chatRoutes(app: FastifyInstance) {
     });
 
     try {
-      const transits = await getTransitsForChat(transitContext.context);
-      const impact = analyzeTransitImpact(transits, {
-        activatedGates: profile.humanDesign?.activatedGates ?? [],
-        definedCenters: profile.humanDesign?.definedCenters ?? [],
-      });
-      const intakeForChat = FLAGS.CHAT_INTAKE_CONTEXT && userIntake ? userIntake : undefined;
-      const memoryForChat = FLAGS.MEMORY_LIVING_DOCUMENT && userMemory ? userMemory : undefined;
-      let fullText = "";
-      let captured: AgentCallMeta | null = null;
-
-      const runAgentStream = FLAGS.CHAT_USE_TOOLS
-        ? runAstralAgentStreamV2
-        : runAstralAgentStream;
-      for await (const chunk of runAgentStream(
-        profile,
-        transits,
-        truncateChatHistory(messages, app, persistedUserId),
-        OPENAI_KEY,
-        impact,
-        intakeForChat,
-        memoryForChat,
-        (meta) => { captured = meta; },
-      )) {
-        fullText += chunk;
-        reply.raw.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
-      }
-
-      if (persistedUserId && captured) {
-        await persistLlmCall(app, persistedUserId, "chat_stream", captured);
-      }
-
-      // Persist messages
-      let userMsgId: number | undefined;
-      let assistantMsgId: number | undefined;
-      if (persistedUserId && fullText) {
-        const lastUserMsg = messages[messages.length - 1];
-        if (lastUserMsg) {
-          userMsgId = await saveChatMessage(persistedUserId, lastUserMsg.role, lastUserMsg.content);
-        }
-        assistantMsgId = await saveChatMessage(persistedUserId, "assistant", fullText);
-
-        triggerMemoryWriterAsync(app, persistedUserId);
-      }
+      const result = await streamGuideTurn(
+        {
+          app,
+          profile,
+          persistedUserId,
+          intake: userIntake,
+          memory: userMemory,
+          messages,
+          transitContext: transitContext.context,
+        },
+        (chunk) => {
+          reply.raw.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
+        },
+      );
 
       // Send done event with transits info and persisted message ids
-      reply.raw.write(`data: ${JSON.stringify({ done: true, transits_used: transits.fetchedAt, userMsgId, assistantMsgId })}\n\n`);
+      reply.raw.write(`data: ${JSON.stringify({
+        done: true,
+        transits_used: result.transitsUsed,
+        userMsgId: result.userMsgId,
+        assistantMsgId: result.assistantMsgId,
+      })}\n\n`);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       app.log.error(message);
@@ -553,7 +256,7 @@ export async function chatRoutes(app: FastifyInstance) {
   // Get chat history for a user
   async function sendChatHistory(
     request: AuthenticatedRequest,
-    reply: import("fastify").FastifyReply,
+    reply: FastifyReply,
     requestedUserId?: string,
   ) {
     const currentUser = await resolveRequestCurrentUser(request, reply, requestedUserId);
@@ -591,7 +294,7 @@ export async function chatRoutes(app: FastifyInstance) {
   // Truncate chat history from a given message ID (for edit feature)
   async function deleteChatHistory(
     request: AuthenticatedRequest,
-    reply: import("fastify").FastifyReply,
+    reply: FastifyReply,
     fromIdParam: string,
     requestedUserId?: string,
   ) {
