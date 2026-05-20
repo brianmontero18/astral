@@ -38,3 +38,4 @@ playwright-report/
 # Beads / Dolt files (added by bd init)
 .dolt/
 .beads-credential-key
+scripts/migration-backups/
