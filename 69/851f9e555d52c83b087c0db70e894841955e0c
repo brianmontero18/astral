@@ -1,0 +1,21 @@
+docs/architecture/project-overview.md
+  s_ac7c64e9db953c::t_3de984dbcfdec7 86
+AGENTS.md
+  s_ac7c64e9db953c::t_7ddad00ba08393 63-64,66-91
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "69851f9e555d52c83b087c0db70e894841955e0c",
+  "prompts": {},
+  "sessions": {
+    "s_ac7c64e9db953c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b1e17abf-f020-4a54-95d9-4c95b247ef3b",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
