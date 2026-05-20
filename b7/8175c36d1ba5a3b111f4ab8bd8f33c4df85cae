@@ -1,0 +1,29 @@
+ARCHITECTURE.md
+  s_ac7c64e9db953c::t_b8edfb92758256 99
+docs/architecture/project-overview.md
+  s_ac7c64e9db953c::t_a6c164d3d15e4e 85
+  s_ac7c64e9db953c::t_55d3b7696c8209 245
+backend/src/routes/assets.ts
+  s_ac7c64e9db953c::t_29236727c0a84d 241-248
+backend/src/__tests__/extraction-service.test.ts
+  s_ac7c64e9db953c::t_d89383b48ff64b 4-6,8-9,11,13
+backend/src/extraction-service.ts
+  s_ac7c64e9db953c::t_7aabda710b4e9f 2,4-6,8-13,21
+  s_ac7c64e9db953c::t_66fd3801f66ebf 499-514,523-524,527-529,532,534-539,541-546,548-561
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "b78175c36d1ba5a3b111f4ab8bd8f33c4df85cae",
+  "prompts": {},
+  "sessions": {
+    "s_ac7c64e9db953c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b1e17abf-f020-4a54-95d9-4c95b247ef3b",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
