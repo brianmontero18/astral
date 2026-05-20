@@ -1,0 +1,105 @@
+backend/src/mcp/oauth.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 1-191
+backend/src/mcp/tool-contract.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 1-17
+docs/remote-mcp-client-smoke-matrix.md
+  s_ac7c64e9db953c::t_c8673d9754039d 1-75
+backend/src/routes/workos-connect.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 1-179
+backend/src/__tests__/mcp-auth.test.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 1-812
+backend/src/mcp/auth.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 1-493
+docs/INDEX.md
+  s_ac7c64e9db953c::t_c8673d9754039d 64-69
+docs/remote-mcp-production-learnings.md
+  s_ac7c64e9db953c::t_c8673d9754039d 1-944
+backend/src/config/flags.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 4-5,43-49
+docs/remote-mcp-oauth-connectors-genesis.md
+  s_ac7c64e9db953c::t_c8673d9754039d 1-1208
+docs/remote-mcp-architecture-proposal.md
+  s_ac7c64e9db953c::t_c8673d9754039d 1-564
+backend/src/mcp/tools/hd-deterministic-v1.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 1-161
+docs/remote-mcp-v3-domain-capability-layer-plan.md
+  s_ac7c64e9db953c::t_c8673d9754039d 1-491
+frontend/src/admin-clipboard.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 1-46
+docs/remote-mcp-implementation-recon-plan.md
+  s_ac7c64e9db953c::t_c8673d9754039d 1-619
+frontend/src/components/AdminUserDetailView.tsx
+  s_ac7c64e9db953c::t_c8673d9754039d 20
+backend/scripts/seed-mcp-smoke.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 1-171
+backend/package-lock.json
+  ai_agent 1904,1916,3131,3147,3160,3196,3202,3218,3237,3447,3609,3715,3721,4603,4712,4730,4984,5231,5482,5507,5531,5609,5617,5701,5768,5815,5855,6005,6110,6163,6257,6274,6438
+backend/src/routes/mcp-discovery.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 1-29
+backend/src/app.ts
+  ai_agent 21-24,59-75,89-93,97-101,134-136
+backend/src/mcp/server.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 1-552
+backend/src/services/guide-telemetry.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 1-44
+backend/package.json
+  ai_agent 10,29
+backend/src/mcp/budgets.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 1-87
+backend/src/routes/chat.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 1-4,24-30,126-127,129-140,225-238,241-246,259,297
+backend/src/__tests__/api-mcp.test.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 1-1135
+backend/src/__tests__/mcp-oauth.test.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 1-182
+frontend/src/components/AdminInviteModal.tsx
+  s_ac7c64e9db953c::t_c8673d9754039d 9
+backend/src/__tests__/db-migration-cached-tokens.test.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 189-195
+backend/src/__tests__/api-workos-connect.test.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 1-253
+backend/src/db.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 70-118,267-268,279,287,307-360,425,466-467,525-526,773-791,1215,1224-1239,1420-1747,1755-1756
+backend/src/services/guide-transits.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 1-107
+backend/src/auth/supertokens.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 27-45,131-132
+backend/src/mcp/tools/ask-astral-guide-v1.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 1-126
+backend/src/routes/mcp.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 1-10
+backend/src/mcp/policy.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 1-35
+backend/src/__tests__/helpers.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 137-139,186-188
+backend/src/mcp/tools.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 1-71
+backend/.env.example
+  s_ac7c64e9db953c::t_c8673d9754039d 79-90
+backend/src/services/guide-service.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 1-281
+backend/src/mcp/discovery.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 1-113
+backend/src/auth/session.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 2,33-39
+backend/scripts/smoke-mcp-curl.sh
+  s_ac7c64e9db953c::t_c8673d9754039d 1-367
+backend/src/__tests__/mcp-schema-migration.test.ts
+  s_ac7c64e9db953c::t_c8673d9754039d 1-141
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "407e426ddc2299ff8a39d6f09fee00d4792ba5b3",
+  "prompts": {},
+  "sessions": {
+    "s_ac7c64e9db953c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b1e17abf-f020-4a54-95d9-4c95b247ef3b",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
