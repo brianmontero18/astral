@@ -10,8 +10,8 @@
 Si entrás al proyecto por primera vez (humano o AI agent):
 
 1. **[`/Users/brmontero/astral/AGENTS.md`](../AGENTS.md)** — fuente de verdad para AI agents (reglas Astral, skills, workflow, prohibiciones).
-2. **[`architecture/project-overview.md`](architecture/project-overview.md)** — stack, estructura del repo, flujo de datos, API, decisiones técnicas, layout crítico.
-3. **[`architecture/chat-llm-system.md`](architecture/chat-llm-system.md)** — cómo funciona la capa de IA *hoy* (diagrama ASCII + capas).
+2. **[`architecture/project-overview.md`](architecture/project-overview.md)** — **mapa del sistema por regiones**. Cada región tiene purpose, surface, entry files, dependencias y estado. Entry points para agentes según task. Una pasada y sabés dónde está cada cosa.
+3. **[`architecture/chat-llm-system.md`](architecture/chat-llm-system.md)** — sub-mapa de la región R5 (Chat): cómo funciona la capa de IA *hoy* (diagrama ASCII + capas).
 4. **[`human-design-reference.md`](human-design-reference.md)** — referencia técnica HD (puertas, canales, centros, tránsitos).
 
 ---
@@ -20,7 +20,7 @@ Si entrás al proyecto por primera vez (humano o AI agent):
 
 | Doc | Qué tiene |
 |---|---|
-| [`architecture/project-overview.md`](architecture/project-overview.md) | Stack, estructura del repo, flujo de datos, API endpoints, decisiones técnicas, layout crítico del frontend, design system. **Punto de entrada técnico para el proyecto**. |
+| [`architecture/project-overview.md`](architecture/project-overview.md) | **Mapa del sistema por regiones** (13 regiones: Auth, Account, Bodygraph Compute, Display, Chat, Memory, Transits, Report, Places, Assets, Admin, MCP, Telemetry). Cada región con purpose, surface, entry files, depends-on, tests, state, sub-doc. Index de entry points para agentes según task. **Punto de entrada arquitectónico**. Sub-mapas detallados viven en `architecture/regions/` (cuando existen) y en otros docs linkeados desde cada región. |
 | [`architecture/chat-llm-system.md`](architecture/chat-llm-system.md) | Diagrama del flujo turn-by-turn del chat con LLM, capas de abstracción, comparación con industria 2026. **Lectura obligada para PM o engineer que toca AI**. |
 | [`architecture/refactor-2026-05-decisions.md`](architecture/refactor-2026-05-decisions.md) | Decisiones técnicas del refactor AI (mayo 2026): por qué tools y no post-validator, por qué Vercel AI SDK, por qué mini y no 4o. |
 | [`architecture/bug-investigation-daniela-2026-05.md`](architecture/bug-investigation-daniela-2026-05.md) | Caso real que motivó el refactor: profile contaminado, file_type natal vs hd, root cause analysis. |
