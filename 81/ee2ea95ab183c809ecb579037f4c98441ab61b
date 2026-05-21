@@ -1,0 +1,29 @@
+e2e/specs/28-chat-streaming-scroll.spec.ts
+  s_440397cbc3756a::t_a6bdfb062b56b3 2-16,18,20-21,23-25,27-30,47-71,73-77,80,84-89,91-92,94,96-111,113-116,118-126
+  s_440397cbc3756a::t_dab42566d3406f 1,17,19,22,26,31-46,72,78-79,81-83,90,93,95,112,117
+frontend/src/components/ChatView.tsx
+  s_440397cbc3756a::t_467a37c03c19a4 159-161
+  s_440397cbc3756a::t_818951a00adbe2 239-241,244-259
+  s_440397cbc3756a::t_5d76b0771fec55 283
+  s_440397cbc3756a::t_4c72483da724ef 502
+  s_440397cbc3756a::t_548e48eeae8b4f 675-687
+frontend/src/index.css
+  s_440397cbc3756a::t_9fe4e5c8349df0 289,304-306,308-327
+  s_440397cbc3756a::t_147160956a5386 307
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "81ee2ea95ab183c809ecb579037f4c98441ab61b",
+  "prompts": {},
+  "sessions": {
+    "s_440397cbc3756a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "962fe581-c5ec-44a4-84e7-c182c2e87c07",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
