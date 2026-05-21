@@ -156,6 +156,9 @@ export function ChatView({
   const [feedbackPending, setFeedbackPending] = useState<Record<number, boolean>>({});
   const [pendingTransitContext, setPendingTransitContext] = useState<TransitChatContext | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  const stickToBottomRef = useRef(true);
+  const [showJumpToBottom, setShowJumpToBottom] = useState(false);
   const resetDateLabel = formatResetDate(messageUsage?.resetsAt);
 
   const applyHistoryPayload = ({
@@ -233,9 +236,27 @@ export function ChatView({
   }, [messageUsage?.resetsAt]);
 
   useEffect(() => {
-    const el = bottomRef.current?.parentElement;
-    if (el) el.scrollTop = el.scrollHeight;
+    const el = mainRef.current;
+    if (!el || !stickToBottomRef.current) return;
+    el.scrollTop = el.scrollHeight;
   }, [messages, loading]);
+
+  const handleScroll = () => {
+    const el = mainRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const nearBottom = distanceFromBottom < 80;
+    stickToBottomRef.current = nearBottom;
+    setShowJumpToBottom(!nearBottom && messages.length > 0);
+  };
+
+  const scrollToBottom = () => {
+    const el = mainRef.current;
+    if (!el) return;
+    stickToBottomRef.current = true;
+    el.scrollTop = el.scrollHeight;
+    setShowJumpToBottom(false);
+  };
 
   // When TransitViewer (or another parent) hands us a pre-filled question,
   // load it into the textarea but never auto-submit — the user has to choose
@@ -259,6 +280,7 @@ export function ChatView({
 
     const base = baseMessages ?? messages;
     const updated: ChatMsg[] = [...base, { role: "user", content: trimmed }];
+    stickToBottomRef.current = true;
     setMessages(updated);
     setLoading(true);
     bumpMessageUsage();
@@ -477,7 +499,7 @@ export function ChatView({
 
   return (
     <div className="chat-shell">
-      <main className="chat-main">
+      <main className="chat-main" ref={mainRef} onScroll={handleScroll}>
         {/* Empty state */}
         {messages.length === 0 && (
           <div className="chat-empty animate-fade-in-slow">
@@ -649,6 +671,19 @@ export function ChatView({
 
         <div ref={bottomRef} />
       </main>
+
+      {showJumpToBottom && (
+        <button
+          type="button"
+          className="chat-jump-to-bottom"
+          aria-label="Ir al final del chat"
+          onClick={scrollToBottom}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+      )}
 
       {/* Footer */}
       {limitReached ? (
