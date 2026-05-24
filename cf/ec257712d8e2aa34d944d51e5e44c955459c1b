@@ -1,0 +1,25 @@
+backend/src/__tests__/context-budget.test.ts
+  s_1970642029acbb::t_149e09de448092 4,27-35
+backend/src/llm/context-budget.ts
+  s_1970642029acbb::t_ef64f5fb97a9ef 116-132,139
+docs/architecture/chat-llm-system.md
+  s_1970642029acbb::t_14eaf99e46ab72 277
+backend/src/__tests__/llm-telemetry.test.ts
+  s_1970642029acbb::t_c734d784b42b3f 202-206
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "cfec257712d8e2aa34d944d51e5e44c955459c1b",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
