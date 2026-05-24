@@ -13,6 +13,7 @@
 import type { WeeklyTransits, TransitImpact } from "./transit-service.js";
 import type { Intake } from "./report/types.js";
 import type { UserProfile } from "./types/agent.js";
+import type { ContextBudgetPromptBlock } from "./types/context-budget.js";
 import { HD_CONDENSED } from "./knowledge/hd-condensed.js";
 import { BUSINESS_PACK_V1 } from "./knowledge/business-pack-v1.js";
 import {
@@ -76,6 +77,18 @@ export function buildSystemPromptV2(
   intake?: Intake,
   memory?: string,
 ): string {
+  return buildSystemPromptV2Blocks(profile, transits, impact, intake, memory)
+    .map((block) => block.content)
+    .join("");
+}
+
+export function buildSystemPromptV2Blocks(
+  profile: UserProfile,
+  transits: WeeklyTransits,
+  impact?: TransitImpact,
+  intake?: Intake,
+  memory?: string,
+): ContextBudgetPromptBlock[] {
   const { humanDesign: hd } = profile;
 
   const gatesDesign = hd.activatedGates.filter((g) => !g.isPersonality);
@@ -91,7 +104,7 @@ export function buildSystemPromptV2(
   const businessContextBlock = buildBusinessContextBlock(intake);
   const userMemoryBlock = buildUserMemoryBlock(memory);
 
-  return `# Rol y objetivo
+  const systemStatic = `# Rol y objetivo
 
 Sos un AI Mentor que unifica Diseño Humano, tránsitos planetarios reales y estrategia de marketing consciente en una sola voz. Servís a coaches, terapeutas, facilitadores y marcas personales del mundo del bienestar.
 
@@ -186,7 +199,9 @@ Usá ÚNICAMENTE los datos de tránsito e impacto provistos abajo. Cada insight 
 
 # Contexto
 
-<user_profile name="${profile.name}">
+`;
+
+  const profileBlock = `<user_profile name="${profile.name}">
 ${profile.birthData ? `<birth>${formatBirthForPrompt(profile.birthData)}</birth>` : ""}
 <human_design>
   <type>${hd.type}</type>${hd.strategy ? `\n  <strategy>${hd.strategy}</strategy>` : ""}
@@ -197,12 +212,16 @@ ${profile.birthData ? `<birth>${formatBirthForPrompt(profile.birthData)}</birth>
   <defined_centers>${hd.definedCenters.join(", ") || "—"}</defined_centers>
   <undefined_centers>${hd.undefinedCenters.join(", ") || "—"}</undefined_centers>
 </human_design>
-</user_profile>${businessContextBlock}${userMemoryBlock}
+</user_profile>`;
+
+  const transitsBlock = `
 
 <transits week="${transits.weekRange}" calculated="${transits.fetchedAt}" source="Swiss Ephemeris">
 ${transits.planets.map((p) => `<planet name="${p.name}" sign="${p.sign}" degree="${p.degree}" retrograde="${p.isRetrograde}" hd_gate="${p.hdGate}" hd_line="${p.hdLine}" />`).join("\n")}
 <activated_channels>${transits.activatedChannels.length ? transits.activatedChannels.join(", ") : "Ninguno esta semana"}</activated_channels>
-</transits>${impact ? `
+</transits>`;
+
+  const impactBlock = impact ? `
 
 <impact>
 <personal_channels>
@@ -214,5 +233,14 @@ ${impact.conditionedCenters.map((c) => `- ${c.center}: ${c.gates.map((g) => `${g
 <reinforced_gates>
 ${impact.reinforcedGates.map((r) => `- Puerta ${r.gate} del usuario reforzada por ${r.planet}`).join("\n") || "- Ninguna esta semana"}
 </reinforced_gates>
-</impact>` : ""}`;
+</impact>` : "";
+
+  return [
+    { id: "system_static", content: systemStatic },
+    { id: "profile", content: profileBlock },
+    { id: "intake", content: businessContextBlock },
+    { id: "memory", content: userMemoryBlock },
+    { id: "transits", content: transitsBlock },
+    { id: "impact", content: impactBlock },
+  ];
 }

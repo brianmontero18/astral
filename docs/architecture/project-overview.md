@@ -176,7 +176,7 @@ Notación: **STATE** = `stable` · `active-dev` · `legacy-mantenido` · `gated`
 - **State:** `gated` por `FEATURE_REMOTE_MCP` · production learnings en [`../remote-mcp-production-learnings.md`](../remote-mcp-production-learnings.md)
 
 ### R13 · Telemetry & Cost Tracking
-- **Purpose:** Persistir cada LLM call (`route`, `model`, `tokens_in/out`, `cached_tokens`, `tool_calls_count/json`, `cost_usd`, `latency_ms`, `prompt_hash`) en la tabla `llm_calls` para analytics de costo + invalidación de cache + compliance de tools.
+- **Purpose:** Persistir cada LLM call (`route`, `model`, `tokens_in/out`, `cached_tokens`, `tool_calls_count/json`, `context_breakdown_json`, `cost_usd`, `latency_ms`, `prompt_hash`) en la tabla `llm_calls` para analytics de costo + invalidación de cache + compliance de tools + context budget.
 - **Surface:** No tiene endpoint propio — se escribe como side-effect de cada LLM call.
 - **Entry files:** `backend/src/db.ts` (función `insertLlmCall`) · invocado desde `services/guide-telemetry.ts`, `memory-writer`, `report-service`, `extraction-service`.
 - **Depends on:** ninguna región — es la capa observability transversal.

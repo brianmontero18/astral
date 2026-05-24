@@ -164,6 +164,54 @@ describe("POST /api/chat — telemetry write", () => {
     });
   });
 
+  it("persists context budget breakdown with post-call calibration", async () => {
+    const userId = await createLinkedTestUser(app, "tel-chat-context-budget");
+
+    runAstralAgentV2Mock.mockResolvedValueOnce({
+      content: "respuesta con budget",
+      usage: { promptTokens: 220, completionTokens: 80, cachedTokens: 20 },
+      latencyMs: 920,
+      systemPrompt: "TEST_PROMPT_BUDGET",
+      contextBudget: {
+        model: "gpt-4o-mini",
+        provider: "openai",
+        contextWindowTokens: 128000,
+        estimatedInputTokens: 200,
+        reservedOutputTokens: 512,
+        estimatedTotalTokens: 712,
+        percentUsed: 0.0055625,
+        blocks: [
+          { id: "system_static", tokens: 120, percentOfWindow: 0.0009375 },
+          { id: "history", tokens: 80, percentOfWindow: 0.000625 },
+          { id: "response", tokens: 512, percentOfWindow: 0.004 },
+        ],
+      },
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/chat",
+      headers: sessionHeaders("tel-chat-context-budget"),
+      payload: { messages: [{ role: "user", content: "hola" }] },
+    });
+
+    expect(res.statusCode).toBe(200);
+
+    const calls = await getRecentLlmCallsForUser(userId, SINCE_BEGINNING);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.contextBreakdownJson).toBeTruthy();
+    const contextBreakdown = JSON.parse(calls[0]!.contextBreakdownJson!);
+    expect(contextBreakdown).toMatchObject({
+      estimatedInputTokens: 200,
+      postCall: {
+        inputTokens: 220,
+        outputTokens: 80,
+        cachedInputTokens: 20,
+        calibrationRatio: 1.1,
+      },
+    });
+  });
+
   it("prices cached input tokens at the cached-input rate", async () => {
     const userId = await createLinkedTestUser(app, "tel-chat-cached-cost");
 

@@ -13,6 +13,7 @@ import { createClient, type Client } from "@libsql/client";
 
 import {
   addLlmCallsCachedTokensColumnIfMissing,
+  addLlmCallsContextBreakdownColumnIfMissing,
   addLlmCallsToolCallsColumnsIfMissing,
   widenLlmCallsRouteCheckIfNeeded,
 } from "../db.js";
@@ -122,6 +123,32 @@ async function createToolCallsWithOldRouteCheckTable(client: Client) {
   `);
 }
 
+async function createContextBreakdownWithOldRouteCheckTable(client: Client) {
+  await client.execute("CREATE TABLE users (id TEXT PRIMARY KEY)");
+  await client.execute({
+    sql: "INSERT INTO users (id) VALUES (?)",
+    args: ["u1"],
+  });
+  await client.execute(`
+    CREATE TABLE llm_calls (
+      id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id                TEXT NOT NULL,
+      route                  TEXT NOT NULL CHECK(route IN ('chat','chat_stream','report','extraction')),
+      model                  TEXT NOT NULL,
+      tokens_in              INTEGER NOT NULL DEFAULT 0,
+      tokens_out             INTEGER NOT NULL DEFAULT 0,
+      cached_tokens          INTEGER NOT NULL DEFAULT 0,
+      tool_calls_count       INTEGER NOT NULL DEFAULT 0,
+      tool_calls_json        TEXT DEFAULT NULL,
+      context_breakdown_json TEXT DEFAULT NULL,
+      cost_usd               REAL    NOT NULL DEFAULT 0,
+      latency_ms             INTEGER NOT NULL DEFAULT 0,
+      prompt_hash            TEXT NOT NULL,
+      created_at             TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+}
+
 describe("addLlmCallsCachedTokensColumnIfMissing", () => {
   it("adds cached_tokens column on legacy schema", async () => {
     const client = makeClient();
@@ -219,6 +246,29 @@ describe("addLlmCallsToolCallsColumnsIfMissing", () => {
   });
 });
 
+describe("addLlmCallsContextBreakdownColumnIfMissing", () => {
+  it("adds context_breakdown_json on migrated telemetry schema", async () => {
+    const client = makeClient();
+    await createMigratedLlmCallsTable(client);
+
+    await addLlmCallsContextBreakdownColumnIfMissing(client);
+
+    const columns = await readLlmCallsColumns(client);
+    expect(columns).toContain("context_breakdown_json");
+  });
+
+  it("is idempotent when context_breakdown_json already exists", async () => {
+    const client = makeClient();
+    await createMigratedLlmCallsTable(client);
+
+    await addLlmCallsContextBreakdownColumnIfMissing(client);
+    await addLlmCallsContextBreakdownColumnIfMissing(client);
+
+    const columns = await readLlmCallsColumns(client);
+    expect(columns.filter((c) => c === "context_breakdown_json")).toHaveLength(1);
+  });
+});
+
 describe("widenLlmCallsRouteCheckIfNeeded", () => {
   it("preserves cached_tokens when rebuilding the old route CHECK table", async () => {
     const client = makeClient();
@@ -290,6 +340,45 @@ describe("widenLlmCallsRouteCheckIfNeeded", () => {
       route: "chat_stream",
       tool_calls_count: 2,
       tool_calls_json: JSON.stringify(["findChannelByGates", "getCenterForGate"]),
+    });
+  });
+
+  it("preserves context_breakdown_json when rebuilding the old route CHECK table", async () => {
+    const client = makeClient();
+    await createContextBreakdownWithOldRouteCheckTable(client);
+    const contextBreakdown = JSON.stringify({
+      estimatedInputTokens: 1000,
+      blocks: [{ id: "history", tokens: 40 }],
+    });
+    await client.execute({
+      sql: `INSERT INTO llm_calls
+        (user_id, route, model, tokens_in, tokens_out, cached_tokens, tool_calls_count, tool_calls_json, context_breakdown_json, cost_usd, latency_ms, prompt_hash)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        "u1",
+        "chat_stream",
+        "gpt-4o-mini",
+        1000,
+        100,
+        768,
+        1,
+        JSON.stringify(["findChannelByGates"]),
+        contextBreakdown,
+        0.001,
+        1000,
+        "hash",
+      ],
+    });
+
+    await widenLlmCallsRouteCheckIfNeeded(client);
+
+    const res = await client.execute(
+      "SELECT route, context_breakdown_json FROM llm_calls",
+    );
+    expect(res.rows).toHaveLength(1);
+    expect(res.rows[0]).toMatchObject({
+      route: "chat_stream",
+      context_breakdown_json: contextBreakdown,
     });
   });
 });

@@ -25,6 +25,7 @@
     "fastify": "^5.3.2",
     "geo-tz": "^8.1.6",
     "jose": "^6.2.3",
+    "js-tiktoken": "^1.0.21",
     "luxon": "^3.7.2",
     "pdfjs-dist": "^4.0.379",
     "pdfkit": "^0.18.0",

@@ -110,7 +110,8 @@ Default actual: `gpt-4o-mini` vía Vercel AI SDK + tools HD. El legacy fetch dir
 │                                                                       │
 │  1. Persistir user msg + assistant msg en chat_messages              │
 │  2. Persistir llm_calls con: tokens_in/out, cached_tokens,           │
-│     tool_calls_count/json, cost_usd, latency_ms                      │
+│     tool_calls_count/json, context_breakdown_json, cost_usd,         │
+│     latency_ms                                                       │
 │  3. Disparar memory_writer (fire-and-forget):                        │
 │     gpt-4o-mini extrae hechos del turn, mergea en users.memory_md    │
 └──────────────────────────────┬──────────────────────────────────────┘
@@ -273,6 +274,7 @@ Fuentes detalladas en `docs/research/2026-05-*.md`.
 | Prompt builder v2 | `backend/src/agent-service-v2-prompt.ts` | Arma el system prompt con orden cache-friendly |
 | Tipos compartidos | `backend/src/types/agent.ts` | `UserProfile`, mensajes y metadata de agente |
 | Config LLM | `backend/src/llm/model-config.ts` | `CHAT_MODEL` + hash de prompt |
+| Context budget | `backend/src/llm/context-budget.ts` | Estima tokens por bloque + shape de `/me/chat/context-budget` |
 | Helpers compartidos | `backend/src/agent-prompt-helpers.ts` | `buildBusinessContextBlock`, `buildUserMemoryBlock` |
 | Tools | `backend/src/hd-tools/index.ts` | 5 HD tools con Zod schemas |
 | Datos canónicos | `backend/src/hd-channels.ts` | 36 canales + helpers |
@@ -302,7 +304,22 @@ Cualquier cambio requiere redeploy de Render (pero NO de código).
 
 ---
 
-## H — Qué medir en producción
+## H — Context budget en tiempo real
+
+`GET /api/me/chat/context-budget` devuelve el estado actual del contexto de chat
+para la usuaria autenticada. El endpoint recompone el mismo prompt por bloques
+que usa el agente, estima tokens con `js-tiktoken` (`o200k_base`) y devuelve:
+`used`, `limit`, `percentUsed`, `breakdown` (`system`, `memory`, `history`,
+`tools`, `response`) y `blocks` canónicos.
+
+La telemetría post-call guarda el snapshot completo en
+`llm_calls.context_breakdown_json`, incluyendo calibración contra los tokens
+reales reportados por el provider. `cached_tokens` reduce costo/latencia, pero
+no reduce uso de context window.
+
+---
+
+## I — Qué medir en producción
 
 ```sql
 -- Cache hit rate por route (últimos 7 días)
@@ -324,7 +341,7 @@ Target del path canónico con tools:
 
 ---
 
-## I — Para profundizar
+## J — Para profundizar
 
 - **Research de industria** (mayo 2026): `docs/research/2026-05-*.md`
 - **Decisiones técnicas del refactor**: `docs/architecture/refactor-2026-05-decisions.md`

@@ -1,4 +1,5 @@
 import type { VariableLabels } from "../hd-variable-labels.js";
+import type { ContextBudgetSnapshot } from "./context-budget.js";
 
 export interface LlmUsage {
   promptTokens: number;
@@ -10,6 +11,7 @@ export interface AgentCallMeta {
   usage: LlmUsage;
   latencyMs: number;
   systemPrompt: string;
+  contextBudget?: ContextBudgetSnapshot;
   toolCalls?: string[];
   toolsUsed?: string[];
 }

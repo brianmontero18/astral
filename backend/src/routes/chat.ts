@@ -4,6 +4,7 @@ import type {
   UserProfile,
 } from "../types/agent.js";
 import {
+  getRecentChatMessages,
   deleteChatMessagesFrom,
   getChatMessages,
   getUser,
@@ -21,9 +22,12 @@ import {
   getMessageLimitForPlan,
 } from "../chat-limits.js";
 import {
+  CHAT_HISTORY_MAX,
+  buildGuideContextBudgetSnapshot,
   runGuideTurn,
   streamGuideTurn,
 } from "../services/guide-service.js";
+import { summarizeContextBudgetForClient } from "../llm/context-budget.js";
 import {
   parseTransitChatContext,
   type TransitChatContext,
@@ -285,6 +289,45 @@ export async function chatRoutes(app: FastifyInstance) {
 
   app.get("/me/messages", async (req, reply) => {
     return sendChatHistory(req as AuthenticatedRequest, reply);
+  });
+
+  app.get("/me/chat/context-budget", async (req, reply) => {
+    const currentUser = await resolveRequestCurrentUser(
+      req as AuthenticatedRequest,
+      reply,
+    );
+
+    if (reply.sent) {
+      return;
+    }
+
+    if (currentUser.kind !== "linked") {
+      return sendCurrentUserError(reply, currentUser);
+    }
+
+    const user = await getUser(currentUser.user.id);
+    if (!user) {
+      return reply.status(409).send({
+        error: "identity_not_linked",
+        provider: currentUser.provider,
+        subject: currentUser.subject,
+      });
+    }
+
+    if (user.onboarding_status === "pending") {
+      return reply.status(403).send({ error: "onboarding_required" });
+    }
+
+    const messages = await getRecentChatMessages(currentUser.user.id, CHAT_HISTORY_MAX);
+    const snapshot = await buildGuideContextBudgetSnapshot({
+      profile: user.profile as UserProfile,
+      persistedUserId: user.id,
+      intake: (user.intake as Intake | null) ?? null,
+      memory: user.memory_md,
+      messages,
+    });
+
+    return reply.send(summarizeContextBudgetForClient(snapshot));
   });
 
   app.get<{ Params: { userId: string } }>("/users/:userId/messages", async (req, reply) => {

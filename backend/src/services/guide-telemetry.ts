@@ -5,6 +5,8 @@ import {
   hashSystemPrompt,
 } from "../llm/model-config.js";
 import type { LlmUsage } from "../types/agent.js";
+import { attachContextBudgetPostCall } from "../llm/context-budget.js";
+import type { ContextBudgetSnapshot } from "../types/context-budget.js";
 import {
   insertLlmCall,
   type LlmCallRoute,
@@ -16,6 +18,7 @@ interface PersistGuideLlmCallMeta {
   usage: LlmUsage;
   latencyMs: number;
   systemPrompt: string;
+  contextBudget?: ContextBudgetSnapshot;
   toolCalls?: string[];
 }
 
@@ -44,6 +47,9 @@ export async function persistGuideLlmCall(
       latencyMs: meta.latencyMs,
       promptHash: hashSystemPrompt(meta.systemPrompt),
       toolCalls: meta.toolCalls,
+      contextBreakdown: meta.contextBudget
+        ? attachContextBudgetPostCall(meta.contextBudget, meta.usage)
+        : undefined,
     });
   } catch (err) {
     // Telemetry must never break the user-facing response. Log and move on.

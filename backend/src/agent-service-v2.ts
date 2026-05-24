@@ -13,6 +13,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import type { WeeklyTransits, TransitImpact } from "./transit-service.js";
 import type { Intake } from "./report/types.js";
 import { CHAT_MODEL } from "./llm/model-config.js";
+import { estimateChatContextBudget } from "./llm/context-budget.js";
 import {
   type AgentCallMeta,
   type AgentResult,
@@ -22,7 +23,7 @@ import {
   type UserProfile,
 } from "./types/agent.js";
 import { hdTools } from "./hd-tools/index.js";
-import { buildSystemPromptV2 } from "./agent-service-v2-prompt.js";
+import { buildSystemPromptV2Blocks } from "./agent-service-v2-prompt.js";
 
 /**
  * Maximum number of agent loop steps. One step = one LLM call (initial draft
@@ -48,26 +49,38 @@ export async function runAstralAgentV2(
   intake?: Intake,
   memory?: string,
 ): Promise<AgentResult> {
-  const systemPrompt = buildSystemPromptV2(profile, transits, impact, intake, memory);
+  const promptBlocks = buildSystemPromptV2Blocks(profile, transits, impact, intake, memory);
+  const systemPrompt = promptBlocks.map((block) => block.content).join("");
+  const modelMessages = messages.map((m) => ({ role: m.role, content: m.content }));
+  const contextBudget = estimateChatContextBudget({
+    model: CHAT_MODEL,
+    profile,
+    transits,
+    messages,
+    impact,
+    intake,
+    memory,
+  });
   const openai = createOpenAIProvider(openaiKey);
   const start = Date.now();
 
   const result = await generateText({
     model: openai(CHAT_MODEL),
     system: systemPrompt,
-    messages: messages.map((m) => ({ role: m.role, content: m.content })),
+    messages: modelMessages,
     tools: hdTools,
     stopWhen: stepCountIs(MAX_AGENT_STEPS),
   });
 
   const latencyMs = Date.now() - start;
-  const usage = mapUsage(result.usage);
+  const usage = mapUsage(result.totalUsage ?? result.usage);
 
   return {
     content: result.text,
     usage,
     latencyMs,
     systemPrompt,
+    contextBudget,
     ...getToolCallMetaFromSteps(result.steps),
   };
 }
@@ -85,14 +98,25 @@ export async function* runAstralAgentStreamV2(
   memory?: string,
   onComplete?: AgentStreamCompleteHandler,
 ): AsyncGenerator<string> {
-  const systemPrompt = buildSystemPromptV2(profile, transits, impact, intake, memory);
+  const promptBlocks = buildSystemPromptV2Blocks(profile, transits, impact, intake, memory);
+  const systemPrompt = promptBlocks.map((block) => block.content).join("");
+  const modelMessages = messages.map((m) => ({ role: m.role, content: m.content }));
+  const contextBudget = estimateChatContextBudget({
+    model: CHAT_MODEL,
+    profile,
+    transits,
+    messages,
+    impact,
+    intake,
+    memory,
+  });
   const openai = createOpenAIProvider(openaiKey);
   const start = Date.now();
 
   const result = streamText({
     model: openai(CHAT_MODEL),
     system: systemPrompt,
-    messages: messages.map((m) => ({ role: m.role, content: m.content })),
+    messages: modelMessages,
     tools: hdTools,
     stopWhen: stepCountIs(MAX_AGENT_STEPS),
   });
@@ -101,11 +125,12 @@ export async function* runAstralAgentStreamV2(
   const finish = async () => {
     if (completed) return;
     completed = true;
-    const usage = mapUsage(await result.usage);
+    const usage = mapUsage(await (result.totalUsage ?? result.usage));
     const meta: AgentCallMeta = {
       usage,
       latencyMs: Date.now() - start,
       systemPrompt,
+      contextBudget,
       ...getToolCallMetaFromSteps(await result.steps),
     };
     onComplete?.(meta);

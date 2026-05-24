@@ -1,6 +1,10 @@
 import type { FastifyInstance } from "fastify";
 
-import { hashSystemPrompt } from "../llm/model-config.js";
+import {
+  CHAT_MODEL,
+  hashSystemPrompt,
+} from "../llm/model-config.js";
+import { estimateChatContextBudget } from "../llm/context-budget.js";
 import {
   type AgentCallMeta,
   type ChatMessage,
@@ -28,6 +32,7 @@ import {
 } from "../memory-writer.js";
 import { analyzeTransitImpact } from "../transit-service.js";
 import type { Intake } from "../report/types.js";
+import type { ContextBudgetSnapshot } from "../types/context-budget.js";
 import {
   getTransitsForChat,
   type ParsedTransitChatContext,
@@ -49,7 +54,7 @@ const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
  * we can decide on compaction (B/C/D) only if real data demands it.
  * See `docs/architecture/refactor-2026-05-decisions.md`.
  */
-const CHAT_HISTORY_MAX = Number(process.env.CHAT_HISTORY_TURNS) || 60;
+export const CHAT_HISTORY_MAX = Number(process.env.CHAT_HISTORY_TURNS) || 60;
 
 export interface GuideTurnUserContext {
   profile: UserProfile;
@@ -90,6 +95,36 @@ function truncateChatHistory<T>(
     "chat_history_truncated",
   );
   return messages.slice(-CHAT_HISTORY_MAX);
+}
+
+function truncateChatHistoryForBudget<T>(messages: T[]): T[] {
+  return messages.length <= CHAT_HISTORY_MAX
+    ? messages
+    : messages.slice(-CHAT_HISTORY_MAX);
+}
+
+export async function buildGuideContextBudgetSnapshot(
+  input: GuideTurnUserContext & {
+    messages: ChatMessage[];
+    transitContext?: ParsedTransitChatContext;
+  },
+): Promise<ContextBudgetSnapshot> {
+  const transits = await getTransitsForChat(input.transitContext);
+  const impact = analyzeTransitImpact(transits, {
+    activatedGates: input.profile.humanDesign?.activatedGates ?? [],
+    definedCenters: input.profile.humanDesign?.definedCenters ?? [],
+  });
+  const intakeForChat = FLAGS.CHAT_INTAKE_CONTEXT && input.intake ? input.intake : undefined;
+  const memoryForChat = FLAGS.MEMORY_LIVING_DOCUMENT && input.memory ? input.memory : undefined;
+  return estimateChatContextBudget({
+    model: CHAT_MODEL,
+    profile: input.profile,
+    transits,
+    messages: truncateChatHistoryForBudget(input.messages),
+    impact,
+    intake: intakeForChat,
+    memory: memoryForChat,
+  });
 }
 
 /**

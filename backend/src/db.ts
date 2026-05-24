@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 
 import { getCurrentChatUsageCycle } from "./chat-limits.js";
 import type { ReportTier } from "./report/types.js";
+import type { ContextBudgetSnapshot } from "./types/context-budget.js";
 import {
   buildAssetKey,
   deleteObject as r2DeleteObject,
@@ -286,6 +287,21 @@ export async function addLlmCallsToolCallsColumnsIfMissing(c: Client): Promise<v
   }
 }
 
+export async function addLlmCallsContextBreakdownColumnIfMissing(c: Client): Promise<void> {
+  const schemaResult = await c.execute({
+    sql: "SELECT sql FROM sqlite_master WHERE type='table' AND name='llm_calls'",
+    args: [],
+  });
+  const tableSql = schemaResult.rows[0]?.sql as string | undefined;
+  if (!tableSql) return;
+  if (tableSql.includes("context_breakdown_json")) return;
+
+  await c.execute({
+    sql: "ALTER TABLE llm_calls ADD COLUMN context_breakdown_json TEXT DEFAULT NULL",
+    args: [],
+  });
+}
+
 /**
  * Detects an `llm_calls` table whose CHECK constraint pre-dates newer route
  * values and rebuilds it with the widened constraint.
@@ -303,6 +319,7 @@ export async function widenLlmCallsRouteCheckIfNeeded(c: Client): Promise<void> 
   const hasCachedTokens = tableSql.includes("cached_tokens");
   const hasToolCallsCount = tableSql.includes("tool_calls_count");
   const hasToolCallsJson = tableSql.includes("tool_calls_json");
+  const hasContextBreakdownJson = tableSql.includes("context_breakdown_json");
 
   await c.batch(
     [
@@ -316,13 +333,14 @@ export async function widenLlmCallsRouteCheckIfNeeded(c: Client): Promise<void> 
         cached_tokens INTEGER NOT NULL DEFAULT 0,
         tool_calls_count INTEGER NOT NULL DEFAULT 0,
         tool_calls_json  TEXT DEFAULT NULL,
+        context_breakdown_json TEXT DEFAULT NULL,
         cost_usd      REAL    NOT NULL DEFAULT 0,
         latency_ms    INTEGER NOT NULL DEFAULT 0,
         prompt_hash   TEXT NOT NULL,
         created_at    TEXT NOT NULL DEFAULT (datetime('now'))
       )`,
-      `INSERT INTO llm_calls_new (id, user_id, route, model, tokens_in, tokens_out, cached_tokens, tool_calls_count, tool_calls_json, cost_usd, latency_ms, prompt_hash, created_at)
-       SELECT id, user_id, route, model, tokens_in, tokens_out, ${hasCachedTokens ? "cached_tokens" : "0"}, ${hasToolCallsCount ? "tool_calls_count" : "0"}, ${hasToolCallsJson ? "tool_calls_json" : "NULL"}, cost_usd, latency_ms, prompt_hash, created_at
+      `INSERT INTO llm_calls_new (id, user_id, route, model, tokens_in, tokens_out, cached_tokens, tool_calls_count, tool_calls_json, context_breakdown_json, cost_usd, latency_ms, prompt_hash, created_at)
+       SELECT id, user_id, route, model, tokens_in, tokens_out, ${hasCachedTokens ? "cached_tokens" : "0"}, ${hasToolCallsCount ? "tool_calls_count" : "0"}, ${hasToolCallsJson ? "tool_calls_json" : "NULL"}, ${hasContextBreakdownJson ? "context_breakdown_json" : "NULL"}, cost_usd, latency_ms, prompt_hash, created_at
        FROM llm_calls`,
       "DROP TABLE llm_calls",
       "ALTER TABLE llm_calls_new RENAME TO llm_calls",
@@ -456,6 +474,7 @@ export async function initDb(): Promise<void> {
         cached_tokens INTEGER NOT NULL DEFAULT 0,
         tool_calls_count INTEGER NOT NULL DEFAULT 0,
         tool_calls_json  TEXT DEFAULT NULL,
+        context_breakdown_json TEXT DEFAULT NULL,
         cost_usd      REAL    NOT NULL DEFAULT 0,
         latency_ms    INTEGER NOT NULL DEFAULT 0,
         prompt_hash   TEXT NOT NULL,
@@ -556,6 +575,7 @@ export async function initDb(): Promise<void> {
   await widenLlmCallsRouteCheckIfNeeded(client);
   await addLlmCallsCachedTokensColumnIfMissing(client);
   await addLlmCallsToolCallsColumnsIfMissing(client);
+  await addLlmCallsContextBreakdownColumnIfMissing(client);
 
   // ─── Indexes ───────────────────────────────────────────────────────────────
   // SQLite does not auto-index foreign keys. These cover the hot-path queries
@@ -1796,13 +1816,14 @@ export interface LlmCallInput {
   latencyMs: number;
   promptHash: string;
   toolCalls?: string[];
+  contextBreakdown?: ContextBudgetSnapshot;
 }
 
 export async function insertLlmCall(input: LlmCallInput): Promise<void> {
   const toolCalls = input.toolCalls ?? [];
   await client.execute({
-    sql: `INSERT INTO llm_calls (user_id, route, model, tokens_in, tokens_out, cached_tokens, tool_calls_count, tool_calls_json, cost_usd, latency_ms, prompt_hash)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    sql: `INSERT INTO llm_calls (user_id, route, model, tokens_in, tokens_out, cached_tokens, tool_calls_count, tool_calls_json, context_breakdown_json, cost_usd, latency_ms, prompt_hash)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     args: [
       input.userId,
       input.route,
@@ -1812,6 +1833,7 @@ export async function insertLlmCall(input: LlmCallInput): Promise<void> {
       input.cachedTokens ?? 0,
       toolCalls.length,
       toolCalls.length > 0 ? JSON.stringify(toolCalls) : null,
+      input.contextBreakdown ? JSON.stringify(input.contextBreakdown) : null,
       input.costUsd,
       input.latencyMs,
       input.promptHash,
@@ -1843,6 +1865,7 @@ export interface LlmCallRecord {
   cachedTokens: number;
   toolCallsCount: number;
   toolCallsJson: string | null;
+  contextBreakdownJson: string | null;
   costUsd: number;
   latencyMs: number;
   promptHash: string;
@@ -1856,8 +1879,8 @@ export async function getRecentLlmCallsForUser(
 ): Promise<LlmCallRecord[]> {
   const result = await client.execute({
     sql: `SELECT route, model, tokens_in, tokens_out, cached_tokens,
-                 tool_calls_count, tool_calls_json, cost_usd, latency_ms,
-                 prompt_hash, created_at
+                 tool_calls_count, tool_calls_json, context_breakdown_json,
+                 cost_usd, latency_ms, prompt_hash, created_at
           FROM llm_calls
           WHERE user_id = ? AND datetime(created_at) >= datetime(?)
           ORDER BY id DESC
@@ -1873,6 +1896,10 @@ export async function getRecentLlmCallsForUser(
     cachedTokens: Number(row.cached_tokens ?? 0),
     toolCallsCount: Number(row.tool_calls_count ?? 0),
     toolCallsJson: typeof row.tool_calls_json === "string" ? row.tool_calls_json : null,
+    contextBreakdownJson:
+      typeof row.context_breakdown_json === "string"
+        ? row.context_breakdown_json
+        : null,
     costUsd: Number(row.cost_usd ?? 0),
     latencyMs: Number(row.latency_ms ?? 0),
     promptHash: String(row.prompt_hash ?? ""),
