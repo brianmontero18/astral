@@ -47,6 +47,7 @@ Reports de sub-agents que investigaron contra docs oficiales (Anthropic, OpenAI,
 
 | Doc | Qué es |
 |---|---|
+| [`adr/context-budget-tracking.md`](adr/context-budget-tracking.md) | ADR: estrategia de medición de context budget en tiempo real para chat (`astral-e2h.5`). |
 | [`chat-v2-rollout.md`](chat-v2-rollout.md) | Plan de roll-out del path v2 (Vercel AI SDK + tools). Criterios de cierre cuantitativos, queries SQL para telemetría. |
 | [`hd-transit-refactor-spec.md`](hd-transit-refactor-spec.md) | Spec del refactor de tránsitos. |
 | [`transits-time-selector-adr.md`](transits-time-selector-adr.md) | ADR: selector temporal de tránsitos (diario/semanal). |
