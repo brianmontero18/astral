@@ -1,0 +1,23 @@
+docs/adr/context-budget-tracking.md
+  s_1970642029acbb::t_9c33e1a9a43be4 1-39,44-207,212-240
+  s_1970642029acbb::t_d3da065ab21826 40-43,208-211
+  s_1970642029acbb::t_dae4279633100d 241-248
+docs/INDEX.md
+  s_1970642029acbb::t_dcb84089f39e5a 50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "d7210db75917b71a3b8c75e3dd43fbb10d69b476",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
