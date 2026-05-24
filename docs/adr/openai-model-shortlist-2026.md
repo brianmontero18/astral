@@ -63,10 +63,13 @@ consumieron tokens reales. La investigacion uso:
 
 ### Resumen calidad/precio
 
-Precios en USD por 1M tokens segun documentacion oficial revisada. Para chat y
-report se cruzan con `docs/economics/model-cost-margin-analysis.md`; para ASR,
-el costo se debe medir en `.15` con fixtures de audio porque `whisper-1` usa
-precio por minuto y `gpt-4o-mini-transcribe` usa otra metrica.
+Precios standard en USD por 1M tokens segun documentacion oficial revisada.
+Para los modelos GPT-5.4/5.5, esta tabla usa el tier short-context; si una eval
+supera el umbral long-context de OpenAI, `.15` debe recalcular costo/cap con el
+tier long-context vigente antes de pedir consentimiento. Para chat y report se
+cruzan con `docs/economics/model-cost-margin-analysis.md`; para ASR, el costo
+se debe medir en `.15` con fixtures de audio porque `whisper-1` usa precio por
+minuto y `gpt-4o-mini-transcribe` usa otra metrica.
 
 | Modelo | Input | Cached input | Output | Fit economico para Astral |
 |---|---:|---:|---:|---|
@@ -174,6 +177,8 @@ con:
 - modelos exactos;
 - cantidad maxima de llamadas;
 - cap USD;
+- pricing oficial vigente por route, incluyendo tier short/long-context si
+  aplica;
 - confirmacion de que se consumiran tokens reales.
 
 ## Decision
