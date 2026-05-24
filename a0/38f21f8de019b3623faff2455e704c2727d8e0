@@ -1,0 +1,74 @@
+backend/src/__tests__/api-mcp.test.ts
+  s_1970642029acbb::t_d1a903b8e653ab 612-614
+backend/src/agent-service-v2.ts
+  s_1970642029acbb::t_734e6a5df7cfa8 17-20,31,56,60-72,113-125
+  s_1970642029acbb::t_c18c70e55cff58 109
+docs/adr/context-budget-tracking.md
+  s_1970642029acbb::t_5e137f1321ad4a 243-244
+  s_1970642029acbb::t_4b87bb9a781cc4 8-10,22-23,143
+  s_1970642029acbb::t_b3676e5bfb9907 205-206
+frontend/src/chat-context-pressure.ts
+  s_1970642029acbb::t_be73625f60e8eb 23-31,33-36
+  s_1970642029acbb::t_0a69bebb95645d 32
+backend/src/__tests__/memory-integration.test.ts
+  s_1970642029acbb::t_1892292beecd56 216-218
+  s_1970642029acbb::t_d1a903b8e653ab 156-158,286-288
+backend/src/__tests__/guide-service-context-budget.test.ts
+  s_1970642029acbb::t_d6d758478fd082 1-119
+backend/src/__tests__/api-chat-context-budget.test.ts
+  s_1970642029acbb::t_e29df5fbd606cf 121-124
+  s_1970642029acbb::t_399335259ae7dd 126-144
+backend/src/__tests__/api-chat.test.ts
+  s_1970642029acbb::t_7f3415fa7eaabe 615-617
+  s_1970642029acbb::t_c617ae74cc9844 133,135,152-153,156-173
+backend/src/__tests__/llm-telemetry.test.ts
+  s_1970642029acbb::t_53f2d81ec83388 188-196,218-222
+  s_1970642029acbb::t_c18c70e55cff58 290
+docs/architecture/chat-llm-system.md
+  s_1970642029acbb::t_4b87bb9a781cc4 17,44,86,144,167,169,184,228,254,279-280,303,312-314,316-317
+  s_1970642029acbb::t_bc0aed364201d8 318-319
+docs/adr/chat-compaction-policy.md
+  s_1970642029acbb::t_4b87bb9a781cc4 28,32-33,50,72-73,81,107
+  s_1970642029acbb::t_e7b509ea383b9c 105-106
+backend/src/__tests__/context-budget.test.ts
+  s_1970642029acbb::t_ed162cff664ec7 128-157
+  s_1970642029acbb::t_d121d0674aebd5 7,75-127,158-196,217-221
+docs/adr/model-aware-context-policy.md
+  s_1970642029acbb::t_2122f51cafeb29 145,211
+backend/src/routes/chat.ts
+  s_1970642029acbb::t_7e5d85fd51fe39 273-281
+  s_1970642029acbb::t_e595886f59b8a6 56-59,64,66
+  s_1970642029acbb::t_b3c2a6647b9d3e 24,160-166
+  s_1970642029acbb::t_1fc29a669035fc 60-63,65,67-70,351
+backend/src/llm/context-budget.ts
+  s_1970642029acbb::t_ff03168c1655f4 14-15,20-23,38,51,63-83,94-103,133-138,169-178,180,182-186,189,191-218,221-308,310-314,317-336,340,342-349,353-358,362-368,380,412
+  s_1970642029acbb::t_6f026c688b2e0f 309,315-316
+docs/architecture/refactor-2026-05-decisions.md
+  s_1970642029acbb::t_ac6bd00e46fc7f 9-13,130,136-141,225-229
+backend/src/types/context-budget.ts
+  s_1970642029acbb::t_f5689a2485a0ea 32
+  s_1970642029acbb::t_be73625f60e8eb 30-31,33-46,64,83
+backend/src/llm/model-registry.ts
+  s_1970642029acbb::t_be73625f60e8eb 1-55
+backend/src/services/guide-service.ts
+  s_1970642029acbb::t_508b7056d2b97f 228-229,232-233,235-238,253,266,275-276,282-283,285-287,308
+  s_1970642029acbb::t_193cb0e6e125fa 112-121
+  s_1970642029acbb::t_e992343fe949af 8-12,49-56,81,83,87-93,101,105,109,111,122-157,160
+  s_1970642029acbb::t_c18c70e55cff58 289
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "a038f21f8de019b3623faff2455e704c2727d8e0",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
