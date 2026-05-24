@@ -56,6 +56,20 @@ describe("estimateContextBudget", () => {
     expect(snapshot.blocks.find((block) => block.id === "response")?.tokens).toBe(256);
   });
 
+  it("uses the larger OpenAI context window for GPT-5.4 eval candidates", () => {
+    const snapshot = estimateContextBudget({
+      model: "gpt-5.4-mini",
+      promptBlocks,
+      messages,
+      toolsSchemaText: "findChannelByGates gateA gateB getCenterForGate gate",
+      reservedOutputTokens: 256,
+    });
+
+    expect(snapshot.provider).toBe("openai");
+    expect(snapshot.contextWindowTokens).toBe(400_000);
+    expect(snapshot.selection.reason).toBe("full_history_fits");
+  });
+
   it("does not invent percentages for unknown model context windows", () => {
     const snapshot = estimateContextBudget({
       model: "future-model",

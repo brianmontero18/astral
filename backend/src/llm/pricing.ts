@@ -16,6 +16,9 @@ interface ModelPricing {
 const PRICING: Record<string, ModelPricing> = {
   "gpt-4o-mini": { inputPerMillion: 0.15, cachedInputPerMillion: 0.075, outputPerMillion: 0.60 },
   "gpt-4o":      { inputPerMillion: 2.50, cachedInputPerMillion: 1.25, outputPerMillion: 10.00 },
+  "gpt-5.4-mini": { inputPerMillion: 0.75, cachedInputPerMillion: 0.075, outputPerMillion: 4.50 },
+  "gpt-5.4-nano": { inputPerMillion: 0.20, cachedInputPerMillion: 0.020, outputPerMillion: 1.25 },
+  "gpt-5.4": { inputPerMillion: 2.50, cachedInputPerMillion: 0.25, outputPerMillion: 15.00 },
 };
 
 interface CostOptions {

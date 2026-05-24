@@ -18,6 +18,9 @@ export interface ChatModelContextSpec {
 
 const OPENAI_CONTEXT_WINDOW_TOKENS = 128_000;
 const OPENAI_MAX_OUTPUT_TOKENS = 16_384;
+const OPENAI_GPT_5_MINI_CONTEXT_WINDOW_TOKENS = 400_000;
+const OPENAI_GPT_5_CONTEXT_WINDOW_TOKENS = 1_050_000;
+const OPENAI_GPT_5_MAX_OUTPUT_TOKENS = 128_000;
 
 const OPENAI_DEFAULT_SPEC = {
   provider: "openai",
@@ -37,6 +40,24 @@ const CHAT_MODEL_CONTEXT_SPECS: Record<string, ChatModelContextSpec> = {
   "gpt-4o-mini": {
     model: "gpt-4o-mini",
     ...OPENAI_DEFAULT_SPEC,
+  },
+  "gpt-5.4-mini": {
+    model: "gpt-5.4-mini",
+    ...OPENAI_DEFAULT_SPEC,
+    contextWindowTokens: OPENAI_GPT_5_MINI_CONTEXT_WINDOW_TOKENS,
+    maxOutputTokens: OPENAI_GPT_5_MAX_OUTPUT_TOKENS,
+  },
+  "gpt-5.4-nano": {
+    model: "gpt-5.4-nano",
+    ...OPENAI_DEFAULT_SPEC,
+    contextWindowTokens: OPENAI_GPT_5_MINI_CONTEXT_WINDOW_TOKENS,
+    maxOutputTokens: OPENAI_GPT_5_MAX_OUTPUT_TOKENS,
+  },
+  "gpt-5.4": {
+    model: "gpt-5.4",
+    ...OPENAI_DEFAULT_SPEC,
+    contextWindowTokens: OPENAI_GPT_5_CONTEXT_WINDOW_TOKENS,
+    maxOutputTokens: OPENAI_GPT_5_MAX_OUTPUT_TOKENS,
   },
 };
 

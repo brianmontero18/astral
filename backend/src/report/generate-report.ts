@@ -32,10 +32,15 @@ interface LLMResult {
   completionTokens: number;
 }
 
+interface GenerateReportOptions {
+  model?: string;
+}
+
 async function callLLM(
   system: string,
   user: string,
   openaiKey: string,
+  model: string,
 ): Promise<LLMResult> {
   const response = await fetch(OPENAI_API_URL, {
     method: "POST",
@@ -44,7 +49,7 @@ async function callLLM(
       Authorization: `Bearer ${openaiKey}`,
     },
     body: JSON.stringify({
-      model: MODEL,
+      model,
       max_tokens: 2048,
       messages: [
         { role: "system", content: system },
@@ -74,14 +79,15 @@ async function callLLMWithRetry(
   system: string,
   user: string,
   openaiKey: string,
+  model: string,
 ): Promise<LLMResult> {
   try {
-    return await callLLM(system, user, openaiKey);
+    return await callLLM(system, user, openaiKey, model);
   } catch (err) {
     console.error("[report] LLM call failed, retrying in 1.5s:", (err as Error).message);
     await new Promise((r) => setTimeout(r, 1500));
     try {
-      return await callLLM(system, user, openaiKey);
+      return await callLLM(system, user, openaiKey, model);
     } catch (retryErr) {
       console.error("[report] LLM retry failed:", (retryErr as Error).message);
       return { content: "", promptTokens: 0, completionTokens: 0 };
@@ -138,7 +144,9 @@ export async function generateReport(
   tier: ReportTier,
   openaiKey: string,
   intake?: Intake,
+  options: GenerateReportOptions = {},
 ): Promise<Omit<DesignReport, "id" | "userId" | "createdAt">> {
+  const model = options.model ?? MODEL;
   const profileHash = computeProfileHash(profile, intake);
 
   let totalPromptTokens = 0;
@@ -149,16 +157,16 @@ export async function generateReport(
 
   if (tier === "free") {
     const prompt = buildCall1FreePrompt(profile, intake);
-    call1Result = await callLLMWithRetry(prompt.system, prompt.user, openaiKey);
+    call1Result = await callLLMWithRetry(prompt.system, prompt.user, openaiKey, model);
   } else {
     const p1 = buildCall1PremiumPrompt(profile, intake);
     const p2 = buildCall2Prompt(profile, intake);
     const p3 = buildCall3Prompt(profile, intake);
 
     [call1Result, call2Result, call3Result] = await Promise.all([
-      callLLMWithRetry(p1.system, p1.user, openaiKey),
-      callLLMWithRetry(p2.system, p2.user, openaiKey),
-      callLLMWithRetry(p3.system, p3.user, openaiKey),
+      callLLMWithRetry(p1.system, p1.user, openaiKey, model),
+      callLLMWithRetry(p2.system, p2.user, openaiKey, model),
+      callLLMWithRetry(p3.system, p3.user, openaiKey, model),
     ]);
   }
 
@@ -166,7 +174,7 @@ export async function generateReport(
   totalCompletionTokens = call1Result.completionTokens + call2Result.completionTokens + call3Result.completionTokens;
   const tokensUsed = totalPromptTokens + totalCompletionTokens;
 
-  const costUsd = calculateCost(MODEL, totalPromptTokens, totalCompletionTokens);
+  const costUsd = calculateCost(model, totalPromptTokens, totalCompletionTokens);
 
   // Parse LLM outputs by [SECTION] marker (fallback to double-newline / --- for robustness)
   const splitSections = (text: string): string[] => {
@@ -242,6 +250,10 @@ export async function generateReport(
     sections,
     tokensUsed,
     costUsd: Math.round(costUsd * 1000000) / 1000000,
+    llmUsage: {
+      promptTokens: totalPromptTokens,
+      completionTokens: totalCompletionTokens,
+    },
     degraded,
   };
 }

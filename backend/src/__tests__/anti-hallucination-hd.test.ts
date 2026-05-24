@@ -20,6 +20,7 @@ interface HdToolsForTest {
 }
 
 interface AgentGenerateOptions {
+  model: { model: string };
   messages: ChatMessage[];
   tools: HdToolsForTest;
 }
@@ -201,6 +202,20 @@ async function askAgent(content: string) {
   );
 }
 
+async function askAgentWithModel(content: string, model: string) {
+  return runAstralAgentV2(
+    profile,
+    transits,
+    [{ role: "user", content }],
+    "test-openai-key",
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    { model },
+  );
+}
+
 describe("anti-hallucination HD regression suite", () => {
   beforeEach(() => {
     mocks.generateText.mockReset();
@@ -237,6 +252,19 @@ describe("anti-hallucination HD regression suite", () => {
     expect(evals.failed, evals.results.map((r) => r.reason).join("; ")).toBe(0);
     expect(result.toolCalls).toEqual(["findChannelsByGate"]);
     expect(result.toolsUsed).toEqual(["findChannelsByGate"]);
+  });
+
+  it("can run the same canonical chat path with an explicit eval model override", async () => {
+    const result = await askAgentWithModel(
+      "Tengo la Puerta 8 activa. ¿Qué canal forma la Puerta 8? Nombre del canal, las dos puertas y circuito.",
+      "gpt-5.4-mini",
+    );
+
+    expect(result.contextBudget.model).toBe("gpt-5.4-mini");
+    expect(result.contextBudget.contextWindowTokens).toBe(400_000);
+    expect(mocks.generateText).toHaveBeenCalledWith(
+      expect.objectContaining({ model: { model: "gpt-5.4-mini" } }),
+    );
   });
 
   it.each(validChannels)("resolves valid channel $id / $name", async (channelCase) => {

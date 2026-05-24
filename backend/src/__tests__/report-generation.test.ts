@@ -89,6 +89,27 @@ describe("generateReport", () => {
     expect(premiumSections.every((section) => section.staticContent === "")).toBe(true);
   });
 
+  it("accepts an explicit model override for live evals without changing report shape", async () => {
+    const fetchMock = mockFetchWithSections([
+      "Lectura aplicada del tipo",
+      "Lectura aplicada de la autoridad",
+      "Teaser del perfil y continuidad del informe",
+    ]);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const report = await generateReport(profile, "free", "test-key", intake, {
+      model: "gpt-5.4-mini",
+    });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
+    expect(body.model).toBe("gpt-5.4-mini");
+    expect(report.sections.find((section) => section.id === "type")?.llmContent).toBe(
+      "Lectura aplicada del tipo",
+    );
+    expect(report.llmUsage).toEqual({ promptTokens: 10, completionTokens: 20 });
+    expect(report.costUsd).toBe(0.000098);
+  });
+
   it("unlocks the premium continuation inside the same report for premium users", async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({

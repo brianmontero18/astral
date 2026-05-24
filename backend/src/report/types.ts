@@ -47,6 +47,10 @@ export interface DesignReport {
   sections: ReportSection[];
   tokensUsed: number;
   costUsd: number;
+  llmUsage?: {
+    promptTokens: number;
+    completionTokens: number;
+  };
   createdAt: string;
   degraded?: boolean;
 }

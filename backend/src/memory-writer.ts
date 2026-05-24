@@ -45,6 +45,10 @@ export interface MemoryWriterResult {
   meta: AgentCallMeta;
 }
 
+interface MemoryWriterOptions {
+  model?: string;
+}
+
 const SYSTEM_PROMPT = `Sos un componente de memoria de un asistente conversacional. Tu trabajo: leer la memoria actual del usuario (markdown) y los últimos mensajes de la conversación, y devolver la memoria actualizada en markdown.
 
 Reglas:
@@ -98,9 +102,11 @@ export async function runMemoryWriter(
   currentMemory: string,
   recentMessages: ChatMessage[],
   openaiKey: string,
+  options: MemoryWriterOptions = {},
 ): Promise<MemoryWriterResult> {
   const userPrompt = buildUserPrompt(currentMemory, recentMessages);
   const start = Date.now();
+  const model = options.model ?? WRITER_MODEL;
 
   const response = await fetch(OPENAI_API_URL, {
     method: "POST",
@@ -109,7 +115,7 @@ export async function runMemoryWriter(
       "Authorization": `Bearer ${openaiKey}`,
     },
     body: JSON.stringify({
-      model: WRITER_MODEL,
+      model,
       max_tokens: 1500,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },

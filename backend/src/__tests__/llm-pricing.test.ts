@@ -16,6 +16,14 @@ describe("calculateCost", () => {
     expect(cost).toBeCloseTo(0.000165, 8);
   });
 
+  it("knows the OpenAI shortlist models used by the live eval", () => {
+    expect(calculateCost("gpt-5.4-mini", 13_000, 600, {
+      cachedInputTokens: 8_000,
+    })).toBeCloseTo(0.00705, 8);
+    expect(calculateCost("gpt-5.4-nano", 1_500, 300)).toBeCloseTo(0.000675, 8);
+    expect(calculateCost("gpt-5.4", 20_000, 2_000)).toBeCloseTo(0.08, 8);
+  });
+
   it("clamps cached input tokens to the input total", () => {
     const cost = calculateCost("gpt-4o-mini", 100, 0, {
       cachedInputTokens: 500,

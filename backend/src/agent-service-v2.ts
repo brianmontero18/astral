@@ -42,6 +42,10 @@ function createOpenAIProvider(openaiKey: string) {
   return createOpenAI({ apiKey: openaiKey });
 }
 
+interface AgentModelOptions {
+  model?: string;
+}
+
 /**
  * Non-streaming variant for `/api/chat` and read-only MCP asks.
  */
@@ -54,13 +58,15 @@ export async function runAstralAgentV2(
   intake?: Intake,
   memory?: string,
   preselectedContextBudget?: ContextBudgetSnapshot,
+  options: AgentModelOptions = {},
 ): Promise<AgentResult> {
+  const model = options.model ?? CHAT_MODEL;
   const promptBlocks = buildSystemPromptV2Blocks(profile, transits, impact, intake, memory);
   const systemPrompt = promptBlocks.map((block) => block.content).join("");
   const selected = preselectedContextBudget
     ? { messages, snapshot: preselectedContextBudget, fitsWithinContextWindow: true }
     : selectChatContextForBudget({
-      model: CHAT_MODEL,
+      model,
       promptBlocks,
       messages,
       toolsSchemaText: buildHdToolsSchemaBudgetText(),
@@ -74,7 +80,7 @@ export async function runAstralAgentV2(
   const start = Date.now();
 
   const result = await generateText({
-    model: openai(CHAT_MODEL),
+    model: openai(model),
     system: systemPrompt,
     messages: modelMessages,
     tools: hdTools,
@@ -107,13 +113,15 @@ export async function* runAstralAgentStreamV2(
   memory?: string,
   onComplete?: AgentStreamCompleteHandler,
   preselectedContextBudget?: ContextBudgetSnapshot,
+  options: AgentModelOptions = {},
 ): AsyncGenerator<string> {
+  const model = options.model ?? CHAT_MODEL;
   const promptBlocks = buildSystemPromptV2Blocks(profile, transits, impact, intake, memory);
   const systemPrompt = promptBlocks.map((block) => block.content).join("");
   const selected = preselectedContextBudget
     ? { messages, snapshot: preselectedContextBudget, fitsWithinContextWindow: true }
     : selectChatContextForBudget({
-      model: CHAT_MODEL,
+      model,
       promptBlocks,
       messages,
       toolsSchemaText: buildHdToolsSchemaBudgetText(),
@@ -127,7 +135,7 @@ export async function* runAstralAgentStreamV2(
   const start = Date.now();
 
   const result = streamText({
-    model: openai(CHAT_MODEL),
+    model: openai(model),
     system: systemPrompt,
     messages: modelMessages,
     tools: hdTools,

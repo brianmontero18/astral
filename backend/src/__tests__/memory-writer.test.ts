@@ -184,6 +184,17 @@ describe("runMemoryWriter — request shape", () => {
     expect(MEMORY_WRITER_MODEL).toBe("gpt-4o-mini");
   });
 
+  it("accepts an explicit model override for live evals without changing the default", async () => {
+    const fetchSpy = mockOpenAIChat("NOOP");
+    globalThis.fetch = fetchSpy;
+    await runMemoryWriter("", SAMPLE_MESSAGES, "fake-key", {
+      model: "gpt-5.4-nano",
+    });
+    const body = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
+    expect(body.model).toBe("gpt-5.4-nano");
+    expect(MEMORY_WRITER_MODEL).toBe("gpt-4o-mini");
+  });
+
   it("renders an explicit '(vacía)' marker when current_memory is empty", async () => {
     const fetchSpy = mockOpenAIChat("NOOP");
     globalThis.fetch = fetchSpy;
