@@ -36,7 +36,7 @@ vi.mock("../transit-service.js", async () => {
 });
 
 const { createLinkedTestUser, createTestApp, sessionHeaders } = await import("./helpers.js");
-const { getLlmUsageForUser } = await import("../db.js");
+const { getLlmUsageForUser, getRecentLlmCallsForUser } = await import("../db.js");
 
 let app: FastifyInstance;
 
@@ -121,6 +121,47 @@ describe("POST /api/chat — telemetry write", () => {
     ]);
     // gpt-4o-mini: $0.15/M input + $0.60/M output → (200*0.15 + 100*0.60)/1M = 9e-5
     expect(usage.totalCostUsd).toBeCloseTo(9e-5, 8);
+
+    const calls = await getRecentLlmCallsForUser(userId, SINCE_BEGINNING);
+    expect(calls[0]).toMatchObject({
+      route: "chat",
+      toolCallsCount: 0,
+      toolCallsJson: null,
+    });
+  });
+
+  it("writes tool call telemetry when the canonical agent reports tool calls", async () => {
+    const userId = await createLinkedTestUser(app, "tel-chat-tools");
+
+    runAstralAgentV2Mock.mockResolvedValueOnce({
+      content: "respuesta con tools",
+      usage: { promptTokens: 220, completionTokens: 80 },
+      latencyMs: 920,
+      systemPrompt: "TEST_PROMPT_TOOLS",
+      toolsUsed: ["findChannelByGates", "getCenterForGate"],
+      toolCalls: ["findChannelByGates", "findChannelByGates", "getCenterForGate"],
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/chat",
+      headers: sessionHeaders("tel-chat-tools"),
+      payload: { messages: [{ role: "user", content: "¿La 12 y la 20 forman canal?" }] },
+    });
+
+    expect(res.statusCode).toBe(200);
+
+    const calls = await getRecentLlmCallsForUser(userId, SINCE_BEGINNING);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      route: "chat",
+      toolCallsCount: 3,
+      toolCallsJson: JSON.stringify([
+        "findChannelByGates",
+        "findChannelByGates",
+        "getCenterForGate",
+      ]),
+    });
   });
 
   it("prices cached input tokens at the cached-input rate", async () => {
@@ -188,6 +229,8 @@ describe("POST /api/chat/stream — telemetry write", () => {
         usage: { promptTokens: 300, completionTokens: 150 },
         latencyMs: 1500,
         systemPrompt: "STREAM_PROMPT_BB",
+        toolsUsed: ["findChannelsByGate"],
+        toolCalls: ["findChannelsByGate"],
       });
     });
 
@@ -207,6 +250,13 @@ describe("POST /api/chat/stream — telemetry write", () => {
     expect(usage.byRoute).toEqual([
       expect.objectContaining({ route: "chat_stream", callCount: 1 }),
     ]);
+
+    const calls = await getRecentLlmCallsForUser(userId, SINCE_BEGINNING);
+    expect(calls[0]).toMatchObject({
+      route: "chat_stream",
+      toolCallsCount: 1,
+      toolCallsJson: JSON.stringify(["findChannelsByGate"]),
+    });
   });
 
   it("does not persist telemetry when the stream never reports usage", async () => {

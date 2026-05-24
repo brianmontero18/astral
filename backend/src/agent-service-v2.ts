@@ -68,7 +68,7 @@ export async function runAstralAgentV2(
     usage,
     latencyMs,
     systemPrompt,
-    toolsUsed: getToolsUsedFromSteps(result.steps),
+    ...getToolCallMetaFromSteps(result.steps),
   };
 }
 
@@ -106,7 +106,7 @@ export async function* runAstralAgentStreamV2(
       usage,
       latencyMs: Date.now() - start,
       systemPrompt,
-      toolsUsed: getToolsUsedFromSteps(await result.steps),
+      ...getToolCallMetaFromSteps(await result.steps),
     };
     onComplete?.(meta);
   };
@@ -140,10 +140,15 @@ function mapUsage(usage: LanguageModelUsage): LlmUsage {
   };
 }
 
-function getToolsUsedFromSteps(
+function getToolCallMetaFromSteps(
   steps: Array<{ toolCalls: Array<{ toolName: string }> }>,
-): string[] {
-  return [...new Set(
-    steps.flatMap((step) => step.toolCalls.map((call) => call.toolName)),
-  )];
+): Pick<AgentCallMeta, "toolCalls" | "toolsUsed"> {
+  const toolCalls = steps.flatMap((step) => step.toolCalls.map((call) => call.toolName));
+  if (toolCalls.length === 0) {
+    return {};
+  }
+  return {
+    toolCalls,
+    toolsUsed: [...new Set(toolCalls)],
+  };
 }

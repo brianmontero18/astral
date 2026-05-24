@@ -52,9 +52,29 @@ Desde `backend/`:
 # Deep dive de un user específico
 ./node_modules/.bin/tsx scripts/prod-audits/examples/user-detail.ts foo@bar.com
 
+# Últimos chat_stream con tokens/cache/tools de un user
+./node_modules/.bin/tsx scripts/prod-audits/chat-tokens-detail.ts foo@bar.com 12
+
 # Patrones de data inconsistente
 ./node_modules/.bin/tsx scripts/prod-audits/examples/find-anomalies.ts
 ```
+
+## Query útil: chat sin tools en las últimas 24h
+
+```sql
+SELECT created_at, route, model, tokens_in, tokens_out, cached_tokens,
+       tool_calls_count, tool_calls_json, latency_ms, prompt_hash
+FROM llm_calls
+WHERE user_id = ?
+  AND route IN ('chat', 'chat_stream', 'mcp_ask')
+  AND created_at > datetime('now', '-24 hours')
+  AND tool_calls_count = 0
+ORDER BY created_at DESC;
+```
+
+Si aparece una respuesta con claims puerta/canal/centro y `tool_calls_count = 0`,
+hay que revisar el prompt o el tool-call loop: el modelo contestó sin consultar
+la fuente determinística.
 
 ## Garantías de seguridad
 

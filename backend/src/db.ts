@@ -263,11 +263,34 @@ export async function addLlmCallsCachedTokensColumnIfMissing(c: Client): Promise
   });
 }
 
+export async function addLlmCallsToolCallsColumnsIfMissing(c: Client): Promise<void> {
+  const schemaResult = await c.execute({
+    sql: "SELECT sql FROM sqlite_master WHERE type='table' AND name='llm_calls'",
+    args: [],
+  });
+  const tableSql = schemaResult.rows[0]?.sql as string | undefined;
+  if (!tableSql) return;
+
+  if (!tableSql.includes("tool_calls_count")) {
+    await c.execute({
+      sql: "ALTER TABLE llm_calls ADD COLUMN tool_calls_count INTEGER NOT NULL DEFAULT 0",
+      args: [],
+    });
+  }
+
+  if (!tableSql.includes("tool_calls_json")) {
+    await c.execute({
+      sql: "ALTER TABLE llm_calls ADD COLUMN tool_calls_json TEXT DEFAULT NULL",
+      args: [],
+    });
+  }
+}
+
 /**
  * Detects an `llm_calls` table whose CHECK constraint pre-dates newer route
  * values and rebuilds it with the widened constraint.
- * Preserves `cached_tokens` when the prompt-cache telemetry migration already
- * ran first. Exported for direct testing.
+ * Preserves telemetry columns when migrations already ran first. Exported for
+ * direct testing.
  */
 export async function widenLlmCallsRouteCheckIfNeeded(c: Client): Promise<void> {
   const schemaResult = await c.execute({
@@ -278,6 +301,8 @@ export async function widenLlmCallsRouteCheckIfNeeded(c: Client): Promise<void> 
   if (!tableSql) return;
   if (tableSql.includes("'mcp_ask'")) return;
   const hasCachedTokens = tableSql.includes("cached_tokens");
+  const hasToolCallsCount = tableSql.includes("tool_calls_count");
+  const hasToolCallsJson = tableSql.includes("tool_calls_json");
 
   await c.batch(
     [
@@ -289,13 +314,15 @@ export async function widenLlmCallsRouteCheckIfNeeded(c: Client): Promise<void> 
         tokens_in     INTEGER NOT NULL DEFAULT 0,
         tokens_out    INTEGER NOT NULL DEFAULT 0,
         cached_tokens INTEGER NOT NULL DEFAULT 0,
+        tool_calls_count INTEGER NOT NULL DEFAULT 0,
+        tool_calls_json  TEXT DEFAULT NULL,
         cost_usd      REAL    NOT NULL DEFAULT 0,
         latency_ms    INTEGER NOT NULL DEFAULT 0,
         prompt_hash   TEXT NOT NULL,
         created_at    TEXT NOT NULL DEFAULT (datetime('now'))
       )`,
-      `INSERT INTO llm_calls_new (id, user_id, route, model, tokens_in, tokens_out, cached_tokens, cost_usd, latency_ms, prompt_hash, created_at)
-       SELECT id, user_id, route, model, tokens_in, tokens_out, ${hasCachedTokens ? "cached_tokens" : "0"}, cost_usd, latency_ms, prompt_hash, created_at
+      `INSERT INTO llm_calls_new (id, user_id, route, model, tokens_in, tokens_out, cached_tokens, tool_calls_count, tool_calls_json, cost_usd, latency_ms, prompt_hash, created_at)
+       SELECT id, user_id, route, model, tokens_in, tokens_out, ${hasCachedTokens ? "cached_tokens" : "0"}, ${hasToolCallsCount ? "tool_calls_count" : "0"}, ${hasToolCallsJson ? "tool_calls_json" : "NULL"}, cost_usd, latency_ms, prompt_hash, created_at
        FROM llm_calls`,
       "DROP TABLE llm_calls",
       "ALTER TABLE llm_calls_new RENAME TO llm_calls",
@@ -427,6 +454,8 @@ export async function initDb(): Promise<void> {
         tokens_in     INTEGER NOT NULL DEFAULT 0,
         tokens_out    INTEGER NOT NULL DEFAULT 0,
         cached_tokens INTEGER NOT NULL DEFAULT 0,
+        tool_calls_count INTEGER NOT NULL DEFAULT 0,
+        tool_calls_json  TEXT DEFAULT NULL,
         cost_usd      REAL    NOT NULL DEFAULT 0,
         latency_ms    INTEGER NOT NULL DEFAULT 0,
         prompt_hash   TEXT NOT NULL,
@@ -526,6 +555,7 @@ export async function initDb(): Promise<void> {
   // installs already get the widened CHECK above.
   await widenLlmCallsRouteCheckIfNeeded(client);
   await addLlmCallsCachedTokensColumnIfMissing(client);
+  await addLlmCallsToolCallsColumnsIfMissing(client);
 
   // ─── Indexes ───────────────────────────────────────────────────────────────
   // SQLite does not auto-index foreign keys. These cover the hot-path queries
@@ -1765,12 +1795,14 @@ export interface LlmCallInput {
   costUsd: number;
   latencyMs: number;
   promptHash: string;
+  toolCalls?: string[];
 }
 
 export async function insertLlmCall(input: LlmCallInput): Promise<void> {
+  const toolCalls = input.toolCalls ?? [];
   await client.execute({
-    sql: `INSERT INTO llm_calls (user_id, route, model, tokens_in, tokens_out, cached_tokens, cost_usd, latency_ms, prompt_hash)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    sql: `INSERT INTO llm_calls (user_id, route, model, tokens_in, tokens_out, cached_tokens, tool_calls_count, tool_calls_json, cost_usd, latency_ms, prompt_hash)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     args: [
       input.userId,
       input.route,
@@ -1778,6 +1810,8 @@ export async function insertLlmCall(input: LlmCallInput): Promise<void> {
       input.tokensIn,
       input.tokensOut,
       input.cachedTokens ?? 0,
+      toolCalls.length,
+      toolCalls.length > 0 ? JSON.stringify(toolCalls) : null,
       input.costUsd,
       input.latencyMs,
       input.promptHash,
@@ -1799,6 +1833,51 @@ export interface LlmUsageSummary {
   totalCostUsd: number;
   byRoute: Array<{ route: LlmCallRoute } & LlmUsageBreakdownEntry>;
   byModel: Array<{ model: string } & LlmUsageBreakdownEntry>;
+}
+
+export interface LlmCallRecord {
+  route: LlmCallRoute;
+  model: string;
+  tokensIn: number;
+  tokensOut: number;
+  cachedTokens: number;
+  toolCallsCount: number;
+  toolCallsJson: string | null;
+  costUsd: number;
+  latencyMs: number;
+  promptHash: string;
+  createdAt: string;
+}
+
+export async function getRecentLlmCallsForUser(
+  userId: string,
+  sinceIso: string,
+  limit = 20,
+): Promise<LlmCallRecord[]> {
+  const result = await client.execute({
+    sql: `SELECT route, model, tokens_in, tokens_out, cached_tokens,
+                 tool_calls_count, tool_calls_json, cost_usd, latency_ms,
+                 prompt_hash, created_at
+          FROM llm_calls
+          WHERE user_id = ? AND datetime(created_at) >= datetime(?)
+          ORDER BY id DESC
+          LIMIT ?`,
+    args: [userId, sinceIso, limit],
+  });
+
+  return result.rows.map((row) => ({
+    route: row.route as LlmCallRoute,
+    model: String(row.model),
+    tokensIn: Number(row.tokens_in ?? 0),
+    tokensOut: Number(row.tokens_out ?? 0),
+    cachedTokens: Number(row.cached_tokens ?? 0),
+    toolCallsCount: Number(row.tool_calls_count ?? 0),
+    toolCallsJson: typeof row.tool_calls_json === "string" ? row.tool_calls_json : null,
+    costUsd: Number(row.cost_usd ?? 0),
+    latencyMs: Number(row.latency_ms ?? 0),
+    promptHash: String(row.prompt_hash ?? ""),
+    createdAt: String(row.created_at ?? ""),
+  }));
 }
 
 export async function getLlmUsageForUser(

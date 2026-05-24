@@ -109,8 +109,8 @@ Default actual: `gpt-4o-mini` vía Vercel AI SDK + tools HD. El legacy fetch dir
 │  BACKEND — post-stream                                               │
 │                                                                       │
 │  1. Persistir user msg + assistant msg en chat_messages              │
-│  2. Persistir llm_calls con: tokens_in, tokens_out, cached_tokens,   │
-│     cost_usd, latency_ms                                             │
+│  2. Persistir llm_calls con: tokens_in/out, cached_tokens,           │
+│     tool_calls_count/json, cost_usd, latency_ms                      │
 │  3. Disparar memory_writer (fire-and-forget):                        │
 │     gpt-4o-mini extrae hechos del turn, mergea en users.memory_md    │
 └──────────────────────────────┬──────────────────────────────────────┘
@@ -154,6 +154,7 @@ Default actual: `gpt-4o-mini` vía Vercel AI SDK + tools HD. El legacy fetch dir
   │   tokens_in:     10,000                                         │
   │   cached_tokens:  8,000    ← cache HIT del bloque static       │
   │   tokens_out:       600                                         │
+  │   tool_calls_count:   1    ← compliance anti-alucinación         │
   │   cost_usd:        0.0011                                       │
   │   cache_hit_rate:    0.8   ← lo que vamos a observar en prod   │
   └────────────────────────────────────────────────────────────────┘

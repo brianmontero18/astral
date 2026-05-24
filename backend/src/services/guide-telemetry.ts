@@ -12,11 +12,18 @@ import {
 import { FLAGS } from "../config/flags.js";
 import { calculateCost } from "../llm/pricing.js";
 
+interface PersistGuideLlmCallMeta {
+  usage: LlmUsage;
+  latencyMs: number;
+  systemPrompt: string;
+  toolCalls?: string[];
+}
+
 export async function persistGuideLlmCall(
   app: FastifyInstance,
   userId: string,
   route: LlmCallRoute,
-  meta: { usage: LlmUsage; latencyMs: number; systemPrompt: string },
+  meta: PersistGuideLlmCallMeta,
 ): Promise<void> {
   if (!FLAGS.LLM_TELEMETRY) return;
 
@@ -36,6 +43,7 @@ export async function persistGuideLlmCall(
       ),
       latencyMs: meta.latencyMs,
       promptHash: hashSystemPrompt(meta.systemPrompt),
+      toolCalls: meta.toolCalls,
     });
   } catch (err) {
     // Telemetry must never break the user-facing response. Log and move on.

@@ -13,6 +13,7 @@ import { createClient, type Client } from "@libsql/client";
 
 import {
   addLlmCallsCachedTokensColumnIfMissing,
+  addLlmCallsToolCallsColumnsIfMissing,
   widenLlmCallsRouteCheckIfNeeded,
 } from "../db.js";
 
@@ -96,6 +97,31 @@ async function createCachedTokensWithOldRouteCheckTable(client: Client) {
   `);
 }
 
+async function createToolCallsWithOldRouteCheckTable(client: Client) {
+  await client.execute("CREATE TABLE users (id TEXT PRIMARY KEY)");
+  await client.execute({
+    sql: "INSERT INTO users (id) VALUES (?)",
+    args: ["u1"],
+  });
+  await client.execute(`
+    CREATE TABLE llm_calls (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id          TEXT NOT NULL,
+      route            TEXT NOT NULL CHECK(route IN ('chat','chat_stream','report','extraction')),
+      model            TEXT NOT NULL,
+      tokens_in        INTEGER NOT NULL DEFAULT 0,
+      tokens_out       INTEGER NOT NULL DEFAULT 0,
+      cached_tokens    INTEGER NOT NULL DEFAULT 0,
+      tool_calls_count INTEGER NOT NULL DEFAULT 0,
+      tool_calls_json  TEXT DEFAULT NULL,
+      cost_usd         REAL    NOT NULL DEFAULT 0,
+      latency_ms       INTEGER NOT NULL DEFAULT 0,
+      prompt_hash      TEXT NOT NULL,
+      created_at       TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+}
+
 describe("addLlmCallsCachedTokensColumnIfMissing", () => {
   it("adds cached_tokens column on legacy schema", async () => {
     const client = makeClient();
@@ -156,6 +182,43 @@ describe("addLlmCallsCachedTokensColumnIfMissing", () => {
   });
 });
 
+describe("addLlmCallsToolCallsColumnsIfMissing", () => {
+  it("adds tool call columns on legacy schema and defaults existing rows", async () => {
+    const client = makeClient();
+    await createMigratedLlmCallsTable(client);
+    await client.execute({
+      sql: "INSERT INTO llm_calls (user_id, route, model, tokens_in, tokens_out, cost_usd, latency_ms, prompt_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      args: ["u1", "chat_stream", "gpt-4o-mini", 100, 50, 0.001, 1000, "hash"],
+    });
+
+    await addLlmCallsToolCallsColumnsIfMissing(client);
+
+    const columns = await readLlmCallsColumns(client);
+    expect(columns).toContain("tool_calls_count");
+    expect(columns).toContain("tool_calls_json");
+
+    const res = await client.execute(
+      "SELECT tool_calls_count, tool_calls_json FROM llm_calls",
+    );
+    expect(res.rows[0]).toMatchObject({
+      tool_calls_count: 0,
+      tool_calls_json: null,
+    });
+  });
+
+  it("is idempotent when tool call columns already exist", async () => {
+    const client = makeClient();
+    await createMigratedLlmCallsTable(client);
+
+    await addLlmCallsToolCallsColumnsIfMissing(client);
+    await addLlmCallsToolCallsColumnsIfMissing(client);
+
+    const columns = await readLlmCallsColumns(client);
+    expect(columns.filter((c) => c === "tool_calls_count")).toHaveLength(1);
+    expect(columns.filter((c) => c === "tool_calls_json")).toHaveLength(1);
+  });
+});
+
 describe("widenLlmCallsRouteCheckIfNeeded", () => {
   it("preserves cached_tokens when rebuilding the old route CHECK table", async () => {
     const client = makeClient();
@@ -193,5 +256,40 @@ describe("widenLlmCallsRouteCheckIfNeeded", () => {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: ["u1", "mcp_ask", "gpt-4o-mini", 10, 5, 3, 0.001, 100, "hash3"],
     })).resolves.not.toThrow();
+  });
+
+  it("preserves tool call columns when rebuilding the old route CHECK table", async () => {
+    const client = makeClient();
+    await createToolCallsWithOldRouteCheckTable(client);
+    await client.execute({
+      sql: `INSERT INTO llm_calls
+        (user_id, route, model, tokens_in, tokens_out, cached_tokens, tool_calls_count, tool_calls_json, cost_usd, latency_ms, prompt_hash)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        "u1",
+        "chat_stream",
+        "gpt-4o-mini",
+        1000,
+        100,
+        768,
+        2,
+        JSON.stringify(["findChannelByGates", "getCenterForGate"]),
+        0.001,
+        1000,
+        "hash",
+      ],
+    });
+
+    await widenLlmCallsRouteCheckIfNeeded(client);
+
+    const res = await client.execute(
+      "SELECT route, tool_calls_count, tool_calls_json FROM llm_calls",
+    );
+    expect(res.rows).toHaveLength(1);
+    expect(res.rows[0]).toMatchObject({
+      route: "chat_stream",
+      tool_calls_count: 2,
+      tool_calls_json: JSON.stringify(["findChannelByGates", "getCenterForGate"]),
+    });
   });
 });

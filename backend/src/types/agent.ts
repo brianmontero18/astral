@@ -10,6 +10,7 @@ export interface AgentCallMeta {
   usage: LlmUsage;
   latencyMs: number;
   systemPrompt: string;
+  toolCalls?: string[];
   toolsUsed?: string[];
 }
 
