@@ -47,6 +47,7 @@
 - Default: `gpt-4o-mini` via env var `CHAT_MODEL` (configurable desde Render dashboard sin redeploy de código).
 - Path canónico: `agent-service-v2.ts` + Vercel AI SDK + 5 HD tools deterministas.
 - Legacy `agent-service.ts` y `FEATURE_CHAT_USE_TOOLS` fueron eliminados en `astral-e2h.1`; no reintroducir fallback v1.
+- **NUNCA usar tokens reales de LLM sin consentimiento explícito previo del founder.** Esto incluye smokes contra APIs reales, evals live multi-modelo, scripts que llamen OpenAI/Anthropic/Gemini/Groq/Together, y cualquier comando que pueda consumir crédito/costo de proveedor. Consultas read-only a DB no consumen tokens, pero si se usan para decisiones sensibles deben anunciarse antes.
 - Antes de cambiar el system prompt: `cd backend && npm run smoke:chat-v2 -- 5` para tener baseline.
 - **No mezclar** static y dynamic en el system prompt — rompe el cache automático de OpenAI.
 - **No agregar** content al system prompt sin medir `tokens_in` antes/después.
