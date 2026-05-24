@@ -165,6 +165,128 @@ export function evalNoHallucinatedGates(output: string, validGates: number[]): E
   return { pass: true, reason: "Todas las puertas mencionadas están en el contexto" };
 }
 
+export interface ChannelExpectation {
+  id: string;
+  gates: readonly [number, number];
+  name: string;
+}
+
+function normalizeForEval(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function escapeRegex(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function channelIdRegexSource(id: string): string {
+  const [a, b] = id.split("-").map(escapeRegex);
+  return `${a}\\s*[-–]\\s*${b}`;
+}
+
+function channelIdRegex(id: string): RegExp {
+  return new RegExp(`\\b${channelIdRegexSource(id)}\\b`, "i");
+}
+
+function mentionsGate(text: string, gate: number): boolean {
+  return new RegExp(`\\bpuertas?\\s*${gate}\\b`, "i").test(text);
+}
+
+export function evalMentionsCanonicalChannel(
+  output: string,
+  expected: ChannelExpectation,
+): EvalResult {
+  const clean = normalizeForEval(output);
+  const expectedName = normalizeForEval(expected.name);
+  const missing: string[] = [];
+
+  if (!channelIdRegex(expected.id).test(clean)) {
+    missing.push(`id ${expected.id}`);
+  }
+  if (!clean.includes(expectedName)) {
+    missing.push(expected.name);
+  }
+  for (const gate of expected.gates) {
+    if (!mentionsGate(clean, gate)) {
+      missing.push(`Puerta ${gate}`);
+    }
+  }
+
+  if (missing.length > 0) {
+    return {
+      pass: false,
+      reason: `Canal esperado incompleto (${expected.id}): falta ${missing.join(", ")}`,
+    };
+  }
+
+  return {
+    pass: true,
+    reason: `Menciona ${expected.name} (${expected.id}) con puertas ${expected.gates.join(" y ")}`,
+  };
+}
+
+export function evalRejectsInvalidChannelPair(
+  output: string,
+  invalidChannelId: string,
+): EvalResult {
+  const clean = normalizeForEval(output);
+  const idPattern = channelIdRegex(invalidChannelId);
+  const [gateA, gateB] = invalidChannelId.split("-").map(Number);
+
+  if (!idPattern.test(clean)) {
+    return {
+      pass: false,
+      reason: `No menciona el par inválido ${invalidChannelId}; la respuesta debe rechazarlo explícitamente`,
+    };
+  }
+
+  const rejectionPatterns = [
+    /\bno existe\b/i,
+    /\bno es un canal\b/i,
+    /\bno forman(?: un)? canal\b/i,
+    /\bno corresponde a un canal\b/i,
+    /\bno hay canal\b/i,
+  ];
+  const rejectsPair = rejectionPatterns.some((pattern) => pattern.test(clean));
+  if (!rejectsPair) {
+    return {
+      pass: false,
+      reason: `${invalidChannelId} no fue rechazado como canal inexistente`,
+    };
+  }
+
+  const invalidIdSource = channelIdRegexSource(invalidChannelId);
+  const affirmativePatterns = [
+    new RegExp(
+      `canal\\s+${invalidIdSource}\\s+(?:existe|conecta|une|forma|es\\s+(?:un|el))`,
+      "i",
+    ),
+    new RegExp(
+      `puertas?\\s*${gateA}\\b[\\s\\S]{0,120}\\b(?:conectan|forman|crean|activan)\\b[\\s\\S]{0,120}\\bpuertas?\\s*${gateB}\\b`,
+      "i",
+    ),
+    new RegExp(
+      `puertas?\\s*${gateB}\\b[\\s\\S]{0,120}\\b(?:conectan|forman|crean|activan)\\b[\\s\\S]{0,120}\\bpuertas?\\s*${gateA}\\b`,
+      "i",
+    ),
+  ];
+  const contradictsRejection = affirmativePatterns.some((pattern) => pattern.test(clean));
+  if (contradictsRejection) {
+    return {
+      pass: false,
+      reason: `${invalidChannelId} aparece afirmado como canal existente`,
+    };
+  }
+
+  return {
+    pass: true,
+    reason: `${invalidChannelId} rechazado explícitamente como canal inexistente`,
+  };
+}
+
 /** Output references at least one center by name */
 export function evalMentionsCenters(output: string, definedCenters: string[], undefinedCenters: string[]): EvalResult {
   const centerNames: Record<string, string[]> = {
