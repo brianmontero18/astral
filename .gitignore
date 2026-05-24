@@ -41,3 +41,7 @@ playwright-report/
 .dolt/
 .beads-credential-key
 **/migration-backups/
+
+# Local CodeGraph tooling
+.codegraph/
+install-codegraph.sh
