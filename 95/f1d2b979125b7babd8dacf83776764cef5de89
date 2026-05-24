@@ -1,0 +1,56 @@
+backend/src/evals/openai-live-eval.ts
+  s_1970642029acbb::t_e43983d862b83a 107-109
+  s_1970642029acbb::t_2f71e7e7820660 1-106,110-135
+backend/src/__tests__/memory-writer.test.ts
+  s_1970642029acbb::t_ad6ef72eeb8591 187-197
+backend/package.json
+  s_1970642029acbb::t_41e0ac5b1111f9 10
+backend/src/__tests__/prompt-eval.ts
+  s_1970642029acbb::t_f13bc35d5300d5 1
+backend/scripts/eval-openai-live.ts
+  s_1970642029acbb::t_02fcf2e1b70355 1-17,19-367,370-513
+  s_1970642029acbb::t_c1350c4e0c627d 18
+  s_1970642029acbb::t_7da3f5fb2b2efb 368-369
+backend/src/__tests__/report-generation.test.ts
+  s_1970642029acbb::t_38602471f9daab 110
+  s_1970642029acbb::t_2247b08b8ac83b 92-108,111-112
+  s_1970642029acbb::t_9df8395a77c88e 109
+backend/src/__tests__/context-budget.test.ts
+  s_1970642029acbb::t_356f3fa58d4fce 59-72
+backend/src/__tests__/llm-pricing.test.ts
+  s_1970642029acbb::t_40ac04b0a8c046 19-26
+backend/src/report/generate-report.ts
+  s_1970642029acbb::t_3a3d7bf4460d56 253-256
+  s_1970642029acbb::t_b36ebbe3b1cf71 35-38,43,52,82,85,90,147,149,160,167-169,177
+backend/src/llm/pricing.ts
+  s_1970642029acbb::t_02f8d25b46c60e 19-21
+backend/src/__tests__/openai-live-eval.test.ts
+  s_1970642029acbb::t_924165a235a819 20-21
+  s_1970642029acbb::t_5858f0ad811716 1-19,22-44
+backend/src/memory-writer.ts
+  s_1970642029acbb::t_749de3172db4ff 48-51,105,109,118
+backend/src/agent-service-v2.ts
+  s_1970642029acbb::t_ce9ce20a0dcf49 45-48,61,63,69,83,116,118,124,138
+backend/src/report/types.ts
+  s_1970642029acbb::t_4e52793b5444cf 50-53
+backend/src/__tests__/anti-hallucination-hd.test.ts
+  s_1970642029acbb::t_2de85cb2f401eb 23,205-218,257-267
+backend/src/llm/model-registry.ts
+  s_1970642029acbb::t_06573fe14a4b37 21-23,44-60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "95f1d2b979125b7babd8dacf83776764cef5de89",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
