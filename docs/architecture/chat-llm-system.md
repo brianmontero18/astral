@@ -297,7 +297,7 @@ Desde el dashboard de Render, editar la env var:
 | `CHAT_MODEL` | `gpt-4o-mini` | Probar `gpt-4o` (más calidad, 17x costo) o futuro Claude |
 | `MEMORY_WRITER_MODEL` | `gpt-4o-mini` | Mantener mini casi siempre (escribe markdown, no critical) |
 | `REPORT_MODEL` | `gpt-4o-mini` | Subir si las usuarias piden mejor reporte |
-| `CHAT_HISTORY_TURNS` | `60` | Bajar si los costos suben; reabrir compaction si hay quejas de "no se acuerda" |
+| `CHAT_HISTORY_TURNS` | `60` | Bajar si los costos suben; reabrir compaction solo bajo la politica no destructiva de `docs/adr/chat-compaction-policy.md` |
 
 Cualquier cambio requiere redeploy de Render (pero NO de código).
 

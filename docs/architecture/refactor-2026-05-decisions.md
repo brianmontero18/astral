@@ -188,6 +188,11 @@ Si todas verde por 7 días, cerrar los beads de validación del Bloque A.
 
 ## H — Deliberación 2026-05-16: compaction de history (DIFERIDO)
 
+> Update 2026-05-24 (`astral-e2h.11`): `docs/adr/chat-compaction-policy.md`
+> descarta el endpoint V1 destructivo (`summary` en `memory_md` + truncado /
+> borrado de `chat_messages`). Si se reabre compaction, debe usar summary
+> separado y semantica reversible, probablemente dentro de V2 threads/per-profile.
+
 **Trigger**: el founder propuso 4 opciones (A/B/C/D) para resolver "si una conversación cruza 30 mensajes, los mensajes 31+ se cortan y se pierde info que no esté en memory_md". Inclinación inicial: opción C (rolling summary, mainstream pattern de ChatGPT/Claude).
 
 **Proceso**: deliberación paralela con sub-agents `sparring` y `architect`.

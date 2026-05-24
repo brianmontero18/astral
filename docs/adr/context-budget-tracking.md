@@ -31,7 +31,7 @@ Usar estrategia hibrida:
 La app no debe tratar el conteo pre-call como verdad de billing. La verdad de
 tokens consumidos viene despues de la llamada. El conteo previo existe para
 responder: "cuanto contexto estoy a punto de mandar, que bloque pesa mas y si
-conviene compactar/recortar antes de seguir".
+conviene reducir el contexto enviado al modelo antes de seguir".
 
 ## OpenAI
 
@@ -110,16 +110,18 @@ Reglas:
 
 Claude Code y Codex son referencias de producto, no contratos tecnicos para
 copiar. Ambos exponen patrones utiles: mostrar presion de contexto antes del
-fallo duro, ofrecer compactacion y mantener al usuario dentro del flujo. No hay
-un contrato publico estable que debamos importar como algoritmo.
+fallo duro y mantener al usuario dentro del flujo. No hay un contrato publico
+estable que debamos importar como algoritmo.
 
 Decision para Astral:
 
 - No implementar "auto-compact" silencioso en V1.
 - No esconder el problema hasta el limite duro.
 - Mostrar context pressure con causas concretas y accion explicita.
+- La accion explicita en V1 no debe ser compactacion destructiva; ver
+  `docs/adr/chat-compaction-policy.md`.
 - Reabrir compactacion automatica solo si la telemetria real muestra que el
-  warning manual no alcanza.
+  warning manual no alcanza y existe una politica reversible.
 
 ## Breakdown canonico
 
@@ -234,7 +236,9 @@ justifica para OpenAI V1 mientras post-call ya calibra.
 ### Auto-compact inmediato
 
 Prematuro. Astral ya tiene `memory_md`, truncation bounded y poca data real de
-conversaciones que toquen el limite. Primero medir, despues automatizar.
+conversaciones que toquen el limite. Primero medir, despues automatizar. El ADR
+de politica de compactacion descarta ademas cualquier compactacion destructiva
+en V1.
 
 ## Fuentes primarias consultadas
 
