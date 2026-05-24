@@ -1,0 +1,19 @@
+.gitignore
+  s_d9305448b8fd38::t_a207bfd564609b 44-47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "1652a726e2b4414ac6c47c33763c456b03313e7e",
+  "prompts": {},
+  "sessions": {
+    "s_d9305448b8fd38": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5ac3-949e-7231-a789-16bb5c0927ff",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
