@@ -142,6 +142,7 @@ interface SelectedChatContext {
   percentUsed: number | null;
   selectionReason:
     | "full_history_fits"
+    | "history_hard_cap_omitted"
     | "token_budget_omitted_history"
     | "current_message_dominates"
     | "unknown_model_conservative";
@@ -207,6 +208,7 @@ de chat debe poder responder:
 - que modelo y context window se uso;
 - cuantos tokens estimados viajan por bloque;
 - cuantos mensajes de historial fueron seleccionados y omitidos;
+- si la omision vino del hard cap defensivo o del presupuesto de tokens;
 - cuantos tokens ocupaba el mensaje actual;
 - si hubo `unknown_model_conservative`;
 - si el selector omitio historial por presupuesto;

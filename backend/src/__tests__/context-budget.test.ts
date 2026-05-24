@@ -4,6 +4,7 @@ import {
   buildHdToolsSchemaBudgetText,
   CONTEXT_BUDGET_BLOCK_IDS,
   estimateContextBudget,
+  selectChatContextForBudget,
   summarizeContextBudgetForClient,
 } from "../llm/context-budget.js";
 import type { ChatMessage } from "../types/agent.js";
@@ -71,6 +72,128 @@ describe("estimateContextBudget", () => {
   });
 });
 
+describe("selectChatContextForBudget", () => {
+  it("keeps more than the legacy 60 messages when they fit the model budget", () => {
+    const longSmallHistory: ChatMessage[] = [
+      ...Array.from({ length: 70 }, (_, index) => ({
+        role: index % 2 === 0 ? "user" as const : "assistant" as const,
+        content: `short-${index + 1}`,
+      })),
+      { role: "user", content: "current short question" },
+    ];
+
+    const selected = selectChatContextForBudget({
+      model: "gpt-4o-mini",
+      promptBlocks,
+      messages: longSmallHistory,
+      toolsSchemaText: "tools",
+      reservedOutputTokens: 256,
+    });
+
+    expect(selected.fitsWithinContextWindow).toBe(true);
+    expect(selected.messages).toHaveLength(71);
+    expect(selected.snapshot.selection).toMatchObject({
+      selectedMessageCount: 71,
+      omittedMessageCount: 0,
+      reason: "full_history_fits",
+    });
+  });
+
+  it("omits complete older messages by token budget without splitting messages", () => {
+    const messagesThatCannotAllFit: ChatMessage[] = [
+      ...Array.from({ length: 6 }, (_, index) => ({
+        role: index % 2 === 0 ? "user" as const : "assistant" as const,
+        content: `history-${index + 1} ${"detalle ".repeat(20)}`,
+      })),
+      { role: "user", content: "current question" },
+    ];
+
+    const selected = selectChatContextForBudget({
+      model: "gpt-4o-mini",
+      promptBlocks,
+      messages: messagesThatCannotAllFit,
+      toolsSchemaText: "tools",
+      reservedOutputTokens: 127_900,
+    });
+
+    expect(selected.fitsWithinContextWindow).toBe(true);
+    expect(selected.messages.at(-1)).toEqual({ role: "user", content: "current question" });
+    expect(selected.messages.length).toBeLessThan(messagesThatCannotAllFit.length);
+    expect(selected.messages.every((message) => messagesThatCannotAllFit.includes(message))).toBe(true);
+    expect(selected.snapshot.selection.omittedMessageCount).toBeGreaterThan(0);
+    expect(selected.snapshot.selection.omittedTokenEstimate).toBeGreaterThan(0);
+    expect(selected.snapshot.selection.reason).toBe("token_budget_omitted_history");
+  });
+
+  it("reports hard-cap omissions separately from token-budget omissions", () => {
+    const selected = selectChatContextForBudget({
+      model: "gpt-4o-mini",
+      promptBlocks,
+      messages: [
+        { role: "user", content: "oldest" },
+        { role: "assistant", content: "older" },
+        { role: "user", content: "recent" },
+        { role: "assistant", content: "latest" },
+        { role: "user", content: "current question" },
+      ],
+      toolsSchemaText: "tools",
+      reservedOutputTokens: 256,
+      historyMessageHardCap: 2,
+    });
+
+    expect(selected.fitsWithinContextWindow).toBe(true);
+    expect(selected.messages).toEqual([
+      { role: "user", content: "recent" },
+      { role: "assistant", content: "latest" },
+      { role: "user", content: "current question" },
+    ]);
+    expect(selected.snapshot.selection).toMatchObject({
+      selectedMessageCount: 3,
+      omittedMessageCount: 2,
+      reason: "history_hard_cap_omitted",
+    });
+    expect(selected.snapshot.selection.omittedTokenEstimate).toBeGreaterThan(0);
+  });
+
+  it("rejects a current message that cannot fit even without history", () => {
+    const selected = selectChatContextForBudget({
+      model: "gpt-4o-mini",
+      promptBlocks,
+      messages: [{ role: "user", content: "x ".repeat(140_000) }],
+      toolsSchemaText: "tools",
+      reservedOutputTokens: 256,
+    });
+
+    expect(selected.fitsWithinContextWindow).toBe(false);
+    expect(selected.snapshot.selection).toMatchObject({
+      selectedMessageCount: 1,
+      omittedMessageCount: 0,
+      reason: "current_message_dominates",
+    });
+    expect(selected.snapshot.percentUsed).toBeGreaterThan(1);
+  });
+
+  it("uses conservative current-message-only selection for unknown models", () => {
+    const selected = selectChatContextForBudget({
+      model: "future-model",
+      promptBlocks,
+      messages,
+      toolsSchemaText: "tools",
+      reservedOutputTokens: 128,
+    });
+
+    expect(selected.fitsWithinContextWindow).toBe(true);
+    expect(selected.messages).toEqual([{ role: "user", content: "Mensaje actual" }]);
+    expect(selected.snapshot.provider).toBe("unknown");
+    expect(selected.snapshot.percentUsed).toBeNull();
+    expect(selected.snapshot.selection).toMatchObject({
+      selectedMessageCount: 1,
+      omittedMessageCount: 2,
+      reason: "unknown_model_conservative",
+    });
+  });
+});
+
 describe("summarizeContextBudgetForClient", () => {
   it("collapses canonical blocks into the stable endpoint breakdown", () => {
     const snapshot = estimateContextBudget({
@@ -91,5 +214,10 @@ describe("summarizeContextBudgetForClient", () => {
     expect(summary.breakdown.tools).toBeGreaterThan(0);
     expect(summary.breakdown.response).toBe(512);
     expect(summary.blocks).toHaveLength(CONTEXT_BUDGET_BLOCK_IDS.length);
+    expect(summary.selection).toMatchObject({
+      selectedMessageCount: 3,
+      omittedMessageCount: 0,
+      reason: "full_history_fits",
+    });
   });
 });

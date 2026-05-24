@@ -4,7 +4,12 @@ import {
   CHAT_MODEL,
   hashSystemPrompt,
 } from "../llm/model-config.js";
-import { estimateChatContextBudget } from "../llm/context-budget.js";
+import {
+  ChatContextWindowExceededError,
+  DEFAULT_CHAT_HISTORY_HARD_CAP_MESSAGES,
+  selectChatContextForChatBudget,
+  type SelectedChatContextBudget,
+} from "../llm/context-budget.js";
 import {
   type AgentCallMeta,
   type ChatMessage,
@@ -41,20 +46,14 @@ import { persistGuideLlmCall } from "./guide-telemetry.js";
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
 
-/**
- * Cap on how many turns of conversation history travel back to the LLM per
- * request. `users.memory_md` carries the persistent facts across the gap,
- * so cutting older turns trims tokens without losing identity context.
- *
- * Default 60 (≈30 user/assistant pairs). Set via sparring + architect
- * deliberation 2026-05-16: bumped from 30 → 60 to push the cliff from
- * ~5 weeks of intensive use to ~10 weeks. The marginal cost is ~$0.11/mo
- * in the current beta (10 users), justified by zero observed cases of
- * truncation in production. Counter below tracks when the cap is hit so
- * we can decide on compaction (B/C/D) only if real data demands it.
- * See `docs/architecture/refactor-2026-05-decisions.md`.
- */
-export const CHAT_HISTORY_MAX = Number(process.env.CHAT_HISTORY_TURNS) || 60;
+function configuredChatHistoryHardCap(): number {
+  const configured = Number(process.env.CHAT_HISTORY_TURNS);
+  return Number.isFinite(configured) && configured > 0
+    ? Math.trunc(configured)
+    : DEFAULT_CHAT_HISTORY_HARD_CAP_MESSAGES;
+}
+
+export const CHAT_HISTORY_HARD_CAP = configuredChatHistoryHardCap();
 
 export interface GuideTurnUserContext {
   profile: UserProfile;
@@ -79,28 +78,67 @@ export interface RunGuideTurnResult {
 
 export type StreamGuideChunkHandler = (chunk: string) => void;
 
-function truncateChatHistory<T>(
-  messages: T[],
-  app?: FastifyInstance,
-  userId?: string,
-): T[] {
-  if (messages.length <= CHAT_HISTORY_MAX) {
-    return messages;
-  }
-  // Observability counter: log every truncation so we can query
-  // `chat_history_truncated` events in prod. When this fires consistently,
-  // re-open the compaction discussion with real data instead of speculation.
-  app?.log.info(
-    { userId, total: messages.length, cap: CHAT_HISTORY_MAX },
-    "chat_history_truncated",
-  );
-  return messages.slice(-CHAT_HISTORY_MAX);
-}
+async function buildGuideSelectedContext(
+  input: GuideTurnUserContext & {
+    app?: FastifyInstance;
+    messages: ChatMessage[];
+    transitContext?: ParsedTransitChatContext;
+  },
+): Promise<{
+  transits: Awaited<ReturnType<typeof getTransitsForChat>>;
+  impact: ReturnType<typeof analyzeTransitImpact>;
+  intakeForChat?: Intake;
+  memoryForChat?: string;
+  selected: SelectedChatContextBudget;
+}> {
+  const transits = await getTransitsForChat(input.transitContext);
+  const impact = analyzeTransitImpact(transits, {
+    activatedGates: input.profile.humanDesign?.activatedGates ?? [],
+    definedCenters: input.profile.humanDesign?.definedCenters ?? [],
+  });
+  const intakeForChat = FLAGS.CHAT_INTAKE_CONTEXT && input.intake ? input.intake : undefined;
+  const memoryForChat = FLAGS.MEMORY_LIVING_DOCUMENT && input.memory ? input.memory : undefined;
+  const selected = selectChatContextForChatBudget({
+    model: CHAT_MODEL,
+    profile: input.profile,
+    transits,
+    messages: input.messages,
+    impact,
+    intake: intakeForChat,
+    memory: memoryForChat,
+    historyMessageHardCap: CHAT_HISTORY_HARD_CAP,
+  });
 
-function truncateChatHistoryForBudget<T>(messages: T[]): T[] {
-  return messages.length <= CHAT_HISTORY_MAX
-    ? messages
-    : messages.slice(-CHAT_HISTORY_MAX);
+  if (input.app && selected.snapshot.selection.reason === "unknown_model_conservative") {
+    input.app.log.warn(
+      {
+        model: selected.snapshot.model,
+        userId: input.persistedUserId,
+      },
+      "chat_context_unknown_model",
+    );
+  }
+
+  if (input.app && selected.snapshot.selection.omittedMessageCount > 0) {
+    input.app.log.info(
+      {
+        userId: input.persistedUserId,
+        reason: selected.snapshot.selection.reason,
+        selected: selected.snapshot.selection.selectedMessageCount,
+        omitted: selected.snapshot.selection.omittedMessageCount,
+        historyTokenBudget: selected.snapshot.selection.historyTokenBudget,
+      },
+      "chat_context_history_selected",
+    );
+  }
+
+  return {
+    transits,
+    impact,
+    intakeForChat,
+    memoryForChat,
+    selected,
+  };
 }
 
 export async function buildGuideContextBudgetSnapshot(
@@ -109,23 +147,17 @@ export async function buildGuideContextBudgetSnapshot(
     transitContext?: ParsedTransitChatContext;
   },
 ): Promise<ContextBudgetSnapshot> {
-  const transits = await getTransitsForChat(input.transitContext);
-  const impact = analyzeTransitImpact(transits, {
-    activatedGates: input.profile.humanDesign?.activatedGates ?? [],
-    definedCenters: input.profile.humanDesign?.definedCenters ?? [],
-  });
-  const intakeForChat = FLAGS.CHAT_INTAKE_CONTEXT && input.intake ? input.intake : undefined;
-  const memoryForChat = FLAGS.MEMORY_LIVING_DOCUMENT && input.memory ? input.memory : undefined;
-  return estimateChatContextBudget({
-    model: CHAT_MODEL,
-    profile: input.profile,
-    transits,
-    messages: truncateChatHistoryForBudget(input.messages),
-    impact,
-    intake: intakeForChat,
-    memory: memoryForChat,
-  });
+  const context = await buildGuideSelectedContext(input);
+  return context.selected.snapshot;
 }
+
+function assertGuideContextFits(selected: SelectedChatContextBudget): void {
+  if (!selected.fitsWithinContextWindow) {
+    throw new ChatContextWindowExceededError(selected.snapshot);
+  }
+}
+
+export { ChatContextWindowExceededError };
 
 /**
  * Fire-and-forget memory writer trigger.
@@ -193,21 +225,17 @@ export async function runGuideTurn(
   input: RunGuideTurnInput,
 ): Promise<RunGuideTurnResult> {
   const sideEffectsMode = input.sideEffectsMode ?? "web_persisted";
-  const transits = await getTransitsForChat(input.transitContext);
-  const impact = analyzeTransitImpact(transits, {
-    activatedGates: input.profile.humanDesign?.activatedGates ?? [],
-    definedCenters: input.profile.humanDesign?.definedCenters ?? [],
-  });
-  const intakeForChat = FLAGS.CHAT_INTAKE_CONTEXT && input.intake ? input.intake : undefined;
-  const memoryForChat = FLAGS.MEMORY_LIVING_DOCUMENT && input.memory ? input.memory : undefined;
+  const context = await buildGuideSelectedContext(input);
+  assertGuideContextFits(context.selected);
   const result = await runAstralAgentV2(
     input.profile,
-    transits,
-    truncateChatHistory(input.messages, input.app, input.persistedUserId),
+    context.transits,
+    context.selected.messages,
     OPENAI_KEY,
-    impact,
-    intakeForChat,
-    memoryForChat,
+    context.impact,
+    context.intakeForChat,
+    context.memoryForChat,
+    context.selected.snapshot,
   );
 
   if (input.persistedUserId) {
@@ -222,7 +250,7 @@ export async function runGuideTurn(
   if (sideEffectsMode === "mcp_read_only") {
     return {
       reply: result.content,
-      transitsUsed: transits.fetchedAt,
+      transitsUsed: context.transits.fetchedAt,
     };
   }
 
@@ -235,7 +263,7 @@ export async function runGuideTurn(
 
   return {
     reply: result.content,
-    transitsUsed: transits.fetchedAt,
+    transitsUsed: context.transits.fetchedAt,
     ...persisted,
   };
 }
@@ -244,25 +272,21 @@ export async function streamGuideTurn(
   input: RunGuideTurnInput,
   onChunk: StreamGuideChunkHandler,
 ): Promise<Omit<RunGuideTurnResult, "reply">> {
-  const transits = await getTransitsForChat(input.transitContext);
-  const impact = analyzeTransitImpact(transits, {
-    activatedGates: input.profile.humanDesign?.activatedGates ?? [],
-    definedCenters: input.profile.humanDesign?.definedCenters ?? [],
-  });
-  const intakeForChat = FLAGS.CHAT_INTAKE_CONTEXT && input.intake ? input.intake : undefined;
-  const memoryForChat = FLAGS.MEMORY_LIVING_DOCUMENT && input.memory ? input.memory : undefined;
+  const context = await buildGuideSelectedContext(input);
+  assertGuideContextFits(context.selected);
   let fullText = "";
   let captured: AgentCallMeta | null = null;
 
   for await (const chunk of runAstralAgentStreamV2(
     input.profile,
-    transits,
-    truncateChatHistory(input.messages, input.app, input.persistedUserId),
+    context.transits,
+    context.selected.messages,
     OPENAI_KEY,
-    impact,
-    intakeForChat,
-    memoryForChat,
+    context.impact,
+    context.intakeForChat,
+    context.memoryForChat,
     (meta) => { captured = meta; },
+    context.selected.snapshot,
   )) {
     fullText += chunk;
     onChunk(chunk);
@@ -281,7 +305,7 @@ export async function streamGuideTurn(
   });
 
   return {
-    transitsUsed: transits.fetchedAt,
+    transitsUsed: context.transits.fetchedAt,
     ...persisted,
   };
 }

@@ -13,7 +13,11 @@ import { createOpenAI } from "@ai-sdk/openai";
 import type { WeeklyTransits, TransitImpact } from "./transit-service.js";
 import type { Intake } from "./report/types.js";
 import { CHAT_MODEL } from "./llm/model-config.js";
-import { estimateChatContextBudget } from "./llm/context-budget.js";
+import {
+  buildHdToolsSchemaBudgetText,
+  ChatContextWindowExceededError,
+  selectChatContextForBudget,
+} from "./llm/context-budget.js";
 import {
   type AgentCallMeta,
   type AgentResult,
@@ -24,6 +28,7 @@ import {
 } from "./types/agent.js";
 import { hdTools } from "./hd-tools/index.js";
 import { buildSystemPromptV2Blocks } from "./agent-service-v2-prompt.js";
+import type { ContextBudgetSnapshot } from "./types/context-budget.js";
 
 /**
  * Maximum number of agent loop steps. One step = one LLM call (initial draft
@@ -48,19 +53,23 @@ export async function runAstralAgentV2(
   impact?: TransitImpact,
   intake?: Intake,
   memory?: string,
+  preselectedContextBudget?: ContextBudgetSnapshot,
 ): Promise<AgentResult> {
   const promptBlocks = buildSystemPromptV2Blocks(profile, transits, impact, intake, memory);
   const systemPrompt = promptBlocks.map((block) => block.content).join("");
-  const modelMessages = messages.map((m) => ({ role: m.role, content: m.content }));
-  const contextBudget = estimateChatContextBudget({
-    model: CHAT_MODEL,
-    profile,
-    transits,
-    messages,
-    impact,
-    intake,
-    memory,
-  });
+  const selected = preselectedContextBudget
+    ? { messages, snapshot: preselectedContextBudget, fitsWithinContextWindow: true }
+    : selectChatContextForBudget({
+      model: CHAT_MODEL,
+      promptBlocks,
+      messages,
+      toolsSchemaText: buildHdToolsSchemaBudgetText(),
+    });
+  if (!selected.fitsWithinContextWindow) {
+    throw new ChatContextWindowExceededError(selected.snapshot);
+  }
+  const modelMessages = selected.messages.map((m) => ({ role: m.role, content: m.content }));
+  const contextBudget = selected.snapshot;
   const openai = createOpenAIProvider(openaiKey);
   const start = Date.now();
 
@@ -97,19 +106,23 @@ export async function* runAstralAgentStreamV2(
   intake?: Intake,
   memory?: string,
   onComplete?: AgentStreamCompleteHandler,
+  preselectedContextBudget?: ContextBudgetSnapshot,
 ): AsyncGenerator<string> {
   const promptBlocks = buildSystemPromptV2Blocks(profile, transits, impact, intake, memory);
   const systemPrompt = promptBlocks.map((block) => block.content).join("");
-  const modelMessages = messages.map((m) => ({ role: m.role, content: m.content }));
-  const contextBudget = estimateChatContextBudget({
-    model: CHAT_MODEL,
-    profile,
-    transits,
-    messages,
-    impact,
-    intake,
-    memory,
-  });
+  const selected = preselectedContextBudget
+    ? { messages, snapshot: preselectedContextBudget, fitsWithinContextWindow: true }
+    : selectChatContextForBudget({
+      model: CHAT_MODEL,
+      promptBlocks,
+      messages,
+      toolsSchemaText: buildHdToolsSchemaBudgetText(),
+    });
+  if (!selected.fitsWithinContextWindow) {
+    throw new ChatContextWindowExceededError(selected.snapshot);
+  }
+  const modelMessages = selected.messages.map((m) => ({ role: m.role, content: m.content }));
+  const contextBudget = selected.snapshot;
   const openai = createOpenAIProvider(openaiKey);
   const start = Date.now();
 

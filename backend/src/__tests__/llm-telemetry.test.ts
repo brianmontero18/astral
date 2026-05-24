@@ -185,6 +185,15 @@ describe("POST /api/chat — telemetry write", () => {
           { id: "history", tokens: 80, percentOfWindow: 0.000625 },
           { id: "response", tokens: 512, percentOfWindow: 0.004 },
         ],
+        selection: {
+          selectedMessageCount: 1,
+          omittedMessageCount: 2,
+          omittedTokenEstimate: 160,
+          currentMessageTokens: 12,
+          historyTokenBudget: 120000,
+          selectedHistoryTokens: 80,
+          reason: "token_budget_omitted_history",
+        },
       },
     });
 
@@ -206,6 +215,11 @@ describe("POST /api/chat — telemetry write", () => {
     const contextBreakdown = JSON.parse(contextBreakdownJson);
     expect(contextBreakdown).toMatchObject({
       estimatedInputTokens: 200,
+      selection: {
+        selectedMessageCount: 1,
+        omittedMessageCount: 2,
+        reason: "token_budget_omitted_history",
+      },
       postCall: {
         inputTokens: 220,
         outputTokens: 80,
@@ -273,6 +287,7 @@ describe("POST /api/chat/stream — telemetry write", () => {
       _intake,
       _memory,
       onComplete,
+      _contextBudget,
     ) {
       yield "primero ";
       yield "segundo";

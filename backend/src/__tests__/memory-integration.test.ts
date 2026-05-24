@@ -153,6 +153,9 @@ describe("Memory layer — two-turn integration", () => {
       MOCK_IMPACT,
       undefined,           // intake (test user has none)
       undefined,           // memory empty → flag-gated to undefined
+      expect.objectContaining({
+        selection: expect.objectContaining({ reason: "full_history_fits" }),
+      }),
     );
 
     // The trigger is fire-and-forget: wait until the writer mock has been
@@ -210,6 +213,9 @@ describe("Memory layer — two-turn integration", () => {
       MOCK_IMPACT,
       undefined,
       SAMPLE_WRITER_NEW_FACT.memory,
+      expect.objectContaining({
+        selection: expect.objectContaining({ reason: "full_history_fits" }),
+      }),
     );
 
     // And the writer must NOT have fired again (count=2 is below cadence).
@@ -277,6 +283,9 @@ describe("Memory layer — two-turn integration", () => {
       MOCK_IMPACT,
       undefined,
       undefined,
+      expect.objectContaining({
+        selection: expect.objectContaining({ reason: "full_history_fits" }),
+      }),
     );
   });
 });

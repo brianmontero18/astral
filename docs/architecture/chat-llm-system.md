@@ -14,7 +14,7 @@ El chat de Astral mezcla 3 cosas para responder:
 2. **Datos canónicos verificables** (qué puerta forma qué canal, qué centro tiene qué puerta — tabla cerrada).
 3. **Contexto del usuario** (su perfil HD, su intake de negocio, su memoria persistente, los tránsitos de la semana).
 
-El LLM **lee** lo curado, **consulta** los datos canónicos vía tools (no los recuerda), y **aterriza** todo en el contexto del usuario para responder. El historial de la conversación se trunca a los últimos 60 mensajes — el resto vive como memoria estructurada (`users.memory_md`) que se actualiza después de cada turn.
+El LLM **lee** lo curado, **consulta** los datos canónicos vía tools (no los recuerda), y **aterriza** todo en el contexto del usuario para responder. El historial de la conversación se selecciona por token budget según el context window del modelo activo; el resto vive como memoria estructurada (`users.memory_md`) que se actualiza después de cada turn.
 
 Default actual: `gpt-4o-mini` vía Vercel AI SDK + tools HD. El legacy fetch directo y `FEATURE_CHAT_USE_TOOLS` ya no existen.
 
@@ -41,7 +41,7 @@ Default actual: `gpt-4o-mini` vía Vercel AI SDK + tools HD. El legacy fetch dir
 │     • Tránsitos de la semana (Swiss Ephemeris WASM)                  │
 │     • analyzeTransitImpact() → canales/centros activados             │
 │                                                                       │
-│  3. Trunca historial a últimos 60 mensajes (CHAT_HISTORY_TURNS)      │
+│  3. Selecciona historial por token budget model-aware                │
 │                                                                       │
 │  4. Ejecuta el agente canónico:                                      │
 │     agent-service-v2.ts (Vercel AI SDK + tools HD deterministas)     │
@@ -83,7 +83,7 @@ Default actual: `gpt-4o-mini` vía Vercel AI SDK + tools HD. El legacy fetch dir
 │  Llama a streamText({                                                │
 │    model: openai(CHAT_MODEL),    ← gpt-4o-mini por default           │
 │    system: <prompt 10K tokens>,                                      │
-│    messages: [...history (últimos 60), { user: "qué luna..." }],    │
+│    messages: [...selected history, { user: "qué luna..." }],        │
 │    tools: hdTools,                                                   │
 │    stopWhen: stepCountIs(5)      ← max 5 iteraciones agentic loop   │
 │  })                                                                  │
@@ -141,7 +141,7 @@ Default actual: `gpt-4o-mini` vía Vercel AI SDK + tools HD. El legacy fetch dir
   │                                                                  │
   │   messages: [                                                    │
   │     system: <10K tokens, mayoría cacheado>,                     │
-  │     ...últimos 60 msgs (truncated, ~6-10K tokens history),      │
+  │     ...history seleccionado por token budget,                   │
   │     { user: "ok y cómo aprovecho eso?" }                        │
   │   ]                                                              │
   │                                                                  │
@@ -164,9 +164,9 @@ Default actual: `gpt-4o-mini` vía Vercel AI SDK + tools HD. El legacy fetch dir
   ────────────────────────────────────────────────────────────
   Turn 1: ~14K tokens total
   Turn 5: ~14K tokens total (historial dentro de la ventana)
-  Turn 30: ~14K tokens total (≈60 mensajes; la ventana llega al cap)
+  Turn 30: ~14K tokens total si el historial reciente entra en budget
   ↑ memory_md preserva los hechos clave; cuando el historial supera
-    60 mensajes, se envían solo los más recientes
+    el budget del modelo, se envían solo los mensajes recientes que entran
 ```
 
 ---
@@ -181,7 +181,7 @@ Default actual: `gpt-4o-mini` vía Vercel AI SDK + tools HD. El legacy fetch dir
                               ▲
 ┌─────────────────────────────────────────────────────────────────┐
 │  CAPA 4 — Orquestación (routes/chat.ts)                          │
-│  Auth · Rate limit · Truncate history · Routing por flag         │
+│  Auth · Rate limit · Token-budget history · Routing por flag     │
 │  Persistencia · Memory writer fire-and-forget                    │
 └─────────────────────────────────────────────────────────────────┘
                               ▲
@@ -225,7 +225,7 @@ Default actual: `gpt-4o-mini` vía Vercel AI SDK + tools HD. El legacy fetch dir
 | Knowledge HD | inline 11K tokens fijos | tools que se consultan |
 | Tabla canales | inline en prompt | tool `findChannelByGates` |
 | Cache OpenAI | roto (static+dynamic mix) | activo (orden fijo) |
-| Historial enviado | completo (crece lineal) | últimos 60 (constante) |
+| Historial enviado | completo (crece lineal) | selector token-budgeted model-aware |
 | Memory | `memory_md` (correcto) | `memory_md` (igual) |
 | Anti-alucinación | nada | 5 tools + regla obligatoria |
 | Validación HD | el LLM se acuerda mal | consulta tabla canónica |
@@ -251,7 +251,7 @@ Fuentes detalladas en `docs/research/2026-05-*.md`.
 | **Tool choice = 'required'** (forzar SIEMPRE tool calls) | ❌ | Híbrido por instrucción funciona |
 | **Structured outputs (Zod)** para steps internos | ⚠️ | Los inputs de tools sí (Zod). El output final es texto natural |
 | **Memory pattern Mem0** (Living Document) | ✅ | `users.memory_md` desde antes |
-| **Sliding window de history** (30 turns) | ✅ hoy / ⚠️ siguiente iteracion | `CHAT_HISTORY_TURNS=60` (~30 pares) sigue siendo runtime actual; `docs/adr/model-aware-context-policy.md` define reemplazarlo por seleccion token-budgeted model-aware |
+| **History bounded por tokens** | ✅ | Selector token-budgeted model-aware; `CHAT_HISTORY_TURNS` queda como hard cap defensivo |
 | **Compaction de history viejo** | ⚠️ | No comprimimos historial viejo. Lo cortamos. Memory_md compensa |
 | **Threads / `conversation_id`** | ❌ | Aún no. Decidido prematuro en beta (<10 users) |
 | **Multi-provider abstraction** (Anthropic + OpenAI) | ⚠️ | Vercel AI SDK lo permite con 1 línea, no lo usamos hoy |
@@ -276,7 +276,8 @@ Fuentes detalladas en `docs/research/2026-05-*.md`.
 | Prompt builder v2 | `backend/src/agent-service-v2-prompt.ts` | Arma el system prompt con orden cache-friendly |
 | Tipos compartidos | `backend/src/types/agent.ts` | `UserProfile`, mensajes y metadata de agente |
 | Config LLM | `backend/src/llm/model-config.ts` | `CHAT_MODEL` + hash de prompt |
-| Context budget | `backend/src/llm/context-budget.ts` | Estima tokens por bloque + shape de `/api/me/chat/context-budget` |
+| Context budget | `backend/src/llm/context-budget.ts` | Selecciona historial por token budget, estima tokens por bloque + shape de `/api/me/chat/context-budget` |
+| Model registry | `backend/src/llm/model-registry.ts` | Context window, provider, tokenizer y reservas por modelo |
 | Helpers compartidos | `backend/src/agent-prompt-helpers.ts` | `buildBusinessContextBlock`, `buildUserMemoryBlock` |
 | Tools | `backend/src/hd-tools/index.ts` | 5 HD tools con Zod schemas |
 | Datos canónicos | `backend/src/hd-channels.ts` | 36 canales + helpers |
@@ -299,7 +300,7 @@ Desde el dashboard de Render, editar la env var:
 | `CHAT_MODEL` | `gpt-4o-mini` | Probar `gpt-4o` (más calidad, 17x costo) o futuro Claude |
 | `MEMORY_WRITER_MODEL` | `gpt-4o-mini` | Mantener mini casi siempre (escribe markdown, no critical) |
 | `REPORT_MODEL` | `gpt-4o-mini` | Subir si las usuarias piden mejor reporte |
-| `CHAT_HISTORY_TURNS` | `60` | Runtime actual y hard cap futuro. La politica primaria de historial queda supersedida por `docs/adr/model-aware-context-policy.md`: seleccionar por token budget/model window, no por cantidad de mensajes |
+| `CHAT_HISTORY_TURNS` | unset → `200` hard cap | Hard cap defensivo de mensajes candidatos. La política primaria selecciona por token budget/model window, no por cantidad de mensajes |
 
 Cualquier cambio requiere redeploy de Render (pero NO de código).
 
@@ -308,10 +309,14 @@ Cualquier cambio requiere redeploy de Render (pero NO de código).
 ## H — Context budget en tiempo real
 
 `GET /api/me/chat/context-budget` devuelve el estado actual del contexto de chat
-para la usuaria autenticada. El endpoint recompone el mismo prompt por bloques
-que usa el agente, estima tokens con `js-tiktoken` (`o200k_base`) y devuelve:
+para la usuaria autenticada. El endpoint usa el mismo selector model-aware que
+el agente, recompone el mismo prompt por bloques, estima tokens con
+`js-tiktoken` (`o200k_base`) y devuelve:
 `used`, `limit`, `percentUsed`, `breakdown` (`system`, `memory`, `history`,
-`tools`, `response`) y `blocks` canónicos.
+`tools`, `response`), `blocks` canónicos y `selection` (`selectedMessageCount`,
+`omittedMessageCount`, `historyTokenBudget`, `selectedHistoryTokens`, `reason`).
+`reason` distingue historial completo, hard cap defensivo, omisión por token
+budget, mensaje actual dominante y modelo desconocido.
 
 La telemetría post-call guarda el snapshot completo en
 `llm_calls.context_breakdown_json`, incluyendo calibración contra los tokens

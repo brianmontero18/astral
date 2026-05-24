@@ -5,11 +5,9 @@ Fecha: 2026-05-24
 Area: Chat, telemetria LLM, context awareness
 Bead: `astral-e2h.5`
 
-Nota 2026-05-24: `docs/adr/model-aware-context-policy.md` refina la politica de
-historial posterior a esta ADR. La medicion por bloques sigue vigente, pero
-`history` debe pasar de "mensajes despues de `CHAT_HISTORY_TURNS`" a "mensajes
-seleccionados por el selector model-aware" cuando se implemente
-`astral-e2h.12`.
+Nota 2026-05-24: `docs/adr/model-aware-context-policy.md` refino la politica de
+historial posterior a esta ADR. La medicion por bloques sigue vigente y
+`history` ahora significa "mensajes seleccionados por el selector model-aware".
 
 ## Contexto
 
@@ -21,8 +19,8 @@ respuesta si el contexto esta creciendo mal, que bloque lo esta causando y que
 accion conviene tomar.
 
 El chat canonico usa Vercel AI SDK con OpenAI (`gpt-4o-mini` por default),
-system prompt grande, tools HD deterministicas, memory markdown y ultimos 60
-mensajes. La siguiente implementacion (`astral-e2h.6`) debe medir presupuesto de
+system prompt grande, tools HD deterministicas, memory markdown e historial
+seleccionado por token budget. La siguiente implementacion (`astral-e2h.6`) debe medir presupuesto de
 contexto sin reintroducir prompts duplicados, sin depender de heuristicas
 invisibles y sin preparar un multi-provider completo antes de necesitarlo.
 
@@ -142,7 +140,7 @@ Decision para Astral:
 | `transits` | snapshot de transitos usado por chat | exacta por tokenizer local | incluida en input total |
 | `impact` | `analyzeTransitImpact()` serializado en prompt | exacta por tokenizer local | incluida en input total |
 | `tools_schema` | schemas/descripciones de `hdTools` | estimada por serializacion estable | incluida en input total |
-| `history` | mensajes seleccionados por la politica vigente (`CHAT_HISTORY_TURNS` hoy; selector model-aware segun `docs/adr/model-aware-context-policy.md` en la siguiente implementacion) | exacta por tokenizer local | incluida en input total |
+| `history` | mensajes seleccionados por `docs/adr/model-aware-context-policy.md` | exacta por tokenizer local | incluida en input total |
 | `current_message` | ultimo mensaje de la usuaria | exacta por tokenizer local | incluida en input total |
 | `response` | salida del modelo | no existe antes; usar reserva/P95 para warning | exacta via `tokens_out` |
 
@@ -204,7 +202,8 @@ Para `.7`, los thresholds deben ser multi-factor:
 
 - porcentaje estimado del context window;
 - crecimiento del historial;
-- si hubo truncation (`chat_history_truncated`);
+- si el selector omitio historial (`context_breakdown_json.selection.omittedMessageCount`)
+  y por que (`selection.reason`);
 - si `memory` o `history` dominan el budget;
 - si el ultimo post-call mostro calibration drift fuerte.
 
@@ -241,8 +240,8 @@ justifica para OpenAI V1 mientras post-call ya calibra.
 
 ### Auto-compact inmediato
 
-Prematuro. Astral ya tiene `memory_md`, truncation bounded y poca data real de
-conversaciones que toquen el limite. Primero medir, despues automatizar. El ADR
+Prematuro. Astral ya tiene `memory_md`, seleccion bounded de historial y poca
+data real de conversaciones que toquen el limite. Primero medir, despues automatizar. El ADR
 de politica de compactacion descarta ademas cualquier compactacion destructiva
 en V1.
 

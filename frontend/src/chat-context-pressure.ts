@@ -20,6 +20,20 @@ export interface ChatContextBudgetSummary {
     /** Fraction of model context window used by this block (0..1), or null when unknown. */
     percentOfWindow: number | null;
   }>;
+  selection?: {
+    selectedMessageCount: number;
+    omittedMessageCount: number;
+    omittedTokenEstimate: number;
+    currentMessageTokens: number;
+    historyTokenBudget: number;
+    selectedHistoryTokens: number;
+    reason:
+      | "full_history_fits"
+      | "history_hard_cap_omitted"
+      | "token_budget_omitted_history"
+      | "current_message_dominates"
+      | "unknown_model_conservative";
+  };
 }
 
 export interface ChatContextPressureWarning {

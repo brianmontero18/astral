@@ -130,9 +130,9 @@ describe("POST /api/chat — canonical agent path", () => {
     expect(runAstralAgentV2Mock).toHaveBeenCalledTimes(1);
   });
 
-  it("slices long history before passing it to v2", async () => {
+  it("passes more than 60 small messages to v2 when they fit the token budget", async () => {
     await createLinkedTestUser(app, "st-chat-v2-history");
-    runAstralAgentV2Mock.mockResolvedValueOnce(mockAgentResult("Respuesta con historia truncada"));
+    runAstralAgentV2Mock.mockResolvedValueOnce(mockAgentResult("Respuesta con historia token-budgeted"));
 
     const messages = Array.from({ length: 65 }, (_, index) => ({
       role: index % 2 === 0 ? "user" as const : "assistant" as const,
@@ -149,9 +149,28 @@ describe("POST /api/chat — canonical agent path", () => {
     expect(res.statusCode).toBe(200);
     expect(runAstralAgentV2Mock).toHaveBeenCalledTimes(1);
     const passedMessages = runAstralAgentV2Mock.mock.calls[0]?.[2];
-    expect(passedMessages).toHaveLength(60);
-    expect(passedMessages[0]).toEqual({ role: "assistant", content: "msg-6" });
+    expect(passedMessages).toHaveLength(65);
+    expect(passedMessages[0]).toEqual({ role: "user", content: "msg-1" });
     expect(passedMessages.at(-1)).toEqual({ role: "user", content: "msg-65" });
+  });
+
+  it("rejects a current message that is too large without calling v2", async () => {
+    await createLinkedTestUser(app, "st-chat-v2-huge-message");
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/chat",
+      headers: sessionHeaders("st-chat-v2-huge-message"),
+      payload: {
+        messages: [{ role: "user", content: "x ".repeat(140_000) }],
+      },
+    });
+
+    expect(res.statusCode).toBe(413);
+    expect(JSON.parse(res.body)).toMatchObject({
+      error: "context_window_exceeded",
+    });
+    expect(runAstralAgentV2Mock).not.toHaveBeenCalled();
   });
 });
 
@@ -593,6 +612,9 @@ describe("Freemium message limit", () => {
       expect.any(Object),
       undefined, // intake (test user has none)
       undefined, // memory (test user has none)
+      expect.objectContaining({
+        selection: expect.objectContaining({ reason: "full_history_fits" }),
+      }),
     );
     expect(getTransitSnapshotCachedMock).toHaveBeenCalledWith(
       "instant",

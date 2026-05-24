@@ -6,6 +6,11 @@
 **Audiencia**: engineer que toca la capa de AI a futuro y necesita entender el *por qué* detrás del *qué*.
 
 > Update 2026-05-24 (`astral-e2h.1`): la decisión de rollout cambió. El path v2 con tools es canónico; `agent-service.ts`, `FEATURE_CHAT_USE_TOOLS` y el fallback v1 fueron eliminados por decisión founder.
+>
+> Update 2026-05-24 (`astral-e2h.12` / `astral-e2h.13`): la ventana fija
+> `CHAT_HISTORY_TURNS=60` quedó supersedida. El runtime actual usa selector
+> model-aware por token budget; `CHAT_HISTORY_TURNS` solo sobrevive como hard
+> cap defensivo.
 
 ---
 
@@ -122,11 +127,17 @@ Lo que **sí** convertimos en tool: data tabular finita y cerrada (36 canales, 6
 
 La hipótesis de rollout 2026-05-16 asumía que v1 era un fallback seguro. El diagnóstico de Daniela mostró lo contrario: el flag quedó OFF y prod siguió usando el path sin tools, que era precisamente la causa de alucinaciones puerta/canal. La decisión founder 2026-05-24 fue eliminar el fallback para que no existan dos verdades operativas.
 
-### B.6 — ¿Por qué `CHAT_HISTORY_TURNS=60` y no compaction ahora?
+### B.6 — ¿Por qué `CHAT_HISTORY_TURNS=60` y no compaction ahora? (histórico)
 
 Mainstream (ChatGPT, Claude.ai, Cursor): 10-20 turns. Pero Astral tiene `memory_md` que captura los hechos persistentes → podemos cortar más agresivo sin perder identity. 60 = ~30 pares user/assistant = una conversación reciente completa para la beta actual.
 
 Si emerge feedback "no se acuerda lo que dije hace 5 mensajes", subir. Si el costo escala mal, bajar. Es un knob env var.
+
+Estado actual 2026-05-24: este razonamiento quedó como contexto histórico. La
+política vigente está en `docs/adr/model-aware-context-policy.md`: seleccionar
+historial por tokens según `CHAT_MODEL`, reservas de respuesta/tool-loop,
+safety margin, prompt real y mensaje actual. El knob de mensajes ya no decide
+calidad; solo limita candidatos de forma defensiva.
 
 ### B.7 — ¿Por qué prompt cache automático de OpenAI y no Anthropic explícito?
 
@@ -211,9 +222,11 @@ Si todas verde por 7 días, cerrar los beads de validación del Bloque A.
 - Si counter sube en el futuro: D (threads) > C (compaction). El patrón observado es topic-mixing, no longitud — y C no resuelve topic-mixing, solo lo comprime.
 
 **Veredicto adoptado**:
-1. Implementado: `CHAT_HISTORY_TURNS=60` + counter `chat_history_truncated` en `routes/chat.ts:68-85`.
-2. Diferido: B/C/D hasta data real (bead `astral-7i8`, P4).
-3. Foco operativo original: volver a los bugs P0. Estado actual: `astral-0b7` y `astral-bdt` están cerrados; quedan `astral-m25` y `astral-4ue` según `AGENTS.md`.
+1. Implementado originalmente: `CHAT_HISTORY_TURNS=60` + counter `chat_history_truncated`.
+2. Superseded 2026-05-24: selector model-aware por token budget +
+   `context_breakdown_json.selection` + log `chat_context_history_selected`.
+3. Diferido: B/C/D hasta data real (bead `astral-7i8`, luego superseded por ADR de compact).
+4. Foco operativo original: volver a los bugs P0. Estado actual: `astral-0b7` y `astral-bdt` están cerrados; quedan `astral-m25` y `astral-4ue` según `AGENTS.md`.
 
 **Reportes completos**: ver outputs del sparring + architect en el thread de la sesión 2026-05-16.
 

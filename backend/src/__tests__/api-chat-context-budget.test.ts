@@ -118,5 +118,29 @@ describe("GET /api/me/chat/context-budget", () => {
     expect(body.breakdown.tools).toBeGreaterThan(0);
     expect(body.breakdown.response).toBeGreaterThan(0);
     expect(body.blocks.map((block: { id: string }) => block.id)).toContain("memory");
+    expect(body.selection).toMatchObject({
+      reason: "full_history_fits",
+      omittedMessageCount: 0,
+    });
+  });
+
+  it("reports messages omitted by the defensive hard cap", async () => {
+    const userId = await createLinkedTestUser(app, "ctx-budget-hard-cap-user");
+    await seedUserMessages(app, userId, 101);
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/me/chat/context-budget",
+      headers: sessionHeaders("ctx-budget-hard-cap-user"),
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.selection).toMatchObject({
+      selectedMessageCount: 200,
+      omittedMessageCount: 2,
+      reason: "history_hard_cap_omitted",
+    });
+    expect(body.selection.omittedTokenEstimate).toBeGreaterThan(0);
   });
 });

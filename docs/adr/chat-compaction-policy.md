@@ -25,11 +25,12 @@ distintos:
 
 Astral V1 ya tiene:
 
-- `CHAT_HISTORY_TURNS=60` en el chat canonico;
+- selector model-aware de historial por token budget en el chat canonico;
 - `users.memory_md` como Living Document de facts persistentes;
 - memory writer fire-and-forget cada primer turn y cada 3 user turns;
 - `GET /api/me/chat/context-budget` para medir presion de contexto por bloque;
-- telemetria de truncation via log `chat_history_truncated`.
+- telemetria de selection via `context_breakdown_json.selection` y log
+  `chat_context_history_selected`.
 
 La pregunta de este ADR no es "como implementamos compact", sino si V1 debe
 tener una accion de compactacion y que significa sin crear deuda contra V2
@@ -46,7 +47,7 @@ Scopes separados:
 | Scope | Persistencia actual | Semantica | Puede compactarse en V1? |
 |---|---|---|---|
 | Historial visible | `chat_messages` | Registro literal de la conversacion | No destructivamente |
-| Contexto enviado al LLM | ultimos `CHAT_HISTORY_TURNS` + prompt | Working context del proximo turn | Si, por seleccion/resumen |
+| Contexto enviado al LLM | selector model-aware + prompt | Working context del proximo turn | Si, por seleccion/resumen |
 | Memoria persistente | `users.memory_md` | Facts estables sobre usuaria, negocio, preferencias | Solo por memory writer |
 | Resumen de conversacion | no existe en V1 | Episodic summary de turns viejos | No hasta tener storage separado |
 
@@ -68,9 +69,8 @@ Esto descarta el scope original de `astral-7i8`:
 
 La politica V1 queda:
 
-1. Mantener seleccion bounded de historial. Hasta implementar
-   `docs/adr/model-aware-context-policy.md`, el bound operativo es
-   `CHAT_HISTORY_TURNS=60`; despues debe ser token-budgeted y model-aware.
+1. Mantener seleccion bounded de historial via
+   `docs/adr/model-aware-context-policy.md`: token-budgeted y model-aware.
 2. Mantener `users.memory_md` como Living Document de facts persistentes,
    actualizado solo por `memory-writer.ts`.
 3. Usar `GET /api/me/chat/context-budget` para mostrar presion de contexto.
@@ -78,7 +78,7 @@ La politica V1 queda:
    compactacion destructiva.
 5. Reabrir implementacion de compact solo si telemetria real o feedback de
    usuarias muestra que el sistema pierde continuidad pese a `memory_md` y la
-   ventana de 60 mensajes.
+   ventana seleccionada por token budget.
 
 ## Politica de UX para `.7`
 
@@ -102,7 +102,9 @@ Triggers recomendados para `.7`:
 
 - `percentUsed >= 70` si `contextWindowTokens` existe;
 - `history` domina el budget de forma material;
-- `chat_history_truncated` observado en logs o expuesto por telemetria futura;
+- `context_breakdown_json.selection.omittedMessageCount > 0` con
+  `selection.reason` para distinguir hard cap defensivo de token budget, o log
+  `chat_context_history_selected`;
 - drift fuerte de calibracion si `.6` lo expone al cliente.
 
 No disparar banner por caracteres ni por numero bruto de mensajes como unico

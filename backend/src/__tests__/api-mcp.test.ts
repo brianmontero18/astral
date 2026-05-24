@@ -609,6 +609,9 @@ describe("Remote MCP route", () => {
       MOCK_IMPACT,
       { actividad: "Astrology mentor", desafio_actual: "Focus" },
       "Verified memory from database.",
+      expect.objectContaining({
+        selection: expect.objectContaining({ reason: "full_history_fits" }),
+      }),
     );
 
     const messages = await db.getChatMessages(userId);

@@ -27,6 +27,23 @@ export interface ContextBudgetBlock {
   percentOfWindow: number | null;
 }
 
+export type ContextBudgetSelectionReason =
+  | "full_history_fits"
+  | "history_hard_cap_omitted"
+  | "token_budget_omitted_history"
+  | "current_message_dominates"
+  | "unknown_model_conservative";
+
+export interface ContextBudgetSelection {
+  selectedMessageCount: number;
+  omittedMessageCount: number;
+  omittedTokenEstimate: number;
+  currentMessageTokens: number;
+  historyTokenBudget: number;
+  selectedHistoryTokens: number;
+  reason: ContextBudgetSelectionReason;
+}
+
 export interface ContextBudgetPostCall {
   inputTokens: number;
   outputTokens: number;
@@ -44,6 +61,7 @@ export interface ContextBudgetSnapshot {
   /** Fraction of model context window used by estimated total tokens (0..1), or null when unknown. */
   percentUsed: number | null;
   blocks: ContextBudgetBlock[];
+  selection: ContextBudgetSelection;
   postCall?: ContextBudgetPostCall;
 }
 
@@ -62,4 +80,5 @@ export interface ContextBudgetClientSummary {
     response: number;
   };
   blocks: ContextBudgetBlock[];
+  selection: ContextBudgetSelection;
 }

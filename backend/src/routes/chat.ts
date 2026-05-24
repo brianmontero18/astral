@@ -4,7 +4,6 @@ import type {
   UserProfile,
 } from "../types/agent.js";
 import {
-  getRecentChatMessages,
   deleteChatMessagesFrom,
   getChatMessages,
   getUser,
@@ -22,7 +21,7 @@ import {
   getMessageLimitForPlan,
 } from "../chat-limits.js";
 import {
-  CHAT_HISTORY_MAX,
+  ChatContextWindowExceededError,
   buildGuideContextBudgetSnapshot,
   runGuideTurn,
   streamGuideTurn,
@@ -52,6 +51,21 @@ export async function chatRoutes(app: FastifyInstance) {
   ) {
     const used = await getUserMessageCount(userId, now);
     return buildChatUsageSnapshot(plan, used, now);
+  }
+
+  function isAgentChatRole(role: string): role is ChatMessage["role"] {
+    return role === "user" || role === "assistant";
+  }
+
+  function toAgentChatMessages(
+    messages: Array<{ role: string; content: string }>,
+  ): ChatMessage[] {
+    return messages
+      .filter((message): message is ChatMessage => isAgentChatRole(message.role))
+      .map((message) => ({
+        role: message.role,
+        content: message.content,
+      }));
   }
 
   app.post<{ Body: ChatBody }>("/chat", async (req, reply) => {
@@ -143,6 +157,13 @@ export async function chatRoutes(app: FastifyInstance) {
         assistantMsgId: result.assistantMsgId,
       });
     } catch (err) {
+      if (err instanceof ChatContextWindowExceededError) {
+        return reply.status(err.statusCode).send({
+          error: err.code,
+          message: err.message,
+          contextBudget: summarizeContextBudgetForClient(err.contextBudget),
+        });
+      }
       const message = err instanceof Error ? err.message : String(err);
       app.log.error(message);
       return reply.status(502).send({ error: message });
@@ -249,6 +270,15 @@ export async function chatRoutes(app: FastifyInstance) {
         assistantMsgId: result.assistantMsgId,
       })}\n\n`);
     } catch (err) {
+      if (err instanceof ChatContextWindowExceededError) {
+        reply.raw.write(`data: ${JSON.stringify({
+          error: err.code,
+          message: err.message,
+          contextBudget: summarizeContextBudgetForClient(err.contextBudget),
+        })}\n\n`);
+        reply.raw.end();
+        return;
+      }
       const message = err instanceof Error ? err.message : String(err);
       app.log.error(message);
       reply.raw.write(`data: ${JSON.stringify({ error: message })}\n\n`);
@@ -318,7 +348,7 @@ export async function chatRoutes(app: FastifyInstance) {
       return reply.status(403).send({ error: "onboarding_required" });
     }
 
-    const messages = await getRecentChatMessages(currentUser.user.id, CHAT_HISTORY_MAX);
+    const messages = toAgentChatMessages(await getChatMessages(currentUser.user.id));
     const snapshot = await buildGuideContextBudgetSnapshot({
       profile: user.profile as UserProfile,
       persistedUserId: user.id,
