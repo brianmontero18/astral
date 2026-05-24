@@ -1,0 +1,22 @@
+docs/adr/openai-model-shortlist-2026.md
+  s_1970642029acbb::t_64acc20efde9cc 1-63,80-202
+  s_1970642029acbb::t_2bb8939076da79 64-79
+docs/INDEX.md
+  s_1970642029acbb::t_3ce80a82231b2c 53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "77a69ad9a36a2e1f587e83bd876f416ec1b5e9cd",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
