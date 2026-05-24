@@ -7,9 +7,11 @@ build/
 *.db-shm
 *.db-wal
 *.db.bak
+astral.db*.bak
 
 # Environment
 .env
+.env.*.bak
 .env.local
 .env.production
 
@@ -38,4 +40,4 @@ playwright-report/
 # Beads / Dolt files (added by bd init)
 .dolt/
 .beads-credential-key
-scripts/migration-backups/
+**/migration-backups/
