@@ -1,0 +1,22 @@
+docs/adr/model-selection-2026.md
+  s_1970642029acbb::t_cbee823471c2b1 1-227,232-247,249-253
+  s_1970642029acbb::t_9e966c51acec26 228-231,248
+docs/architecture/chat-llm-system.md
+  s_1970642029acbb::t_eee49fc096d5c7 300-302
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "99cb23108cc6349a3bacee1675d9d1516695177c",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
