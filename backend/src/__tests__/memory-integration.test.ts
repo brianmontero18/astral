@@ -7,7 +7,7 @@
  * Strategy: mock the LLM call sites (chat agent + memory writer) so the test
  * never touches OpenAI, but DO exercise the real route handlers, the real
  * trigger-cadence policy, the real DB column, and the real wiring between
- * `triggerMemoryWriterAsync` and `runAstralAgent`. Mocking deeper would
+ * `triggerMemoryWriterAsync` and `runAstralAgentV2`. Mocking deeper would
  * erase the integration value.
  *
  * Fire-and-forget timing is handled with `vi.waitFor` against the spy on
@@ -20,22 +20,21 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } 
 import type { FastifyInstance } from "fastify";
 import { mockSessionModule } from "./session-mock.js";
 
-const runAstralAgentMock = vi.fn();
-const runAstralAgentStreamMock = vi.fn();
+const runAstralAgentV2Mock = vi.fn();
 const runMemoryWriterMock = vi.fn();
 const analyzeTransitImpactMock = vi.fn();
 const getTransitSnapshotCachedMock = vi.fn();
 
 vi.mock("../auth/session.js", () => mockSessionModule());
 
-vi.mock("../agent-service.js", async () => {
-  const actual = await vi.importActual<typeof import("../agent-service.js")>("../agent-service.js");
-  return {
-    ...actual,
-    runAstralAgent: runAstralAgentMock,
-    runAstralAgentStream: runAstralAgentStreamMock,
-  };
-});
+vi.mock("../llm/model-config.js", () => ({
+  hashSystemPrompt: (input: string) => input.slice(0, 16),
+  CHAT_MODEL: "gpt-4o-mini",
+}));
+
+vi.mock("../agent-service-v2.js", () => ({
+  runAstralAgentV2: runAstralAgentV2Mock,
+}));
 
 vi.mock("../memory-writer.js", async () => {
   const actual = await vi.importActual<typeof import("../memory-writer.js")>("../memory-writer.js");
@@ -120,8 +119,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  runAstralAgentMock.mockReset();
-  runAstralAgentStreamMock.mockReset();
+  runAstralAgentV2Mock.mockReset();
   runMemoryWriterMock.mockReset();
   getTransitSnapshotCachedMock.mockReset();
 });
@@ -130,7 +128,7 @@ describe("Memory layer — two-turn integration", () => {
   it("turn 1 fires the writer with empty memory; turn 2 receives the merged memory in the system prompt", async () => {
     const userId = await createLinkedTestUser(app, "mem-int-2turn");
 
-    runAstralAgentMock.mockResolvedValue(SAMPLE_AGENT_REPLY);
+    runAstralAgentV2Mock.mockResolvedValue(SAMPLE_AGENT_REPLY);
     runMemoryWriterMock.mockResolvedValueOnce(SAMPLE_WRITER_NEW_FACT);
 
     // ── Turn 1 ───────────────────────────────────────────────────────────
@@ -147,7 +145,7 @@ describe("Memory layer — two-turn integration", () => {
     expect(res1.statusCode).toBe(200);
 
     // Turn 1's chat call sees the BEFORE-trigger state of memory_md, which is "".
-    expect(runAstralAgentMock).toHaveBeenLastCalledWith(
+    expect(runAstralAgentV2Mock).toHaveBeenLastCalledWith(
       expect.any(Object),  // profile
       MOCK_TRANSITS,
       expect.any(Array),
@@ -187,7 +185,7 @@ describe("Memory layer — two-turn integration", () => {
     );
 
     // ── Turn 2 ───────────────────────────────────────────────────────────
-    runAstralAgentMock.mockClear();
+    runAstralAgentV2Mock.mockClear();
     // Count is 2 → shouldTriggerMemoryWriter(2) === false. We don't queue a
     // writer mock for turn 2 — if it fires unexpectedly the test fails
     // loudly via the unmatched call.
@@ -204,7 +202,7 @@ describe("Memory layer — two-turn integration", () => {
 
     // Turn 2's prompt MUST contain the fact the writer persisted on turn 1.
     // The route reads `users.memory_md` and threads it through to the agent.
-    expect(runAstralAgentMock).toHaveBeenLastCalledWith(
+    expect(runAstralAgentV2Mock).toHaveBeenLastCalledWith(
       expect.any(Object),
       MOCK_TRANSITS,
       expect.any(Array),
@@ -224,7 +222,7 @@ describe("Memory layer — two-turn integration", () => {
     // gate emits `undefined` (not "") to keep the prompt minimal.
     const userId = await createLinkedTestUser(app, "mem-int-empty");
 
-    runAstralAgentMock.mockResolvedValue(SAMPLE_AGENT_REPLY);
+    runAstralAgentV2Mock.mockResolvedValue(SAMPLE_AGENT_REPLY);
     // Writer returns NOOP — nothing worth saving from the first message.
     runMemoryWriterMock.mockResolvedValueOnce({
       memory: "",
@@ -253,7 +251,7 @@ describe("Memory layer — two-turn integration", () => {
 
     // Subsequent turn still passes `undefined` (flag ON + empty memory →
     // route-level gate returns undefined to keep the prompt minimal).
-    runAstralAgentMock.mockClear();
+    runAstralAgentV2Mock.mockClear();
     runMemoryWriterMock.mockResolvedValueOnce({
       memory: "",
       noop: true,
@@ -271,7 +269,7 @@ describe("Memory layer — two-turn integration", () => {
       payload: { messages: [{ role: "user", content: "hola otra vez" }] },
     });
 
-    expect(runAstralAgentMock).toHaveBeenLastCalledWith(
+    expect(runAstralAgentV2Mock).toHaveBeenLastCalledWith(
       expect.any(Object),
       MOCK_TRANSITS,
       expect.any(Array),

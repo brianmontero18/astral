@@ -1,4 +1,4 @@
-import type { UserProfile } from "../agent-service.js";
+import type { UserProfile } from "../types/agent.js";
 import { extractPdfText } from "./pdf-text.js";
 import { validateActivatedGates } from "./validate.js";
 

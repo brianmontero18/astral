@@ -12,7 +12,7 @@
  * Ambos producen SVG self-contained (sin assets externos), apto para
  * embeber en HTML o convertir a PDF.
  */
-import type { UserProfile } from "../agent-service.js";
+import type { UserProfile } from "../types/agent.js";
 import {
   CENTERS,
   ALL_GATES,

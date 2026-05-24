@@ -80,7 +80,7 @@ Notación: **STATE** = `stable` · `active-dev` · `legacy-mantenido` · `gated`
   - `backend/src/routes/assets.ts` (líneas 216-374) ← endpoints
   - `frontend/src/components/OnboardingFlow.tsx` (wizard birth-data) · `frontend/src/components/MyChartReplaceView.tsx` (2 tabs)
 - **Depends on:** R9 (places autocomplete) · R10 (R2 storage para path PDF)
-- **Profile JSON shape canónico:** ver `backend/src/agent-service.ts` interface `UserProfile`.
+- **Profile JSON shape canónico:** ver `backend/src/types/agent.ts` interface `UserProfile`.
 - **Tests:** `backend/src/__tests__/bodygraph-calculate.test.ts` · `api-assets.test.ts` · `extraction-service.test.ts` · `hd-pdf/pdf-fixtures.test.ts` · `e2e/specs/onboarding-from-birth.spec.ts`
 - **State:** `active-dev` — pivot a Swiss Eph terminado (`astral-e5f`), path PDF mantenido como secundario documentado y 100% determinístico (Vision fallback eliminado en `astral-1c6`).
 - **Modelo V1 (actual):** una sola carta activa por user. `users.profile_asset_id` apunta al asset activo; re-subir pisa la anterior. **NO implementar lógica de "elegir entre múltiples cartas cargadas" — V2 (`astral-yaa`) va a re-modelar esto nativamente** (multi-profile con IDs estables, ownership por perfil, cross-profile context). Ver sección "V1 vs V2" en [`AGENTS.md`](../../AGENTS.md).
@@ -102,23 +102,24 @@ Notación: **STATE** = `stable` · `active-dev` · `legacy-mantenido` · `gated`
 - **Sub-doc:** [`bodygraph-render.md`](bodygraph-render.md)
 
 ### R5 · Chat
-- **Purpose:** Conversación con IA personalizada por bodygraph + tránsitos + memoria. Dos implementaciones live, una por flag.
+- **Purpose:** Conversación con IA personalizada por bodygraph + tránsitos + memoria. Path único con tools HD deterministas.
 - **Surface:** `POST /chat` (non-streaming) · `POST /chat/stream` (SSE) · `GET /me/messages` · `DELETE /me/messages` · `POST /messages/:id/feedback`
 - **Entry files:**
-  - `backend/src/agent-service.ts` ← v1 default (fetch directo OpenAI)
-  - `backend/src/agent-service-v2.ts` · `agent-service-v2-prompt.ts` ← v2 con Vercel AI SDK + tools (behind `FEATURE_CHAT_USE_TOOLS`)
+  - `backend/src/agent-service-v2.ts` · `agent-service-v2-prompt.ts` ← Vercel AI SDK + tools HD
+  - `backend/src/types/agent.ts` ← tipos compartidos (`UserProfile`, `ChatMessage`, telemetry meta)
+  - `backend/src/llm/model-config.ts` ← `CHAT_MODEL` + hash de prompt
   - `backend/src/hd-tools/` ← 5 tools deterministicos para v2 (anti-alucinación by design)
   - `backend/src/knowledge/` ← HD_CONDENSED + BUSINESS_PACK
   - `backend/src/routes/chat.ts`
 - **Depends on:** R3 (profile) · R6 (memory) · R7 (transits) · R8 (no, opposite — R8 consume del chat output) · R13 (telemetry)
-- **Tests:** `backend/src/__tests__/api-chat.test.ts` · `agent-service.test.ts` · `agent-service-v2.test.ts` · `e2e/specs/chat-*.spec.ts`
-- **State:** v1 `stable` (default) · v2 `gated` (rollout en curso, ver `chat-v2-rollout.md`)
+- **Tests:** `backend/src/__tests__/api-chat.test.ts` · `llm-telemetry.test.ts` · `memory-integration.test.ts` · `prompt-cache-discipline.test.ts` · `e2e/specs/chat-*.spec.ts`
+- **State:** `active-dev` — v2 canónico desde `astral-e2h.1`; legacy v1 eliminado.
 - **Sub-doc:** [`chat-llm-system.md`](chat-llm-system.md) ← lectura obligada antes de tocar AI
 
 ### R6 · Memory (Living Document)
 - **Purpose:** Persistir hechos sobre la usuaria entre conversaciones. Writer fire-and-forget que corre post-chat-turn, mergea hechos nuevos en `users.memory_md`. El system prompt del chat lo inyecta en cada turn.
 - **Surface:** No tiene endpoint propio — corre como side-effect post-stream del chat.
-- **Entry files:** `backend/src/memory-writer.ts` · consumido por `agent-service.ts` y `agent-service-v2.ts`
+- **Entry files:** `backend/src/memory-writer.ts` · consumido por `services/guide-service.ts`
 - **Depends on:** R5 (se ejecuta después de cada chat turn) · R13 (telemetry)
 - **Tests:** `backend/src/__tests__/memory-writer.test.ts`
 - **State:** `stable`
@@ -243,7 +244,7 @@ created_at, updated_at
 - **Dev local:** `npm run dev` desde la raíz (concurrently levanta backend `:3000` + frontend `:5173`).
 - **Build:** `cd backend && npm run build` (tsc) + `cd frontend && npm run build` (Vite). El backend en prod sirve el build estático del frontend (no Next.js, no SSR).
 - **Deploy:** Render (Dockerfile multi-stage Node 20 Alpine). Una imagen, un deploy.
-- **Env vars críticas:** OPENAI_API_KEY · TURSO_DATABASE_URL/AUTH_TOKEN · R2_* · SUPERTOKENS_* · GEONAMES_USERNAME · CHAT_MODEL · MEMORY_WRITER_MODEL · REPORT_MODEL · FEATURE_CHAT_USE_TOOLS · FEATURE_REMOTE_MCP
+- **Env vars críticas:** OPENAI_API_KEY · TURSO_DATABASE_URL/AUTH_TOKEN · R2_* · SUPERTOKENS_* · GEONAMES_USERNAME · CHAT_MODEL · MEMORY_WRITER_MODEL · REPORT_MODEL · FEATURE_REMOTE_MCP
 - **Schema migraciones:** idempotentes en `db.ts:initDb()` — corren al boot, validan + crean tablas/columnas faltantes.
 
 ---

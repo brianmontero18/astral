@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { UserProfile } from "../agent-service.js";
+import type { UserProfile } from "../types/agent.js";
 import { generateReport } from "../report/generate-report.js";
 
 const profile: UserProfile = {

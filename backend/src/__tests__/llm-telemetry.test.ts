@@ -9,18 +9,21 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } 
 import type { FastifyInstance } from "fastify";
 import { mockSessionModule } from "./session-mock.js";
 
-const runAstralAgentMock = vi.fn();
-const runAstralAgentStreamMock = vi.fn();
+const runAstralAgentV2Mock = vi.fn();
+const runAstralAgentStreamV2Mock = vi.fn();
 const analyzeTransitImpactMock = vi.fn();
 const getTransitSnapshotCachedMock = vi.fn();
 
 vi.mock("../auth/session.js", () => mockSessionModule());
 
-vi.mock("../agent-service.js", () => ({
-  runAstralAgent: runAstralAgentMock,
-  runAstralAgentStream: runAstralAgentStreamMock,
+vi.mock("../llm/model-config.js", () => ({
   hashSystemPrompt: (input: string) => (input ? input.slice(0, 16) : "deadbeef00000000"),
   CHAT_MODEL: "gpt-4o-mini",
+}));
+
+vi.mock("../agent-service-v2.js", () => ({
+  runAstralAgentV2: runAstralAgentV2Mock,
+  runAstralAgentStreamV2: runAstralAgentStreamV2Mock,
 }));
 
 vi.mock("../transit-service.js", async () => {
@@ -81,8 +84,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  runAstralAgentMock.mockReset();
-  runAstralAgentStreamMock.mockReset();
+  runAstralAgentV2Mock.mockReset();
+  runAstralAgentStreamV2Mock.mockReset();
   getTransitSnapshotCachedMock.mockReset();
 });
 
@@ -90,7 +93,7 @@ describe("POST /api/chat — telemetry write", () => {
   it("writes one row to llm_calls with usage and route='chat' on success", async () => {
     const userId = await createLinkedTestUser(app, "tel-chat-success");
 
-    runAstralAgentMock.mockResolvedValueOnce({
+    runAstralAgentV2Mock.mockResolvedValueOnce({
       content: "respuesta",
       usage: { promptTokens: 200, completionTokens: 100 },
       latencyMs: 875,
@@ -123,7 +126,7 @@ describe("POST /api/chat — telemetry write", () => {
   it("prices cached input tokens at the cached-input rate", async () => {
     const userId = await createLinkedTestUser(app, "tel-chat-cached-cost");
 
-    runAstralAgentMock.mockResolvedValueOnce({
+    runAstralAgentV2Mock.mockResolvedValueOnce({
       content: "respuesta cacheada",
       usage: { promptTokens: 1000, completionTokens: 100, cachedTokens: 600 },
       latencyMs: 875,
@@ -149,7 +152,7 @@ describe("POST /api/chat — telemetry write", () => {
   it("does not persist telemetry when the agent throws", async () => {
     const userId = await createLinkedTestUser(app, "tel-chat-fail");
 
-    runAstralAgentMock.mockRejectedValueOnce(new Error("synthetic upstream failure"));
+    runAstralAgentV2Mock.mockRejectedValueOnce(new Error("synthetic upstream failure"));
 
     const res = await app.inject({
       method: "POST",
@@ -169,7 +172,7 @@ describe("POST /api/chat/stream — telemetry write", () => {
   it("writes one row with route='chat_stream' when the stream finishes with usage", async () => {
     const userId = await createLinkedTestUser(app, "tel-stream-success");
 
-    runAstralAgentStreamMock.mockImplementationOnce(async function* streamWithUsage(
+    runAstralAgentStreamV2Mock.mockImplementationOnce(async function* streamWithUsage(
       _profile,
       _transits,
       _messages,
@@ -209,7 +212,7 @@ describe("POST /api/chat/stream — telemetry write", () => {
   it("does not persist telemetry when the stream never reports usage", async () => {
     const userId = await createLinkedTestUser(app, "tel-stream-no-usage");
 
-    runAstralAgentStreamMock.mockImplementationOnce(async function* streamWithoutUsage() {
+    runAstralAgentStreamV2Mock.mockImplementationOnce(async function* streamWithoutUsage() {
       yield "fragmento sin meta";
     });
 

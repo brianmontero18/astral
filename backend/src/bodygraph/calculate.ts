@@ -17,7 +17,7 @@
 import SwissEph from "swisseph-wasm";
 import { find as geoTzFind } from "geo-tz";
 import { DateTime } from "luxon";
-import type { UserProfile } from "../agent-service.js";
+import type { UserProfile } from "../types/agent.js";
 import { HD_CHANNELS, findChannelById } from "../hd-channels.js";
 import { degreeToGate, GATE_TO_CENTER } from "../hd-gates.js";
 import { deriveImpliedFields } from "../extraction-service.js";
@@ -31,7 +31,7 @@ import {
   calcAgeYears,
   toneToOrientation,
 } from "../hd-meta.js";
-import type { HdVariable } from "../agent-service.js";
+import type { HdVariable } from "../types/agent.js";
 
 const HD_DESIGN_OFFSET_DEGREES = 88;
 

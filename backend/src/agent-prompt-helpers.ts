@@ -1,11 +1,9 @@
 /**
  * Shared helpers for building the chat system prompt.
  *
- * Used by both v1 (`agent-service.ts:buildSystemPrompt`) and v2
- * (`agent-service-v2-prompt.ts:buildSystemPromptV2`). Single source of truth
- * for the optional `<business_context>` and `<user_memory>` blocks plus the
- * intake label table — every prompt builder must emit these identically so
- * they share cache prefixes when the rest of the prompt allows it.
+ * Used by `agent-service-v2-prompt.ts`. Single source of truth for the
+ * optional `<business_context>` and `<user_memory>` blocks plus the intake
+ * label table.
  */
 
 import type { Intake } from "./report/types.js";

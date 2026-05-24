@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { getUser, getReport, getReportById, saveReport, updateReportContent, createShareToken, getShareByToken, cleanupExpiredShares } from "../db.js";
 import { generateReport, computeProfileHash } from "../report/generate-report.js";
 import { renderReportPDF } from "../report/pdf-renderer.js";
-import type { UserProfile } from "../agent-service.js";
+import type { UserProfile } from "../types/agent.js";
 import type { Intake, ReportTier, DesignReport } from "../report/types.js";
 import { type AuthenticatedRequest } from "../auth/session.js";
 import {

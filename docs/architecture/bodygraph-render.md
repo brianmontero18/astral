@@ -23,7 +23,7 @@
                                           ▼
                          ┌─────────────────────────────────────┐
                          │ DTO — UserProfile (contrato)         │
-                         │ backend/src/agent-service.ts         │
+                         │ backend/src/types/agent.ts           │
                          │ TODO lo que un consumidor necesita,  │
                          │ ya derivado y nombrado.              │
                          └────────────┬────────────────────────┘
@@ -33,7 +33,7 @@
    ┌──────────────────┐   ┌──────────────────┐   ┌──────────────────┐
    │ CAPA 2a — RENDER │   │ CAPA 2b — RENDER │   │ CAPA 2c — CHAT/  │
    │ SVG              │   │ PDF              │   │ AI               │
-   │ render-svg.ts +  │   │ render-pdf.tsx   │   │ agent-service*   │
+   │ render-svg.ts +  │   │ render-pdf.tsx   │   │ agent-service-v2 │
    │ svg-geometry.ts  │   │ (@react-pdf)     │   │ (system prompt)  │
    │ + planet-symbols │   │                  │   │                  │
    └──────────────────┘   └──────────────────┘   └──────────────────┘

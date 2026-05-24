@@ -80,7 +80,7 @@ Archivos relevantes:
 - quotas por plan;
 - parsing de `transitContext`;
 - calculo de transitos e impact;
-- seleccion de agente v1/v2 por `FLAGS.CHAT_USE_TOOLS`;
+- ejecución del agente canónico (`agent-service-v2.ts`);
 - persistencia de mensajes;
 - telemetry en `llm_calls`;
 - memory writer fire-and-forget;
@@ -94,7 +94,7 @@ Puntos de extraccion claros:
 - `persistLlmCall`
 - `triggerMemoryWriterAsync`
 - el bloque repetido de carga `profile/intake/memory/plan`
-- el bloque `runAgent` / `runAgentStream`
+- el bloque `runAstralAgentV2` / `runAstralAgentStreamV2`
 
 MCP necesita usar casi todo eso, excepto:
 
@@ -107,9 +107,9 @@ MCP necesita usar casi todo eso, excepto:
 Archivos relevantes:
 
 - `backend/src/routes/chat.ts`
-- `backend/src/agent-service.ts`
 - `backend/src/agent-service-v2.ts`
 - `backend/src/agent-service-v2-prompt.ts`
+- `backend/src/types/agent.ts`
 - `backend/src/agent-prompt-helpers.ts`
 - `backend/src/memory-writer.ts`
 - `backend/src/transit-service.ts`
@@ -337,7 +337,7 @@ Likely files:
 Acceptance:
 
 - existing chat tests pass unchanged or with minimal test-only import updates;
-- v1/v2 flag behavior unchanged;
+- agent path canónico sin flag;
 - SSE response shape unchanged;
 - memory writer still fires only for web persisted mode;
 - no MCP code yet.

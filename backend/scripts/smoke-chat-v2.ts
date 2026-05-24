@@ -23,8 +23,8 @@ import {
   runAstralAgentStreamV2,
 } from "../src/agent-service-v2.js";
 import { buildSystemPromptV2 } from "../src/agent-service-v2-prompt.js";
-import type { UserProfile } from "../src/agent-service.js";
-import type { AgentCallMeta } from "../src/agent-service.js";
+import type { UserProfile } from "../src/types/agent.js";
+import type { AgentCallMeta } from "../src/types/agent.js";
 import type { WeeklyTransits } from "../src/transit-service.js";
 
 const openaiKey = process.env.OPENAI_API_KEY;

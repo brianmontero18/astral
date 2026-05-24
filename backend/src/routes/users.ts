@@ -38,7 +38,7 @@ import {
 } from "../auth/admin-invite-email.js";
 import { getMessageLimitForPlan } from "../chat-limits.js";
 import { deriveImpliedFields } from "../extraction-service.js";
-import type { UserProfile } from "../agent-service.js";
+import type { UserProfile } from "../types/agent.js";
 
 const ALLOWED_USER_PLANS = new Set<AppUserPlan>(["free", "basic", "premium"]);
 const ALLOWED_USER_ROLES = new Set<AppUserRole>(["user", "admin"]);

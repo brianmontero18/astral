@@ -7,9 +7,9 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { buildSystemPrompt, type UserProfile } from "../agent-service.js";
 import { buildSystemPromptV2 } from "../agent-service-v2-prompt.js";
 import type { Intake } from "../report/types.js";
+import type { UserProfile } from "../types/agent.js";
 import type { TransitImpact, WeeklyTransits } from "../transit-service.js";
 
 const BASE_PROFILE: UserProfile = {
@@ -123,19 +123,16 @@ function expectDynamicBlocksAfterContext(prompt: string) {
   }
 }
 
-describe.each([
-  ["v1", buildSystemPrompt],
-  ["v2", buildSystemPromptV2],
-] as const)("buildSystemPrompt %s cache prefix", (_label, buildPrompt) => {
+describe("buildSystemPromptV2 cache prefix", () => {
   it("keeps the full pre-Contexto prefix byte-stable across dynamic inputs", () => {
-    const promptA = buildPrompt(BASE_PROFILE, TRANSITS_A);
-    const promptB = buildPrompt(OTHER_PROFILE, TRANSITS_B, IMPACT, INTAKE, MEMORY);
+    const promptA = buildSystemPromptV2(BASE_PROFILE, TRANSITS_A);
+    const promptB = buildSystemPromptV2(OTHER_PROFILE, TRANSITS_B, IMPACT, INTAKE, MEMORY);
 
     expect(staticPrefix(promptA)).toBe(staticPrefix(promptB));
   });
 
   it("places dynamic prompt blocks only after static knowledge and # Contexto", () => {
-    const prompt = buildPrompt(BASE_PROFILE, TRANSITS_A, IMPACT, INTAKE, MEMORY);
+    const prompt = buildSystemPromptV2(BASE_PROFILE, TRANSITS_A, IMPACT, INTAKE, MEMORY);
 
     expect(prompt.indexOf("# Marco de Conocimiento")).toBeGreaterThan(0);
     expect(prompt.indexOf("# Contexto")).toBeGreaterThan(

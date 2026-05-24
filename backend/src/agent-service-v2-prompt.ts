@@ -1,11 +1,9 @@
 /**
  * System prompt builder for the v2 chat path (Vercel AI SDK + HD tools).
  *
- * Sibling of `agent-service.ts:buildSystemPrompt` (v1). The split exists
- * because v2 trims content that is now covered by tools: the canonical
- * channels table and a couple of detection rules. Everything else
- * (interpretive knowledge: types, profiles, centers, variables, business
- * pack) stays inline because the LLM consumes it, not consults it.
+ * The prompt trims content covered by deterministic tools: the canonical
+ * channels table and a couple of detection rules. Everything else stays
+ * inline because the LLM consumes it, not consults it.
  *
  * Cache-friendly order is preserved (all static blocks first, all dynamic
  * blocks last) — this matches the Fase 1 layout in v1 so OpenAI's automatic
@@ -14,7 +12,7 @@
 
 import type { WeeklyTransits, TransitImpact } from "./transit-service.js";
 import type { Intake } from "./report/types.js";
-import type { UserProfile } from "./agent-service.js";
+import type { UserProfile } from "./types/agent.js";
 import { HD_CONDENSED } from "./knowledge/hd-condensed.js";
 import { BUSINESS_PACK_V1 } from "./knowledge/business-pack-v1.js";
 import {

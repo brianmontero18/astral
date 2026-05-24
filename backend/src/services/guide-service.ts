@@ -1,13 +1,11 @@
 import type { FastifyInstance } from "fastify";
 
+import { hashSystemPrompt } from "../llm/model-config.js";
 import {
-  hashSystemPrompt,
-  runAstralAgent,
-  runAstralAgentStream,
   type AgentCallMeta,
   type ChatMessage,
   type UserProfile,
-} from "../agent-service.js";
+} from "../types/agent.js";
 import {
   runAstralAgentV2,
   runAstralAgentStreamV2,
@@ -167,8 +165,7 @@ export async function runGuideTurn(
   });
   const intakeForChat = FLAGS.CHAT_INTAKE_CONTEXT && input.intake ? input.intake : undefined;
   const memoryForChat = FLAGS.MEMORY_LIVING_DOCUMENT && input.memory ? input.memory : undefined;
-  const runAgent = FLAGS.CHAT_USE_TOOLS ? runAstralAgentV2 : runAstralAgent;
-  const result = await runAgent(
+  const result = await runAstralAgentV2(
     input.profile,
     transits,
     truncateChatHistory(input.messages, input.app, input.persistedUserId),
@@ -222,11 +219,7 @@ export async function streamGuideTurn(
   let fullText = "";
   let captured: AgentCallMeta | null = null;
 
-  const runAgentStream = FLAGS.CHAT_USE_TOOLS
-    ? runAstralAgentStreamV2
-    : runAstralAgentStream;
-
-  for await (const chunk of runAgentStream(
+  for await (const chunk of runAstralAgentStreamV2(
     input.profile,
     transits,
     truncateChatHistory(input.messages, input.app, input.persistedUserId),

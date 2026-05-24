@@ -22,7 +22,7 @@
  *    zero per-call data. Only the user-message block varies between calls.
  */
 
-import type { AgentCallMeta, ChatMessage, LlmUsage } from "./agent-service.js";
+import type { AgentCallMeta, ChatMessage, LlmUsage } from "./types/agent.js";
 
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 const WRITER_MODEL = process.env.MEMORY_WRITER_MODEL ?? "gpt-4o-mini";

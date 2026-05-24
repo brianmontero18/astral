@@ -5,6 +5,8 @@
 **Trigger**: caso Daniela (ver `bug-investigation-daniela-2026-05.md`).
 **Audiencia**: engineer que toca la capa de AI a futuro y necesita entender el *por qué* detrás del *qué*.
 
+> Update 2026-05-24 (`astral-e2h.1`): la decisión de rollout cambió. El path v2 con tools es canónico; `agent-service.ts`, `FEATURE_CHAT_USE_TOOLS` y el fallback v1 fueron eliminados por decisión founder.
+
 ---
 
 ## TL;DR de las decisiones
@@ -12,7 +14,7 @@
 1. **El modelo NO era el problema** — la arquitectura sí. Con tools deterministas, `gpt-4o-mini` iguala la accuracy de `gpt-4o` a 1/22 del costo.
 2. **No post-output validator** — descartamos el spec del architect (50 líneas + parser regex + retry loop) a favor de **tool use por diseño** (el LLM consulta antes de afirmar).
 3. **Sin migrar a Claude/Anthropic todavía** — el ahorro de prompt caching de Anthropic se ve a escala. En beta con 10 users no compensa el cambio de provider.
-4. **Feature flag `FEATURE_CHAT_USE_TOOLS=false` por default** — rollout gradual sin redeploy. v1 (legacy) sigue vivo como fallback de 1 línea.
+4. **Sin feature flag de chat tools** — `agent-service-v2.ts` es el único path. Mantener v1 confundía diagnóstico y permitió el caso Daniela en prod.
 5. **Knowledge curado queda inline; datos canónicos van como tools** — knowledge interpretativo (qué significa ser Generador) lo consume el LLM; datos discretos verificables (qué puerta forma qué canal) los consulta.
 
 ---
@@ -116,11 +118,9 @@ Si convirtiéramos "qué significa ser Generador" en tool, el LLM tendría que l
 
 Lo que **sí** convertimos en tool: data tabular finita y cerrada (36 canales, 64 puertas → 9 centros).
 
-### B.5 — ¿Por qué dejamos el path v1 vivo?
+### B.5 — ¿Por qué ya no dejamos el path v1 vivo?
 
-Rollback: en producción Render, si v2 explota por algo no anticipado, `FEATURE_CHAT_USE_TOOLS=false` + redeploy de 30 segundos vuelve al path probado.
-
-Costo de mantener v1: ~250 líneas de código que nadie toca. Aceptable durante el rollout (1-2 semanas). Se borra cuando v2 esté en 100% y estable por 14 días.
+La hipótesis de rollout 2026-05-16 asumía que v1 era un fallback seguro. El diagnóstico de Daniela mostró lo contrario: el flag quedó OFF y prod siguió usando el path sin tools, que era precisamente la causa de alucinaciones puerta/canal. La decisión founder 2026-05-24 fue eliminar el fallback para que no existan dos verdades operativas.
 
 ### B.6 — ¿Por qué `CHAT_HISTORY_TURNS=60` y no compaction ahora?
 
@@ -160,7 +160,7 @@ Para Astral en beta con un solo provider (OpenAI), automático es suficiente. Cu
 | `astral-bdt` | P0 | Bug B: `PUT /users/:id` admin permite escribir profile de otro user |
 | `astral-m25` | P0 | Data fix manual para Daniela, Lucia, Agos, Jez, Mayra |
 | `astral-typ` | P0 | Cerrar Fase 1 una vez validada en prod con cached_tokens reales |
-| `astral-owv` | P1 | Cerrar Fase 2 una vez `FEATURE_CHAT_USE_TOOLS=true` validado en prod |
+| `astral-e2h.1` | P0 | Eliminar v1 + flag; v2 canónico |
 | `astral-aqh` | P1 | Auto-scroll del chat durante streaming (review Daniela #6) |
 | `astral-7jk` | P2 | Cambiar carta sin re-subir (review Daniela #13) |
 | TBD | P2 | Multi-provider abstraction (Anthropic + OpenAI swap por env var) |
@@ -172,7 +172,7 @@ Para Astral en beta con un solo provider (OpenAI), automático es suficiente. Cu
 
 ## E — Métricas para validar el refactor en producción
 
-Una vez `FEATURE_CHAT_USE_TOOLS=true` por 7 días, los thresholds:
+Con el path canónico en producción, los thresholds:
 
 | Métrica | Target | Cómo medir |
 |---|---|---|
@@ -182,7 +182,7 @@ Una vez `FEATURE_CHAT_USE_TOOLS=true` por 7 días, los thresholds:
 | Tasa de feedback negativo HD | 0 reportes en 7 días | `chat_messages.feedback_thumb='down'` + revisión manual de `feedback_note` |
 | Smoke `npm run smoke:chat-v2 -- 5` | 5/5 sostenido en 3 corridas distintas del día | exit code |
 
-Si todas verde por 7 días, cerrar `astral-typ` y `astral-owv`. Empezar Etapa Cleanup del legacy v1.
+Si todas verde por 7 días, cerrar los beads de validación del Bloque A.
 
 ---
 
@@ -220,4 +220,4 @@ Si todas verde por 7 días, cerrar `astral-typ` y `astral-owv`. Empezar Etapa Cl
 2. **No mezcles static y dynamic** en el system prompt — rompe OpenAI cache.
 3. **No agregues content al system prompt** sin medir tokens_in antes/después. Cada KB extra son centavos al día y dólares al mes a escala.
 4. **Si el LLM alucina algo verificable**, la respuesta default es **agregar un tool**, no agregar reglas al prompt. Las reglas son frágiles, los tools son determinísticos.
-5. **Si v1 muere por cualquier razón**, flippeá `FEATURE_CHAT_USE_TOOLS=false` y reportá. El path v2 cubre todo lo que v1 hace.
+5. **No reintroduzcas fallback v1**. Si el path canónico falla, arreglá v2 o escalá; el rollback por `FEATURE_CHAT_USE_TOOLS=false` ya no existe.

@@ -45,8 +45,8 @@
 ### Modelo de IA (chat)
 
 - Default: `gpt-4o-mini` via env var `CHAT_MODEL` (configurable desde Render dashboard sin redeploy de código).
-- Path v1 (legacy, `agent-service.ts`): fetch directo OpenAI. Default activo.
-- Path v2 (`agent-service-v2.ts`): Vercel AI SDK + 5 HD tools. Behind `FEATURE_CHAT_USE_TOOLS=true`.
+- Path canónico: `agent-service-v2.ts` + Vercel AI SDK + 5 HD tools deterministas.
+- Legacy `agent-service.ts` y `FEATURE_CHAT_USE_TOOLS` fueron eliminados en `astral-e2h.1`; no reintroducir fallback v1.
 - Antes de cambiar el system prompt: `cd backend && npm run smoke:chat-v2 -- 5` para tener baseline.
 - **No mezclar** static y dynamic en el system prompt — rompe el cache automático de OpenAI.
 - **No agregar** content al system prompt sin medir `tokens_in` antes/después.
@@ -54,7 +54,7 @@
 
 ### Deploy
 
-- Render. `FEATURE_CHAT_USE_TOOLS=false` por default. Flippear cuando el smoke pase 5/5 sostenido.
+- Render. Chat usa tools siempre; rollback del path v1 ya no existe.
 - Env vars de modelos (`CHAT_MODEL`, `MEMORY_WRITER_MODEL`, `REPORT_MODEL`, `EXTRACTION_MODEL`) cambiables desde dashboard.
 - Rollback de cualquier feature = 1 var de env, sin redeploy de código.
 

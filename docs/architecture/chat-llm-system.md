@@ -1,6 +1,6 @@
 # Cómo funciona el chat con LLM en Astral
 
-**Último update**: 2026-05-16 (post-refactor `feature/refactor-design-ai-model`).
+**Último update**: 2026-05-24 (`astral-e2h.1`: v2 canónico, legacy eliminado).
 **Audiencia**: PMs, founders, engineers nuevos al proyecto.
 **Objetivo**: entender qué pasa cada vez que una usuaria manda un mensaje al chat, dónde gastamos tokens, qué cacheamos, y por qué.
 
@@ -16,7 +16,7 @@ El chat de Astral mezcla 3 cosas para responder:
 
 El LLM **lee** lo curado, **consulta** los datos canónicos vía tools (no los recuerda), y **aterriza** todo en el contexto del usuario para responder. El historial de la conversación se trunca a los últimos 60 mensajes — el resto vive como memoria estructurada (`users.memory_md`) que se actualiza después de cada turn.
 
-Default actual: `gpt-4o-mini` vía OpenAI directo. Listo para flippear a tool use via Vercel AI SDK con `FEATURE_CHAT_USE_TOOLS=true`.
+Default actual: `gpt-4o-mini` vía Vercel AI SDK + tools HD. El legacy fetch directo y `FEATURE_CHAT_USE_TOOLS` ya no existen.
 
 ---
 
@@ -43,9 +43,8 @@ Default actual: `gpt-4o-mini` vía OpenAI directo. Listo para flippear a tool us
 │                                                                       │
 │  3. Trunca historial a últimos 60 mensajes (CHAT_HISTORY_TURNS)      │
 │                                                                       │
-│  4. Routing por feature flag:                                        │
-│     FEATURE_CHAT_USE_TOOLS=false → v1 (legacy, default actual)       │
-│     FEATURE_CHAT_USE_TOOLS=true  → v2 (Vercel AI SDK + tools)        │
+│  4. Ejecuta el agente canónico:                                      │
+│     agent-service-v2.ts (Vercel AI SDK + tools HD deterministas)     │
 └──────────────────────────────┬──────────────────────────────────────┘
                                │
                                ▼
@@ -258,7 +257,7 @@ Fuentes detalladas en `docs/research/2026-05-*.md`.
 | **Batch API para tareas async** (memory writer) | ❌ | Memory writer corre síncrono fire-and-forget |
 | **Streaming SSE** | ✅ | Mantenido en v2 |
 | **Cost telemetry per route** | ✅ | `llm_calls` con `cached_tokens` persistido |
-| **Feature flag para rollback sin redeploy** | ✅ | `FEATURE_CHAT_USE_TOOLS` |
+| **Feature flag para rollback sin redeploy** | ❌ | Eliminado por decisión founder en `astral-e2h.1` |
 
 **Veredicto**: ~85% del estado del arte 2026 para una app pequeña en beta. Las gaps están todas trackeadas como beads.
 
@@ -268,10 +267,11 @@ Fuentes detalladas en `docs/research/2026-05-*.md`.
 
 | Capa | Archivo | Qué hace |
 |---|---|---|
-| Orquestación | `backend/src/routes/chat.ts` | Recibe HTTP, branchea por flag, persiste |
+| Orquestación | `backend/src/routes/chat.ts` | Recibe HTTP y delega en `services/guide-service.ts` |
 | Agent v2 | `backend/src/agent-service-v2.ts` | Wrapper sobre Vercel AI SDK con HD tools |
 | Prompt builder v2 | `backend/src/agent-service-v2-prompt.ts` | Arma el system prompt con orden cache-friendly |
-| Agent v1 (legacy) | `backend/src/agent-service.ts` | Fetch directo OpenAI, sin tools |
+| Tipos compartidos | `backend/src/types/agent.ts` | `UserProfile`, mensajes y metadata de agente |
+| Config LLM | `backend/src/llm/model-config.ts` | `CHAT_MODEL` + hash de prompt |
 | Helpers compartidos | `backend/src/agent-prompt-helpers.ts` | `buildBusinessContextBlock`, `buildUserMemoryBlock` |
 | Tools | `backend/src/hd-tools/index.ts` | 5 HD tools con Zod schemas |
 | Datos canónicos | `backend/src/hd-channels.ts` | 36 canales + helpers |
@@ -281,7 +281,7 @@ Fuentes detalladas en `docs/research/2026-05-*.md`.
 | Knowledge | `backend/src/knowledge/detection-rules.ts` | 13 reglas (v1) / 9 (v2) anti-alucinación |
 | Memory | `backend/src/memory-writer.ts` | Living Document writer (gpt-4o-mini, fire-and-forget) |
 | Tránsitos | `backend/src/transit-service.ts` | Swiss Ephemeris + `analyzeTransitImpact` |
-| Flags | `backend/src/config/flags.ts` | `FEATURE_CHAT_USE_TOOLS` y otros |
+| Flags | `backend/src/config/flags.ts` | Flags restantes (`FEATURE_REMOTE_MCP`, memory, telemetry, intake) |
 
 ---
 
@@ -295,7 +295,6 @@ Desde el dashboard de Render, editar la env var:
 | `MEMORY_WRITER_MODEL` | `gpt-4o-mini` | Mantener mini casi siempre (escribe markdown, no critical) |
 | `REPORT_MODEL` | `gpt-4o-mini` | Subir si las usuarias piden mejor reporte |
 | `EXTRACTION_MODEL` | `gpt-4o` | **Fallback Vision only**. El flujo real (PDF de MyHumanDesign / Genetic Matrix) es 100% determinístico vía `pdfjs-dist` + parser custom — no usa LLM. Esta var existe por si llega un asset legacy / no-PDF |
-| `FEATURE_CHAT_USE_TOOLS` | `false` | `true` para activar el path v2 con tools |
 | `CHAT_HISTORY_TURNS` | `60` | Bajar si los costos suben; reabrir compaction si hay quejas de "no se acuerda" |
 
 Cualquier cambio requiere redeploy de Render (pero NO de código).
@@ -317,10 +316,10 @@ WHERE created_at > datetime('now', '-7 day')
 GROUP BY route;
 ```
 
-Target post-rollout v2 (`FEATURE_CHAT_USE_TOOLS=true`):
+Target del path canónico con tools:
 - `cache_hit_rate` para `chat_stream`: > 0.5 (turn 2+)
 - `avg_latency_ms` para `chat_stream`: < 20,000 ms (incluyendo 1-2 tool calls)
-- `total_cost_usd` semanal: -40% a -70% vs v1
+- `total_cost_usd` semanal: -40% a -70% vs baseline pre-tools
 
 ---
 

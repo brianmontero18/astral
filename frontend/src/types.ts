@@ -1,7 +1,7 @@
 /**
  * Shared Types
  *
- * Estos tipos deben mantenerse sincronizados con el backend (astral-backend/src/agent-service.ts).
+ * Estos tipos deben mantenerse sincronizados con `backend/src/types/agent.ts`.
  * Claude Code: no modificar sin actualizar también el backend.
  */
 

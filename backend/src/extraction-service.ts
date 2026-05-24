@@ -13,7 +13,7 @@
  * producía data incierta. Para PDFs imagen-only no aceptamos extracción.
  */
 
-import type { UserProfile } from "./agent-service.js";
+import type { UserProfile } from "./types/agent.js";
 import { HD_CHANNELS } from "./hd-channels.js";
 import { parseGeneticMatrixText } from "./hd-pdf/genetic-matrix.js";
 import { parseMyHumanDesignText } from "./hd-pdf/myhumandesign.js";

@@ -10,8 +10,6 @@ import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest
 import type { FastifyInstance } from "fastify";
 import { mockSessionModule } from "./session-mock.js";
 
-const runAstralAgentMock = vi.fn();
-const runAstralAgentStreamMock = vi.fn();
 const runAstralAgentV2Mock = vi.fn();
 const runAstralAgentStreamV2Mock = vi.fn();
 const analyzeTransitImpactMock = vi.fn();
@@ -28,9 +26,7 @@ function mockAgentResult(content: string) {
 
 vi.mock("../auth/session.js", () => mockSessionModule());
 
-vi.mock("../agent-service.js", () => ({
-  runAstralAgent: runAstralAgentMock,
-  runAstralAgentStream: runAstralAgentStreamMock,
+vi.mock("../llm/model-config.js", () => ({
   hashSystemPrompt: (s: string) => s.slice(0, 16),
   CHAT_MODEL: "gpt-4o-mini",
 }));
@@ -58,7 +54,6 @@ const {
   sessionHeaders,
 } = await import("./helpers.js");
 const { getChatMessages } = await import("../db.js");
-const { FLAGS } = await import("../config/flags.js");
 
 let app: FastifyInstance;
 
@@ -102,13 +97,10 @@ beforeAll(() => {
 });
 
 afterEach(() => {
-  runAstralAgentMock.mockReset();
-  runAstralAgentStreamMock.mockReset();
   runAstralAgentV2Mock.mockReset();
   runAstralAgentStreamV2Mock.mockReset();
   getTransitSnapshotCachedMock.mockReset();
   analyzeTransitImpactMock.mockReset();
-  (FLAGS as { CHAT_USE_TOOLS: boolean }).CHAT_USE_TOOLS = false;
 
   getTransitSnapshotCachedMock.mockResolvedValue(MOCK_TRANSIT_SNAPSHOT);
   analyzeTransitImpactMock.mockReturnValue({
@@ -119,16 +111,15 @@ afterEach(() => {
   });
 });
 
-describe("POST /api/chat — agent route selection", () => {
-  it("routes to v2 when FEATURE_CHAT_USE_TOOLS is enabled", async () => {
-    (FLAGS as { CHAT_USE_TOOLS: boolean }).CHAT_USE_TOOLS = true;
-    await createLinkedTestUser(app, "st-chat-v2-route");
+describe("POST /api/chat — canonical agent path", () => {
+  it("routes to v2 without a feature flag", async () => {
+    await createLinkedTestUser(app, "st-chat-v2-canonical");
     runAstralAgentV2Mock.mockResolvedValueOnce(mockAgentResult("Respuesta v2"));
 
     const res = await app.inject({
       method: "POST",
       url: "/api/chat",
-      headers: sessionHeaders("st-chat-v2-route"),
+      headers: sessionHeaders("st-chat-v2-canonical"),
       payload: {
         messages: [{ role: "user", content: "Necesito precision HD" }],
       },
@@ -137,11 +128,9 @@ describe("POST /api/chat — agent route selection", () => {
     expect(res.statusCode).toBe(200);
     expect(JSON.parse(res.body).reply).toBe("Respuesta v2");
     expect(runAstralAgentV2Mock).toHaveBeenCalledTimes(1);
-    expect(runAstralAgentMock).not.toHaveBeenCalled();
   });
 
-  it("slices long history before passing it to the selected v2 agent", async () => {
-    (FLAGS as { CHAT_USE_TOOLS: boolean }).CHAT_USE_TOOLS = true;
+  it("slices long history before passing it to v2", async () => {
     await createLinkedTestUser(app, "st-chat-v2-history");
     runAstralAgentV2Mock.mockResolvedValueOnce(mockAgentResult("Respuesta con historia truncada"));
 
@@ -163,7 +152,6 @@ describe("POST /api/chat — agent route selection", () => {
     expect(passedMessages).toHaveLength(60);
     expect(passedMessages[0]).toEqual({ role: "assistant", content: "msg-6" });
     expect(passedMessages.at(-1)).toEqual({ role: "user", content: "msg-65" });
-    expect(runAstralAgentMock).not.toHaveBeenCalled();
   });
 });
 
@@ -519,7 +507,7 @@ describe("Chat history routes", () => {
       });
       expect(JSON.parse(afterUpgradeRes.body).messages).toHaveLength(usedBeforeUpgrade * 2);
 
-      runAstralAgentMock.mockResolvedValueOnce(mockAgentResult("Seguimos sin perder contexto"));
+      runAstralAgentV2Mock.mockResolvedValueOnce(mockAgentResult("Seguimos sin perder contexto"));
 
       const sendRes = await app.inject({
         method: "POST",
@@ -561,7 +549,7 @@ describe("Chat history routes", () => {
 describe("Freemium message limit", () => {
   it("POST /api/chat returns a persisted reply for the linked current user", async () => {
     const userId = await createLinkedTestUser(app, "st-chat-happy");
-    runAstralAgentMock.mockResolvedValueOnce(mockAgentResult("Respuesta persistida"));
+    runAstralAgentV2Mock.mockResolvedValueOnce(mockAgentResult("Respuesta persistida"));
 
     const res = await app.inject({
       method: "POST",
@@ -596,8 +584,8 @@ describe("Freemium message limit", () => {
         expect.objectContaining({ role: "assistant", content: "Respuesta persistida" }),
       ],
     });
-    expect(runAstralAgentMock).toHaveBeenCalledTimes(1);
-    expect(runAstralAgentMock).toHaveBeenCalledWith(
+    expect(runAstralAgentV2Mock).toHaveBeenCalledTimes(1);
+    expect(runAstralAgentV2Mock).toHaveBeenCalledWith(
       expect.any(Object),
       MOCK_TRANSITS,
       [{ role: "user", content: "¿Qué necesito ver hoy?" }],
@@ -617,7 +605,7 @@ describe("Freemium message limit", () => {
 
   it("POST /api/chat/stream persists the streamed answer for the linked current user", async () => {
     await createLinkedTestUser(app, "st-chat-stream-happy");
-    runAstralAgentStreamMock.mockImplementationOnce(async function* streamReply() {
+    runAstralAgentStreamV2Mock.mockImplementationOnce(async function* streamReply() {
       yield "Respuesta ";
       yield "streaming";
     });
@@ -661,7 +649,7 @@ describe("Freemium message limit", () => {
       targetAt,
       label: "Tránsito seleccionado",
     });
-    runAstralAgentStreamMock.mockImplementationOnce(async function* streamReply() {
+    runAstralAgentStreamV2Mock.mockImplementationOnce(async function* streamReply() {
       yield "Respuesta con contexto";
     });
 
@@ -700,7 +688,7 @@ describe("Freemium message limit", () => {
       targetAt,
       label: "Panorama",
     });
-    runAstralAgentStreamMock.mockImplementationOnce(async function* streamReply() {
+    runAstralAgentStreamV2Mock.mockImplementationOnce(async function* streamReply() {
       yield "Respuesta semanal";
     });
 
@@ -732,7 +720,7 @@ describe("Freemium message limit", () => {
 
   it("does not persist duplicate messages when the backend agent fails", async () => {
     await createLinkedTestUser(app, "st-chat-agent-fail");
-    runAstralAgentMock.mockRejectedValueOnce(new Error("synthetic upstream failure"));
+    runAstralAgentV2Mock.mockRejectedValueOnce(new Error("synthetic upstream failure"));
 
     const res = await app.inject({
       method: "POST",
@@ -984,7 +972,7 @@ describe("Chat history truncation semantics", () => {
       ]);
 
       const regeneratedReply = `branch regenerated for ${plan}`;
-      runAstralAgentMock.mockResolvedValueOnce(mockAgentResult(regeneratedReply));
+      runAstralAgentV2Mock.mockResolvedValueOnce(mockAgentResult(regeneratedReply));
 
       const sendRes = await app.inject({
         method: "POST",

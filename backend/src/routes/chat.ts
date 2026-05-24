@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 import type {
   ChatMessage,
   UserProfile,
-} from "../agent-service.js";
+} from "../types/agent.js";
 import {
   deleteChatMessagesFrom,
   getChatMessages,

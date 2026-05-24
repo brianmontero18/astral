@@ -1,12 +1,14 @@
 /**
  * Intake-in-chat — Unit tests
  *
- * Verifies that buildSystemPrompt injects the <business_context> block
+ * Verifies that buildSystemPromptV2 injects the <business_context> block
  * exclusively when the intake has at least one populated field.
  */
 
 import { describe, it, expect } from "vitest";
-import { buildSystemPrompt, hashSystemPrompt, type UserProfile } from "../agent-service.js";
+import { buildSystemPromptV2 } from "../agent-service-v2-prompt.js";
+import { hashSystemPrompt } from "../llm/model-config.js";
+import type { UserProfile } from "../types/agent.js";
 import type { WeeklyTransits } from "../transit-service.js";
 import type { Intake } from "../report/types.js";
 
@@ -38,9 +40,9 @@ const TRANSITS: WeeklyTransits = {
   activatedChannels: [],
 };
 
-describe("buildSystemPrompt — business_context injection", () => {
+describe("buildSystemPromptV2 — business_context injection", () => {
   it("does not inject <business_context> when intake is undefined", () => {
-    const prompt = buildSystemPrompt(PROFILE, TRANSITS);
+    const prompt = buildSystemPromptV2(PROFILE, TRANSITS);
     expect(prompt).not.toContain("</business_context>");
     expect(prompt).toContain("Si existe <business_context> abajo");
   });
@@ -52,7 +54,7 @@ describe("buildSystemPrompt — business_context injection", () => {
       objetivo_12m: "",
       voz_marca: "",
     };
-    const prompt = buildSystemPrompt(PROFILE, TRANSITS, undefined, intake);
+    const prompt = buildSystemPromptV2(PROFILE, TRANSITS, undefined, intake);
     expect(prompt).not.toContain("</business_context>");
     expect(prompt).toContain("Si existe <business_context> abajo");
   });
@@ -65,7 +67,7 @@ describe("buildSystemPrompt — business_context injection", () => {
       objetivo_12m: "Lanzar curso premium en mayo",
       voz_marca: "Cálida pero directa",
     };
-    const prompt = buildSystemPrompt(PROFILE, TRANSITS, undefined, intake);
+    const prompt = buildSystemPromptV2(PROFILE, TRANSITS, undefined, intake);
     expect(prompt).toContain("</business_context>");
     expect(prompt).toContain("<actividad>Coach de mujeres emprendedoras</actividad>");
     expect(prompt).toContain("<tipo_de_negocio>coach</tipo_de_negocio>");
@@ -77,7 +79,7 @@ describe("buildSystemPrompt — business_context injection", () => {
 
   it("injects only the populated fields when the intake is partial", () => {
     const intake: Intake = { actividad: "Doula", desafio_actual: "Equilibrio" };
-    const prompt = buildSystemPrompt(PROFILE, TRANSITS, undefined, intake);
+    const prompt = buildSystemPromptV2(PROFILE, TRANSITS, undefined, intake);
     expect(prompt).toContain("</business_context>");
     expect(prompt).toContain("<actividad>Doula</actividad>");
     expect(prompt).toContain("<desafio_actual>Equilibrio</desafio_actual>");
@@ -92,7 +94,7 @@ describe("buildSystemPrompt — business_context injection", () => {
       desafio_actual: "Estoy explorando armar algo propio",
       tipo_de_negocio: "sin_negocio",
     };
-    const prompt = buildSystemPrompt(PROFILE, TRANSITS, undefined, intake);
+    const prompt = buildSystemPromptV2(PROFILE, TRANSITS, undefined, intake);
     expect(prompt).toContain("<situacion>sin_emprendimiento_actualmente</situacion>");
     // The structured tag is suppressed so the LLM doesn't infer a fictional negocio.
     expect(prompt).not.toContain("<tipo_de_negocio>");
@@ -100,7 +102,7 @@ describe("buildSystemPrompt — business_context injection", () => {
 
   it("places <business_context> between </user_profile> and <transits>", () => {
     const intake: Intake = { actividad: "X" };
-    const prompt = buildSystemPrompt(PROFILE, TRANSITS, undefined, intake);
+    const prompt = buildSystemPromptV2(PROFILE, TRANSITS, undefined, intake);
     // Anchor on tag forms that appear ONLY in the actual emitted blocks:
     // the `</…>` closing tag and the `<transits week=` opening with attribute.
     const profileEnd = prompt.indexOf("</user_profile>");
@@ -112,26 +114,26 @@ describe("buildSystemPrompt — business_context injection", () => {
   });
 });
 
-describe("buildSystemPrompt — knowledge anchor", () => {
+describe("buildSystemPromptV2 — knowledge anchor", () => {
   it("includes the HD condensed manual section header", () => {
-    const prompt = buildSystemPrompt(PROFILE, TRANSITS);
+    const prompt = buildSystemPromptV2(PROFILE, TRANSITS);
     expect(prompt).toContain("# Marco de Conocimiento");
     expect(prompt).toContain("CONOCIMIENTO BASE DE DISEÑO HUMANO");
   });
 
   it("includes the business pack v1", () => {
-    const prompt = buildSystemPrompt(PROFILE, TRANSITS);
+    const prompt = buildSystemPromptV2(PROFILE, TRANSITS);
     expect(prompt).toContain("CONOCIMIENTO BASE DE NEGOCIO HOLÍSTICO");
   });
 
   it("includes the HD detection rules", () => {
-    const prompt = buildSystemPrompt(PROFILE, TRANSITS);
+    const prompt = buildSystemPromptV2(PROFILE, TRANSITS);
     expect(prompt).toContain("REGLAS CRÍTICAS DE DISEÑO HUMANO");
     expect(prompt).toContain("AUTORIDAD JERÁRQUICA");
   });
 
   it("places knowledge block before <user_profile>", () => {
-    const prompt = buildSystemPrompt(PROFILE, TRANSITS);
+    const prompt = buildSystemPromptV2(PROFILE, TRANSITS);
     const knowledge = prompt.indexOf("# Marco de Conocimiento");
     const profile = prompt.indexOf("<user_profile name=");
     expect(knowledge).toBeGreaterThan(0);
@@ -153,8 +155,8 @@ describe("hashSystemPrompt", () => {
   });
 
   it("changes when the intake content changes", () => {
-    const promptA = buildSystemPrompt(PROFILE, TRANSITS, undefined, { actividad: "A" });
-    const promptB = buildSystemPrompt(PROFILE, TRANSITS, undefined, { actividad: "B" });
+    const promptA = buildSystemPromptV2(PROFILE, TRANSITS, undefined, { actividad: "A" });
+    const promptB = buildSystemPromptV2(PROFILE, TRANSITS, undefined, { actividad: "B" });
     expect(hashSystemPrompt(promptA)).not.toBe(hashSystemPrompt(promptB));
   });
 });

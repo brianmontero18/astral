@@ -1,14 +1,14 @@
 # Chat v2 — plan de roll-out (Vercel AI SDK + HD tools)
 
-Documenta cómo activar el path nuevo del chat en producción, con qué
-métricas medir, y cómo hacer rollback si algo se rompe.
+Documento histórico del rollout original. Estado 2026-05-24 (`astral-e2h.1`):
+chat v2 dejó de ser paralelo y ahora es el path canónico; el legacy v1 y
+`FEATURE_CHAT_USE_TOOLS` fueron eliminados.
 
 Bead: `astral-owv`. Branch: `feature/refactor-design-ai-model`.
 
 ## Qué es chat v2
 
-Un path paralelo al chat actual que reemplaza la llamada `fetch` directa
-a OpenAI por el Vercel AI SDK con herramientas HD registradas
+El path canónico del chat usa Vercel AI SDK con herramientas HD registradas
 (`findChannelByGates`, `findChannelsByGate`, `findChannelById`,
 `getCenterForGate`, `listAllChannels`).
 
@@ -17,28 +17,26 @@ de leerla inline en el prompt. Resultado medido localmente: 5/5 PASS
 en el caso Daniela 2026-05-15 con `gpt-4o-mini` (antes: 2/5 con el
 mismo modelo y la tabla inline; 4/4 con `gpt-4o` a 17x el costo).
 
-## Estado de los flags
+## Estado actual
 
 | Variable | Default | Efecto |
 |---|---|---|
-| `FEATURE_CHAT_USE_TOOLS` | `false` | OFF: usa el path legacy (`agent-service.ts`). ON: usa el path v2 (`agent-service-v2.ts`) con tools |
 | `CHAT_MODEL` | `gpt-4o-mini` | Modelo del chat. Cualquier modelo de OpenAI compatible con tool use anda. No tocar salvo que haya razón |
 
 ## Etapas del roll-out
 
-### Etapa 0 — merge con flag OFF (día 0)
+### Etapa 0 — merge con flag OFF (histórico)
 
-Merge a `main` con `FEATURE_CHAT_USE_TOOLS=false` (o sin setear la var,
-que es lo mismo). Producción se mantiene 1:1 como hoy.
+Esta etapa ya no aplica: no existe flag de selección v1/v2.
 
 Validación previa al merge:
 - `npm run test` (backend) — 449/449 verde.
 - `npm run check` — `tsc --noEmit` sin errores.
 - `npm run smoke:chat-v2 -- 5` — 5/5 PASS contra OpenAI real.
 
-### Etapa 1 — habilitar para admin (día 1)
+### Etapa 1 — habilitar para admin (histórico)
 
-Cambio en Render: `FEATURE_CHAT_USE_TOOLS=true`. Redeploy.
+Esta etapa ya no aplica: el path con tools está siempre activo.
 
 Como el resto del producto no cambia y solo afecta el chat, el blast
 radius es chico. Como la cuenta admin usa el mismo chat que los users
@@ -64,15 +62,12 @@ Observar durante 1 semana:
 - Costo agregado por día (query a `llm_calls` por `route='chat_stream'`):
   esperá -50% a -70% input cost por turn una vez que el cache se calienta.
 
-### Etapa 3 — cerrar el bead
+### Etapa 3 — cerrar el bead (histórico)
 
 Cuando los criterios de cierre se cumplen (ver abajo), cerrar
 `astral-owv`. Considerar:
 
-- Si v2 anda bien por 2+ semanas: eventualmente borrar el path v1
-  (legacy `runAstralAgent` / `runAstralAgentStream` en
-  `agent-service.ts`). No hay urgencia — el código v1 vive ~250 líneas y
-  no molesta.
+- El cleanup del path v1 se ejecutó en `astral-e2h.1`.
 
 ## Criterios de cierre
 
@@ -127,12 +122,8 @@ ORDER BY created_at DESC;
 
 ## Rollback
 
-Una sola línea: cambiar `FEATURE_CHAT_USE_TOOLS` a `false` en Render y
-redeploy. Producción vuelve al path legacy intacto.
-
-El path v1 sigue en el código (`agent-service.ts`) — el flag es el
-selector. No hay migración de datos involucrada; `chat_messages`,
-`llm_calls` y `users.memory_md` son compatibles con ambos paths.
+El rollback por `FEATURE_CHAT_USE_TOOLS=false` ya no existe. Si el path
+canónico falla, corregir v2 o escalar; no reintroducir v1 como fallback.
 
 ## Costos esperables (gpt-4o-mini)
 

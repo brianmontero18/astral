@@ -35,7 +35,7 @@
  * confirmar las pair names de Trajectory (Hope/Desire/Need/Guilt/Innocence).
  */
 
-import type { HdVariable } from "./agent-service.js";
+import type { HdVariable } from "./types/agent.js";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { UserProfile } from "../agent-service.js";
+import type { UserProfile } from "../types/agent.js";
 import { calculateCost } from "../llm/pricing.js";
 import {
   TYPE_DESCRIPTIONS,

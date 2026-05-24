@@ -33,15 +33,6 @@ export const FLAGS = {
   MEMORY_LIVING_DOCUMENT: envBool("FEATURE_MEMORY_LIVING_DOCUMENT", true),
 
   /**
-   * Route chat requests through the Vercel AI SDK with HD tools registered
-   * (anti-hallucination by design — the LLM consults the canonical channel
-   * table via tools instead of inferring from the inline knowledge). Default
-   * OFF during roll-out; flip to ON to enable the new path. When OFF the
-   * legacy fetch-based path in agent-service.ts is used.
-   */
-  CHAT_USE_TOOLS: envBool("FEATURE_CHAT_USE_TOOLS", false),
-
-  /**
    * Remote MCP surface for external clients. Default OFF while the transport,
    * auth model, tools, budgets, and client compatibility are rolled out slice
    * by slice.

@@ -1,4 +1,4 @@
-import type { UserProfile } from "../agent-service.js";
+import type { UserProfile } from "../types/agent.js";
 import type { Intake } from "./types.js";
 
 const SPANISH_RULE = "Responde EXCLUSIVAMENTE en español. No uses terminología en inglés para conceptos de Diseño Humano.";

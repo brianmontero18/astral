@@ -66,7 +66,7 @@
 - `IntakeView.tsx` — `tipo_de_negocio` agrega `"Sin negocio aún"` (default). "Mentora" deja de ser default.
 - Reformular labels: `¿A qué dedicás tu energía hoy?`. Tipo negocio con copy condicional.
 - `types.ts` — `TipoNegocio` agrega `"none"`.
-- `backend/src/agent-service.ts` — prompt tolera caso "sin negocio".
+- `backend/src/agent-service-v2-prompt.ts` — prompt tolera caso "sin negocio".
 
 **Tests**: E2E `09-report-intake-persistence.spec.ts`. Backend `__tests__/api-report*.test.ts`.
 

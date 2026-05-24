@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 
-import type { ChatMessage, UserProfile } from "../../agent-service.js";
+import type { ChatMessage, UserProfile } from "../../types/agent.js";
 import {
   getUser,
   getUserMessageCount,

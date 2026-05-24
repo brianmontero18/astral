@@ -1,4 +1,4 @@
-import type { UserProfile } from "../agent-service.js";
+import type { UserProfile } from "../types/agent.js";
 import { HD_CHANNELS } from "../hd-channels.js";
 import { GATE_TO_CENTER } from "../hd-gates.js";
 

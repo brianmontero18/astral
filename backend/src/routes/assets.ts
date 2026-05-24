@@ -8,7 +8,7 @@ import {
   updateUserBodygraph,
 } from "../db.js";
 import { extractProfileFromAssets, UserFacingError } from "../extraction-service.js";
-import type { UserProfile } from "../agent-service.js";
+import type { UserProfile } from "../types/agent.js";
 import { type AuthenticatedRequest } from "../auth/session.js";
 import {
   resolveRequestCurrentUser,

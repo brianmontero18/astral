@@ -1,5 +1,5 @@
 /**
- * Memory Reader — Unit tests for `<user_memory>` injection in buildSystemPrompt.
+ * Memory Reader — Unit tests for `<user_memory>` injection in buildSystemPromptV2.
  *
  * Same shape as intake-in-chat.test.ts: pure-function tests on the prompt
  * builder, no DB / no LLM. Verifies presence/absence of the block, position
@@ -8,7 +8,9 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { buildSystemPrompt, hashSystemPrompt, type UserProfile } from "../agent-service.js";
+import { buildSystemPromptV2 } from "../agent-service-v2-prompt.js";
+import { hashSystemPrompt } from "../llm/model-config.js";
+import type { UserProfile } from "../types/agent.js";
 import type { WeeklyTransits } from "../transit-service.js";
 
 const PROFILE: UserProfile = {
@@ -46,29 +48,29 @@ const SAMPLE_MEMORY = `## Identidad
 - Lanza programa premium en mayo
 - Trabaja desde casa con dos hijxs pequeñxs`;
 
-describe("buildSystemPrompt — user_memory injection", () => {
+describe("buildSystemPromptV2 — user_memory injection", () => {
   it("omits <user_memory> when memory is undefined", () => {
-    const prompt = buildSystemPrompt(PROFILE, TRANSITS);
+    const prompt = buildSystemPromptV2(PROFILE, TRANSITS);
     expect(prompt).not.toContain("\n<user_memory>\n");
     expect(prompt).not.toContain("</user_memory>");
     expect(prompt).toContain("Si existe <user_memory> abajo");
   });
 
   it("omits <user_memory> when memory is an empty string", () => {
-    const prompt = buildSystemPrompt(PROFILE, TRANSITS, undefined, undefined, "");
+    const prompt = buildSystemPromptV2(PROFILE, TRANSITS, undefined, undefined, "");
     expect(prompt).not.toContain("\n<user_memory>\n");
     expect(prompt).not.toContain("</user_memory>");
     expect(prompt).toContain("Si existe <user_memory> abajo");
   });
 
   it("omits <user_memory> when memory is whitespace only", () => {
-    const prompt = buildSystemPrompt(PROFILE, TRANSITS, undefined, undefined, "  \n\n  ");
+    const prompt = buildSystemPromptV2(PROFILE, TRANSITS, undefined, undefined, "  \n\n  ");
     expect(prompt).not.toContain("\n<user_memory>\n");
     expect(prompt).not.toContain("</user_memory>");
   });
 
   it("injects <user_memory> with the markdown body when memory is non-empty", () => {
-    const prompt = buildSystemPrompt(PROFILE, TRANSITS, undefined, undefined, SAMPLE_MEMORY);
+    const prompt = buildSystemPromptV2(PROFILE, TRANSITS, undefined, undefined, SAMPLE_MEMORY);
     expect(prompt).toContain("<user_memory>");
     expect(prompt).toContain("</user_memory>");
     expect(prompt).toContain("Coach somática para mujeres emprendedoras");
@@ -76,14 +78,14 @@ describe("buildSystemPrompt — user_memory injection", () => {
   });
 
   it("keeps the rule mentioning <user_memory> static regardless of block presence", () => {
-    const without = buildSystemPrompt(PROFILE, TRANSITS, undefined, undefined, "");
-    const withMem = buildSystemPrompt(PROFILE, TRANSITS, undefined, undefined, SAMPLE_MEMORY);
+    const without = buildSystemPromptV2(PROFILE, TRANSITS, undefined, undefined, "");
+    const withMem = buildSystemPromptV2(PROFILE, TRANSITS, undefined, undefined, SAMPLE_MEMORY);
     expect(without).toContain("hechos verificados sobre la persona");
     expect(withMem).toContain("hechos verificados sobre la persona");
   });
 
   it("places </user_memory> after </user_profile> and before <transits week=", () => {
-    const prompt = buildSystemPrompt(PROFILE, TRANSITS, undefined, undefined, SAMPLE_MEMORY);
+    const prompt = buildSystemPromptV2(PROFILE, TRANSITS, undefined, undefined, SAMPLE_MEMORY);
     // The rule text in "## Reglas de datos" mentions `<user_memory>` as a
     // literal string too; anchor on tag forms that ONLY appear in the
     // emitted block (closing tag and attributed transits opening).
@@ -96,7 +98,7 @@ describe("buildSystemPrompt — user_memory injection", () => {
   });
 
   it("places </user_memory> AFTER </business_context> when both are present", () => {
-    const prompt = buildSystemPrompt(
+    const prompt = buildSystemPromptV2(
       PROFILE,
       TRANSITS,
       undefined,
@@ -110,7 +112,7 @@ describe("buildSystemPrompt — user_memory injection", () => {
   });
 
   it("trims leading/trailing whitespace inside the emitted block", () => {
-    const prompt = buildSystemPrompt(
+    const prompt = buildSystemPromptV2(
       PROFILE,
       TRANSITS,
       undefined,
@@ -123,10 +125,10 @@ describe("buildSystemPrompt — user_memory injection", () => {
   });
 });
 
-describe("buildSystemPrompt + hashSystemPrompt — memory cache discipline", () => {
+describe("buildSystemPromptV2 + hashSystemPrompt — memory cache discipline", () => {
   it("produces a different hash when memory content changes", () => {
-    const promptA = buildSystemPrompt(PROFILE, TRANSITS, undefined, undefined, "## A\n- foo");
-    const promptB = buildSystemPrompt(PROFILE, TRANSITS, undefined, undefined, "## A\n- bar");
+    const promptA = buildSystemPromptV2(PROFILE, TRANSITS, undefined, undefined, "## A\n- foo");
+    const promptB = buildSystemPromptV2(PROFILE, TRANSITS, undefined, undefined, "## A\n- bar");
     expect(hashSystemPrompt(promptA)).not.toBe(hashSystemPrompt(promptB));
   });
 
@@ -134,8 +136,8 @@ describe("buildSystemPrompt + hashSystemPrompt — memory cache discipline", () 
     // The cache-friendly promise of the memory block: identical inputs must
     // yield identical prompts, otherwise we'd be silently cache-busting on
     // every chat turn.
-    const promptA = buildSystemPrompt(PROFILE, TRANSITS, undefined, undefined, SAMPLE_MEMORY);
-    const promptB = buildSystemPrompt(PROFILE, TRANSITS, undefined, undefined, SAMPLE_MEMORY);
+    const promptA = buildSystemPromptV2(PROFILE, TRANSITS, undefined, undefined, SAMPLE_MEMORY);
+    const promptB = buildSystemPromptV2(PROFILE, TRANSITS, undefined, undefined, SAMPLE_MEMORY);
     expect(hashSystemPrompt(promptA)).toBe(hashSystemPrompt(promptB));
   });
 });

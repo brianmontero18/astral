@@ -1,14 +1,5 @@
 /**
- * Agent Service v2 — Vercel AI SDK + HD tools.
- *
- * Versión paralela al `agent-service.ts` legacy (fetch directo a OpenAI).
- * Misma interfaz pública (`runAstralAgentV2`, `runAstralAgentStreamV2`) para
- * que el route handler pueda elegir entre v1 y v2 via FLAGS.CHAT_USE_TOOLS
- * sin rewriting.
- *
- * En esta etapa el prompt v2 ya obliga a consultar tools para relaciones
- * puerta-canal y puerta-centro. La ruta sigue siendo paralela y reversible:
- * v1 queda como default legacy; v2 se activa con FEATURE_CHAT_USE_TOOLS.
+ * Canonical chat agent — Vercel AI SDK + deterministic HD tools.
  */
 
 import {
@@ -21,15 +12,15 @@ import { createOpenAI } from "@ai-sdk/openai";
 
 import type { WeeklyTransits, TransitImpact } from "./transit-service.js";
 import type { Intake } from "./report/types.js";
+import { CHAT_MODEL } from "./llm/model-config.js";
 import {
-  CHAT_MODEL,
   type AgentCallMeta,
   type AgentResult,
   type AgentStreamCompleteHandler,
   type ChatMessage,
   type LlmUsage,
   type UserProfile,
-} from "./agent-service.js";
+} from "./types/agent.js";
 import { hdTools } from "./hd-tools/index.js";
 import { buildSystemPromptV2 } from "./agent-service-v2-prompt.js";
 
@@ -46,10 +37,7 @@ function createOpenAIProvider(openaiKey: string) {
 }
 
 /**
- * Non-streaming variant. Mirrors `runAstralAgent` from v1.
- *
- * Returns the final text after the tool loop converges (or after
- * MAX_AGENT_STEPS — whichever comes first).
+ * Non-streaming variant for `/api/chat` and read-only MCP asks.
  */
 export async function runAstralAgentV2(
   profile: UserProfile,
@@ -85,12 +73,7 @@ export async function runAstralAgentV2(
 }
 
 /**
- * Streaming variant. Mirrors `runAstralAgentStream` from v1.
- *
- * Yields plain text chunks (compatible with the existing SSE wire format on
- * `/api/chat/stream`). Tool calls are handled internally by the AI SDK loop
- * — the client only sees the final natural-language text. After the loop
- * completes, `onComplete` fires with usage + latency for telemetry.
+ * Streaming variant for `/api/chat/stream`.
  */
 export async function* runAstralAgentStreamV2(
   profile: UserProfile,

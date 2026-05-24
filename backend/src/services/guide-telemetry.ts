@@ -3,8 +3,8 @@ import type { FastifyInstance } from "fastify";
 import {
   CHAT_MODEL,
   hashSystemPrompt,
-  type LlmUsage,
-} from "../agent-service.js";
+} from "../llm/model-config.js";
+import type { LlmUsage } from "../types/agent.js";
 import {
   insertLlmCall,
   type LlmCallRoute,

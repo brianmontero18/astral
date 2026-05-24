@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { hashMcpBearerToken, MCP_AUDIENCE } from "../mcp/auth.js";
-import type { ChatMessage } from "../agent-service.js";
+import type { ChatMessage } from "../types/agent.js";
 
 const RAW_TOKEN = "astral_mcp_route_token";
 
@@ -12,8 +12,6 @@ const originalMcpTestReply = process.env.MCP_ASK_ASTRAL_GUIDE_TEST_REPLY;
 const originalMcpResourceUrl = process.env.MCP_RESOURCE_URL;
 const originalMcpAuthorizationServerIssuer = process.env.MCP_AUTHORIZATION_SERVER_ISSUER;
 
-const runAstralAgentMock = vi.fn();
-const runAstralAgentStreamMock = vi.fn();
 const runAstralAgentV2Mock = vi.fn();
 const runAstralAgentStreamV2Mock = vi.fn();
 const runMemoryWriterMock = vi.fn();
@@ -29,9 +27,7 @@ function mockAgentResult(content: string) {
   };
 }
 
-vi.mock("../agent-service.js", () => ({
-  runAstralAgent: runAstralAgentMock,
-  runAstralAgentStream: runAstralAgentStreamMock,
+vi.mock("../llm/model-config.js", () => ({
   hashSystemPrompt: (s: string) => s.slice(0, 16),
   CHAT_MODEL: "gpt-4o-mini",
 }));
@@ -83,8 +79,6 @@ afterEach(async () => {
   } else {
     process.env.MCP_AUTHORIZATION_SERVER_ISSUER = originalMcpAuthorizationServerIssuer;
   }
-  runAstralAgentMock.mockReset();
-  runAstralAgentStreamMock.mockReset();
   runAstralAgentV2Mock.mockReset();
   runAstralAgentStreamV2Mock.mockReset();
   runMemoryWriterMock.mockReset();
@@ -572,7 +566,7 @@ describe("Remote MCP route", () => {
     const otherUserId = await db.createUser("Injected Owner", overrideProfile, {
       plan: "premium",
     });
-    runAstralAgentMock.mockResolvedValueOnce(mockAgentResult("Respuesta MCP"));
+    runAstralAgentV2Mock.mockResolvedValueOnce(mockAgentResult("Respuesta MCP"));
 
     const res = await harness.app.inject({
       method: "POST",
@@ -603,8 +597,8 @@ describe("Remote MCP route", () => {
         },
       },
     });
-    expect(runAstralAgentMock).toHaveBeenCalledTimes(1);
-    expect(runAstralAgentMock).toHaveBeenCalledWith(
+    expect(runAstralAgentV2Mock).toHaveBeenCalledTimes(1);
+    expect(runAstralAgentV2Mock).toHaveBeenCalledWith(
       expect.objectContaining({
         name: "Token Owner",
         humanDesign: expect.objectContaining({ type: "Generator" }),
@@ -660,7 +654,7 @@ describe("Remote MCP route", () => {
     const { userId } = await seedMcpAccess(db, {
       memory: "Persistent memory should be read, not mutated.",
     });
-    runAstralAgentMock.mockResolvedValueOnce(mockAgentResult("Read-only reply"));
+    runAstralAgentV2Mock.mockResolvedValueOnce(mockAgentResult("Read-only reply"));
 
     const res = await harness.app.inject({
       method: "POST",
@@ -706,7 +700,7 @@ describe("Remote MCP route", () => {
         },
       },
     });
-    expect(runAstralAgentMock).not.toHaveBeenCalled();
+    expect(runAstralAgentV2Mock).not.toHaveBeenCalled();
 
     const auditEvents = await db.getMcpAuditEventsForUser(userId);
     expect(auditEvents).toEqual([
@@ -793,7 +787,6 @@ describe("Remote MCP route", () => {
       },
     });
 
-    expect(runAstralAgentMock).not.toHaveBeenCalled();
     expect(runAstralAgentV2Mock).not.toHaveBeenCalled();
     expect(runMemoryWriterMock).not.toHaveBeenCalled();
     expect(await db.getChatMessages(userId)).toEqual([]);
@@ -893,7 +886,7 @@ describe("Remote MCP route", () => {
         },
       },
     });
-    expect(runAstralAgentMock).not.toHaveBeenCalled();
+    expect(runAstralAgentV2Mock).not.toHaveBeenCalled();
 
     expect(await db.getMcpAuditEventsForUser(userId)).toEqual([
       expect.objectContaining({
@@ -949,7 +942,7 @@ describe("Remote MCP route", () => {
         },
       },
     });
-    expect(runAstralAgentMock).not.toHaveBeenCalled();
+    expect(runAstralAgentV2Mock).not.toHaveBeenCalled();
     const auditEvents = await db.getMcpAuditEventsForUser(userId);
     expect(auditEvents.at(-1)).toMatchObject({
       user_id: userId,
@@ -1000,7 +993,7 @@ describe("Remote MCP route", () => {
         },
       },
     });
-    expect(runAstralAgentMock).not.toHaveBeenCalled();
+    expect(runAstralAgentV2Mock).not.toHaveBeenCalled();
   });
 
   it("blocks ask_astral_guide_v1 before the agent call when monthly chat quota is exhausted", async () => {
@@ -1042,7 +1035,7 @@ describe("Remote MCP route", () => {
         },
       },
     });
-    expect(runAstralAgentMock).not.toHaveBeenCalled();
+    expect(runAstralAgentV2Mock).not.toHaveBeenCalled();
     const auditEvents = await db.getMcpAuditEventsForUser(userId);
     expect(auditEvents.at(-1)).toMatchObject({
       user_id: userId,
@@ -1083,7 +1076,7 @@ describe("Remote MCP route", () => {
           message: "account_inactive",
         },
       });
-      expect(runAstralAgentMock).not.toHaveBeenCalled();
+      expect(runAstralAgentV2Mock).not.toHaveBeenCalled();
     },
   );
 
@@ -1109,7 +1102,7 @@ describe("Remote MCP route", () => {
         message: "Invalid params",
       },
     });
-    expect(runAstralAgentMock).not.toHaveBeenCalled();
+    expect(runAstralAgentV2Mock).not.toHaveBeenCalled();
   });
 
   it("rejects browser origins that do not match the request host", async () => {

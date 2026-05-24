@@ -13,7 +13,7 @@ import {
   runMemoryWriter,
   shouldTriggerMemoryWriter,
 } from "../memory-writer.js";
-import type { ChatMessage } from "../agent-service.js";
+import type { ChatMessage } from "../types/agent.js";
 
 const realFetch = globalThis.fetch;
 
