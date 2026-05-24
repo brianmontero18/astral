@@ -1,0 +1,73 @@
+frontend/src/components/ChatContextPressureBanner.tsx
+  s_1970642029acbb::t_506716b10e95be 1-31
+docs/INDEX.md
+  s_d9305448b8fd38::t_6db0da9f29c470 92
+docs/architecture/bodygraph-render.md
+  s_d9305448b8fd38::t_6db0da9f29c470 163,209,264,266
+backend/src/__tests__/frontend-chat-context-pressure.test.ts
+  s_1970642029acbb::t_67a067a7bf2acf 1-2,80-81,88-94
+  s_d9305448b8fd38::t_9db270e39a57f9 3-13,15-33,35-66,68-70,72-79,82-83,85-87,95-96
+  s_d9305448b8fd38::t_1b471491707da5 14,34,67,71,84
+docs/architecture/chat-llm-system.md
+  s_d9305448b8fd38::t_6db0da9f29c470 166-169
+  s_d9305448b8fd38::t_af95dbae7bc83e 273-274
+docs/chat-v2-rollout.md
+  s_d9305448b8fd38::t_6db0da9f29c470 142-152
+docs/architecture/project-overview.md
+  s_d9305448b8fd38::t_af95dbae7bc83e 115,117
+  s_d9305448b8fd38::t_6db0da9f29c470 116,142,224
+  s_d9305448b8fd38::t_25be8c9a196299 41
+  s_d9305448b8fd38::t_b4522588640b38 141,144,181-185
+docs/architecture/refactor-2026-05-decisions.md
+  s_d9305448b8fd38::t_6db0da9f29c470 27,168
+docs/admin-auth-invite-handoff.md
+  s_d9305448b8fd38::t_6db0da9f29c470 7-12,44
+  s_d9305448b8fd38::t_48a3f057b65975 124,333
+frontend/src/chat-context-pressure.ts
+  s_1970642029acbb::t_506716b10e95be 1-7,9-19,21-31,34-104
+  s_d9305448b8fd38::t_b48634bcaff5d1 8,20
+  s_d9305448b8fd38::t_1b471491707da5 32-33
+frontend/src/index.css
+  s_1970642029acbb::t_506716b10e95be 652-707
+  s_d9305448b8fd38::t_af95dbae7bc83e 708-719
+docs/architecture/bug-investigation-daniela-2026-05.md
+  s_d9305448b8fd38::t_48a3f057b65975 66,148,150-152
+  s_d9305448b8fd38::t_90006ed643568b 7-11,21,87,94,107,127,129-132
+  s_d9305448b8fd38::t_903259f44e48ca 99,101,134
+  s_d9305448b8fd38::t_d2645d6c2ae192 90
+AGENTS.md
+  s_d9305448b8fd38::t_6db0da9f29c470 58
+frontend/src/components/ChatView.tsx
+  s_1970642029acbb::t_506716b10e95be 1,3,8,20-25,157-158,174-179,227-230,233,338,371,520-527,695-699
+backend/src/types/context-budget.ts
+  s_d9305448b8fd38::t_64ef9471e3bb0a 26,44,55
+scripts/check-docs-drift.mjs
+  s_d9305448b8fd38::t_65acc5d65335f2 13,17,32
+  s_d9305448b8fd38::t_6db0da9f29c470 16,26-27
+frontend/src/api.ts
+  s_1970642029acbb::t_506716b10e95be 27,257-262
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "9b965b76b7069afde69b723ea99cb661db51209f",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    },
+    "s_d9305448b8fd38": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5ac3-949e-7231-a789-16bb5c0927ff",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
