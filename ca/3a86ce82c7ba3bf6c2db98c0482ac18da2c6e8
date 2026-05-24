@@ -1,0 +1,9 @@
+backend/package-lock.json
+  ai_agent 5021
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "ca3a86ce82c7ba3bf6c2db98c0482ac18da2c6e8",
+  "prompts": {}
+}
