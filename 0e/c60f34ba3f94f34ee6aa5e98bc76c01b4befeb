@@ -1,0 +1,33 @@
+docs/architecture/project-overview.md
+  s_d9305448b8fd38::t_79257d9c993b4f 5,65,78,80,84,97-98,101,116,136,142,144,158,166,174,182,184,232
+docs/uat-coverage-audit.md
+  s_d9305448b8fd38::t_3ef19d0be1cc29 3,6-8,10,12-15,17,19-22,24,26,28-39,41,43-45,47,49-53,55,57-59
+docs/architecture/refactor-2026-05-decisions.md
+  s_d9305448b8fd38::t_79a5663c5710f8 155,157-161,163-169,211
+docs/architecture/bodygraph-render.md
+  s_d9305448b8fd38::t_8d971075a00c2e 158
+  s_d9305448b8fd38::t_c56a52740004bf 37-38,141,144-145,149,171,208,222,265
+ARCHITECTURE.md
+  s_d9305448b8fd38::t_7204c816291cc8 1,3,5-8,10,12-15,17,19-27,29,31-33
+scripts/check-docs-drift.mjs
+  s_d9305448b8fd38::t_564c081f588265 1-46,48,50-52,54-73,76-92
+  s_d9305448b8fd38::t_50e1ed8f51b879 47,49,53,74-75
+package.json
+  s_d9305448b8fd38::t_564c081f588265 12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "0ec60f34ba3f94f34ee6aa5e98bc76c01b4befeb",
+  "prompts": {},
+  "sessions": {
+    "s_d9305448b8fd38": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5ac3-949e-7231-a789-16bb5c0927ff",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
