@@ -152,21 +152,21 @@ Para Astral en beta con un solo provider (OpenAI), automático es suficiente. Cu
 
 ---
 
-## D — Lo que dejamos pendiente (beads abiertos)
+## D — Estado de tracking
 
-| Bead | Prio | Qué |
+Esta sección es histórica del refactor 2026-05. Para estado operativo actual,
+usar `bd show astral-e2h` y la sección de P0 abiertos en `AGENTS.md`; varios
+beads listados originalmente ya fueron cerrados o absorbidos por epics nuevas.
+
+| Bead | Estado 2026-05-24 | Qué |
 |---|---|---|
-| `astral-0b7` | P0 | Bug A: `/me/assets` con `fileType=hd` deja profile vacío |
-| `astral-bdt` | P0 | Bug B: `PUT /users/:id` admin permite escribir profile de otro user |
-| `astral-m25` | P0 | Data fix manual para Daniela, Lucia, Agos, Jez, Mayra |
-| `astral-typ` | P0 | Cerrar Fase 1 una vez validada en prod con cached_tokens reales |
-| `astral-e2h.1` | P0 | Eliminar v1 + flag; v2 canónico |
-| `astral-aqh` | P1 | Auto-scroll del chat durante streaming (review Daniela #6) |
-| `astral-7jk` | P2 | Cambiar carta sin re-subir (review Daniela #13) |
-| TBD | P2 | Multi-provider abstraction (Anthropic + OpenAI swap por env var) |
-| TBD | P2 | Retry con exponential backoff + parse `Retry-After` |
-| TBD | P3 | Batch API para `memory_writer` (-50% costo, latencia no importa) |
-| `astral-7i8` | P4 | Compaction de history — **DIFERIDO** hasta que el counter `chat_history_truncated` supere 0 por ≥7 días en prod. Mitigación intermedia: bump `CHAT_HISTORY_TURNS` de 30 → 60 (commit del 2026-05-16). Veredicto sparring+architect en sección H abajo. |
+| `astral-0b7` | cerrado | Bug A: `/me/assets` con `fileType=hd` deja profile vacío |
+| `astral-bdt` | cerrado | Bug B: `PUT /users/:id` admin permite escribir profile de otro user |
+| `astral-m25` | abierto P0 | Data fix manual para premium afectadas |
+| `astral-4ue` | abierto P0 | Sucesor operativo de `astral-m25`: script `migrate-user-to-swiss.ts` |
+| `astral-e2h.1` | cerrado | Eliminar v1 + flag; v2 canónico |
+| `astral-7i8` | abierto P1/P4 según epic | Compact endpoint/UX, reencuadrado dentro de `astral-e2h` |
+| TBD | futuro | Multi-provider abstraction, retry/backoff y Batch API para `memory_writer` siguen como ideas, no como fuente de verdad de tracking |
 
 ---
 
@@ -208,7 +208,7 @@ Si todas verde por 7 días, cerrar los beads de validación del Bloque A.
 **Veredicto adoptado**:
 1. Implementado: `CHAT_HISTORY_TURNS=60` + counter `chat_history_truncated` en `routes/chat.ts:68-85`.
 2. Diferido: B/C/D hasta data real (bead `astral-7i8`, P4).
-3. Foco operativo: volver a los 4 bugs P0 (`astral-0b7`, `astral-bdt`, `astral-m25`).
+3. Foco operativo original: volver a los bugs P0. Estado actual: `astral-0b7` y `astral-bdt` están cerrados; quedan `astral-m25` y `astral-4ue` según `AGENTS.md`.
 
 **Reportes completos**: ver outputs del sparring + architect en el thread de la sesión 2026-05-16.
 

@@ -34,8 +34,8 @@
    │ CAPA 2a — RENDER │   │ CAPA 2b — RENDER │   │ CAPA 2c — CHAT/  │
    │ SVG              │   │ PDF              │   │ AI               │
    │ render-svg.ts +  │   │ render-pdf.tsx   │   │ agent-service-v2 │
-   │ svg-geometry.ts  │   │ (@react-pdf)     │   │ (system prompt)  │
-   │ + planet-symbols │   │                  │   │                  │
+   │ svg-geometry.ts  │   │ (pdfkit +        │   │ (system prompt)  │
+   │ + planet-symbols │   │  svg-to-pdfkit)  │   │                  │
    └──────────────────┘   └──────────────────┘   └──────────────────┘
         ▼                       ▼                       ▼
     SVG string              PDF buffer              prompt text
@@ -138,17 +138,15 @@ renderBodygraphSvg(profile: UserProfile, opts?: { width; height }): string
 
 // Documento completo: header + design panel + chart + personality panel.
 renderFullDocument(profile: UserProfile, opts?: { width; height }): string
-//                ↑ TARGET: birth metadata viene en profile.birthData.
+//                ↑ birth metadata viene en profile.birthData.
 ```
 
-**Estado actual (a corregir por `astral-ffm`)**: `renderFullDocument` hoy
-acepta `opts.birth?: { dateLocal, dateUtc, placeLabel }` como argumento
-paralelo. Esto viola la regla 5. La corrección llega cuando el DTO exponga
-`profile.birthData.{dateLocalIso, dateUtcIso, placeLabel}`.
+`renderFullDocument` ya no recibe `birth` como argumento paralelo. Todo dato
+de nacimiento que el renderer necesita debe viajar dentro de `profile.birthData`.
 
 ---
 
-## 3. Status (a 2026-05-17)
+## 3. Status (a 2026-05-24)
 
 ### ✅ Hecho
 
@@ -157,7 +155,7 @@ paralelo. Esto viola la regla 5. La corrección llega cuando el DTO exponga
 - `backend/src/bodygraph/svg-geometry.ts` — 9 centros, 64 gates, 30 line channels + Integration knot K4 (hub + 4 spokes).
 - `backend/src/bodygraph/planet-symbols.ts` — 13 glifos planetarios vectoriales (portados de SharpAstrology MIT).
 - `backend/src/bodygraph/render-svg.ts` — `renderBodygraphSvg()` + `renderFullDocument()`. Activación P/D/Mixed/none por gate y channel half.
-- `backend/src/bodygraph/render-pdf.tsx` — `renderBodygraphPdf(profile)`: rasteriza el SVG completo a PNG con `sharp` (densidad 300 DPI, 2400px) y lo embebe en una página A4 vía `@react-pdf/renderer`. **Importa `render-svg.ts`** (delega el drawing al renderer SVG en vez de duplicarlo). Tradeoff: chart rasterizado vs vectorial, pero a 290 DPI en A4 es print-grade.
+- `backend/src/bodygraph/render-pdf.tsx` — `renderBodygraphPdf(profile)`: convierte el SVG completo a PDF vector puro con `pdfkit` + `svg-to-pdfkit`. **Importa `render-svg.ts`** y no recalcula HD; mantiene paths/texto vectoriales en lugar de rasterizar el chart.
 
 **Capa cálculo P0 (`astral-ffm`)**:
 - `backend/src/hd-meta.ts` — tablas chicas (`PROFILE_LINE_NAMES`, `TYPE_POSITIVE_THEME`, `TYPE_QUALIFIER_BY_AUTHORITY`) + helpers (`lookupProfileName`, `lookupPositiveTheme`, `lookupTypeQualifier`, `calcAgeYears`).
@@ -170,7 +168,7 @@ paralelo. Esto viola la regla 5. La corrección llega cuando el DTO exponga
 - `typeQualifier="Emotional"`, `profileName="Opportunistic / Role Model"`, `themes.positive="Success"`.
 - Mercury retrograde verificado contra Swiss Eph ground truth: Design retro (-0.343°/día), Personality direct (+1.547°/día).
 
-507/507 tests verde, tsc limpio.
+Estado histórico de esa etapa: 507/507 tests verde, tsc limpio. El conteo actual de la suite puede cambiar; verificar con `cd backend && npx vitest run`.
 
 ### Observaciones del cross-check con Foundation Chart oficial
 
@@ -207,7 +205,7 @@ Ver beads hijos abajo. La sección 4 detalla el gap analysis.
 
 | Elemento | Bead |
 |---|---|
-| Endpoint `POST /api/bodygraph/pdf` con `@react-pdf/renderer` | Fase 4 ✅ |
+| Endpoint `GET /api/me/bodygraph/pdf` con `pdfkit` + `svg-to-pdfkit` | Fase 4 ✅ |
 | Botón "Descargar PDF" en `BodygraphPoc.tsx` | Fase 5 (separada) |
 | Arrows L/R en panel (Variable Configuration) | P3 |
 | Triángulos de tone (▲/▽ numerados 1-6) | P3 |
@@ -221,7 +219,7 @@ Ver beads hijos abajo. La sección 4 detalla el gap analysis.
 
 **Si tu PR cae en cualquiera de estos patrones, está mal**:
 
-1. ❌ Importar `react-pdf` desde `calculate.ts` o `svg-geometry.ts`.
+1. ❌ Importar `pdfkit`, `svg-to-pdfkit` o cualquier renderer PDF desde `calculate.ts` o `svg-geometry.ts`.
 2. ❌ Hardcodear colores hex en `calculate.ts`.
 3. ❌ Calcular nombres de profile / incarnation cross / variables dentro de `render-svg.ts`.
 4. ❌ Pasar `birth` como argumento separado al renderer (debe vivir en `profile.birthData`).
@@ -264,7 +262,7 @@ Ver `bd show astral-jrf` para el bead padre. Tree completo: `bd dep tree astral-
 - **`astral-8ke`** — Header expandido (Identity + Design + Personality + Channels en inglés). Depende: `astral-ffm`, `astral-aqa`, `astral-7w2`.
 
 ### Fases originalmente parte de `astral-jrf`, ahora beads separados
-- **`astral-ur2`** — Endpoint POST /api/bodygraph/pdf con @react-pdf/renderer. Depende: `astral-ffm`.
+- **`astral-ur2`** — Endpoint PDF del bodygraph. Implementación actual: `GET /api/me/bodygraph/pdf` vía `pdfkit` + `svg-to-pdfkit`.
 - **`astral-kn0`** — Botón Descargar PDF en BodygraphPoc.tsx. Depende: `astral-ur2`.
 
 ### Orden de ejecución recomendado

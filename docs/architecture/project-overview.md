@@ -2,7 +2,7 @@
 
 > **Audiencia:** humano o AI agent que toca el código por primera vez, o que necesita reorientarse rápido.
 > **Promesa:** entender el sistema entero en una pasada. Cada región tiene su propio doc detallado (cuando existe) o se profundiza leyendo los entry files.
-> **Última actualización:** 2026-05-20.
+> **Última actualización:** 2026-05-24.
 
 ---
 
@@ -62,7 +62,7 @@ Notación: **STATE** = `stable` · `active-dev` · `legacy-mantenido` · `gated`
 - **Surface:** `POST /users` · `GET/PUT /me` · `PATCH /me/onboarding` · `GET/PATCH/DELETE /users/:id` · `POST /admin/users`
 - **Entry files:** `backend/src/routes/users.ts` · `frontend/src/components/OnboardingFlow.tsx`
 - **Depends on:** R1 (auth) · R3 (compute al final del wizard) · R9 (places autocomplete en birth-data step)
-- **Tests:** `backend/src/__tests__/api-users.test.ts` · `e2e/specs/onboarding.spec.ts`
+- **Tests:** `backend/src/__tests__/api-users.test.ts` · `backend/src/__tests__/api-onboarding-state.test.ts` · `e2e/specs/17-auth-bootstrap-and-restore.spec.ts` · `e2e/specs/24-onboarding-intake-step.spec.ts` · `e2e/specs/28-onboarding-birth-data.spec.ts`
 - **State:** `stable` post-`astral-e5f` (onboarding ahora pide birth data, no PDF)
 
 ### R3 · Bodygraph Compute — **el corazón del sistema**
@@ -75,13 +75,13 @@ Notación: **STATE** = `stable` · `active-dev` · `legacy-mantenido` · `gated`
   - `backend/scripts/migrate-user-to-swiss.ts` ← CLI manual override para casos existentes
 - **Entry files:**
   - `backend/src/bodygraph/calculate.ts` ← Swiss Eph + geo-tz + luxon
-  - `backend/src/extraction-service.ts` ← orquesta deterministic parsers + (Vision fallback gated, off en prod)
+  - `backend/src/extraction-service.ts` ← orquesta deterministic parsers; no usa LLM ni Vision fallback
   - `backend/src/hd-pdf/genetic-matrix.ts` · `backend/src/hd-pdf/myhumandesign.ts` ← parsers deterministicos
-  - `backend/src/routes/assets.ts` (líneas 216-374) ← endpoints
+  - `backend/src/routes/assets.ts` ← endpoints de bodygraph/assets
   - `frontend/src/components/OnboardingFlow.tsx` (wizard birth-data) · `frontend/src/components/MyChartReplaceView.tsx` (2 tabs)
 - **Depends on:** R9 (places autocomplete) · R10 (R2 storage para path PDF)
 - **Profile JSON shape canónico:** ver `backend/src/types/agent.ts` interface `UserProfile`.
-- **Tests:** `backend/src/__tests__/bodygraph-calculate.test.ts` · `api-assets.test.ts` · `extraction-service.test.ts` · `hd-pdf/pdf-fixtures.test.ts` · `e2e/specs/onboarding-from-birth.spec.ts`
+- **Tests:** `backend/src/__tests__/bodygraph-calculate.test.ts` · `backend/src/__tests__/api-assets.test.ts` · `backend/src/__tests__/extraction-service.test.ts` · `backend/src/hd-pdf/pdf-fixtures.test.ts` · `e2e/specs/18-onboarding-and-assets-resilience.spec.ts` · `e2e/specs/28-onboarding-birth-data.spec.ts`
 - **State:** `active-dev` — pivot a Swiss Eph terminado (`astral-e5f`), path PDF mantenido como secundario documentado y 100% determinístico (Vision fallback eliminado en `astral-1c6`).
 - **Modelo V1 (actual):** una sola carta activa por user. `users.profile_asset_id` apunta al asset activo; re-subir pisa la anterior. **NO implementar lógica de "elegir entre múltiples cartas cargadas" — V2 (`astral-yaa`) va a re-modelar esto nativamente** (multi-profile con IDs estables, ownership por perfil, cross-profile context). Ver sección "V1 vs V2" en [`AGENTS.md`](../../AGENTS.md).
 - **Deuda conocida:**
@@ -94,10 +94,11 @@ Notación: **STATE** = `stable` · `active-dev` · `legacy-mantenido` · `gated`
 - **Entry files:**
   - `backend/src/bodygraph/render-svg.ts` ← renderer SVG con paneles planet + variable wheel
   - `backend/src/bodygraph/svg-geometry.ts` ← geometría (centros, canales, gates)
-  - `backend/src/routes/assets.ts` (líneas 381-460) ← endpoints
+  - `backend/src/bodygraph/render-pdf.tsx` ← export PDF vector via `pdfkit` + `svg-to-pdfkit`
+  - `backend/src/routes/assets.ts` ← endpoints de SVG/PDF
   - `frontend/src/components/MyChartView.tsx` ← pantalla "Mi carta"
 - **Depends on:** R3 (consume `profile.humanDesign.activatedGates` + `definedCenters` + `variables`)
-- **Tests:** `backend/src/__tests__/bodygraph-render-svg.test.ts` · `api-assets.test.ts` (PDF download)
+- **Tests:** `backend/src/__tests__/bodygraph-render-svg.test.ts` · `backend/src/__tests__/api-assets.test.ts` (PDF download)
 - **State:** `stable` post-`astral-3iu` (redesign + PDF vector via `pdfkit` + `svg-to-pdfkit`)
 - **Sub-doc:** [`bodygraph-render.md`](bodygraph-render.md)
 
@@ -112,7 +113,7 @@ Notación: **STATE** = `stable` · `active-dev` · `legacy-mantenido` · `gated`
   - `backend/src/knowledge/` ← HD_CONDENSED + BUSINESS_PACK
   - `backend/src/routes/chat.ts`
 - **Depends on:** R3 (profile) · R6 (memory) · R7 (transits) · R8 (no, opposite — R8 consume del chat output) · R13 (telemetry)
-- **Tests:** `backend/src/__tests__/api-chat.test.ts` · `llm-telemetry.test.ts` · `memory-integration.test.ts` · `prompt-cache-discipline.test.ts` · `e2e/specs/chat-*.spec.ts`
+- **Tests:** `backend/src/__tests__/api-chat.test.ts` · `backend/src/__tests__/api-chat-context-budget.test.ts` · `backend/src/__tests__/anti-hallucination-hd.test.ts` · `backend/src/__tests__/llm-telemetry.test.ts` · `backend/src/__tests__/memory-integration.test.ts` · `backend/src/__tests__/prompt-cache-discipline.test.ts` · `e2e/specs/01-chat-send-message.spec.ts` · `e2e/specs/28-chat-streaming-scroll.spec.ts`
 - **State:** `active-dev` — v2 canónico desde `astral-e2h.1`; legacy v1 eliminado.
 - **Sub-doc:** [`chat-llm-system.md`](chat-llm-system.md) ← lectura obligada antes de tocar AI
 
@@ -132,15 +133,15 @@ Notación: **STATE** = `stable` · `active-dev` · `legacy-mantenido` · `gated`
   - `backend/src/routes/transits.ts`
   - `frontend/src/components/TransitViewer.tsx`
 - **Depends on:** R3 (lee profile para impact analysis)
-- **Tests:** `backend/src/__tests__/api-transits.test.ts` · `transit-service.test.ts`
+- **Tests:** `backend/src/__tests__/api-transits.test.ts` · `backend/src/__tests__/transit-service.test.ts` · `backend/src/__tests__/transit-impact.test.ts` · `e2e/specs/20-transits-weekly-view.spec.ts`
 - **State:** `stable` · ADR pendiente sobre selector diario/semanal (`astral-46m`)
 
 ### R8 · Report (Premium Weekly Report)
 - **Purpose:** Generar reporte semanal personalizado para usuarias premium. 3 LLM calls (intro + body + close). Cached por `profile_hash` — se invalida automáticamente cuando cambia el profile.
 - **Surface:** `POST /me/report` · `GET /me/report?tier=` · `POST /me/report/share` · `GET /me/report/share/:token`
-- **Entry files:** `backend/src/report-service.ts` · `backend/src/routes/report.ts` · `frontend/src/components/ReportRenderer.tsx`
+- **Entry files:** `backend/src/report/generate-report.ts` · `backend/src/report/pdf-renderer.tsx` · `backend/src/routes/report.ts` · `frontend/src/components/ReportRenderer.tsx` · `frontend/src/components/ReportView.tsx`
 - **Depends on:** R3 (profile) · R2 (intake) · R6 (memory_md) · R7 (transits) · R13 (telemetry)
-- **Tests:** `backend/src/__tests__/api-report.test.ts` · `report-service.test.ts`
+- **Tests:** `backend/src/__tests__/api-report.test.ts` · `backend/src/__tests__/report-generation.test.ts` · `backend/src/__tests__/frontend-report-view-model.test.ts` · `e2e/specs/07-report-first-generation.spec.ts` · `e2e/specs/11-report-regeneration.spec.ts`
 - **State:** `active-dev` (v2 en spec, ver `premium-report-v2-spec.md`)
 
 ### R9 · Places (Geocoding)
@@ -154,7 +155,7 @@ Notación: **STATE** = `stable` · `active-dev` · `legacy-mantenido` · `gated`
 ### R10 · Assets Storage
 - **Purpose:** Subida, descarga y borrado de assets binarios (PDFs HD subidos por la usuaria, históricos). Storage: Cloudflare R2 con keys `users/{userId}/assets/{assetId}.{ext}`.
 - **Surface:** `GET /me/assets` · `POST /me/assets` · `GET /assets/:id` · `DELETE /assets/:id` · `POST /users/:userId/assets` (admin)
-- **Entry files:** `backend/src/storage/r2.ts` · `backend/src/routes/assets.ts` (líneas 195-560)
+- **Entry files:** `backend/src/storage/r2.ts` · `backend/src/routes/assets.ts`
 - **Depends on:** R3 (cuando se sube por path PDF) · R1 (ownership checks)
 - **Tests:** `backend/src/__tests__/api-assets.test.ts` · `storage-r2.test.ts`
 - **State:** `stable`
@@ -162,7 +163,7 @@ Notación: **STATE** = `stable` · `active-dev` · `legacy-mantenido` · `gated`
 ### R11 · Admin
 - **Purpose:** Endpoints administrativos para el founder — invitar usuarias premium por email, ver/editar cualquier user, audit logs.
 - **Surface:** `POST /admin/users` (invite) · `GET /admin/users` (list) · `GET /users/:id` · `PATCH /admin/users/:id/access` · `DELETE /admin/users/:id` · `GET /users/:id/audit?days=`
-- **Entry files:** `backend/src/routes/users.ts` (líneas 319-720) · `frontend/src/components/admin/`
+- **Entry files:** `backend/src/routes/users.ts` · `frontend/src/components/AdminUsersView.tsx` · `frontend/src/components/AdminUserDetailView.tsx` · `frontend/src/components/AdminInviteModal.tsx`
 - **Depends on:** R1 (admin role check) · R2 (creación de user) · R10 (cleanup R2 en delete)
 - **Tests:** `backend/src/__tests__/api-admin-*.test.ts`
 - **State:** `stable` post-`astral-0xw` (provisioning epic) · runbook en [`../admin-invite-runbook.md`](../admin-invite-runbook.md)
@@ -170,7 +171,7 @@ Notación: **STATE** = `stable` · `active-dev` · `legacy-mantenido` · `gated`
 ### R12 · MCP (Remote Model Context Protocol)
 - **Purpose:** Exponer Astral como MCP server para integraciones externas (ChatGPT custom GPTs, Claude desktop, etc.). Permite que un LLM externo consulte el bodygraph + tránsitos del usuario via OAuth.
 - **Surface:** `POST/GET/PUT/PATCH/DELETE /mcp/v1` · `GET /.well-known/oauth-authorization-server` · `POST /workos/connect`
-- **Entry files:** `backend/src/routes/mcp.ts` · `mcp-discovery.ts` · `workos-connect.ts` · `backend/src/mcp/`
+- **Entry files:** `backend/src/routes/mcp.ts` · `backend/src/routes/mcp-discovery.ts` · `backend/src/routes/workos-connect.ts` · `backend/src/mcp/`
 - **Depends on:** R1 (auth via WorkOS) · R3 (profile) · R7 (transits)
 - **Tests:** `backend/src/__tests__/api-mcp*.test.ts` · `backend/scripts/smoke-mcp-curl.sh`
 - **State:** `gated` por `FEATURE_REMOTE_MCP` · production learnings en [`../remote-mcp-production-learnings.md`](../remote-mcp-production-learnings.md)
@@ -178,9 +179,9 @@ Notación: **STATE** = `stable` · `active-dev` · `legacy-mantenido` · `gated`
 ### R13 · Telemetry & Cost Tracking
 - **Purpose:** Persistir cada LLM call (`route`, `model`, `tokens_in/out`, `cached_tokens`, `tool_calls_count/json`, `context_breakdown_json`, `cost_usd`, `latency_ms`, `prompt_hash`) en la tabla `llm_calls` para analytics de costo + invalidación de cache + compliance de tools + context budget.
 - **Surface:** No tiene endpoint propio — se escribe como side-effect de cada LLM call.
-- **Entry files:** `backend/src/db.ts` (función `insertLlmCall`) · invocado desde `services/guide-telemetry.ts`, `memory-writer`, `report-service`, `extraction-service`.
+- **Entry files:** `backend/src/db.ts` (función `insertLlmCall`) · `backend/src/services/guide-telemetry.ts` · `backend/src/memory-writer.ts` · `backend/src/report/generate-report.ts`
 - **Depends on:** ninguna región — es la capa observability transversal.
-- **Tests:** `backend/src/__tests__/llm-calls-*.test.ts`
+- **Tests:** `backend/src/__tests__/llm-telemetry.test.ts` · `backend/src/__tests__/llm-pricing.test.ts` · `backend/src/__tests__/api-chat-context-budget.test.ts` · `backend/src/__tests__/context-budget.test.ts`
 - **State:** `stable`
 
 ---
@@ -228,7 +229,7 @@ created_at, updated_at
 
 | Servicio | Para qué | Auth |
 |----------|----------|------|
-| **OpenAI** | Chat (GPT-4o-mini default), memory writer, report, extraction Vision (gated) | `OPENAI_API_KEY` |
+| **OpenAI** | Chat (GPT-4o-mini default), memory writer, report | `OPENAI_API_KEY` |
 | **GeoNames** | Places autocomplete | `GEONAMES_USERNAME` |
 | **Cloudflare R2** | Asset storage (PDFs) | `R2_ACCESS_KEY_ID` + `R2_SECRET_ACCESS_KEY` |
 | **SuperTokens managed** | Auth passwordless email + sessions | `SUPERTOKENS_API_KEY` |
