@@ -1,0 +1,25 @@
+backend/scripts/prod-audits/chat-tokens-detail.ts
+  s_440397cbc3756a::t_a20115db409f63 1-67
+docs/supertokens-research-summary.md
+  s_440397cbc3756a::t_597091ea8fdb31 1-219
+.gitignore
+  s_440397cbc3756a::t_597091ea8fdb31 10,14,43
+docs/credits-pricing-intent.md
+  s_440397cbc3756a::t_597091ea8fdb31 1-204
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "32f34169ec27488cb101276507b2c80fbdd2bd31",
+  "prompts": {},
+  "sessions": {
+    "s_440397cbc3756a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "962fe581-c5ec-44a4-84e7-c182c2e87c07",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
