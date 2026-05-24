@@ -1,0 +1,26 @@
+backend/src/__tests__/anti-hallucination-hd.test.ts
+  s_1970642029acbb::t_7ddd508dc78408 106-114,243-245
+  s_1970642029acbb::t_7cfc1364d586c0 162
+  s_1970642029acbb::t_6f23b6a57ca39c 1-43,48-62,68-105,115-139,151-156,163-176,179,181-242,246-278
+  s_1970642029acbb::t_20b95d6a5f8653 44-47,63-67,140-150,157-161,177-178,180
+backend/src/__tests__/prompt-eval.ts
+  s_1970642029acbb::t_7b30e8974e6739 231-234,263-274
+  s_1970642029acbb::t_8303e6c38be99b 168-184,186,192-230,235-260,262,275-289
+  s_1970642029acbb::t_dfa600a405f286 185,187-191,261
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "b604f43f76b02a6e7554f6391455ce81eab5cad2",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
