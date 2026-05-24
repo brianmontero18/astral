@@ -249,8 +249,8 @@ describe("Memory layer — two-turn integration", () => {
     const user = await getUser(userId);
     expect(user?.memory_md).toBe("");
 
-    // Subsequent turn still passes `undefined` (flag ON + empty memory →
-    // route-level gate returns undefined to keep the prompt minimal).
+    // Subsequent turn still passes `undefined` when memory is empty, keeping
+    // the prompt minimal.
     runAstralAgentV2Mock.mockClear();
     runMemoryWriterMock.mockResolvedValueOnce({
       memory: "",
