@@ -24,7 +24,7 @@
 ### Fase 1 — Fix de calidad sin refactor
 
 Cambios:
-- `CHAT_MODEL`, `MEMORY_WRITER_MODEL`, `REPORT_MODEL`, `EXTRACTION_MODEL` como env vars (defaults seguros).
+- `CHAT_MODEL`, `MEMORY_WRITER_MODEL`, `REPORT_MODEL` como env vars (defaults seguros). La extracción PDF actual es determinística y no usa modelo.
 - Tabla canónica de 36 canales HD (`HD_CHANNELS_FULL` + helpers).
 - Inyección de la tabla en el system prompt + regla #13 detection ("verificá puerta-canal contra tabla").
 - Reorden del system prompt: TODO static al inicio, dynamic al final → activa OpenAI prompt caching automático.
@@ -165,7 +165,7 @@ beads listados originalmente ya fueron cerrados o absorbidos por epics nuevas.
 | `astral-m25` | abierto P0 | Data fix manual para premium afectadas |
 | `astral-4ue` | abierto P0 | Sucesor operativo de `astral-m25`: script `migrate-user-to-swiss.ts` |
 | `astral-e2h.1` | cerrado | Eliminar v1 + flag; v2 canónico |
-| `astral-7i8` | abierto P1/P4 según epic | Compact endpoint/UX, reencuadrado dentro de `astral-e2h` |
+| `astral-7i8` | cerrado superseded | Compact endpoint V1 destructivo descartado por ADR `astral-e2h.11` |
 | TBD | futuro | Multi-provider abstraction, retry/backoff y Batch API para `memory_writer` siguen como ideas, no como fuente de verdad de tracking |
 
 ---

@@ -4,6 +4,11 @@
 **Sesión que lo descubrió**: refactor AI (`feature/refactor-design-ai-model`).
 **Audiencia**: founders + futuro engineer que se encuentre con casos similares.
 
+> **Estado actual 2026-05-24:** este doc es un snapshot histórico de la investigación.
+> El flujo PDF actual es determinístico (`pdfjs-dist` + parsers MyHumanDesign /
+> Genetic Matrix), sin GPT-4o Vision. `astral-0b7` y `astral-bdt` están cerrados;
+> los remanentes operativos vivos son `astral-m25` y `astral-4ue` según `AGENTS.md`.
+
 ---
 
 ## TL;DR
@@ -13,7 +18,7 @@ Daniela (founder + usuaria de prueba) reportó que el chat le decía relaciones 
 1. **Bug A — Profile vacío después de subir carta HD**: el endpoint `/me/assets` con `fileType=hd` crea el asset pero NO extrae el perfil HD. `users.profile.humanDesign.type` queda vacío. Afecta 4 cuentas premium (Lucia Nista, Agos, Jez Handel, Mayra).
 2. **Bug B — Profile contaminado con datos de otro user**: la cuenta de Daniela tenía un `profile` byte-por-byte idéntico al de Brian (founder). El chat le respondió 8 veces durante la semana que era "Generador Manifestante 6/2" y que se llamaba "Brian Montero". Causa probable: `PUT /users/:id` admin endpoint permite escribir `profile`.
 
-El refactor de la capa de AI (foco de la sesión) resolvió el síntoma de **alucinaciones** que Daniela vió en pantalla — pero los bugs A y B siguen abiertos y requieren fixes operativos + de schema.
+El refactor de la capa de AI (foco de la sesión) resolvió el síntoma de **alucinaciones** que Daniela vió en pantalla. En el momento de esta investigación, los bugs A y B seguían abiertos y requerían fixes operativos + de schema; hoy están cerrados y se conservan acá como contexto histórico.
 
 ---
 
@@ -58,7 +63,7 @@ Inspección read-only a Turso (2026-05-15):
 
 ### B.2 — Patrón sistémico (no es solo Daniela)
 
-5 cuentas premium con profile inconsistente:
+En el snapshot del 2026-05-15, 5 cuentas premium aparecían con profile inconsistente:
 
 | Cuenta | `users.name` | `profile.name` | `hd.type` | Asset HD | Active | Diagnóstico |
 |---|---|---|---|---|---|---|
@@ -79,27 +84,27 @@ Inspección read-only a Turso (2026-05-15):
 ### Bug A — Subir HD por `/me/assets` deja profile vacío
 
 `backend/src/routes/assets.ts`:
-- `POST /me/bodygraph` (líneas 166-248): flujo correcto. Extrae profile con GPT-4o Vision → `updateUserBodygraph(userId, profile, assetId)` atómico.
+- `POST /me/bodygraph`: flujo correcto. En 2026-05-15 el análisis hablaba de Vision; el flujo actual extrae perfiles con parsers PDF determinísticos y luego llama `updateUserBodygraph(userId, profile, assetId)` de forma atómica.
 - `POST /me/assets` (líneas 99-148): solo crea asset. Acepta `fileType=hd` si es PDF, pero NO extrae profile NI actualiza `users.profile_asset_id`.
 
-`backend/src/api.ts` frontend tiene `uploadAsset(file, fileType)` que llama a `/me/assets`, pero un grep no encuentra callers en componentes actuales. Hipótesis: dead code o callers en versiones previas del frontend.
+`frontend/src/api.ts` tiene `uploadAsset(file, fileType)` que llama a `/me/assets`, pero un grep no encuentra callers en componentes actuales. Hipótesis: dead code o callers en versiones previas del frontend.
 
 Resultado: si alguien subió HD por `/me/assets` (frontend viejo, curl manual, script), su profile queda vacío y la app le responde con HD vacío → degradación silenciosa.
 
-**Bead**: `astral-0b7` (P0).
+**Bead**: `astral-0b7` (P0, cerrado).
 
 ### Bug B — Profile contaminable vía admin endpoint
 
 `backend/src/routes/users.ts`:
-- `PUT /users/:id` (líneas 314-336, admin only): recibe `{ name, profile, intake }` y llama `updateUserProfile(req.params.id, name, profile, intake)`. NO valida que el profile pertenezca a ese user.
+- En el estado observado el 2026-05-15, `PUT /users/:id` (admin only) recibía `{ name, profile, intake }` y llamaba `updateUserProfile(req.params.id, name, profile, intake)` sin validar que el profile perteneciera a ese user.
 
-Esto permite que un admin (intencional o accidentalmente) escriba el HD profile de cualquier user. Es el path más probable de contaminación (Brian admin → escribir profile sobre row de Daniela).
+Eso permitía que un admin (intencional o accidentalmente) escribiera el HD profile de cualquier user. Fue el path más probable de contaminación (Brian admin → escribir profile sobre row de Daniela).
 
 Otras hipótesis:
 - Login impersonation: Brian se logueó como Daniela y completó onboarding subiendo su carta. El asset HD se borraría después y solo quedaría el natal del 2026-05-07. No hay logs.
 - Seed/test contamination: bug en script de seed que copia profiles entre users.
 
-**Bead**: `astral-bdt` (P0).
+**Bead**: `astral-bdt` (P0, cerrado).
 
 ---
 
@@ -119,13 +124,14 @@ La review original de Daniela tenía 14 items. **9 de los 14 se explican por est
 
 ## E — Lo que arreglamos en la sesión (refactor AI)
 
-El refactor de `feature/refactor-design-ai-model` resuelve el síntoma "el chat alucina relaciones HD" — pero **NO** los bugs A y B. Estos siguen abiertos como beads críticos:
+El refactor de `feature/refactor-design-ai-model` resolvió el síntoma "el chat alucina relaciones HD" — pero **NO** resolvía los bugs A y B en ese momento. Estado actual:
 
-- `astral-0b7` — Bug A
-- `astral-bdt` — Bug B
-- `astral-m25` — Data fix manual para las 5 cuentas afectadas (Daniela, Lucia, Agos, Jez, Mayra)
+- `astral-0b7` — Bug A (cerrado)
+- `astral-bdt` — Bug B (cerrado)
+- `astral-m25` — Data fix manual para cuentas premium afectadas
+- `astral-4ue` — sucesor operativo de `astral-m25` para migración Swiss
 
-Si Bug A se ejecuta (por flujo legacy, curl, etc) en una cuenta nueva, el refactor AI **no lo salva** — el chat va a ser correcto en relaciones HD pero la cuenta sigue sin profile real.
+Lección histórica: si el profile persistido está vacío o contaminado, un refactor del agente no lo salva; primero hay que corregir la fuente canónica en `users.profile`.
 
 ---
 
@@ -139,9 +145,9 @@ Si Bug A se ejecuta (por flujo legacy, curl, etc) en una cuenta nueva, el refact
 
 ---
 
-## G — Próximos pasos
+## G — Próximos pasos históricos
 
-- `astral-0b7` (P0): rechazar `fileType=hd` en `/me/assets` o redirigir a `/me/bodygraph`
-- `astral-bdt` (P0): `PUT /users/:id` admin solo debe poder cambiar campos de gestión (plan, role, status, name), NO `profile`/`intake`
-- `astral-m25` (P0, bloqueado por 0b7): re-extraer profile HD para las 5 cuentas afectadas
+- `astral-0b7` (P0): rechazar `fileType=hd` en `/me/assets` o redirigir a `/me/bodygraph` (cerrado)
+- `astral-bdt` (P0): `PUT /users/:id` admin solo debe poder cambiar campos de gestión (plan, role, status, name), NO `profile`/`intake` (cerrado)
+- `astral-m25` / `astral-4ue` (P0): data fix/migración Swiss remanente según `AGENTS.md`
 - Considerar agregar audit script `npm run audit:hd-profiles` para detectar contaminación a futuro

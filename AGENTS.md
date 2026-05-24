@@ -55,7 +55,7 @@
 ### Deploy
 
 - Render. Chat usa tools siempre; rollback del path v1 ya no existe.
-- Env vars de modelos (`CHAT_MODEL`, `MEMORY_WRITER_MODEL`, `REPORT_MODEL`, `EXTRACTION_MODEL`) cambiables desde dashboard.
+- Env vars de modelos (`CHAT_MODEL`, `MEMORY_WRITER_MODEL`, `REPORT_MODEL`) cambiables desde dashboard. La extracción PDF actual es determinística y no usa modelo.
 - Rollback de cualquier feature = 1 var de env, sin redeploy de código.
 
 ### Bugs P0 abiertos (mencionar en cualquier PR cercana)

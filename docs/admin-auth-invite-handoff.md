@@ -4,6 +4,12 @@ Date: 2026-05-04
 
 This document is a product and technical handoff for a future Codex/Claude Code session. Do not treat it as an implementation plan ready to execute blindly. Start by rereading the current code, validating assumptions, and then produce a concrete plan before changing files.
 
+> Current status 2026-05-24: historical handoff. The current operational source
+> is `docs/admin-invite-runbook.md`. The invite implementation now uses
+> `backend/src/auth/email-templates.ts` plus
+> `backend/src/auth/admin-invite-email.ts`; do not treat the open requirements
+> below as current backlog without checking Beads first.
+
 ## Product Intent
 
 Astral Guide needs an admin-driven invitation flow that feels like a real welcome into the product, not like a generic login challenge.
@@ -35,7 +41,7 @@ Backend auth setup:
 
 - `backend/src/auth/supertokens.ts` initializes `Passwordless` with `flowType: "USER_INPUT_CODE_AND_MAGIC_LINK"`.
 - `backend/src/auth/config.ts` only enables custom SMTP email delivery when all required SMTP env vars are present.
-- `backend/src/auth/passwordless-email.ts` contains a custom Astral-styled email builder, but it only gets used through the SMTP-backed `createPasswordlessEmailService`.
+- `backend/src/auth/email-templates.ts` contains the Astral-styled passwordless email builder used by `createPasswordlessEmailService`.
 - `backend/src/routes/users.ts` contains the admin invite endpoint `POST /api/admin/users`.
 - `backend/src/routes/users.ts` has a `buildMagicLink()` helper that builds `/auth/verify?preAuthSessionId=...&tenantId=public#linkCode`.
 
@@ -115,7 +121,7 @@ Current/known context:
 - SuperTokens passwordless default lifetime is 15 minutes (`900000ms`).
 - Brian has already increased `passwordless_code_lifetime` to 48 hours in production.
 - Local/dev may still be 15 minutes unless configured separately.
-- Do not rely only on frontend/backend constants for `expiresAt`; the real expiry comes from SuperTokens core configuration.
+- Do not rely only on frontend or backend constants for `expiresAt`; the real expiry comes from SuperTokens core configuration.
 
 Requirements:
 
@@ -324,7 +330,7 @@ Implementation principles:
 6. Add admin delete-user UI with confirmation.
 7. Clean neutral language in admin UI.
 8. Improve copy-link feedback and mobile layout.
-9. Expand backend/frontend/E2E coverage.
+9. Expand backend, frontend, and E2E coverage.
 10. Run full relevant checks and document manual QA results.
 
 ## Open Questions

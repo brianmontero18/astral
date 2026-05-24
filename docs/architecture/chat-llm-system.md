@@ -163,10 +163,10 @@ Default actual: `gpt-4o-mini` vía Vercel AI SDK + tools HD. El legacy fetch dir
   CRECIMIENTO DEL HISTORIAL:
   ────────────────────────────────────────────────────────────
   Turn 1: ~14K tokens total
-  Turn 5: ~14K tokens total (history truncado a 30)
-  Turn 30: ~14K tokens total (history sigue truncado a 30)
-  ↑ memory_md preserva los hechos clave; mensajes viejos
-    se cortan sin perder identidad/contexto del user
+  Turn 5: ~14K tokens total (historial dentro de la ventana)
+  Turn 30: ~14K tokens total (≈60 mensajes; la ventana llega al cap)
+  ↑ memory_md preserva los hechos clave; cuando el historial supera
+    60 mensajes, se envían solo los más recientes
 ```
 
 ---
@@ -270,6 +270,8 @@ Fuentes detalladas en `docs/research/2026-05-*.md`.
 | Capa | Archivo | Qué hace |
 |---|---|---|
 | Orquestación | `backend/src/routes/chat.ts` | Recibe HTTP y delega en `services/guide-service.ts` |
+| UX chat | `frontend/src/components/ChatView.tsx` | Renderiza historial, streaming, límites y context pressure |
+| UX context pressure | `frontend/src/chat-context-pressure.ts` · `frontend/src/components/ChatContextPressureBanner.tsx` | Decide cuándo mostrar awareness de contexto y copy no destructivo |
 | Agent v2 | `backend/src/agent-service-v2.ts` | Wrapper sobre Vercel AI SDK con HD tools |
 | Prompt builder v2 | `backend/src/agent-service-v2-prompt.ts` | Arma el system prompt con orden cache-friendly |
 | Tipos compartidos | `backend/src/types/agent.ts` | `UserProfile`, mensajes y metadata de agente |

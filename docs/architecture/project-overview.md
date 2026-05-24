@@ -38,7 +38,7 @@ Stack: React 18 + Vite (frontend) · Fastify 5 + Turso libsql (backend) · OpenA
 | Nuevo endpoint admin | R11 → R1 (auth) |
 | MCP / integración externa | R12 → R1 |
 | Bug de tránsitos | R7 → R3 (lee bodygraph) |
-| Cambio al informe semanal | R8 → R6 (lee memory) → R3 (lee profile) |
+| Cambio al informe semanal | R8 → R3 (profile) → R2 (intake) |
 | Telemetría LLM / costos | R13 → R5 |
 
 ---
@@ -112,8 +112,9 @@ Notación: **STATE** = `stable` · `active-dev` · `legacy-mantenido` · `gated`
   - `backend/src/hd-tools/` ← 5 tools deterministicos para v2 (anti-alucinación by design)
   - `backend/src/knowledge/` ← HD_CONDENSED + BUSINESS_PACK
   - `backend/src/routes/chat.ts`
-- **Depends on:** R3 (profile) · R6 (memory) · R7 (transits) · R8 (no, opposite — R8 consume del chat output) · R13 (telemetry)
-- **Tests:** `backend/src/__tests__/api-chat.test.ts` · `backend/src/__tests__/api-chat-context-budget.test.ts` · `backend/src/__tests__/anti-hallucination-hd.test.ts` · `backend/src/__tests__/llm-telemetry.test.ts` · `backend/src/__tests__/memory-integration.test.ts` · `backend/src/__tests__/prompt-cache-discipline.test.ts` · `e2e/specs/01-chat-send-message.spec.ts` · `e2e/specs/28-chat-streaming-scroll.spec.ts`
+  - `frontend/src/components/ChatView.tsx` · `frontend/src/components/ChatContextPressureBanner.tsx` · `frontend/src/chat-context-pressure.ts`
+- **Depends on:** R3 (profile) · R6 (memory) · R7 (transits) · R13 (telemetry)
+- **Tests:** `backend/src/__tests__/api-chat.test.ts` · `backend/src/__tests__/api-chat-context-budget.test.ts` · `backend/src/__tests__/frontend-chat-context-pressure.test.ts` · `backend/src/__tests__/anti-hallucination-hd.test.ts` · `backend/src/__tests__/llm-telemetry.test.ts` · `backend/src/__tests__/memory-integration.test.ts` · `backend/src/__tests__/prompt-cache-discipline.test.ts` · `e2e/specs/01-chat-send-message.spec.ts` · `e2e/specs/28-chat-streaming-scroll.spec.ts`
 - **State:** `active-dev` — v2 canónico desde `astral-e2h.1`; legacy v1 eliminado.
 - **Sub-doc:** [`chat-llm-system.md`](chat-llm-system.md) ← lectura obligada antes de tocar AI
 
@@ -137,10 +138,10 @@ Notación: **STATE** = `stable` · `active-dev` · `legacy-mantenido` · `gated`
 - **State:** `stable` · ADR pendiente sobre selector diario/semanal (`astral-46m`)
 
 ### R8 · Report (Premium Weekly Report)
-- **Purpose:** Generar reporte semanal personalizado para usuarias premium. 3 LLM calls (intro + body + close). Cached por `profile_hash` — se invalida automáticamente cuando cambia el profile.
-- **Surface:** `POST /me/report` · `GET /me/report?tier=` · `POST /me/report/share` · `GET /me/report/share/:token`
+- **Purpose:** Generar reporte semanal personalizado para usuarias premium. 3 LLM calls (intro + body + close). Cached por `profile_hash` — se invalida automáticamente cuando cambia el profile. Tokens/costo quedan materializados en `hd_reports`.
+- **Surface:** `POST /me/report` · `GET /me/report?tier=` · `GET /me/report/pdf` · `POST /me/report/share` · `GET /report/shared/:token`
 - **Entry files:** `backend/src/report/generate-report.ts` · `backend/src/report/pdf-renderer.tsx` · `backend/src/routes/report.ts` · `frontend/src/components/ReportRenderer.tsx` · `frontend/src/components/ReportView.tsx`
-- **Depends on:** R3 (profile) · R2 (intake) · R6 (memory_md) · R7 (transits) · R13 (telemetry)
+- **Depends on:** R3 (profile) · R2 (intake)
 - **Tests:** `backend/src/__tests__/api-report.test.ts` · `backend/src/__tests__/report-generation.test.ts` · `backend/src/__tests__/frontend-report-view-model.test.ts` · `e2e/specs/07-report-first-generation.spec.ts` · `e2e/specs/11-report-regeneration.spec.ts`
 - **State:** `active-dev` (v2 en spec, ver `premium-report-v2-spec.md`)
 
@@ -177,11 +178,11 @@ Notación: **STATE** = `stable` · `active-dev` · `legacy-mantenido` · `gated`
 - **State:** `gated` por `FEATURE_REMOTE_MCP` · production learnings en [`../remote-mcp-production-learnings.md`](../remote-mcp-production-learnings.md)
 
 ### R13 · Telemetry & Cost Tracking
-- **Purpose:** Persistir cada LLM call (`route`, `model`, `tokens_in/out`, `cached_tokens`, `tool_calls_count/json`, `context_breakdown_json`, `cost_usd`, `latency_ms`, `prompt_hash`) en la tabla `llm_calls` para analytics de costo + invalidación de cache + compliance de tools + context budget.
-- **Surface:** No tiene endpoint propio — se escribe como side-effect de cada LLM call.
-- **Entry files:** `backend/src/db.ts` (función `insertLlmCall`) · `backend/src/services/guide-telemetry.ts` · `backend/src/memory-writer.ts` · `backend/src/report/generate-report.ts`
-- **Depends on:** ninguna región — es la capa observability transversal.
-- **Tests:** `backend/src/__tests__/llm-telemetry.test.ts` · `backend/src/__tests__/llm-pricing.test.ts` · `backend/src/__tests__/api-chat-context-budget.test.ts` · `backend/src/__tests__/context-budget.test.ts`
+- **Purpose:** Persistir telemetría de llamadas LLM del chat, memory writer y MCP (`route`, `model`, `tokens_in/out`, `cached_tokens`, `tool_calls_count/json`, `context_breakdown_json`, `cost_usd`, `latency_ms`, `prompt_hash`) en `llm_calls` para analytics de costo, cache, compliance de tools y context budget. Reportes guardan su costo agregado en `hd_reports`, no en `llm_calls`.
+- **Surface:** No tiene endpoint propio — se escribe como side-effect de esas llamadas LLM.
+- **Entry files:** `backend/src/db.ts` (función `insertLlmCall`) · `backend/src/services/guide-telemetry.ts` · `backend/src/memory-writer.ts`
+- **Depends on:** R5 (chat/MCP ask) · R6 (memory writer)
+- **Tests:** `backend/src/__tests__/llm-telemetry.test.ts` · `backend/src/__tests__/llm-pricing.test.ts` · `backend/src/__tests__/admin-llm-usage.test.ts` · `backend/src/__tests__/api-chat-context-budget.test.ts` · `backend/src/__tests__/context-budget.test.ts`
 - **State:** `stable`
 
 ---
@@ -220,7 +221,7 @@ created_at, updated_at
 ### Otras tablas
 `assets` · `chat_messages` · `llm_calls` · `hd_reports` · `report_shares` · `transit_cache` · `transit_snapshots_cache` · `user_identities` (auth mapping) · `mcp_tokens` · `mcp_consents` · `mcp_clients` · `mcp_audit_events`
 
-### R2 storage convention
+### R2 object storage convention
 `users/{userId}/assets/{assetId}.pdf`
 
 ---

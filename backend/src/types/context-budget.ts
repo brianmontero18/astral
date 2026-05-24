@@ -23,6 +23,7 @@ export interface ContextBudgetPromptBlock {
 export interface ContextBudgetBlock {
   id: ContextBudgetBlockId;
   tokens: number;
+  /** Fraction of model context window used by this block (0..1), or null when unknown. */
   percentOfWindow: number | null;
 }
 
@@ -40,6 +41,7 @@ export interface ContextBudgetSnapshot {
   estimatedInputTokens: number;
   reservedOutputTokens: number;
   estimatedTotalTokens: number;
+  /** Fraction of model context window used by estimated total tokens (0..1), or null when unknown. */
   percentUsed: number | null;
   blocks: ContextBudgetBlock[];
   postCall?: ContextBudgetPostCall;
@@ -50,6 +52,7 @@ export interface ContextBudgetClientSummary {
   provider: ContextBudgetProvider;
   used: number;
   limit: number | null;
+  /** Fraction of model context window used (0..1), or null when unknown. */
   percentUsed: number | null;
   breakdown: {
     system: number;

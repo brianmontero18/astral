@@ -89,7 +89,7 @@ Reports de sub-agents que investigaron contra docs oficiales (Anthropic, OpenAI,
 | Doc | Qué es |
 |---|---|
 | [`admin-invite-runbook.md`](admin-invite-runbook.md) | Cómo invitar usuarios premium/basic vía admin. |
-| [`admin-auth-invite-handoff.md`](admin-auth-invite-handoff.md) | Handoff del flujo admin/auth invite. |
+| [`admin-auth-invite-handoff.md`](admin-auth-invite-handoff.md) | Handoff histórico del flujo admin/auth invite; fuente operativa actual: runbook. |
 | [`codebase-recon-ux-refactor.md`](codebase-recon-ux-refactor.md) | Reconocimiento del codebase para el refactor UX. |
 
 ---

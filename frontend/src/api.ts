@@ -24,6 +24,7 @@ import type {
   DesignReport,
 } from "./types";
 import type { ChatUsageSnapshot } from "./chat-limits";
+import type { ChatContextBudgetSummary } from "./chat-context-pressure";
 import type { TransitChatContext } from "./transits/types";
 
 const BASE = "/api";
@@ -250,6 +251,12 @@ export async function getChatHistory(
 } & ChatUsageSnapshot> {
   const res = await fetch(`${BASE}/me/messages`);
   if (!res.ok) throw new Error(`Chat history error ${res.status}`);
+  return res.json();
+}
+
+export async function getChatContextBudget(): Promise<ChatContextBudgetSummary> {
+  const res = await fetch(`${BASE}/me/chat/context-budget`);
+  if (!res.ok) throw new Error(`Chat context budget error ${res.status}`);
   return res.json();
 }
 
@@ -743,4 +750,3 @@ export async function shareReport(
   }
   return res.json();
 }
-

@@ -160,7 +160,7 @@ de nacimiento que el renderer necesita debe viajar dentro de `profile.birthData`
 **Capa cálculo P0 (`astral-ffm`)**:
 - `backend/src/hd-meta.ts` — tablas chicas (`PROFILE_LINE_NAMES`, `TYPE_POSITIVE_THEME`, `TYPE_QUALIFIER_BY_AUTHORITY`) + helpers (`lookupProfileName`, `lookupPositiveTheme`, `lookupTypeQualifier`, `calcAgeYears`).
 - `calculate.ts` populate todos los campos esenciales del DTO: `birthData` ISOs + tz + age, `typeQualifier`, `profileName`, `themes.{positive, notSelf}`, `design.date`, `activatedGates[].isRetrograde`.
-- Prompt builders v1+v2 migrados al nuevo shape via `formatBirthForPrompt` en `agent-prompt-helpers.ts` (commit `401a905` por Codex en paralelo).
+- Prompt builder v2 migrado al nuevo shape via `formatBirthForPrompt` en `agent-prompt-helpers.ts`.
 - `renderFullDocument` corrigió la violación de regla 5: ya no recibe `birth:` aparte — todo desde `profile.birthData`.
 
 **Validación contra Foundation Chart real de Agos**:
@@ -206,7 +206,7 @@ Ver beads hijos abajo. La sección 4 detalla el gap analysis.
 | Elemento | Bead |
 |---|---|
 | Endpoint `GET /api/me/bodygraph/pdf` con `pdfkit` + `svg-to-pdfkit` | Fase 4 ✅ |
-| Botón "Descargar PDF" en `BodygraphPoc.tsx` | Fase 5 (separada) |
+| Botón "Descargar PDF" en `frontend/src/components/MyChartView.tsx` | Fase 5 ✅ |
 | Arrows L/R en panel (Variable Configuration) | P3 |
 | Triángulos de tone (▲/▽ numerados 1-6) | P3 |
 | Markers retrograde (R) + fixing state (△/▽/✱) por planeta | P3 |
@@ -261,9 +261,9 @@ Ver `bd show astral-jrf` para el bead padre. Tree completo: `bd dep tree astral-
 - **`astral-56r`** — Silueta humana lila (cosmético, sin deps).
 - **`astral-8ke`** — Header expandido (Identity + Design + Personality + Channels en inglés). Depende: `astral-ffm`, `astral-aqa`, `astral-7w2`.
 
-### Fases originalmente parte de `astral-jrf`, ahora beads separados
+### Fases originalmente parte de `astral-jrf`, ahora beads cerrados
 - **`astral-ur2`** — Endpoint PDF del bodygraph. Implementación actual: `GET /api/me/bodygraph/pdf` vía `pdfkit` + `svg-to-pdfkit`.
-- **`astral-kn0`** — Botón Descargar PDF en BodygraphPoc.tsx. Depende: `astral-ur2`.
+- **`astral-kn0`** — Botón Descargar PDF, migrado al flujo actual de `frontend/src/components/MyChartView.tsx`.
 
 ### Orden de ejecución recomendado
 

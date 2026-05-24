@@ -139,11 +139,14 @@ Con 100 users a 10 msg/día (target de beta) ≈ $90-200/mes. Tier 1 de
 OpenAI alcanza para ese volumen (TPM 200K en gpt-4o-mini, ~20x más que
 gpt-4o).
 
-## Próximos beads dependientes
+## Beads relacionados
 
-- `astral-aqh` — auto-scroll del chat durante streaming. Independiente
-  de v2, pero la UX mejora si va junto al deploy.
-- `astral-0b7` — bug carta HD por endpoint /me/assets. Independiente.
-- `astral-m25` — data fix para Daniela, Lucia, Agos, Jez, Mayra.
-  Habilitado por v2 indirectamente (el chat va a responder bien una vez
-  que el profile esté correcto).
+Esta lista era operativa durante el rollout original. Estado actual:
+
+- `astral-0b7` — cerrado; bug `/me/assets` con `fileType=hd`.
+- `astral-bdt` — cerrado; hardening del write admin de profile.
+- `astral-m25` / `astral-4ue` — remanentes P0 de data fix/migración Swiss.
+- `astral-e2h.7` — sigue como banner de context pressure, sin CTA destructivo
+  de compactación.
+
+Para estado vivo, usar `AGENTS.md` y `bd show <id>`.

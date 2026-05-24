@@ -1,9 +1,11 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { ReportRenderer } from "./ReportRenderer";
+import { ChatContextPressureBanner } from "./ChatContextPressureBanner";
 import {
   sendChat,
   sendChatStream,
   getChatHistory,
+  getChatContextBudget,
   truncateChatHistory,
   submitMessageFeedback,
 } from "../api";
@@ -15,6 +17,12 @@ import {
   isChatLimitReached,
   type ChatUsageSnapshot,
 } from "../chat-limits";
+import {
+  getChatContextPressureWarning,
+  shouldShowContextPressureWarning,
+  type ChatContextPressureWarning,
+  type ContextPressureLevel,
+} from "../chat-context-pressure";
 import { FLAGS } from "../config/flags";
 import type { TransitChatContext } from "../transits/types";
 
@@ -146,6 +154,8 @@ export function ChatView({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [messageUsage, setMessageUsage] = useState<ChatUsageSnapshot | null>(null);
+  const [contextPressureWarning, setContextPressureWarning] = useState<ChatContextPressureWarning | null>(null);
+  const [dismissedContextPressureLevel, setDismissedContextPressureLevel] = useState<ContextPressureLevel | null>(null);
   const [limitReached, setLimitReached] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -160,6 +170,12 @@ export function ChatView({
   const stickToBottomRef = useRef(true);
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
   const resetDateLabel = formatResetDate(messageUsage?.resetsAt);
+
+  const refreshContextPressure = useCallback(() => {
+    void getChatContextBudget()
+      .then((budget) => setContextPressureWarning(getChatContextPressureWarning(budget)))
+      .catch(() => {});
+  }, []);
 
   const applyHistoryPayload = ({
     messages: history,
@@ -208,10 +224,13 @@ export function ChatView({
 
   useEffect(() => {
     getChatHistory()
-      .then(applyHistoryPayload)
+      .then((payload) => {
+        applyHistoryPayload(payload);
+        refreshContextPressure();
+      })
       .catch(() => {})
       .finally(() => setHistoryLoaded(true));
-  }, []);
+  }, [refreshContextPressure]);
 
   useEffect(() => {
     if (!messageUsage?.resetsAt) {
@@ -316,6 +335,7 @@ export function ChatView({
         return copy;
       });
 
+      refreshContextPressure();
       setStreaming(false);
     } catch (e) {
       setStreaming(false);
@@ -348,6 +368,7 @@ export function ChatView({
           copy.push({ role: "assistant", content: data.reply, dbId: data.assistantMsgId });
           return copy;
         });
+        refreshContextPressure();
       } catch (e2) {
         const isLimitError2 = e2 instanceof Error && e2.message === "message_limit_reached";
         if (isLimitError2) {
@@ -496,6 +517,14 @@ export function ChatView({
     && messageUsage !== null
     && messageUsage.limit !== null
     && messageUsage.used >= Math.ceil(messageUsage.limit * 0.9);
+  const showContextPressure = shouldShowContextPressureWarning(
+    contextPressureWarning,
+    dismissedContextPressureLevel,
+  );
+  const dismissContextPressure = () => {
+    if (!contextPressureWarning) return;
+    setDismissedContextPressureLevel(contextPressureWarning.level);
+  };
 
   return (
     <div className="chat-shell">
@@ -661,6 +690,13 @@ export function ChatView({
           <div className="chat-error">
             {errorMsg}
           </div>
+        )}
+
+        {showContextPressure && contextPressureWarning && (
+          <ChatContextPressureBanner
+            warning={contextPressureWarning}
+            onDismiss={dismissContextPressure}
+          />
         )}
 
         {nearLimit && remainingMessages !== null && (

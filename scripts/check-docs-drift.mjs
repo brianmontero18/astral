@@ -10,8 +10,11 @@ const currentStateDocs = [
   "ARCHITECTURE.md",
   "docs/INDEX.md",
   "docs/architecture/project-overview.md",
+  "docs/architecture/bug-investigation-daniela-2026-05.md",
   "docs/architecture/chat-llm-system.md",
   "docs/architecture/bodygraph-render.md",
+  "docs/admin-auth-invite-handoff.md",
+  "docs/chat-v2-rollout.md",
   "docs/uat-coverage-audit.md",
 ];
 
@@ -20,10 +23,13 @@ const obsoleteStrings = [
   "report-service.test.ts",
   "api-extract.test.ts",
   "passwordless-email.test.ts",
+  "backend/src/auth/passwordless-email.ts",
+  "BodygraphPoc.tsx",
   "frontend/src/components/admin/",
   "Vision fallback gated",
   "extraction Vision",
   "Fallback Vision only",
+  "Extrae profile con GPT-4o Vision",
   "rasteriza el SVG completo a PNG con `sharp`",
 ];
 
