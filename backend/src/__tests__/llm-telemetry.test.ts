@@ -199,8 +199,11 @@ describe("POST /api/chat — telemetry write", () => {
 
     const calls = await getRecentLlmCallsForUser(userId, SINCE_BEGINNING);
     expect(calls).toHaveLength(1);
-    expect(calls[0]?.contextBreakdownJson).toBeTruthy();
-    const contextBreakdown = JSON.parse(calls[0]!.contextBreakdownJson!);
+    const contextBreakdownJson = calls[0]?.contextBreakdownJson;
+    if (typeof contextBreakdownJson !== "string") {
+      throw new Error("expected context_breakdown_json to be persisted");
+    }
+    const contextBreakdown = JSON.parse(contextBreakdownJson);
     expect(contextBreakdown).toMatchObject({
       estimatedInputTokens: 200,
       postCall: {

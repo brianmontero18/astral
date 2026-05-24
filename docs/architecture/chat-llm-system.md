@@ -274,7 +274,7 @@ Fuentes detalladas en `docs/research/2026-05-*.md`.
 | Prompt builder v2 | `backend/src/agent-service-v2-prompt.ts` | Arma el system prompt con orden cache-friendly |
 | Tipos compartidos | `backend/src/types/agent.ts` | `UserProfile`, mensajes y metadata de agente |
 | Config LLM | `backend/src/llm/model-config.ts` | `CHAT_MODEL` + hash de prompt |
-| Context budget | `backend/src/llm/context-budget.ts` | Estima tokens por bloque + shape de `/me/chat/context-budget` |
+| Context budget | `backend/src/llm/context-budget.ts` | Estima tokens por bloque + shape de `/api/me/chat/context-budget` |
 | Helpers compartidos | `backend/src/agent-prompt-helpers.ts` | `buildBusinessContextBlock`, `buildUserMemoryBlock` |
 | Tools | `backend/src/hd-tools/index.ts` | 5 HD tools con Zod schemas |
 | Datos canónicos | `backend/src/hd-channels.ts` | 36 canales + helpers |

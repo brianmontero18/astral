@@ -113,13 +113,30 @@ function serializeMessagesForBudget(messages: readonly ChatMessage[]): string {
     .join("\n");
 }
 
+interface JsonSchemaSerializable {
+  toJSONSchema: () => unknown;
+}
+
+function hasJsonSchemaSerializer(inputSchema: unknown): inputSchema is JsonSchemaSerializable {
+  if (typeof inputSchema !== "object" || inputSchema === null) return false;
+  const candidate = inputSchema as { toJSONSchema?: unknown };
+  return typeof candidate.toJSONSchema === "function";
+}
+
+function serializeInputSchemaForBudget(inputSchema: unknown): string {
+  if (hasJsonSchemaSerializer(inputSchema)) {
+    return JSON.stringify(inputSchema.toJSONSchema());
+  }
+  return JSON.stringify(inputSchema) ?? String(inputSchema);
+}
+
 export function buildHdToolsSchemaBudgetText(): string {
   return Object.entries(hdTools)
     .map(([name, definition]) => {
       const description = typeof definition.description === "string"
         ? definition.description
         : "";
-      return `${name}\n${description}\n${String(definition.inputSchema)}`;
+      return `${name}\n${description}\n${serializeInputSchemaForBudget(definition.inputSchema)}`;
     })
     .join("\n\n");
 }

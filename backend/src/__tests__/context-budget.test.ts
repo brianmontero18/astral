@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildHdToolsSchemaBudgetText,
   CONTEXT_BUDGET_BLOCK_IDS,
   estimateContextBudget,
   summarizeContextBudgetForClient,
@@ -23,6 +24,15 @@ const messages: ChatMessage[] = [
 ];
 
 describe("estimateContextBudget", () => {
+  it("serializes HD tool schemas with argument names instead of object placeholders", () => {
+    const schemaText = buildHdToolsSchemaBudgetText();
+
+    expect(schemaText).toContain("findChannelByGates");
+    expect(schemaText).toContain("gateA");
+    expect(schemaText).toContain("gateB");
+    expect(schemaText).not.toContain("[object Object]");
+  });
+
   it("returns a stable canonical block breakdown for OpenAI chat context", () => {
     const snapshot = estimateContextBudget({
       model: "gpt-4o-mini",
