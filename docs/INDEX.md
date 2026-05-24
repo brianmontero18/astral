@@ -50,6 +50,7 @@ Reports de sub-agents que investigaron contra docs oficiales (Anthropic, OpenAI,
 | [`adr/context-budget-tracking.md`](adr/context-budget-tracking.md) | ADR: estrategia de medición de context budget en tiempo real para chat (`astral-e2h.5`). |
 | [`adr/chat-compaction-policy.md`](adr/chat-compaction-policy.md) | ADR: semántica y política de compactación del chat (`astral-e2h.11`). |
 | [`adr/model-aware-context-policy.md`](adr/model-aware-context-policy.md) | ADR: política model-aware para context window, selección de historial y mensajes gigantes (`astral-e2h.12`). |
+| [`economics/model-cost-margin-analysis.md`](economics/model-cost-margin-analysis.md) | Unit economics de modelos LLM para Astral: costo real por turno, escenarios de margen por modelo y relacion con `astral-sg3` (`astral-e2h.9`). |
 | [`chat-v2-rollout.md`](chat-v2-rollout.md) | Plan de roll-out del path v2 (Vercel AI SDK + tools). Criterios de cierre cuantitativos, queries SQL para telemetría. |
 | [`hd-transit-refactor-spec.md`](hd-transit-refactor-spec.md) | Spec del refactor de tránsitos. |
 | [`transits-time-selector-adr.md`](transits-time-selector-adr.md) | ADR: selector temporal de tránsitos (diario/semanal). |
