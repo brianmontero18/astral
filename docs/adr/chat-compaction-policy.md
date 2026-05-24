@@ -5,6 +5,11 @@ Fecha: 2026-05-24
 Area: Chat, memoria conversacional, context awareness
 Bead: `astral-e2h.11`
 
+Nota 2026-05-24: `docs/adr/model-aware-context-policy.md` supersede la decision
+operativa de mantener `CHAT_HISTORY_TURNS=60` como criterio primario de
+historial. La decision central de esta ADR sigue vigente: no hay compactacion
+destructiva ni mezcla automatica de summaries en `memory_md` en V1.
+
 ## Contexto
 
 `astral-7i8` proponia `POST /me/chat/compact`: generar un resumen con un
@@ -63,7 +68,9 @@ Esto descarta el scope original de `astral-7i8`:
 
 La politica V1 queda:
 
-1. Mantener `CHAT_HISTORY_TURNS=60` como ventana literal.
+1. Mantener seleccion bounded de historial. Hasta implementar
+   `docs/adr/model-aware-context-policy.md`, el bound operativo es
+   `CHAT_HISTORY_TURNS=60`; despues debe ser token-budgeted y model-aware.
 2. Mantener `users.memory_md` como Living Document de facts persistentes,
    actualizado solo por `memory-writer.ts`.
 3. Usar `GET /api/me/chat/context-budget` para mostrar presion de contexto.

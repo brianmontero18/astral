@@ -5,6 +5,12 @@ Fecha: 2026-05-24
 Area: Chat, telemetria LLM, context awareness
 Bead: `astral-e2h.5`
 
+Nota 2026-05-24: `docs/adr/model-aware-context-policy.md` refina la politica de
+historial posterior a esta ADR. La medicion por bloques sigue vigente, pero
+`history` debe pasar de "mensajes despues de `CHAT_HISTORY_TURNS`" a "mensajes
+seleccionados por el selector model-aware" cuando se implemente
+`astral-e2h.12`.
+
 ## Contexto
 
 Astral ya persiste telemetria post-call en `llm_calls`: `tokens_in`,
@@ -136,7 +142,7 @@ Decision para Astral:
 | `transits` | snapshot de transitos usado por chat | exacta por tokenizer local | incluida en input total |
 | `impact` | `analyzeTransitImpact()` serializado en prompt | exacta por tokenizer local | incluida en input total |
 | `tools_schema` | schemas/descripciones de `hdTools` | estimada por serializacion estable | incluida en input total |
-| `history` | mensajes despues de `CHAT_HISTORY_TURNS` | exacta por tokenizer local | incluida en input total |
+| `history` | mensajes seleccionados por la politica vigente (`CHAT_HISTORY_TURNS` hoy; selector model-aware segun `docs/adr/model-aware-context-policy.md` en la siguiente implementacion) | exacta por tokenizer local | incluida en input total |
 | `current_message` | ultimo mensaje de la usuaria | exacta por tokenizer local | incluida en input total |
 | `response` | salida del modelo | no existe antes; usar reserva/P95 para warning | exacta via `tokens_out` |
 

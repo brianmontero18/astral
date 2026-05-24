@@ -251,7 +251,7 @@ Fuentes detalladas en `docs/research/2026-05-*.md`.
 | **Tool choice = 'required'** (forzar SIEMPRE tool calls) | ❌ | Híbrido por instrucción funciona |
 | **Structured outputs (Zod)** para steps internos | ⚠️ | Los inputs de tools sí (Zod). El output final es texto natural |
 | **Memory pattern Mem0** (Living Document) | ✅ | `users.memory_md` desde antes |
-| **Sliding window de history** (30 turns) | ✅ | `CHAT_HISTORY_TURNS=60` (~30 pares) |
+| **Sliding window de history** (30 turns) | ✅ hoy / ⚠️ siguiente iteracion | `CHAT_HISTORY_TURNS=60` (~30 pares) sigue siendo runtime actual; `docs/adr/model-aware-context-policy.md` define reemplazarlo por seleccion token-budgeted model-aware |
 | **Compaction de history viejo** | ⚠️ | No comprimimos historial viejo. Lo cortamos. Memory_md compensa |
 | **Threads / `conversation_id`** | ❌ | Aún no. Decidido prematuro en beta (<10 users) |
 | **Multi-provider abstraction** (Anthropic + OpenAI) | ⚠️ | Vercel AI SDK lo permite con 1 línea, no lo usamos hoy |
@@ -299,7 +299,7 @@ Desde el dashboard de Render, editar la env var:
 | `CHAT_MODEL` | `gpt-4o-mini` | Probar `gpt-4o` (más calidad, 17x costo) o futuro Claude |
 | `MEMORY_WRITER_MODEL` | `gpt-4o-mini` | Mantener mini casi siempre (escribe markdown, no critical) |
 | `REPORT_MODEL` | `gpt-4o-mini` | Subir si las usuarias piden mejor reporte |
-| `CHAT_HISTORY_TURNS` | `60` | Bajar si los costos suben; reabrir compaction solo bajo la politica no destructiva de `docs/adr/chat-compaction-policy.md` |
+| `CHAT_HISTORY_TURNS` | `60` | Runtime actual y hard cap futuro. La politica primaria de historial queda supersedida por `docs/adr/model-aware-context-policy.md`: seleccionar por token budget/model window, no por cantidad de mensajes |
 
 Cualquier cambio requiere redeploy de Render (pero NO de código).
 
