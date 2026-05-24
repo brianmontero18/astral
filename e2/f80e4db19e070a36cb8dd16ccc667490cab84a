@@ -1,0 +1,19 @@
+backend/src/__tests__/memory-integration.test.ts
+  s_1970642029acbb::t_9283b4292c6b37 252-253
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "e2f80e4db19e070a36cb8dd16ccc667490cab84a",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
