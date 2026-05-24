@@ -297,9 +297,9 @@ Desde el dashboard de Render, editar la env var:
 
 | Variable | Default | Cambiar para... |
 |---|---|---|
-| `CHAT_MODEL` | `gpt-4o-mini` | Probar `gpt-4o` (más calidad, 17x costo) o futuro Claude |
-| `MEMORY_WRITER_MODEL` | `gpt-4o-mini` | Mantener mini casi siempre (escribe markdown, no critical) |
-| `REPORT_MODEL` | `gpt-4o-mini` | Subir si las usuarias piden mejor reporte |
+| `CHAT_MODEL` | `gpt-4o-mini` | Mantener default hasta eval live multi-modelo; ver shortlist en `docs/adr/model-selection-2026.md` |
+| `MEMORY_WRITER_MODEL` | `gpt-4o-mini` | Mantener default hasta eval estructurado de NOOP/facts; ver `docs/adr/model-selection-2026.md` |
+| `REPORT_MODEL` | `gpt-4o-mini` | Cambiar solo con fixtures de reporte y analisis economico; ver `docs/adr/model-selection-2026.md` |
 | `CHAT_HISTORY_TURNS` | unset → `200` hard cap | Hard cap defensivo de mensajes candidatos. La política primaria selecciona por token budget/model window, no por cantidad de mensajes |
 
 Cualquier cambio requiere redeploy de Render (pero NO de código).
