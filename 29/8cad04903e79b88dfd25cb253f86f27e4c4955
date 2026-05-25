@@ -1,0 +1,24 @@
+docs/adr/v1-mono-card-replace-policy.md
+  s_1970642029acbb::t_9da23d96776c12 26,38,54,60-64
+  s_1970642029acbb::t_8fd114726dd88e 1-25,27-37,39-53,55-59,65-159
+docs/INDEX.md
+  s_1970642029acbb::t_8fd114726dd88e 53
+AGENTS.md
+  s_1970642029acbb::t_8fd114726dd88e 80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "298cad04903e79b88dfd25cb253f86f27e4c4955",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
