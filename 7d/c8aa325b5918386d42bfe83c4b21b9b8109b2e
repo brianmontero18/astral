@@ -1,0 +1,36 @@
+frontend/src/App.tsx
+  s_1970642029acbb::t_59d8c4c36d683c 31,72,227,266,295,312-320,331,559
+backend/src/__tests__/db-migration-cached-tokens.test.ts
+  s_1970642029acbb::t_22b37ca6b70155 17,145,274-296,380-381,392,402,408
+frontend/src/api.ts
+  s_1970642029acbb::t_67b1da097931aa 757-762
+  s_1970642029acbb::t_885cf3f4789a3b 28,52-56,64-70
+backend/src/__tests__/frontend-report-errors.test.ts
+  s_1970642029acbb::t_ae9601264ee9d6 1-53
+backend/src/routes/report.ts
+  s_1970642029acbb::t_46939b688f3325 3,31-37,84-106,193,196-197,203-204,215-216,234-239,263-264
+backend/src/db.ts
+  s_1970642029acbb::t_b5ea81f8b002bd 308-322,341,356,362-363,498,600,1954,1960-1961,1972,2005,2019,2040
+frontend/src/report-errors.ts
+  s_1970642029acbb::t_37efd71b452114 1-47
+frontend/src/components/ReportView.tsx
+  s_1970642029acbb::t_ed78a39d0a0819 9,443,479
+backend/src/__tests__/api-report.test.ts
+  s_1970642029acbb::t_b32d4b9bbbf400 32,526,562-600,605,617,628-633,649,661
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "7dc8aa325b5918386d42bfe83c4b21b9b8109b2e",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
