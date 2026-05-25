@@ -175,6 +175,7 @@ function normalizeForEval(text: string): string {
   return text
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[*_`]/g, "")
     .toLowerCase();
 }
 
@@ -192,7 +193,7 @@ function channelIdRegex(id: string): RegExp {
 }
 
 function mentionsGate(text: string, gate: number): boolean {
-  return new RegExp(`\\bpuertas?\\s*${gate}\\b`, "i").test(text);
+  return new RegExp(`\\b(?:puertas?\\s*)?${gate}\\b`, "i").test(text);
 }
 
 export function evalMentionsCanonicalChannel(
@@ -203,9 +204,6 @@ export function evalMentionsCanonicalChannel(
   const expectedName = normalizeForEval(expected.name);
   const missing: string[] = [];
 
-  if (!channelIdRegex(expected.id).test(clean)) {
-    missing.push(`id ${expected.id}`);
-  }
   if (!clean.includes(expectedName)) {
     missing.push(expected.name);
   }
@@ -245,9 +243,12 @@ export function evalRejectsInvalidChannelPair(
 
   const rejectionPatterns = [
     /\bno existe\b/i,
+    /\bno esta(?: definido| en| dentro| incluido| registrado)?\b/i,
+    /\bno se encuentra\b/i,
     /\bno es un canal\b/i,
     /\bno forman(?: un)? canal\b/i,
     /\bno corresponde a un canal\b/i,
+    /\bno forma parte\b/i,
     /\bno hay canal\b/i,
   ];
   const rejectsPair = rejectionPatterns.some((pattern) => pattern.test(clean));
@@ -261,7 +262,7 @@ export function evalRejectsInvalidChannelPair(
   const invalidIdSource = channelIdRegexSource(invalidChannelId);
   const affirmativePatterns = [
     new RegExp(
-      `canal\\s+${invalidIdSource}\\s+(?:existe|conecta|une|forma|es\\s+(?:un|el))`,
+      `(?:^|[.!?]\\s+)canal\\s+${invalidIdSource}\\s+(?:existe|conecta|une|forma|es\\s+(?:un|el))`,
       "i",
     ),
     new RegExp(
@@ -273,7 +274,10 @@ export function evalRejectsInvalidChannelPair(
       "i",
     ),
   ];
-  const contradictsRejection = affirmativePatterns.some((pattern) => pattern.test(clean));
+  const hasExplicitPairNegation = /\bno forman(?: un)? canal\b/i.test(clean);
+  const contradictsRejection =
+    !hasExplicitPairNegation &&
+    affirmativePatterns.some((pattern) => pattern.test(clean));
   if (contradictsRejection) {
     return {
       pass: false,

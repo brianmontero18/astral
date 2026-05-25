@@ -49,6 +49,12 @@ interface MemoryWriterOptions {
   model?: string;
 }
 
+function completionTokenLimitParam(model: string, maxTokens: number) {
+  return model.startsWith("gpt-5")
+    ? { max_completion_tokens: maxTokens }
+    : { max_tokens: maxTokens };
+}
+
 const SYSTEM_PROMPT = `Sos un componente de memoria de un asistente conversacional. Tu trabajo: leer la memoria actual del usuario (markdown) y los últimos mensajes de la conversación, y devolver la memoria actualizada en markdown.
 
 Reglas:
@@ -116,7 +122,7 @@ export async function runMemoryWriter(
     },
     body: JSON.stringify({
       model,
-      max_tokens: 1500,
+      ...completionTokenLimitParam(model, 1500),
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userPrompt },

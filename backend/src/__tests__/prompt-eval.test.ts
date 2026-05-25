@@ -14,6 +14,8 @@ import {
   evalSpanish,
   evalMentionsGates,
   evalNoHallucinatedGates,
+  evalMentionsCanonicalChannel,
+  evalRejectsInvalidChannelPair,
   evalMentionsCenters,
   runEvals,
 } from "./prompt-eval.js";
@@ -178,6 +180,73 @@ describe("evalNoHallucinatedGates", () => {
     const result = evalNoHallucinatedGates(output, [22, 41]);
     expect(result.pass).toBe(false);
     expect(result.reason).toContain("64");
+  });
+});
+
+describe("evalMentionsCanonicalChannel", () => {
+  it("accepts gate lists without repeated Puerta labels or literal channel id", () => {
+    const result = evalMentionsCanonicalChannel(
+      "La Puerta 8 forma el Canal de Inspiración. Puertas: 1 y 8. Circuito: Individual.",
+      { id: "1-8", gates: [1, 8], name: "Canal de Inspiración" },
+    );
+
+    expect(result.pass).toBe(true);
+  });
+
+  it("accepts markdown emphasis around gate numbers", () => {
+    const result = evalMentionsCanonicalChannel(
+      "El Canal 5-15 es el Canal del Ritmo. Está compuesto por las puertas **5** y **15**.",
+      { id: "5-15", gates: [5, 15], name: "Canal del Ritmo" },
+    );
+
+    expect(result.pass).toBe(true);
+  });
+});
+
+describe("evalRejectsInvalidChannelPair", () => {
+  it("accepts canonical-table rejection wording", () => {
+    const result = evalRejectsInvalidChannelPair(
+      "El canal 12-20 no está definido en la tabla canónica de Diseño Humano.",
+      "12-20",
+    );
+
+    expect(result.pass).toBe(true);
+  });
+
+  it("accepts 'no se encuentra' rejection wording", () => {
+    const result = evalRejectsInvalidChannelPair(
+      "El canal 12-20 no se encuentra en la tabla canónica de Diseño Humano. Esto puede ser porque no forma un canal reconocido.",
+      "12-20",
+    );
+
+    expect(result.pass).toBe(true);
+  });
+
+  it("does not treat separate gate existence as affirming the pair", () => {
+    const result = evalRejectsInvalidChannelPair(
+      "El id 1-2 no existe como canal canónico. La Puerta 1 existe, y la Puerta 2 existe, pero no forman un canal entre sí.",
+      "1-2",
+    );
+
+    expect(result.pass).toBe(true);
+  });
+
+  it("accepts explaining each gate after rejecting the pair", () => {
+    const result = evalRejectsInvalidChannelPair(
+      "No existe un canal 1-2 en la tabla canónica de Diseño Humano. Si te referías a una de las puertas, la Puerta 1 es creatividad y la Puerta 2 es dirección, pero juntas no forman un canal.",
+      "1-2",
+    );
+
+    expect(result.pass).toBe(true);
+  });
+
+  it("accepts gate-center detail after rejecting the pair", () => {
+    const result = evalRejectsInvalidChannelPair(
+      "No existe un canal canónico 12-20 en la tabla de Diseño Humano. La Puerta 12 pertenece al Throat y la Puerta 20 también está en el Throat, pero no forman un canal entre sí.",
+      "12-20",
+    );
+
+    expect(result.pass).toBe(true);
   });
 });
 

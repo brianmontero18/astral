@@ -103,6 +103,8 @@ describe("generateReport", () => {
 
     const body = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
     expect(body.model).toBe("gpt-5.4-mini");
+    expect(body.max_completion_tokens).toBe(2048);
+    expect(body.max_tokens).toBeUndefined();
     expect(report.sections.find((section) => section.id === "type")?.llmContent).toBe(
       "Lectura aplicada del tipo",
     );

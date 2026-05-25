@@ -1,0 +1,1128 @@
+{
+  "plan": {
+    "routes": [
+      "chat_stream",
+      "chat",
+      "mcp_ask",
+      "report",
+      "memory_writer"
+    ],
+    "modelsByRoute": {
+      "chat_stream": [
+        "gpt-4o-mini",
+        "gpt-5.4-mini"
+      ],
+      "chat": [
+        "gpt-4o-mini",
+        "gpt-5.4-mini"
+      ],
+      "mcp_ask": [
+        "gpt-4o-mini",
+        "gpt-5.4-mini"
+      ],
+      "report": [
+        "gpt-4o-mini",
+        "gpt-5.4-mini",
+        "gpt-5.4"
+      ],
+      "memory_writer": [
+        "gpt-4o-mini",
+        "gpt-5.4-nano"
+      ],
+      "transcribe": []
+    },
+    "maxModelCalls": 67,
+    "maxEstimatedCostUsd": 0.74
+  },
+  "summary": {
+    "rows": 61,
+    "pass": 59,
+    "fail": 2,
+    "knownCostUsd": 0.175007
+  },
+  "rows": [
+    {
+      "route": "chat_stream",
+      "model": "gpt-4o-mini",
+      "fixtureId": "daniela-gate-8",
+      "pass": true,
+      "reason": "Menciona Canal de Inspiración (1-8) con puertas 1 y 8",
+      "toolCalls": [
+        "findChannelByGates"
+      ],
+      "toolsUsed": [
+        "findChannelByGates"
+      ],
+      "promptTokens": 18487,
+      "completionTokens": 76,
+      "cachedTokens": 18176,
+      "costUsd": 0.001455,
+      "latencyMs": 3616,
+      "outputPreview": "La Puerta 8 forma el **Canal de Inspiración** (1-8). Este canal conecta la Puerta 1 con la Puerta 8 y pertenece al circuito **Individual**, específicamente al subcircuito **Knowing**."
+    },
+    {
+      "route": "chat_stream",
+      "model": "gpt-4o-mini",
+      "fixtureId": "invalid-1-2",
+      "pass": true,
+      "reason": "1-2 rechazado explícitamente como canal inexistente",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18414,
+      "completionTokens": 77,
+      "cachedTokens": 18176,
+      "costUsd": 0.001445,
+      "latencyMs": 2932,
+      "outputPreview": "El canal 1-2 no existe en la tabla canónica de Diseño Humano. La combinación de puertas en el diseño humano forma canales específicos, y el canal 1-2 no está reconocido. Si necesitas información sobre otros canales o puertas, no dudes en pr"
+    },
+    {
+      "route": "chat_stream",
+      "model": "gpt-4o-mini",
+      "fixtureId": "invalid-5-6",
+      "pass": true,
+      "reason": "5-6 rechazado explícitamente como canal inexistente",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18414,
+      "completionTokens": 82,
+      "cachedTokens": 9088,
+      "costUsd": 0.00213,
+      "latencyMs": 6433,
+      "outputPreview": "El canal 5-6 no está definido en la tabla canónica de Diseño Humano. Podría ser que no forme parte de los canales reconocidos, o que no esté activo en este contexto. Si hay algún otro canal o puerta sobre el que te gustaría información, no "
+    },
+    {
+      "route": "chat_stream",
+      "model": "gpt-4o-mini",
+      "fixtureId": "invalid-12-20",
+      "pass": true,
+      "reason": "12-20 rechazado explícitamente como canal inexistente",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18414,
+      "completionTokens": 57,
+      "cachedTokens": 18176,
+      "costUsd": 0.001433,
+      "latencyMs": 20327,
+      "outputPreview": "El canal 12-20 no existe en la tabla canónica de Diseño Humano. Si tienes alguna otra consulta sobre canales o puertas específicas, estaré encantado de ayudarte."
+    },
+    {
+      "route": "chat_stream",
+      "model": "gpt-4o-mini",
+      "fixtureId": "invalid-30-31",
+      "pass": true,
+      "reason": "30-31 rechazado explícitamente como canal inexistente",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18414,
+      "completionTokens": 77,
+      "cachedTokens": 18176,
+      "costUsd": 0.001445,
+      "latencyMs": 2968,
+      "outputPreview": "El canal 30-31 no está registrado en la tabla canónica de Diseño Humano. Podrías estar refiriéndote a otro canal o habrá alguna confusión en el número. Si tienes otro canal en mente o más detalles, estaré encantado de ayudarte."
+    },
+    {
+      "route": "chat_stream",
+      "model": "gpt-4o-mini",
+      "fixtureId": "valid-5-15",
+      "pass": true,
+      "reason": "Menciona Canal del Ritmo (5-15) con puertas 5 y 15",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18457,
+      "completionTokens": 75,
+      "cachedTokens": 18176,
+      "costUsd": 0.00145,
+      "latencyMs": 5948,
+      "outputPreview": "El Canal 5-15 se llama **Canal del Ritmo** (Rhythm). Está compuesto por las puertas **5** y **15**. Este canal pertenece al **circuito colectivo** y a la subcircuito **lógica**."
+    },
+    {
+      "route": "chat_stream",
+      "model": "gpt-4o-mini",
+      "fixtureId": "valid-1-8",
+      "pass": true,
+      "reason": "Menciona Canal de Inspiración (1-8) con puertas 1 y 8",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18455,
+      "completionTokens": 69,
+      "cachedTokens": 9088,
+      "costUsd": 0.002128,
+      "latencyMs": 3495,
+      "outputPreview": "El Canal 1-8 se llama **Canal de Inspiración**. Este canal está compuesto por las puertas **1** y **8**, y pertenece al circuito **Individual**, específicamente al sub-circuito de **Knowing**."
+    },
+    {
+      "route": "chat_stream",
+      "model": "gpt-4o-mini",
+      "fixtureId": "small-talk",
+      "pass": true,
+      "reason": "Respuesta conversacional sin tool innecesaria.",
+      "toolCalls": [],
+      "toolsUsed": [],
+      "promptTokens": 9185,
+      "completionTokens": 20,
+      "cachedTokens": 0,
+      "costUsd": 0.00139,
+      "latencyMs": 1581,
+      "outputPreview": "¡Hola! Estoy aquí y listo para ayudarte. ¿En qué puedo asistirte hoy?"
+    },
+    {
+      "route": "chat_stream",
+      "model": "gpt-5.4-mini",
+      "fixtureId": "daniela-gate-8",
+      "pass": true,
+      "reason": "Menciona Canal de Inspiración (1-8) con puertas 1 y 8",
+      "toolCalls": [
+        "findChannelsByGate"
+      ],
+      "toolsUsed": [
+        "findChannelsByGate"
+      ],
+      "promptTokens": 18497,
+      "completionTokens": 48,
+      "cachedTokens": 17920,
+      "costUsd": 0.001993,
+      "latencyMs": 2689,
+      "outputPreview": "La Puerta 8 forma el Canal de Inspiración: Puertas 1 y 8, del circuito Individual."
+    },
+    {
+      "route": "chat_stream",
+      "model": "gpt-5.4-mini",
+      "fixtureId": "invalid-1-2",
+      "pass": true,
+      "reason": "1-2 rechazado explícitamente como canal inexistente",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18430,
+      "completionTokens": 120,
+      "cachedTokens": 17408,
+      "costUsd": 0.002612,
+      "latencyMs": 2924,
+      "outputPreview": "No existe un canal 1-2 en la tabla canónica de Diseño Humano. Si te referías al Canal 1-8, ese sí existe y suele hablar de inspiración creativa y contribución original: una voz que quiere impactar a otros con una expresión auténtica. Si que"
+    },
+    {
+      "route": "chat_stream",
+      "model": "gpt-5.4-mini",
+      "fixtureId": "invalid-5-6",
+      "pass": true,
+      "reason": "5-6 rechazado explícitamente como canal inexistente",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18430,
+      "completionTokens": 161,
+      "cachedTokens": 17408,
+      "costUsd": 0.002797,
+      "latencyMs": 4559,
+      "outputPreview": "El id 5-6 no existe como canal canónico en la tabla de Diseño Humano. La puerta 5 sí forma parte del Canal 5-15, que en tu diseño ya está definido como Canal del Ritmo. Si lo que querías era ese canal, trabaja temas de cadencia, timing, ord"
+    },
+    {
+      "route": "chat_stream",
+      "model": "gpt-5.4-mini",
+      "fixtureId": "invalid-12-20",
+      "pass": true,
+      "reason": "12-20 rechazado explícitamente como canal inexistente",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18430,
+      "completionTokens": 96,
+      "cachedTokens": 17408,
+      "costUsd": 0.002504,
+      "latencyMs": 6536,
+      "outputPreview": "No existe un canal 12-20 en la tabla canónica de Diseño Humano. Si te referías a la Puerta 12 o a la Puerta 20 por separado, te lo puedo explicar. Si querías un canal específico de la garganta con la 12, el emparejamiento correcto no es 12-"
+    },
+    {
+      "route": "chat_stream",
+      "model": "gpt-5.4-mini",
+      "fixtureId": "invalid-30-31",
+      "pass": true,
+      "reason": "30-31 rechazado explícitamente como canal inexistente",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18430,
+      "completionTokens": 80,
+      "cachedTokens": 17408,
+      "costUsd": 0.002432,
+      "latencyMs": 2295,
+      "outputPreview": "El 30-31 no existe como canal en la tabla canónica de Diseño Humano. Si querés, te digo cuál es el significado real de las puertas 30 y 31 por separado, o te aclaro si estabas pensando en otro canal cercano."
+    },
+    {
+      "route": "chat_stream",
+      "model": "gpt-5.4-mini",
+      "fixtureId": "valid-5-15",
+      "pass": true,
+      "reason": "Menciona Canal del Ritmo (5-15) con puertas 5 y 15",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18473,
+      "completionTokens": 65,
+      "cachedTokens": 17408,
+      "costUsd": 0.002397,
+      "latencyMs": 2367,
+      "outputPreview": "El 5-15 es el Canal del Ritmo, Rhythm. Sus puertas son la 5 y la 15, y pertenece al circuito Colectivo, subcircuito Logic."
+    },
+    {
+      "route": "chat_stream",
+      "model": "gpt-5.4-mini",
+      "fixtureId": "valid-1-8",
+      "pass": true,
+      "reason": "Menciona Canal de Inspiración (1-8) con puertas 1 y 8",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18471,
+      "completionTokens": 53,
+      "cachedTokens": 17408,
+      "costUsd": 0.002341,
+      "latencyMs": 2212,
+      "outputPreview": "El canal 1-8 es el Canal de Inspiración. Puertas: 1 y 8. Circuito: Individual."
+    },
+    {
+      "route": "chat_stream",
+      "model": "gpt-5.4-mini",
+      "fixtureId": "small-talk",
+      "pass": true,
+      "reason": "Respuesta conversacional sin tool innecesaria.",
+      "toolCalls": [],
+      "toolsUsed": [],
+      "promptTokens": 9190,
+      "completionTokens": 37,
+      "cachedTokens": 8704,
+      "costUsd": 0.001184,
+      "latencyMs": 1220,
+      "outputPreview": "Hola, bien. ¿Y vos? Si querés, puedo leerte la semana en clave Diseño Humano, negocio y comunicación con lo que está activo ahora."
+    },
+    {
+      "route": "chat",
+      "model": "gpt-4o-mini",
+      "fixtureId": "daniela-gate-8",
+      "pass": true,
+      "reason": "Menciona Canal de Inspiración (1-8) con puertas 1 y 8",
+      "toolCalls": [
+        "findChannelsByGate"
+      ],
+      "toolsUsed": [
+        "findChannelsByGate"
+      ],
+      "promptTokens": 18481,
+      "completionTokens": 74,
+      "cachedTokens": 9088,
+      "costUsd": 0.002135,
+      "latencyMs": 3762,
+      "outputPreview": "La Puerta 8 forma el **Canal de Inspiración** (1-8). Este canal incluye las siguientes puertas: - Puerta 1 - Puerta 8 Pertenece al circuito **Individual**, en la subcategoría **Knowing**."
+    },
+    {
+      "route": "chat",
+      "model": "gpt-4o-mini",
+      "fixtureId": "invalid-1-2",
+      "pass": true,
+      "reason": "1-2 rechazado explícitamente como canal inexistente",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18414,
+      "completionTokens": 55,
+      "cachedTokens": 9088,
+      "costUsd": 0.002114,
+      "latencyMs": 3008,
+      "outputPreview": "El canal 1-2 no existe en la tabla canónica de Diseño Humano. Te recomiendo revisar otro canal o puerta específica si necesitas información sobre alguna en particular."
+    },
+    {
+      "route": "chat",
+      "model": "gpt-4o-mini",
+      "fixtureId": "invalid-5-6",
+      "pass": true,
+      "reason": "5-6 rechazado explícitamente como canal inexistente",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18414,
+      "completionTokens": 83,
+      "cachedTokens": 9088,
+      "costUsd": 0.00213,
+      "latencyMs": 13371,
+      "outputPreview": "El canal 5-6 no está registrado en la tabla canónica de los canales de Diseño Humano. Es posible que estés buscando información sobre otro canal o que el número no sea correcto. Si necesitas información sobre otros canales, o sobre algún as"
+    },
+    {
+      "route": "chat",
+      "model": "gpt-4o-mini",
+      "fixtureId": "invalid-12-20",
+      "pass": true,
+      "reason": "12-20 rechazado explícitamente como canal inexistente",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18414,
+      "completionTokens": 95,
+      "cachedTokens": 18176,
+      "costUsd": 0.001456,
+      "latencyMs": 13443,
+      "outputPreview": "El canal 12-20 en Diseño Humano no está activo en la tabla canónica, lo que significa que no se presenta como un canal reconocido. Esto puede suceder si los números de las puertas o su combinación no forman un canal en el sistema. Si necesi"
+    },
+    {
+      "route": "chat",
+      "model": "gpt-4o-mini",
+      "fixtureId": "invalid-30-31",
+      "pass": true,
+      "reason": "30-31 rechazado explícitamente como canal inexistente",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18414,
+      "completionTokens": 72,
+      "cachedTokens": 18176,
+      "costUsd": 0.001442,
+      "latencyMs": 2544,
+      "outputPreview": "El canal 30-31 no está activo en la tabla canónica de Diseño Humano, lo que significa que no se reconoce como un canal definido. Si te interesa aprender sobre otros canales o aspectos específicos de Diseño Humano, no dudes en preguntar."
+    },
+    {
+      "route": "chat",
+      "model": "gpt-4o-mini",
+      "fixtureId": "valid-5-15",
+      "pass": true,
+      "reason": "Menciona Canal del Ritmo (5-15) con puertas 5 y 15",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18457,
+      "completionTokens": 69,
+      "cachedTokens": 18176,
+      "costUsd": 0.001447,
+      "latencyMs": 3303,
+      "outputPreview": "El canal 5-15 se llama **Canal del Ritmo** (Rhythm). Conecta las puertas 5 y 15 y pertenece al circuito **Colectivo**, específicamente al subcircuito **Lógico**."
+    },
+    {
+      "route": "chat",
+      "model": "gpt-4o-mini",
+      "fixtureId": "valid-1-8",
+      "pass": true,
+      "reason": "Menciona Canal de Inspiración (1-8) con puertas 1 y 8",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18455,
+      "completionTokens": 115,
+      "cachedTokens": 9088,
+      "costUsd": 0.002156,
+      "latencyMs": 4098,
+      "outputPreview": "El **Canal de Inspiración** (1-8) está compuesto por las siguientes puertas: - **Puerta 1:** Puerta de la Autoexpresión - **Puerta 8:** Puerta del Contribuyente Este canal pertenece al **circuito Individual** y se clasifica dentro del subci"
+    },
+    {
+      "route": "chat",
+      "model": "gpt-4o-mini",
+      "fixtureId": "small-talk",
+      "pass": true,
+      "reason": "Respuesta conversacional sin tool innecesaria.",
+      "toolCalls": [],
+      "toolsUsed": [],
+      "promptTokens": 9185,
+      "completionTokens": 17,
+      "cachedTokens": 0,
+      "costUsd": 0.001388,
+      "latencyMs": 6862,
+      "outputPreview": "¡Hola! Estoy aquí, listo para ayudarte. ¿Cómo estás vos?"
+    },
+    {
+      "route": "chat",
+      "model": "gpt-5.4-mini",
+      "fixtureId": "daniela-gate-8",
+      "pass": true,
+      "reason": "Menciona Canal de Inspiración (1-8) con puertas 1 y 8",
+      "toolCalls": [
+        "findChannelsByGate"
+      ],
+      "toolsUsed": [
+        "findChannelsByGate"
+      ],
+      "promptTokens": 18497,
+      "completionTokens": 55,
+      "cachedTokens": 17920,
+      "costUsd": 0.002024,
+      "latencyMs": 4092,
+      "outputPreview": "La Puerta 8 forma el Canal de Inspiración: Puerta 1 y Puerta 8, circuito Individual, subcircuito Knowing."
+    },
+    {
+      "route": "chat",
+      "model": "gpt-5.4-mini",
+      "fixtureId": "invalid-1-2",
+      "pass": true,
+      "reason": "1-2 rechazado explícitamente como canal inexistente",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18430,
+      "completionTokens": 95,
+      "cachedTokens": 17408,
+      "costUsd": 0.0025,
+      "latencyMs": 2805,
+      "outputPreview": "El canal 1-2 no existe en la tabla canónica de Diseño Humano. Si querías hablar de la Puerta 1 o de la Puerta 2 por separado, te lo puedo traducir en clave de propósito, comunicación y negocio. Si querías otro canal, decime el número exacto"
+    },
+    {
+      "route": "chat",
+      "model": "gpt-5.4-mini",
+      "fixtureId": "invalid-5-6",
+      "pass": true,
+      "reason": "5-6 rechazado explícitamente como canal inexistente",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18430,
+      "completionTokens": 97,
+      "cachedTokens": 17408,
+      "costUsd": 0.002509,
+      "latencyMs": 3106,
+      "outputPreview": "El 5-6 no existe como canal canónico en la tabla estándar de Diseño Humano. Lo que sí existe es la Puerta 5 y la Puerta 6, pero no forman un canal entre sí. Si querés, te digo qué significa cada puerta por separado y cómo se traduce eso en "
+    },
+    {
+      "route": "chat",
+      "model": "gpt-5.4-mini",
+      "fixtureId": "invalid-12-20",
+      "pass": true,
+      "reason": "12-20 rechazado explícitamente como canal inexistente",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18430,
+      "completionTokens": 96,
+      "cachedTokens": 17408,
+      "costUsd": 0.002504,
+      "latencyMs": 2975,
+      "outputPreview": "No existe el canal 12-20 en la tabla canónica de Diseño Humano. La Puerta 12 sí existe, y la Puerta 20 también, pero no forman un canal entre sí. Si querés, te digo qué significan por separado o te ayudo a identificar cuál era el canal corr"
+    },
+    {
+      "route": "chat",
+      "model": "gpt-5.4-mini",
+      "fixtureId": "invalid-30-31",
+      "pass": true,
+      "reason": "30-31 rechazado explícitamente como canal inexistente",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18430,
+      "completionTokens": 75,
+      "cachedTokens": 17408,
+      "costUsd": 0.00241,
+      "latencyMs": 2839,
+      "outputPreview": "No existe el canal 30-31 en la tabla canónica de Diseño Humano. Si querías decir otro canal, decime cuál y te lo traduzco con precisión a energía, vínculo entre puertas y aplicación en negocio/comunicación."
+    },
+    {
+      "route": "chat",
+      "model": "gpt-5.4-mini",
+      "fixtureId": "valid-5-15",
+      "pass": true,
+      "reason": "Menciona Canal del Ritmo (5-15) con puertas 5 y 15",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18473,
+      "completionTokens": 66,
+      "cachedTokens": 17408,
+      "costUsd": 0.002401,
+      "latencyMs": 2516,
+      "outputPreview": "Sí: el 5-15 es el Canal del Ritmo, Rhythm en inglés. Puertas: 5 y 15. Circuito: Colectivo, subcircuito Logic."
+    },
+    {
+      "route": "chat",
+      "model": "gpt-5.4-mini",
+      "fixtureId": "valid-1-8",
+      "pass": true,
+      "reason": "Menciona Canal de Inspiración (1-8) con puertas 1 y 8",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18471,
+      "completionTokens": 60,
+      "cachedTokens": 17408,
+      "costUsd": 0.002373,
+      "latencyMs": 2635,
+      "outputPreview": "El canal 1-8 es el Canal de Inspiración. Une las puertas 1 y 8, y pertenece al circuito Individual, subcircuito Knowing."
+    },
+    {
+      "route": "chat",
+      "model": "gpt-5.4-mini",
+      "fixtureId": "small-talk",
+      "pass": true,
+      "reason": "Respuesta conversacional sin tool innecesaria.",
+      "toolCalls": [],
+      "toolsUsed": [],
+      "promptTokens": 9190,
+      "completionTokens": 134,
+      "cachedTokens": 8704,
+      "costUsd": 0.00162,
+      "latencyMs": 2046,
+      "outputPreview": "Bien, gracias. Y vos: esta semana no hay canales activados por tránsito, pero sí hay una presión muy concreta para ordenar tu voz de marca desde la Puerta 8.4 del Sol: contribuir con una propuesta clara, visible y útil, sin caer en sobreexp"
+    },
+    {
+      "route": "mcp_ask",
+      "model": "gpt-4o-mini",
+      "fixtureId": "daniela-gate-8",
+      "pass": true,
+      "reason": "Menciona Canal de Inspiración (1-8) con puertas 1 y 8",
+      "toolCalls": [
+        "findChannelByGates"
+      ],
+      "toolsUsed": [
+        "findChannelByGates"
+      ],
+      "promptTokens": 18487,
+      "completionTokens": 75,
+      "cachedTokens": 9088,
+      "costUsd": 0.002136,
+      "latencyMs": 8521,
+      "outputPreview": "La Puerta 8 forma parte del **Canal de Inspiración** (1-8). Este canal está compuesto por las puertas 1 y 8, y pertenece al circuito **Individual**, específico del subCircuito **Knowing**."
+    },
+    {
+      "route": "mcp_ask",
+      "model": "gpt-4o-mini",
+      "fixtureId": "invalid-1-2",
+      "pass": true,
+      "reason": "1-2 rechazado explícitamente como canal inexistente",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18414,
+      "completionTokens": 113,
+      "cachedTokens": 9088,
+      "costUsd": 0.002148,
+      "latencyMs": 8722,
+      "outputPreview": "El canal 1-2 no existe en la tabla canónica de Diseño Humano. En cambio, el canal 1-8, conocido como el Canal de Inspiración, es relevante, mientras que el canal 2 en combinación con otro número podría formar otro canal, pero no está direct"
+    },
+    {
+      "route": "mcp_ask",
+      "model": "gpt-4o-mini",
+      "fixtureId": "invalid-5-6",
+      "pass": true,
+      "reason": "5-6 rechazado explícitamente como canal inexistente",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18414,
+      "completionTokens": 91,
+      "cachedTokens": 18176,
+      "costUsd": 0.001454,
+      "latencyMs": 10808,
+      "outputPreview": "El canal 5-6 no existe en el sistema de Diseño Humano. Este hecho puede ser útil para entender cómo se estructuran los canales en el sistema. Si estás explorando un tema específico sobre la energía de este canal o su posible relación con ot"
+    },
+    {
+      "route": "mcp_ask",
+      "model": "gpt-4o-mini",
+      "fixtureId": "invalid-12-20",
+      "pass": false,
+      "reason": "12-20 no fue rechazado como canal inexistente",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18414,
+      "completionTokens": 73,
+      "cachedTokens": 18176,
+      "costUsd": 0.001443,
+      "latencyMs": 3101,
+      "outputPreview": "El canal 12-20 no se encuentra en la tabla canónica de Diseño Humano. Esto puede ser porque no forma un canal reconocido. Si estás buscando información sobre canales específicos o puertas dentro del Diseño Humano, puedo ayudarte a consultar"
+    },
+    {
+      "route": "mcp_ask",
+      "model": "gpt-4o-mini",
+      "fixtureId": "invalid-30-31",
+      "pass": true,
+      "reason": "30-31 rechazado explícitamente como canal inexistente",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18414,
+      "completionTokens": 58,
+      "cachedTokens": 18176,
+      "costUsd": 0.001434,
+      "latencyMs": 4036,
+      "outputPreview": "El canal 30-31 no está definido en la tabla canónica de Diseño Humano. Si necesitás información sobre otros canales o puertas específicas, estaré encantado de ayudarte."
+    },
+    {
+      "route": "mcp_ask",
+      "model": "gpt-4o-mini",
+      "fixtureId": "valid-5-15",
+      "pass": true,
+      "reason": "Menciona Canal del Ritmo (5-15) con puertas 5 y 15",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18457,
+      "completionTokens": 76,
+      "cachedTokens": 9088,
+      "costUsd": 0.002133,
+      "latencyMs": 6544,
+      "outputPreview": "El **Canal del Ritmo** (5-15) está compuesto por las siguientes puertas: - **Puerta 5** - **Puerta 15** Este canal pertenece al circuito **Colectivo** y se subclasifica en **Lógico**."
+    },
+    {
+      "route": "mcp_ask",
+      "model": "gpt-4o-mini",
+      "fixtureId": "valid-1-8",
+      "pass": true,
+      "reason": "Menciona Canal de Inspiración (1-8) con puertas 1 y 8",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18455,
+      "completionTokens": 68,
+      "cachedTokens": 9088,
+      "costUsd": 0.002127,
+      "latencyMs": 3246,
+      "outputPreview": "El canal 1-8 se llama **Canal de Inspiración** (Inspiration). Está formado por las puertas 1 y 8, y pertenece al circuito **Individual**, específicamente al subcircuito **Knowing**."
+    },
+    {
+      "route": "mcp_ask",
+      "model": "gpt-4o-mini",
+      "fixtureId": "small-talk",
+      "pass": true,
+      "reason": "Respuesta conversacional sin tool innecesaria.",
+      "toolCalls": [],
+      "toolsUsed": [],
+      "promptTokens": 9185,
+      "completionTokens": 19,
+      "cachedTokens": 9088,
+      "costUsd": 0.000708,
+      "latencyMs": 1534,
+      "outputPreview": "¡Hola! Estoy aquí y listo para ayudarte. ¿Cómo te encuentras tú?"
+    },
+    {
+      "route": "mcp_ask",
+      "model": "gpt-5.4-mini",
+      "fixtureId": "daniela-gate-8",
+      "pass": true,
+      "reason": "Menciona Canal de Inspiración (1-8) con puertas 1 y 8",
+      "toolCalls": [
+        "findChannelsByGate"
+      ],
+      "toolsUsed": [
+        "findChannelsByGate"
+      ],
+      "promptTokens": 18497,
+      "completionTokens": 57,
+      "cachedTokens": 17920,
+      "costUsd": 0.002033,
+      "latencyMs": 2560,
+      "outputPreview": "La Puerta 8 forma el Canal de Inspiración, que une las puertas 1 y 8. Su circuito es Individual, subcircuito Knowing."
+    },
+    {
+      "route": "mcp_ask",
+      "model": "gpt-5.4-mini",
+      "fixtureId": "invalid-1-2",
+      "pass": true,
+      "reason": "1-2 rechazado explícitamente como canal inexistente",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18430,
+      "completionTokens": 100,
+      "cachedTokens": 17408,
+      "costUsd": 0.002522,
+      "latencyMs": 4085,
+      "outputPreview": "No existe el canal 1-2 en la tabla canónica de Diseño Humano, así que no debería inventarte un significado para ese vínculo. Si querías preguntar por la Puerta 1, o por la Puerta 2, o por otro canal cercano, decime cuál y te lo traduzco con"
+    },
+    {
+      "route": "mcp_ask",
+      "model": "gpt-5.4-mini",
+      "fixtureId": "invalid-5-6",
+      "pass": true,
+      "reason": "5-6 rechazado explícitamente como canal inexistente",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18430,
+      "completionTokens": 78,
+      "cachedTokens": 17408,
+      "costUsd": 0.002423,
+      "latencyMs": 2509,
+      "outputPreview": "No existe el canal 5-6 en la tabla canónica de Diseño Humano. Si querés, te puedo decir qué significa el canal 5-15 o el canal 6-59, que son los que suelen confundirse con esa combinación."
+    },
+    {
+      "route": "mcp_ask",
+      "model": "gpt-5.4-mini",
+      "fixtureId": "invalid-12-20",
+      "pass": false,
+      "reason": "12-20 aparece afirmado como canal existente",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18430,
+      "completionTokens": 108,
+      "cachedTokens": 17408,
+      "costUsd": 0.002558,
+      "latencyMs": 3037,
+      "outputPreview": "No existe un canal canónico 12-20 en la tabla de Diseño Humano. La Puerta 12 pertenece al Throat y la Puerta 20 también está en el Throat, pero no forman un canal entre sí. Si querías decir otro canal o querés que te explique la energía de "
+    },
+    {
+      "route": "mcp_ask",
+      "model": "gpt-5.4-mini",
+      "fixtureId": "invalid-30-31",
+      "pass": true,
+      "reason": "30-31 rechazado explícitamente como canal inexistente",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18430,
+      "completionTokens": 128,
+      "cachedTokens": 17408,
+      "costUsd": 0.002648,
+      "latencyMs": 3497,
+      "outputPreview": "No existe un canal 30-31 en la tabla canónica de Diseño Humano, así que no puedo atribuirle un significado real. Lo que sí existe es la Puerta 30, que pertenece al Plexo Solar, y la Puerta 31, que pertenece a la Garganta. Pero sin un canal "
+    },
+    {
+      "route": "mcp_ask",
+      "model": "gpt-5.4-mini",
+      "fixtureId": "valid-5-15",
+      "pass": true,
+      "reason": "Menciona Canal del Ritmo (5-15) con puertas 5 y 15",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18473,
+      "completionTokens": 63,
+      "cachedTokens": 17408,
+      "costUsd": 0.002388,
+      "latencyMs": 3595,
+      "outputPreview": "El 5-15 es el Canal del Ritmo. Sus puertas son la 5 y la 15, y pertenece al circuito Colectivo, subcircuito Logic."
+    },
+    {
+      "route": "mcp_ask",
+      "model": "gpt-5.4-mini",
+      "fixtureId": "valid-1-8",
+      "pass": true,
+      "reason": "Menciona Canal de Inspiración (1-8) con puertas 1 y 8",
+      "toolCalls": [
+        "findChannelById"
+      ],
+      "toolsUsed": [
+        "findChannelById"
+      ],
+      "promptTokens": 18471,
+      "completionTokens": 53,
+      "cachedTokens": 17408,
+      "costUsd": 0.002341,
+      "latencyMs": 2329,
+      "outputPreview": "El canal 1-8 es el Canal de Inspiración. Puertas: 1 y 8. Circuito: Individual."
+    },
+    {
+      "route": "mcp_ask",
+      "model": "gpt-5.4-mini",
+      "fixtureId": "small-talk",
+      "pass": true,
+      "reason": "Respuesta conversacional sin tool innecesaria.",
+      "toolCalls": [],
+      "toolsUsed": [],
+      "promptTokens": 9190,
+      "completionTokens": 36,
+      "cachedTokens": 8704,
+      "costUsd": 0.001179,
+      "latencyMs": 1240,
+      "outputPreview": "Hola, bien y vos. ¿Querés que te lea la semana, te ayude con tu oferta, o estás buscando una dirección puntual para una decisión?"
+    },
+    {
+      "route": "report",
+      "model": "gpt-4o-mini",
+      "fixtureId": "premium-report",
+      "pass": true,
+      "reason": "Reporte premium completo y parseable.",
+      "toolCalls": [],
+      "toolsUsed": [],
+      "promptTokens": 1452,
+      "completionTokens": 1571,
+      "cachedTokens": 0,
+      "costUsd": 0.00116,
+      "latencyMs": 10184,
+      "outputPreview": "Tu Carta Mecánica Tipo: Generador Manifestante Estrategia: Esperar para responder y luego informar Autoridad: Emocional (Plexo Solar) Perfil: 6/2 Definición: Definición dividida Tema del no-ser: Frustración Canales (2): • Canal de Inspiraci"
+    },
+    {
+      "route": "report",
+      "model": "gpt-5.4-mini",
+      "fixtureId": "premium-report",
+      "pass": true,
+      "reason": "Reporte premium completo y parseable.",
+      "toolCalls": [],
+      "toolsUsed": [],
+      "promptTokens": 1449,
+      "completionTokens": 3446,
+      "cachedTokens": 0,
+      "costUsd": 0.016594,
+      "latencyMs": 10691,
+      "outputPreview": "Tu Carta Mecánica Tipo: Generador Manifestante Estrategia: Esperar para responder y luego informar Autoridad: Emocional (Plexo Solar) Perfil: 6/2 Definición: Definición dividida Tema del no-ser: Frustración Canales (2): • Canal de Inspiraci"
+    },
+    {
+      "route": "report",
+      "model": "gpt-5.4",
+      "fixtureId": "premium-report",
+      "pass": true,
+      "reason": "Reporte premium completo y parseable.",
+      "toolCalls": [],
+      "toolsUsed": [],
+      "promptTokens": 1449,
+      "completionTokens": 3817,
+      "cachedTokens": 0,
+      "costUsd": 0.060878,
+      "latencyMs": 32501,
+      "outputPreview": "Tu Carta Mecánica Tipo: Generador Manifestante Estrategia: Esperar para responder y luego informar Autoridad: Emocional (Plexo Solar) Perfil: 6/2 Definición: Definición dividida Tema del no-ser: Frustración Canales (2): • Canal de Inspiraci"
+    },
+    {
+      "route": "memory_writer",
+      "model": "gpt-4o-mini",
+      "fixtureId": "noop",
+      "pass": true,
+      "reason": "NOOP correcto.",
+      "toolCalls": [],
+      "toolsUsed": [],
+      "promptTokens": 447,
+      "completionTokens": 2,
+      "cachedTokens": 0,
+      "costUsd": 0.000068,
+      "latencyMs": 501,
+      "outputPreview": "## Identidad - Camila es mentora."
+    },
+    {
+      "route": "memory_writer",
+      "model": "gpt-4o-mini",
+      "fixtureId": "add",
+      "pass": true,
+      "reason": "Agrego fact nuevo.",
+      "toolCalls": [],
+      "toolsUsed": [],
+      "promptTokens": 463,
+      "completionTokens": 31,
+      "cachedTokens": 0,
+      "costUsd": 0.000088,
+      "latencyMs": 784,
+      "outputPreview": "## Identidad - El usuario se llama Camila. ## Negocio - Camila acompaña a emprendedoras con mentorías premium."
+    },
+    {
+      "route": "memory_writer",
+      "model": "gpt-4o-mini",
+      "fixtureId": "update",
+      "pass": true,
+      "reason": "Actualizo fact contradicho.",
+      "toolCalls": [],
+      "toolsUsed": [],
+      "promptTokens": 461,
+      "completionTokens": 14,
+      "cachedTokens": 0,
+      "costUsd": 0.000078,
+      "latencyMs": 642,
+      "outputPreview": "## Negocio - Camila vende un programa premium grupal."
+    },
+    {
+      "route": "memory_writer",
+      "model": "gpt-4o-mini",
+      "fixtureId": "delete",
+      "pass": true,
+      "reason": "Borro fact contradicho explicitamente.",
+      "toolCalls": [],
+      "toolsUsed": [],
+      "promptTokens": 463,
+      "completionTokens": 11,
+      "cachedTokens": 0,
+      "costUsd": 0.000076,
+      "latencyMs": 555,
+      "outputPreview": "## Negocio - Camila ofrece mentorías."
+    },
+    {
+      "route": "memory_writer",
+      "model": "gpt-4o-mini",
+      "fixtureId": "no-invented-facts",
+      "pass": true,
+      "reason": "No invento negocio ni rol.",
+      "toolCalls": [],
+      "toolsUsed": [],
+      "promptTokens": 453,
+      "completionTokens": 13,
+      "cachedTokens": 0,
+      "costUsd": 0.000076,
+      "latencyMs": 580,
+      "outputPreview": "## Identidad - El nombre del usuario es Camila."
+    },
+    {
+      "route": "memory_writer",
+      "model": "gpt-5.4-nano",
+      "fixtureId": "noop",
+      "pass": true,
+      "reason": "NOOP correcto.",
+      "toolCalls": [],
+      "toolsUsed": [],
+      "promptTokens": 446,
+      "completionTokens": 5,
+      "cachedTokens": 0,
+      "costUsd": 0.000095,
+      "latencyMs": 623,
+      "outputPreview": "## Identidad - Camila es mentora."
+    },
+    {
+      "route": "memory_writer",
+      "model": "gpt-5.4-nano",
+      "fixtureId": "add",
+      "pass": true,
+      "reason": "Agrego fact nuevo.",
+      "toolCalls": [],
+      "toolsUsed": [],
+      "promptTokens": 462,
+      "completionTokens": 30,
+      "cachedTokens": 0,
+      "costUsd": 0.00013,
+      "latencyMs": 1098,
+      "outputPreview": "## Identidad - Soy Camila. ## Negocio - Acompaño a emprendedoras con mentorías premium."
+    },
+    {
+      "route": "memory_writer",
+      "model": "gpt-5.4-nano",
+      "fixtureId": "update",
+      "pass": true,
+      "reason": "Actualizo fact contradicho.",
+      "toolCalls": [],
+      "toolsUsed": [],
+      "promptTokens": 460,
+      "completionTokens": 27,
+      "cachedTokens": 0,
+      "costUsd": 0.000126,
+      "latencyMs": 859,
+      "outputPreview": "## Negocio - Camila ya no vende sesiones sueltas. - Camila vende un programa premium grupal."
+    },
+    {
+      "route": "memory_writer",
+      "model": "gpt-5.4-nano",
+      "fixtureId": "delete",
+      "pass": true,
+      "reason": "Borro fact contradicho explicitamente.",
+      "toolCalls": [],
+      "toolsUsed": [],
+      "promptTokens": 462,
+      "completionTokens": 14,
+      "cachedTokens": 0,
+      "costUsd": 0.00011,
+      "latencyMs": 686,
+      "outputPreview": "## Negocio - Camila ofrece mentorías."
+    },
+    {
+      "route": "memory_writer",
+      "model": "gpt-5.4-nano",
+      "fixtureId": "no-invented-facts",
+      "pass": true,
+      "reason": "No invento negocio ni rol.",
+      "toolCalls": [],
+      "toolsUsed": [],
+      "promptTokens": 452,
+      "completionTokens": 14,
+      "cachedTokens": 0,
+      "costUsd": 0.000108,
+      "latencyMs": 1028,
+      "outputPreview": "## Identidad - Me llamo Camila."
+    }
+  ]
+}

@@ -192,6 +192,8 @@ describe("runMemoryWriter — request shape", () => {
     });
     const body = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
     expect(body.model).toBe("gpt-5.4-nano");
+    expect(body.max_completion_tokens).toBe(1500);
+    expect(body.max_tokens).toBeUndefined();
     expect(MEMORY_WRITER_MODEL).toBe("gpt-4o-mini");
   });
 

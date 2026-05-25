@@ -36,6 +36,12 @@ interface GenerateReportOptions {
   model?: string;
 }
 
+function completionTokenLimitParam(model: string, maxTokens: number) {
+  return model.startsWith("gpt-5")
+    ? { max_completion_tokens: maxTokens }
+    : { max_tokens: maxTokens };
+}
+
 async function callLLM(
   system: string,
   user: string,
@@ -50,7 +56,7 @@ async function callLLM(
     },
     body: JSON.stringify({
       model,
-      max_tokens: 2048,
+      ...completionTokenLimitParam(model, 2048),
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },

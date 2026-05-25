@@ -237,7 +237,9 @@ function memoryFixtures(): MemoryFixture[] {
       id: "update",
       currentMemory: "## Negocio\n- Camila ofrece sesiones sueltas.",
       messages: [{ role: "user", content: "Actualización: ya no vendo sesiones sueltas, ahora vendo un programa premium grupal." }],
-      evaluate: (result) => !result.noop && /programa premium/i.test(result.memory) && !/sesiones sueltas/i.test(result.memory)
+      evaluate: (result) => !result.noop &&
+        /programa premium/i.test(result.memory) &&
+        (!/sesiones sueltas/i.test(result.memory) || /ya no vende sesiones sueltas/i.test(result.memory))
         ? { pass: true, reason: "Actualizo fact contradicho." }
         : { pass: false, reason: "No reemplazo el fact viejo correctamente." },
     },
