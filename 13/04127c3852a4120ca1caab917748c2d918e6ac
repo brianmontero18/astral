@@ -1,0 +1,21 @@
+frontend/src/components/ReportView.tsx
+  s_1970642029acbb::t_9ec1bc353f74f6 554-566
+backend/src/__tests__/frontend-report-view.test.ts
+  s_1970642029acbb::t_8fe5f859168476 1-61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "1304127c3852a4120ca1caab917748c2d918e6ac",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
