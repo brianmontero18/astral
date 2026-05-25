@@ -103,6 +103,18 @@ describe("parseHdSummaryFromText", () => {
       expect(result.name).toBe("Test User");
     });
 
+    it("normalizes fully lowercase names from Nombre: label", () => {
+      const text = SAMPLE_ES.replace("Test User", "daniela medina");
+      const result = parseHdSummaryFromText(text);
+      expect(result.name).toBe("Daniela Medina");
+    });
+
+    it("keeps Spanish particles lowercase when normalizing names", () => {
+      const text = SAMPLE_ES.replace("Test User", "maria del mar");
+      const result = parseHdSummaryFromText(text);
+      expect(result.name).toBe("Maria del Mar");
+    });
+
     it("does not leave any of the 4 summary strings empty", () => {
       const result = parseHdSummaryFromText(SAMPLE_ES);
       expect(result.humanDesign.type).toBeTruthy();
@@ -121,6 +133,18 @@ describe("parseHdSummaryFromText", () => {
       expect(result.name).toBeUndefined();
     });
 
+    it("normalizes fully uppercase names from Name: label", () => {
+      const text = "Foundation Chart Quantum Name: BRIAN MONTERO Birth Date (Local): 18 February 1989";
+      const result = parseHdSummaryFromText(text);
+      expect(result.name).toBe("Brian Montero");
+    });
+
+    it("preserves mixed-case names from MyHumanDesign format", () => {
+      const text = "Name Brian Montero Design TYPE Generator";
+      const result = parseHdSummaryFromText(text);
+      expect(result.name).toBe("Brian Montero");
+    });
+
     it("Spanish label search does not falsely match English Tipo within other words", () => {
       // The label regex requires "TIPO: " with colon and space, so words
       // that contain "tipo" as substring (e.g. "estereotipo") should not
@@ -131,4 +155,3 @@ describe("parseHdSummaryFromText", () => {
     });
   });
 });
-

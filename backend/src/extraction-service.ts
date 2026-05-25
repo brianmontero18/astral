@@ -273,6 +273,29 @@ function normalizeField(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
 
+const LOWERCASE_NAME_PARTICLES = new Set(["de", "del", "la", "las", "los", "y"]);
+
+function normalizeExtractedName(value: string): string {
+  const normalized = normalizeField(value);
+  if (!normalized) return normalized;
+
+  const letters = normalized.match(/\p{L}/gu) ?? [];
+  if (letters.length === 0) return normalized;
+
+  const isAllLower = letters.every((char) => char === char.toLocaleLowerCase("es"));
+  const isAllUpper = letters.every((char) => char === char.toLocaleUpperCase("es"));
+  if (!isAllLower && !isAllUpper) return normalized;
+
+  return normalized
+    .split(" ")
+    .map((word, index) => {
+      const lower = word.toLocaleLowerCase("es");
+      if (index > 0 && LOWERCASE_NAME_PARTICLES.has(lower)) return lower;
+      return lower.replace(/^\p{L}/u, (first) => first.toLocaleUpperCase("es"));
+    })
+    .join(" ");
+}
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -366,17 +389,17 @@ export function parseHdSummaryFromText(text: string): HdSummary {
   // Name extraction (MyHumanDesign format)
   const nameMatch = cleaned.match(/\bName\s+([^\s].*?)\s+Design\b/i);
   if (nameMatch && !/not available/i.test(nameMatch[1])) {
-    summary.name = normalizeField(nameMatch[1]);
+    summary.name = normalizeExtractedName(nameMatch[1]);
   }
   // Name extraction (Genetic Matrix EN: "Name: Foo Bar Birth Date")
   if (!summary.name) {
     const gmNameMatch = cleaned.match(/\bName:\s+(.+?)\s+Birth Date\b/i);
-    if (gmNameMatch) summary.name = normalizeField(gmNameMatch[1]);
+    if (gmNameMatch) summary.name = normalizeExtractedName(gmNameMatch[1]);
   }
   // Name extraction (Genetic Matrix ES: "Nombre: Foo Bar Fecha de Nacimiento")
   if (!summary.name) {
     const esNameMatch = cleaned.match(/\bNombre:\s+(.+?)\s+Fecha de Nacimiento\b/i);
-    if (esNameMatch) summary.name = normalizeField(esNameMatch[1]);
+    if (esNameMatch) summary.name = normalizeExtractedName(esNameMatch[1]);
   }
 
   const typeRaw = extractSection(cleaned, "TYPE ", allLabelsUpper)
