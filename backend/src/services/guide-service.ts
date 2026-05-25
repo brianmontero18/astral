@@ -46,6 +46,7 @@ import {
   type ParsedTransitChatContext,
 } from "./guide-transits.js";
 import { persistGuideLlmCall } from "./guide-telemetry.js";
+import { beginGuideTurn } from "./user-operation-locks.js";
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
 
@@ -249,101 +250,111 @@ function triggerGuideMemoryWriterAsync(
 export async function runGuideTurn(
   input: RunGuideTurnInput,
 ): Promise<RunGuideTurnResult> {
-  const sideEffectsMode = input.sideEffectsMode ?? "web_persisted";
-  const route = sideEffectsMode === "mcp_read_only" ? "mcp_ask" : "chat";
-  const context = await buildGuideSelectedContext({ ...input, route });
-  assertGuideContextFits(context.selected);
-  const result = await runAstralAgentV2(
-    input.profile,
-    context.transits,
-    context.selected.messages,
-    OPENAI_KEY,
-    context.impact,
-    context.intakeForChat,
-    context.memoryForChat,
-    context.selected.snapshot,
-    { model: context.selected.snapshot.model },
-  );
-
-  if (input.persistedUserId) {
-    await persistGuideLlmCall(
-      input.app,
-      input.persistedUserId,
-      route,
-      {
-        ...result,
-        model: context.selected.snapshot.model,
-        contextBudget: result.contextBudget ?? context.selected.snapshot,
-      },
+  const releaseGuideTurn = beginGuideTurn(input.persistedUserId);
+  try {
+    const sideEffectsMode = input.sideEffectsMode ?? "web_persisted";
+    const route = sideEffectsMode === "mcp_read_only" ? "mcp_ask" : "chat";
+    const context = await buildGuideSelectedContext({ ...input, route });
+    assertGuideContextFits(context.selected);
+    const result = await runAstralAgentV2(
+      input.profile,
+      context.transits,
+      context.selected.messages,
+      OPENAI_KEY,
+      context.impact,
+      context.intakeForChat,
+      context.memoryForChat,
+      context.selected.snapshot,
+      { model: context.selected.snapshot.model },
     );
-  }
 
-  if (sideEffectsMode === "mcp_read_only") {
+    if (input.persistedUserId) {
+      await persistGuideLlmCall(
+        input.app,
+        input.persistedUserId,
+        route,
+        {
+          ...result,
+          model: context.selected.snapshot.model,
+          contextBudget: result.contextBudget ?? context.selected.snapshot,
+        },
+      );
+    }
+
+    if (sideEffectsMode === "mcp_read_only") {
+      return {
+        reply: result.content,
+        transitsUsed: context.transits.fetchedAt,
+      };
+    }
+
+    const persisted = await persistGuideTurnMessages({
+      app: input.app,
+      persistedUserId: input.persistedUserId,
+      messages: input.messages,
+      replyText: result.content,
+    });
+
     return {
       reply: result.content,
       transitsUsed: context.transits.fetchedAt,
+      ...persisted,
     };
+  } finally {
+    releaseGuideTurn();
   }
-
-  const persisted = await persistGuideTurnMessages({
-    app: input.app,
-    persistedUserId: input.persistedUserId,
-    messages: input.messages,
-    replyText: result.content,
-  });
-
-  return {
-    reply: result.content,
-    transitsUsed: context.transits.fetchedAt,
-    ...persisted,
-  };
 }
 
 export async function streamGuideTurn(
   input: RunGuideTurnInput,
   onChunk: StreamGuideChunkHandler,
 ): Promise<Omit<RunGuideTurnResult, "reply">> {
-  const context = await buildGuideSelectedContext({ ...input, route: "chat_stream" });
-  assertGuideContextFits(context.selected);
-  let fullText = "";
-  const captured: { meta?: AgentCallMeta } = {};
+  const releaseGuideTurn = beginGuideTurn(input.persistedUserId);
+  try {
+    const context = await buildGuideSelectedContext({ ...input, route: "chat_stream" });
+    assertGuideContextFits(context.selected);
+    let fullText = "";
+    const captured: { meta?: AgentCallMeta } = {};
 
-  for await (const chunk of runAstralAgentStreamV2(
-    input.profile,
-    context.transits,
-    context.selected.messages,
-    OPENAI_KEY,
-    context.impact,
-    context.intakeForChat,
-    context.memoryForChat,
-    (meta) => { captured.meta = meta; },
-    context.selected.snapshot,
-    { model: context.selected.snapshot.model },
-  )) {
-    fullText += chunk;
-    onChunk(chunk);
-  }
+    for await (const chunk of runAstralAgentStreamV2(
+      input.profile,
+      context.transits,
+      context.selected.messages,
+      OPENAI_KEY,
+      context.impact,
+      context.intakeForChat,
+      context.memoryForChat,
+      (meta) => { captured.meta = meta; },
+      context.selected.snapshot,
+      { model: context.selected.snapshot.model },
+    )) {
+      fullText += chunk;
+      onChunk(chunk);
+    }
 
-  if (input.persistedUserId && captured.meta) {
-    await persistGuideLlmCall(input.app, input.persistedUserId, "chat_stream", {
-      ...captured.meta,
-      model: context.selected.snapshot.model,
-      contextBudget: captured.meta.contextBudget ?? context.selected.snapshot,
+    if (input.persistedUserId && captured.meta) {
+      await persistGuideLlmCall(input.app, input.persistedUserId, "chat_stream", {
+        ...captured.meta,
+        model: context.selected.snapshot.model,
+        contextBudget: captured.meta.contextBudget ?? context.selected.snapshot,
+      });
+    }
+
+    const persisted = await persistGuideTurnMessages({
+      app: input.app,
+      persistedUserId: input.persistedUserId,
+      messages: input.messages,
+      replyText: fullText,
+      requireReplyText: true,
     });
+
+    return {
+      transitsUsed: context.transits.fetchedAt,
+      ...persisted,
+    };
+  } finally {
+    releaseGuideTurn();
   }
-
-  const persisted = await persistGuideTurnMessages({
-    app: input.app,
-    persistedUserId: input.persistedUserId,
-    messages: input.messages,
-    replyText: fullText,
-    requireReplyText: true,
-  });
-
-  return {
-    transitsUsed: context.transits.fetchedAt,
-    ...persisted,
-  };
 }
 
 async function persistGuideTurnMessages(input: {

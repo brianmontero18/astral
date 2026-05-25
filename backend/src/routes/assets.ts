@@ -1,10 +1,12 @@
 import type { FastifyInstance } from "fastify";
+import { randomUUID } from "node:crypto";
 import {
   createAsset,
   deleteAsset,
   getAsset,
   getUser,
   getUserAssets,
+  replaceUserBodygraphState,
   updateUserBodygraph,
 } from "../db.js";
 import { extractProfileFromAssets, UserFacingError } from "../extraction-service.js";
@@ -17,6 +19,11 @@ import {
 import { calculateBodygraph, type BirthData } from "../bodygraph/calculate.js";
 import { renderFullDocument } from "../bodygraph/render-svg.js";
 import { renderBodygraphPdf } from "../bodygraph/render-pdf.js";
+import { deleteObject as r2DeleteObject } from "../storage/r2.js";
+import {
+  beginBodygraphReplace,
+  UserOperationConflictError,
+} from "../services/user-operation-locks.js";
 
 const FROM_BIRTH_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const FROM_BIRTH_TIME_RE = /^\d{2}:\d{2}$/;
@@ -26,6 +33,10 @@ interface FromBirthBody {
   date?: unknown;
   time?: unknown;
   place?: unknown;
+}
+
+interface ReplaceFromBirthBody extends FromBirthBody {
+  confirmReplace?: unknown;
 }
 
 type FromBirthParse =
@@ -62,6 +73,25 @@ function parseFromBirthBody(body: FromBirthBody): FromBirthParse {
       name: typeof body.name === "string" ? body.name : undefined,
     },
   };
+}
+
+function hasReplaceConfirmation(value: unknown): boolean {
+  return value === true || value === "true";
+}
+
+function hasActiveBodygraph(user: Awaited<ReturnType<typeof getUser>>): boolean {
+  if (!user) return false;
+  const profile = user.profile as {
+    humanDesign?: { activatedGates?: Array<unknown> };
+  };
+  return Boolean(
+    user.profile_asset_id ||
+    (profile.humanDesign?.activatedGates?.length ?? 0) > 0,
+  );
+}
+
+function isConfirmedReplaceRequired(user: Awaited<ReturnType<typeof getUser>>): boolean {
+  return Boolean(user && user.onboarding_status === "complete" && hasActiveBodygraph(user));
 }
 
 const ALLOWED_MIMES = new Set([
@@ -230,6 +260,14 @@ export async function assetRoutes(app: FastifyInstance) {
       });
     }
 
+    const existingUser = await getUser(userId);
+    if (!existingUser) {
+      return reply.status(404).send({ error: "User not found" });
+    }
+    if (isConfirmedReplaceRequired(existingUser)) {
+      return reply.status(409).send({ error: "use_bodygraph_replace_endpoint" });
+    }
+
     const buffer = await data.toBuffer();
 
     if (buffer.length > MAX_SIZE) {
@@ -256,15 +294,8 @@ export async function assetRoutes(app: FastifyInstance) {
       return reply.status(502).send({ error: message });
     }
 
-    const existingUser = await getUser(userId);
-    if (!existingUser) {
-      return reply.status(404).send({ error: "User not found" });
-    }
-
-    // Capturar el asset previamente activo antes de cualquier mutación. Lo
-    // necesitamos para borrarlo después del update — el modelo v1 es "una
-    // sola carta activa", el botón "Reemplazar carta" promete reemplazo
-    // y la lista de assets no debe crecer al recargar la carta.
+    // Initial upload can still replace an incomplete onboarding artifact.
+    // Completed users must go through /me/bodygraph/replace.
     const previousAssetId = existingUser.profile_asset_id;
 
     profile.name = profile.name || existingUser.name;
@@ -314,11 +345,8 @@ export async function assetRoutes(app: FastifyInstance) {
     });
   });
 
-  // Birth-data path: calcula el bodygraph determinístico desde { date, time,
-  // place } sin upload de PDF. profile_asset_id queda en NULL — el PDF se
-  // genera on-demand cuando la usuaria pide descargarlo. Si tenía una carta
-  // previa (PDF subido o asset sintético), se borra para preservar el
-  // modelo "una carta activa".
+  // Birth-data path for initial/incomplete load. Completed users must go
+  // through /me/bodygraph/replace so the wipe is explicit and atomic.
   app.post<{ Body: FromBirthBody }>("/me/bodygraph/from-birth", async (req, reply) => {
     const userId = await resolveOwnedUser(req as AuthenticatedRequest, reply);
     if (!userId) return;
@@ -326,6 +354,12 @@ export async function assetRoutes(app: FastifyInstance) {
     const parsed = parseFromBirthBody(req.body ?? {});
     if (!parsed.ok) {
       return reply.status(parsed.status).send({ error: parsed.error, message: parsed.message });
+    }
+
+    const existing = await getUser(userId);
+    if (!existing) return reply.status(404).send({ error: "User not found" });
+    if (isConfirmedReplaceRequired(existing)) {
+      return reply.status(409).send({ error: "use_bodygraph_replace_endpoint" });
     }
 
     let profile: UserProfile;
@@ -336,9 +370,6 @@ export async function assetRoutes(app: FastifyInstance) {
       app.log.error({ err }, "bodygraph from-birth calculation failed");
       return reply.status(500).send({ error: "calculation_failed", message });
     }
-
-    const existing = await getUser(userId);
-    if (!existing) return reply.status(404).send({ error: "User not found" });
 
     profile.name = profile.name || existing.name;
     const previousAssetId = existing.profile_asset_id;
@@ -366,6 +397,221 @@ export async function assetRoutes(app: FastifyInstance) {
       user: serializeCurrentUser(updatedUser),
       profile: updatedUser.profile,
     });
+  });
+
+  async function sendReplaceResult(input: {
+    userId: string;
+    profile: UserProfile;
+    profileAssetId: string | null;
+    newAssetIdForCleanup?: string;
+    correlationId: string;
+  }, reply: import("fastify").FastifyReply) {
+    let replaceCommitted = false;
+    try {
+      const result = await replaceUserBodygraphState({
+        userId: input.userId,
+        profile: input.profile,
+        profileAssetId: input.profileAssetId,
+      });
+      replaceCommitted = true;
+
+      if (result.deletedPreviousAsset && result.previousAssetStorageKey) {
+        try {
+          await r2DeleteObject(result.previousAssetStorageKey);
+        } catch (err) {
+          app.log.warn(
+            {
+              err,
+              correlationId: input.correlationId,
+              userId: input.userId,
+              previousAssetId: result.previousProfileAssetId,
+              storageKey: result.previousAssetStorageKey,
+            },
+            "Failed to delete previous bodygraph object after replace",
+          );
+        }
+      }
+
+      const [updatedUser, rawAssets] = await Promise.all([
+        getUser(input.userId),
+        getUserAssets(input.userId),
+      ]);
+      const rawAsset = input.profileAssetId
+        ? rawAssets.find((asset) => asset.id === input.profileAssetId)
+        : undefined;
+
+      if (!updatedUser) {
+        return reply.status(404).send({ error: "User not found" });
+      }
+
+      app.log.info(
+        {
+          correlationId: input.correlationId,
+          userId: input.userId,
+          previousAssetId: result.previousProfileAssetId,
+          newAssetId: input.profileAssetId,
+          deletedChatMessages: result.deletedChatMessages,
+          deletedReportShares: result.deletedReportShares,
+          deletedReports: result.deletedReports,
+          deletedPreviousAsset: result.deletedPreviousAsset,
+        },
+        "bodygraph_replace_completed",
+      );
+
+      return reply.status(201).send({
+        user: serializeCurrentUser(updatedUser),
+        profile: updatedUser.profile,
+        ...(rawAsset ? { asset: serializeAsset(rawAsset, input.profileAssetId) } : {}),
+      });
+    } catch (err) {
+      if (!replaceCommitted && input.newAssetIdForCleanup) {
+        try {
+          await deleteAsset(input.newAssetIdForCleanup);
+        } catch (cleanupErr) {
+          app.log.warn(
+            {
+              err: cleanupErr,
+              correlationId: input.correlationId,
+              userId: input.userId,
+              newAssetId: input.newAssetIdForCleanup,
+            },
+            "Failed to clean up new bodygraph asset after replace rollback",
+          );
+        }
+      }
+
+      if (err instanceof Error && err.message === "user_not_found") {
+        return reply.status(404).send({ error: "User not found" });
+      }
+
+      app.log.error(
+        { err, correlationId: input.correlationId, userId: input.userId },
+        "bodygraph_replace_failed",
+      );
+      return reply.status(500).send({ error: "bodygraph_replace_failed" });
+    }
+  }
+
+  function beginBodygraphReplaceOrReply(
+    userId: string,
+    reply: import("fastify").FastifyReply,
+  ): (() => void) | null {
+    try {
+      return beginBodygraphReplace(userId);
+    } catch (err) {
+      if (err instanceof UserOperationConflictError) {
+        reply.status(409).send({ error: err.code });
+        return null;
+      }
+      throw err;
+    }
+  }
+
+  app.post<{ Body: ReplaceFromBirthBody }>("/me/bodygraph/replace", async (req, reply) => {
+    const userId = await resolveOwnedUser(req as AuthenticatedRequest, reply);
+    if (!userId) return;
+
+    const correlationId = randomUUID();
+    const contentType = req.headers["content-type"] ?? "";
+
+    if (contentType.includes("multipart/form-data")) {
+      const data = await req.file();
+      if (!data) {
+        return reply.status(400).send({ error: "No file uploaded" });
+      }
+      const confirmReplace = (data.fields.confirmReplace as { value?: string } | undefined)?.value;
+      if (!hasReplaceConfirmation(confirmReplace)) {
+        return reply.status(400).send({ error: "replace_confirmation_required" });
+      }
+      if (data.mimetype !== "application/pdf") {
+        return reply.status(400).send({
+          error: "Subi un PDF exportado desde MyHumanDesign o Genetic Matrix. No aceptamos imagenes ni capturas.",
+        });
+      }
+
+      const buffer = await data.toBuffer();
+      if (buffer.length > MAX_SIZE) {
+        return reply.status(400).send({ error: "File exceeds 10MB limit" });
+      }
+
+      const existingUser = await getUser(userId);
+      if (!existingUser) {
+        return reply.status(404).send({ error: "User not found" });
+      }
+      const releaseReplace = beginBodygraphReplaceOrReply(userId, reply);
+      if (!releaseReplace) return;
+      try {
+        let profile: UserProfile;
+        try {
+          profile = await extractProfileFromAssets([
+            {
+              mimeType: data.mimetype,
+              data: buffer,
+              filename: data.filename,
+              fileType: "hd",
+            },
+          ]);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          if (err instanceof UserFacingError) {
+            app.log.warn(message);
+            return reply.status(err.status).send({ error: message });
+          }
+          app.log.error(message);
+          return reply.status(502).send({ error: message });
+        }
+
+        profile.name = profile.name || existingUser.name;
+        const assetId = await createAsset(userId, data.filename, data.mimetype, "hd", buffer);
+
+        return await sendReplaceResult({
+          userId,
+          profile,
+          profileAssetId: assetId,
+          newAssetIdForCleanup: assetId,
+          correlationId,
+        }, reply);
+      } finally {
+        releaseReplace();
+      }
+    }
+
+    if (!hasReplaceConfirmation(req.body?.confirmReplace)) {
+      return reply.status(400).send({ error: "replace_confirmation_required" });
+    }
+
+    const parsed = parseFromBirthBody(req.body ?? {});
+    if (!parsed.ok) {
+      return reply.status(parsed.status).send({ error: parsed.error, message: parsed.message });
+    }
+
+    const existingUser = await getUser(userId);
+    if (!existingUser) {
+      return reply.status(404).send({ error: "User not found" });
+    }
+    const releaseReplace = beginBodygraphReplaceOrReply(userId, reply);
+    if (!releaseReplace) return;
+    try {
+      let profile: UserProfile;
+      try {
+        profile = await calculateBodygraph(parsed.birth);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        app.log.error({ err, correlationId }, "bodygraph replace calculation failed");
+        return reply.status(500).send({ error: "calculation_failed", message });
+      }
+
+      profile.name = profile.name || existingUser.name;
+
+      return await sendReplaceResult({
+        userId,
+        profile,
+        profileAssetId: null,
+        correlationId,
+      }, reply);
+    } finally {
+      releaseReplace();
+    }
   });
 
   // GET /me/bodygraph/chart-svg — renderiza el chart SVG con paneles planet

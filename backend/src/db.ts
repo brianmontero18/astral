@@ -892,6 +892,118 @@ export async function updateUserBodygraph(
   return result.rowsAffected > 0;
 }
 
+export interface ReplaceUserBodygraphStateResult {
+  previousProfileAssetId: string | null;
+  previousAssetStorageKey: string | null;
+  deletedChatMessages: number;
+  deletedReportShares: number;
+  deletedReports: number;
+  deletedPreviousAsset: boolean;
+}
+
+let shouldInjectReplaceBodygraphFailureForTesting = false;
+
+export function __setReplaceBodygraphFailureForTesting(
+  enabled: boolean,
+): void {
+  shouldInjectReplaceBodygraphFailureForTesting = enabled;
+}
+
+export async function replaceUserBodygraphState(input: {
+  userId: string;
+  profile: object;
+  profileAssetId: string | null;
+}): Promise<ReplaceUserBodygraphStateResult> {
+  const userResult = await client.execute({
+    sql: "SELECT profile_asset_id FROM users WHERE id = ?",
+    args: [input.userId],
+  });
+  const userRow = userResult.rows[0];
+  if (!userRow) {
+    throw new Error("user_not_found");
+  }
+
+  const previousProfileAssetId =
+    typeof userRow.profile_asset_id === "string"
+      ? userRow.profile_asset_id
+      : null;
+
+  let previousAssetStorageKey: string | null = null;
+  if (
+    previousProfileAssetId &&
+    previousProfileAssetId !== input.profileAssetId
+  ) {
+    const assetResult = await client.execute({
+      sql: "SELECT storage_key FROM assets WHERE id = ? AND user_id = ?",
+      args: [previousProfileAssetId, input.userId],
+    });
+    previousAssetStorageKey =
+      typeof assetResult.rows[0]?.storage_key === "string"
+        ? assetResult.rows[0].storage_key
+        : null;
+  }
+
+  const statements: Parameters<typeof client.batch>[0] = [
+    {
+      sql: `
+        UPDATE users
+        SET profile = ?,
+            profile_asset_id = ?,
+            intake = NULL,
+            memory_md = '',
+            updated_at = datetime('now')
+        WHERE id = ?
+      `,
+      args: [JSON.stringify(input.profile), input.profileAssetId, input.userId],
+    },
+  ];
+
+  if (shouldInjectReplaceBodygraphFailureForTesting) {
+    statements.push({
+      sql: "SELECT forced_replace_failure FROM missing_replace_failure_table",
+    });
+  }
+
+  statements.push(
+    {
+      sql: "DELETE FROM chat_messages WHERE user_id = ?",
+      args: [input.userId],
+    },
+    {
+      sql: "DELETE FROM report_shares WHERE user_id = ?",
+      args: [input.userId],
+    },
+    {
+      sql: "DELETE FROM hd_reports WHERE user_id = ?",
+      args: [input.userId],
+    },
+  );
+
+  const shouldDeletePreviousAsset =
+    previousProfileAssetId && previousProfileAssetId !== input.profileAssetId;
+  if (shouldDeletePreviousAsset) {
+    statements.push({
+      sql: "DELETE FROM assets WHERE id = ? AND user_id = ?",
+      args: [previousProfileAssetId, input.userId],
+    });
+  }
+
+  const results = await client.batch(statements, "write");
+  const offset = 1;
+  const assetDeleteResult = shouldDeletePreviousAsset
+    ? results[offset + 3]
+    : undefined;
+
+  return {
+    previousProfileAssetId,
+    previousAssetStorageKey,
+    deletedChatMessages: results[offset].rowsAffected,
+    deletedReportShares: results[offset + 1].rowsAffected,
+    deletedReports: results[offset + 2].rowsAffected,
+    deletedPreviousAsset: (assetDeleteResult?.rowsAffected ?? 0) > 0,
+  };
+}
+
 export async function updateUserAccess(
   id: string,
   access: AppUserAccessInput,

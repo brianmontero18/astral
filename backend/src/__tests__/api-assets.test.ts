@@ -5,6 +5,7 @@
  * Uses Fastify inject() with multipart payloads.
  */
 
+import { readFile } from "node:fs/promises";
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { mockSessionModule } from "./session-mock.js";
@@ -17,6 +18,7 @@ const {
   sessionHeaders,
 } = await import("./helpers.js");
 const { getUserAssets, updateUserBodygraph } = await import("../db.js");
+const { beginGuideTurn } = await import("../services/user-operation-locks.js");
 
 let app: FastifyInstance;
 
@@ -34,12 +36,16 @@ function multipartPayload(
   content: Buffer | string,
   mimeType: string,
   fileType = "natal",
+  extraFields: Record<string, string> = {},
 ) {
   const boundary = "----TestBoundary" + Date.now();
+  const fields = { fileType, ...extraFields };
   const body = Buffer.concat([
-    Buffer.from(
-      `--${boundary}\r\nContent-Disposition: form-data; name="fileType"\r\n\r\n${fileType}\r\n`,
-    ),
+    ...Object.entries(fields).map(([name, value]) => (
+      Buffer.from(
+        `--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${value}\r\n`,
+      )
+    )),
     Buffer.from(
       `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: ${mimeType}\r\n\r\n`,
     ),
@@ -52,6 +58,21 @@ function multipartPayload(
     body,
   };
 }
+
+const EMPTY_BODYGRAPH_PROFILE = {
+  humanDesign: {
+    type: "",
+    channels: [],
+    activatedGates: [],
+    definedCenters: [],
+    undefinedCenters: [],
+  },
+};
+
+const MYHUMANDESIGN_FIXTURE = new URL(
+  "../../../test-assets/bodygraph-sources/myhumandesign-chart.pdf",
+  import.meta.url,
+);
 
 describe("POST /api/users/:userId/assets — upload", () => {
   it("uploads a PDF successfully", async () => {
@@ -514,7 +535,7 @@ describe("GET /api/me/bodygraph/chart-svg", () => {
 
   it("returns SVG content when the user has a calculated bodygraph", async () => {
     const sessionSubject = "st-chart-svg-ok";
-    const userId = await createLinkedTestUser(app, sessionSubject);
+    const userId = await createLinkedTestUser(app, sessionSubject, "Linked Test User", EMPTY_BODYGRAPH_PROFILE);
 
     // The default linked-user profile has activatedGates populated via the
     // test helper, but the new endpoint expects a real shape from
@@ -582,7 +603,7 @@ describe("GET /api/me/bodygraph/chart-svg", () => {
 
   it("clamps width to [1, 3000]", async () => {
     const sessionSubject = "st-chart-svg-clamp";
-    await createLinkedTestUser(app, sessionSubject);
+    await createLinkedTestUser(app, sessionSubject, "Linked Test User", EMPTY_BODYGRAPH_PROFILE);
     await app.inject({
       method: "POST",
       url: "/api/me/bodygraph/from-birth",
@@ -614,7 +635,7 @@ describe("GET /api/me/bodygraph/pdf", () => {
 
   it("returns a PDF buffer when the user has a calculated bodygraph", async () => {
     const sessionSubject = "st-pdf-ok";
-    await createLinkedTestUser(app, sessionSubject, "Brian Montero");
+    await createLinkedTestUser(app, sessionSubject, "Brian Montero", EMPTY_BODYGRAPH_PROFILE);
 
     await app.inject({
       method: "POST",
@@ -696,7 +717,7 @@ describe("POST /api/me/bodygraph/from-birth", () => {
 
   it("calculates and persists the bodygraph from birth data (Agos)", async () => {
     const sessionSubject = "st-from-birth-agos";
-    const userId = await createLinkedTestUser(app, sessionSubject);
+    const userId = await createLinkedTestUser(app, sessionSubject, "Linked Test User", EMPTY_BODYGRAPH_PROFILE);
 
     const res = await app.inject({
       method: "POST",
@@ -721,7 +742,7 @@ describe("POST /api/me/bodygraph/from-birth", () => {
 
   it("leaves profile_asset_id NULL (asset is generated on-demand)", async () => {
     const sessionSubject = "st-from-birth-asset-null";
-    const userId = await createLinkedTestUser(app, sessionSubject);
+    const userId = await createLinkedTestUser(app, sessionSubject, "Linked Test User", EMPTY_BODYGRAPH_PROFILE);
 
     const res = await app.inject({
       method: "POST",
@@ -750,7 +771,7 @@ describe("POST /api/me/bodygraph/from-birth", () => {
     expect(user!.profile_asset_id).toBeNull();
   });
 
-  it("replaces the previous PDF asset when from-birth is called over an upload", async () => {
+  it("rejects from-birth replace over an active bodygraph without confirmation", async () => {
     const sessionSubject = "st-from-birth-replaces-asset";
     const linkedUserId = await createLinkedTestUser(app, sessionSubject);
 
@@ -775,15 +796,16 @@ describe("POST /api/me/bodygraph/from-birth", () => {
       },
       payload: AGOS_FROM_BIRTH,
     });
-    expect(res.statusCode).toBe(201);
+    expect(res.statusCode).toBe(409);
+    expect(JSON.parse(res.body).error).toBe("use_bodygraph_replace_endpoint");
 
-    // Old asset is gone; the new profile_asset_id is NULL.
+    // Old asset is preserved because the unconfirmed replace was rejected.
     const { getUser } = await import("../db.js");
     const user = await getUser(linkedUserId);
-    expect(user!.profile_asset_id).toBeNull();
+    expect(user!.profile_asset_id).toBe(oldAssetId);
 
     const rawAssets = await getUserAssets(linkedUserId);
-    expect(rawAssets.find((a) => a.id === oldAssetId)).toBeUndefined();
+    expect(rawAssets.find((a) => a.id === oldAssetId)).toBeDefined();
   });
 
   it("rejects invalid date format", async () => {
@@ -858,5 +880,244 @@ describe("POST /api/me/bodygraph/from-birth", () => {
     });
     expect(res.statusCode).toBe(400);
     expect(JSON.parse(res.body).error).toBe("invalid_place");
+  });
+});
+
+describe("POST /api/me/bodygraph/replace", () => {
+  const AGOS_REPLACE_FROM_BIRTH = {
+    confirmReplace: true,
+    name: "Agos",
+    date: "1988-12-28",
+    time: "04:13",
+    place: { lat: -42.9135, lon: -71.3217, label: "Esquel, Chubut, Argentina" },
+  };
+
+  it("replaces from birth data and wipes all bodygraph-dependent state", async () => {
+    const sessionSubject = "st-replace-wipes-state";
+    const userId = await createLinkedTestUser(app, sessionSubject);
+    const db = await import("../db.js");
+    const beforeUser = await db.getUser(userId);
+    const oldAssetId = await db.createAsset(
+      userId,
+      "old-chart.pdf",
+      "application/pdf",
+      "natal",
+      Buffer.from("%PDF-old"),
+    );
+    await db.updateUserBodygraph(userId, beforeUser!.profile, oldAssetId);
+    await db.updateUserProfile(userId, "Replace User", beforeUser!.profile, {
+      actividad: "old business",
+      desafio_actual: "old challenge",
+    });
+    await db.updateUserMemory(userId, "Old chart memory");
+    await db.saveChatMessage(userId, "user", "old chart question");
+    await db.saveChatMessage(userId, "assistant", "old chart answer");
+    const reportId = await db.saveReport({
+      id: `report-${userId}-free`,
+      userId,
+      tier: "free",
+      profileHash: "old-profile-hash",
+      content: JSON.stringify({ id: "old-report", userId, summary: "old report" }),
+      tokensUsed: 10,
+      costUsd: 0.01,
+    });
+    const shareToken = await db.createShareToken(userId, reportId);
+    await db.insertLlmCall({
+      userId,
+      route: "chat",
+      model: "gpt-4o-mini",
+      tokensIn: 10,
+      tokensOut: 5,
+      costUsd: 0.001,
+      latencyMs: 20,
+      promptHash: "old-hash",
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/me/bodygraph/replace",
+      headers: {
+        "content-type": "application/json",
+        ...sessionHeaders(sessionSubject),
+      },
+      payload: AGOS_REPLACE_FROM_BIRTH,
+    });
+
+    expect(res.statusCode).toBe(201);
+    const body = JSON.parse(res.body);
+    expect(body.profile.humanDesign.type).toBe("Proyector");
+    expect(body.user.intake).toBeNull();
+
+    const afterUser = await db.getUser(userId);
+    expect(afterUser!.profile_asset_id).toBeNull();
+    expect(afterUser!.intake).toBeNull();
+    expect(afterUser!.memory_md).toBe("");
+    expect(afterUser!.plan).toBe("free");
+    expect(afterUser!.role).toBe("user");
+    expect(afterUser!.status).toBe("active");
+    expect(afterUser!.onboarding_status).toBe("complete");
+    expect(await db.getChatMessages(userId)).toEqual([]);
+    expect(await db.getReport(userId, "free")).toBeUndefined();
+    expect(await db.getShareByToken(shareToken)).toBeUndefined();
+    expect((await db.getUserAssets(userId)).find((asset) => asset.id === oldAssetId)).toBeUndefined();
+    expect((await db.getLlmUsageForUser(userId, "1970-01-01T00:00:00.000Z")).totalCallCount).toBe(1);
+  });
+
+  it("replaces from PDF and keeps only the new active bodygraph asset", async () => {
+    const sessionSubject = "st-replace-pdf-wipes-asset";
+    const userId = await createLinkedTestUser(app, sessionSubject);
+    const db = await import("../db.js");
+    const beforeUser = await db.getUser(userId);
+    const oldAssetId = await db.createAsset(
+      userId,
+      "old-chart.pdf",
+      "application/pdf",
+      "hd",
+      Buffer.from("%PDF-old"),
+    );
+    await db.updateUserBodygraph(userId, beforeUser!.profile, oldAssetId);
+    await db.updateUserProfile(userId, "PDF Replace User", beforeUser!.profile, {
+      actividad: "old chart",
+    });
+    await db.updateUserMemory(userId, "Old PDF chart memory");
+    await db.saveChatMessage(userId, "user", "old PDF chart question");
+
+    const pdf = await readFile(MYHUMANDESIGN_FIXTURE);
+    const { headers, body } = multipartPayload(
+      "myhumandesign-chart.pdf",
+      pdf,
+      "application/pdf",
+      "hd",
+      { confirmReplace: "true" },
+    );
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/me/bodygraph/replace",
+      headers: {
+        ...headers,
+        ...sessionHeaders(sessionSubject),
+      },
+      body,
+    });
+
+    expect(res.statusCode).toBe(201);
+    const response = JSON.parse(res.body);
+    expect(response.asset).toMatchObject({
+      filename: "myhumandesign-chart.pdf",
+      mimeType: "application/pdf",
+      fileType: "hd",
+      isActive: true,
+    });
+    expect(response.profile.humanDesign.activatedGates.length).toBeGreaterThan(0);
+
+    const afterUser = await db.getUser(userId);
+    expect(afterUser!.profile_asset_id).toBe(response.asset.id);
+    expect(afterUser!.intake).toBeNull();
+    expect(afterUser!.memory_md).toBe("");
+    expect(await db.getChatMessages(userId)).toEqual([]);
+
+    const assets = await db.getUserAssets(userId);
+    expect(assets.map((asset) => asset.id)).toEqual([response.asset.id]);
+    expect(assets.find((asset) => asset.id === oldAssetId)).toBeUndefined();
+  });
+
+  it("rejects PDF replace while chat is in flight and cleans up the new asset", async () => {
+    const sessionSubject = "st-replace-pdf-chat-in-flight";
+    const userId = await createLinkedTestUser(app, sessionSubject);
+    const db = await import("../db.js");
+    const beforeUser = await db.getUser(userId);
+    const oldAssetId = await db.createAsset(
+      userId,
+      "old-chart.pdf",
+      "application/pdf",
+      "hd",
+      Buffer.from("%PDF-old"),
+    );
+    await db.updateUserBodygraph(userId, beforeUser!.profile, oldAssetId);
+
+    const releaseGuideTurn = beginGuideTurn(userId);
+    try {
+      const pdf = await readFile(MYHUMANDESIGN_FIXTURE);
+      const { headers, body } = multipartPayload(
+        "myhumandesign-chart.pdf",
+        pdf,
+        "application/pdf",
+        "hd",
+        { confirmReplace: "true" },
+      );
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/me/bodygraph/replace",
+        headers: {
+          ...headers,
+          ...sessionHeaders(sessionSubject),
+        },
+        body,
+      });
+
+      expect(res.statusCode).toBe(409);
+      expect(JSON.parse(res.body).error).toBe("chat_in_flight");
+    } finally {
+      releaseGuideTurn();
+    }
+
+    const afterUser = await db.getUser(userId);
+    expect(afterUser!.profile_asset_id).toBe(oldAssetId);
+    expect((await db.getUserAssets(userId)).map((asset) => asset.id)).toEqual([oldAssetId]);
+  });
+
+  it("rolls back the wipe when the atomic DB replace fails", async () => {
+    const sessionSubject = "st-replace-rollback";
+    const userId = await createLinkedTestUser(app, sessionSubject);
+    const db = await import("../db.js");
+    const beforeUser = await db.getUser(userId);
+    await db.updateUserProfile(userId, "Rollback User", beforeUser!.profile, {
+      actividad: "still here",
+      desafio_actual: "must survive",
+    });
+    await db.updateUserMemory(userId, "Memory must survive");
+    await db.saveChatMessage(userId, "user", "keep this");
+    await db.saveReport({
+      id: `report-${userId}-free`,
+      userId,
+      tier: "free",
+      profileHash: "old-profile-hash",
+      content: JSON.stringify({ id: "old-report", userId, summary: "old report" }),
+      tokensUsed: 10,
+      costUsd: 0.01,
+    });
+
+    db.__setReplaceBodygraphFailureForTesting(true);
+
+    try {
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/me/bodygraph/replace",
+        headers: {
+          "content-type": "application/json",
+          ...sessionHeaders(sessionSubject),
+        },
+        payload: AGOS_REPLACE_FROM_BIRTH,
+      });
+
+      expect(res.statusCode).toBe(500);
+      expect(JSON.parse(res.body).error).toBe("bodygraph_replace_failed");
+    } finally {
+      db.__setReplaceBodygraphFailureForTesting(false);
+    }
+
+    const afterUser = await db.getUser(userId);
+    expect((afterUser!.profile as { humanDesign: { type: string } }).humanDesign.type).toBe(
+      "Generador Manifestante",
+    );
+    expect(afterUser!.intake).toEqual({
+      actividad: "still here",
+      desafio_actual: "must survive",
+    });
+    expect(afterUser!.memory_md).toBe("Memory must survive");
+    expect(await db.getChatMessages(userId)).toHaveLength(1);
+    expect(await db.getReport(userId, "free")).toBeDefined();
   });
 });

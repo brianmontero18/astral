@@ -31,6 +31,7 @@ import {
   parseTransitChatContext,
   type TransitChatContext,
 } from "../services/guide-transits.js";
+import { UserOperationConflictError } from "../services/user-operation-locks.js";
 import type { Intake } from "../report/types.js";
 
 export async function chatRoutes(app: FastifyInstance) {
@@ -164,6 +165,9 @@ export async function chatRoutes(app: FastifyInstance) {
           contextBudget: summarizeContextBudgetForClient(err.contextBudget),
         });
       }
+      if (err instanceof UserOperationConflictError) {
+        return reply.status(409).send({ error: err.code });
+      }
       const message = err instanceof Error ? err.message : String(err);
       app.log.error(message);
       return reply.status(502).send({ error: message });
@@ -276,6 +280,11 @@ export async function chatRoutes(app: FastifyInstance) {
           message: err.message,
           contextBudget: summarizeContextBudgetForClient(err.contextBudget),
         })}\n\n`);
+        reply.raw.end();
+        return;
+      }
+      if (err instanceof UserOperationConflictError) {
+        reply.raw.write(`data: ${JSON.stringify({ error: err.code })}\n\n`);
         reply.raw.end();
         return;
       }
