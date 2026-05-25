@@ -33,6 +33,7 @@ export function MyChartView({ user, profile, onBodygraphReplaced, onProfileUpdat
   const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
   const [exporting, setExporting] = useState<"png" | "pdf" | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [replaceNotice, setReplaceNotice] = useState(false);
   const downloadMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -53,10 +54,12 @@ export function MyChartView({ user, profile, onBodygraphReplaced, onProfileUpdat
         onCancel={() => setReplacing(false)}
         onBodygraphReplaced={(result) => {
           onBodygraphReplaced(result);
+          setReplaceNotice(true);
           setReplacing(false);
         }}
         onProfileUpdated={(u, p) => {
           onProfileUpdated(u, p);
+          setReplaceNotice(true);
           setReplacing(false);
         }}
       />
@@ -170,6 +173,11 @@ export function MyChartView({ user, profile, onBodygraphReplaced, onProfileUpdat
       {exportError && (
         <div className="mychart-export-error" role="alert">{exportError}</div>
       )}
+      {replaceNotice && (
+        <div className="astral-auth-feedback astral-auth-feedback-success" role="status">
+          Carta reemplazada. Tu chat, memoria e informes se reiniciaron.
+        </div>
+      )}
 
       {/* (b) Identity card — glass-panel-gold (border gold-alpha) parity con
           el "primary insight" de Tránsitos. Header row: kicker IDENTIDAD a la
@@ -207,7 +215,10 @@ export function MyChartView({ user, profile, onBodygraphReplaced, onProfileUpdat
             <button
               type="button"
               className="astral-auth-secondary mychart-action-pill"
-              onClick={() => setReplacing(true)}
+              onClick={() => {
+                setReplaceNotice(false);
+                setReplacing(true);
+              }}
             >
               Reemplazar carta
             </button>
