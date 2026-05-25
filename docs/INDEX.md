@@ -24,6 +24,7 @@ Si entrás al proyecto por primera vez (humano o AI agent):
 | [`architecture/chat-llm-system.md`](architecture/chat-llm-system.md) | Diagrama del flujo turn-by-turn del chat con LLM, capas de abstracción, comparación con industria 2026. **Lectura obligada para PM o engineer que toca AI**. |
 | [`architecture/refactor-2026-05-decisions.md`](architecture/refactor-2026-05-decisions.md) | Decisiones técnicas del refactor AI (mayo 2026): por qué tools y no post-validator, por qué Vercel AI SDK, por qué mini y no 4o. |
 | [`architecture/bug-investigation-daniela-2026-05.md`](architecture/bug-investigation-daniela-2026-05.md) | Caso real que motivó el refactor: profile contaminado, file_type natal vs hd, root cause analysis. |
+| [`architecture/replace-flow-wipe-scope.md`](architecture/replace-flow-wipe-scope.md) | Auditoría V1 mono-carta: qué tablas/superficies se wipean o mantienen al reemplazar carta (`astral-pjc.2`). |
 
 ---
 
