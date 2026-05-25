@@ -515,21 +515,46 @@ export async function assetRoutes(app: FastifyInstance) {
     const contentType = req.headers["content-type"] ?? "";
 
     if (contentType.includes("multipart/form-data")) {
-      const data = await req.file();
-      if (!data) {
+      let uploadedFile: {
+        filename: string;
+        mimetype: string;
+        buffer: Buffer;
+      } | null = null;
+      let confirmReplace: unknown;
+
+      for await (const part of req.parts()) {
+        if (part.type === "field") {
+          if (part.fieldname === "confirmReplace") {
+            confirmReplace = part.value;
+          }
+          continue;
+        }
+
+        if (part.fieldname === "file") {
+          uploadedFile = {
+            filename: part.filename,
+            mimetype: part.mimetype,
+            buffer: await part.toBuffer(),
+          };
+          continue;
+        }
+
+        await part.toBuffer();
+      }
+
+      if (!uploadedFile) {
         return reply.status(400).send({ error: "No file uploaded" });
       }
-      const confirmReplace = (data.fields.confirmReplace as { value?: string } | undefined)?.value;
       if (!hasReplaceConfirmation(confirmReplace)) {
         return reply.status(400).send({ error: "replace_confirmation_required" });
       }
-      if (data.mimetype !== "application/pdf") {
+      if (uploadedFile.mimetype !== "application/pdf") {
         return reply.status(400).send({
           error: "Subi un PDF exportado desde MyHumanDesign o Genetic Matrix. No aceptamos imagenes ni capturas.",
         });
       }
 
-      const buffer = await data.toBuffer();
+      const buffer = uploadedFile.buffer;
       if (buffer.length > MAX_SIZE) {
         return reply.status(400).send({ error: "File exceeds 10MB limit" });
       }
@@ -545,9 +570,9 @@ export async function assetRoutes(app: FastifyInstance) {
         try {
           profile = await extractProfileFromAssets([
             {
-              mimeType: data.mimetype,
+              mimeType: uploadedFile.mimetype,
               data: buffer,
-              filename: data.filename,
+              filename: uploadedFile.filename,
               fileType: "hd",
             },
           ]);
@@ -562,7 +587,13 @@ export async function assetRoutes(app: FastifyInstance) {
         }
 
         profile.name = profile.name || existingUser.name;
-        const assetId = await createAsset(userId, data.filename, data.mimetype, "hd", buffer);
+        const assetId = await createAsset(
+          userId,
+          uploadedFile.filename,
+          uploadedFile.mimetype,
+          "hd",
+          buffer,
+        );
 
         return await sendReplaceResult({
           userId,

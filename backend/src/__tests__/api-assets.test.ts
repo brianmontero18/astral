@@ -1022,6 +1022,48 @@ describe("POST /api/me/bodygraph/replace", () => {
     expect(assets.find((asset) => asset.id === oldAssetId)).toBeUndefined();
   });
 
+  it("accepts PDF replace confirmation from a real HTTP FormData request", async () => {
+    const httpApp = await createTestApp();
+    try {
+      const sessionSubject = "st-replace-pdf-http-formdata";
+      const userId = await createLinkedTestUser(httpApp, sessionSubject);
+      const db = await import("../db.js");
+      const beforeUser = await db.getUser(userId);
+      await db.updateUserBodygraph(userId, beforeUser!.profile, null);
+
+      await httpApp.listen({ host: "127.0.0.1", port: 0 });
+      const address = httpApp.server.address();
+      if (typeof address === "string" || address === null) {
+        throw new Error("Expected HTTP test server to bind to a TCP address");
+      }
+
+      const pdf = await readFile(MYHUMANDESIGN_FIXTURE);
+      const form = new FormData();
+      form.append(
+        "file",
+        new File([pdf], "myhumandesign-chart.pdf", { type: "application/pdf" }),
+      );
+      form.append("confirmReplace", "true");
+
+      const res = await fetch(`http://127.0.0.1:${address.port}/api/me/bodygraph/replace`, {
+        method: "POST",
+        headers: sessionHeaders(sessionSubject),
+        body: form,
+      });
+
+      expect(res.status).toBe(201);
+      const response = await res.json();
+      expect(response.asset).toMatchObject({
+        filename: "myhumandesign-chart.pdf",
+        mimeType: "application/pdf",
+        fileType: "hd",
+        isActive: true,
+      });
+    } finally {
+      await httpApp.close();
+    }
+  });
+
   it("rejects PDF replace while chat is in flight and cleans up the new asset", async () => {
     const sessionSubject = "st-replace-pdf-chat-in-flight";
     const userId = await createLinkedTestUser(app, sessionSubject);
