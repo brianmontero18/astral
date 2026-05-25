@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { UserProfile } from "../types/agent.js";
 import { calculateCost } from "../llm/pricing.js";
+import { REPORT_MODEL } from "../llm/model-config.js";
 import {
   TYPE_DESCRIPTIONS,
   AUTHORITY_DESCRIPTIONS,
@@ -17,7 +18,6 @@ import {
 } from "./prompts.js";
 
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
-const MODEL = process.env.REPORT_MODEL ?? "gpt-4o-mini";
 
 export function computeProfileHash(profile: UserProfile, intake?: Intake): string {
   const data = JSON.stringify({ profile: profile.humanDesign, intake: intake ?? null });
@@ -152,7 +152,7 @@ export async function generateReport(
   intake?: Intake,
   options: GenerateReportOptions = {},
 ): Promise<Omit<DesignReport, "id" | "userId" | "createdAt">> {
-  const model = options.model ?? MODEL;
+  const model = options.model ?? REPORT_MODEL;
   const profileHash = computeProfileHash(profile, intake);
 
   let totalPromptTokens = 0;

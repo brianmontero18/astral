@@ -19,6 +19,8 @@ vi.mock("../auth/session.js", () => mockSessionModule());
 vi.mock("../llm/model-config.js", () => ({
   hashSystemPrompt: (input: string) => (input ? input.slice(0, 16) : "deadbeef00000000"),
   CHAT_MODEL: "gpt-4o-mini",
+  CHAT_SIMPLE_MODEL: "gpt-4o-mini",
+  CHAT_COMPLEX_MODEL: "gpt-5.4-mini",
 }));
 
 vi.mock("../agent-service-v2.js", () => ({
@@ -164,6 +166,73 @@ describe("POST /api/chat — telemetry write", () => {
     });
   });
 
+  it("routes complex chat to the configured model and persists the routing reason", async () => {
+    const userId = await createLinkedTestUser(app, "tel-chat-complex-routing");
+
+    runAstralAgentV2Mock.mockResolvedValueOnce({
+      content: "respuesta compleja",
+      usage: { promptTokens: 400, completionTokens: 100 },
+      latencyMs: 1100,
+      systemPrompt: "TEST_PROMPT_COMPLEX",
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/chat",
+      headers: sessionHeaders("tel-chat-complex-routing"),
+      payload: {
+        messages: [{
+          role: "user",
+          content: "Analizá mi diseño, mis tránsitos y mi negocio. Compará riesgos y próximos pasos.",
+        }],
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(runAstralAgentV2Mock).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.any(Object),
+      expect.any(Array),
+      expect.any(String),
+      expect.any(Object),
+      undefined,
+      undefined,
+      expect.objectContaining({
+        model: "gpt-5.4-mini",
+        modelRouting: expect.objectContaining({
+          reason: "chat_complex_opt_in",
+        }),
+      }),
+      { model: "gpt-5.4-mini" },
+    );
+
+    const usage = await getLlmUsageForUser(userId, SINCE_BEGINNING);
+    expect(usage.byModel).toEqual([
+      expect.objectContaining({ model: "gpt-5.4-mini", callCount: 1 }),
+    ]);
+    expect(usage.totalCostUsd).toBeCloseTo(0.00075, 8);
+
+    const calls = await getRecentLlmCallsForUser(userId, SINCE_BEGINNING);
+    expect(calls[0]).toMatchObject({
+      route: "chat",
+      model: "gpt-5.4-mini",
+    });
+    const contextBreakdownJson = calls[0]?.contextBreakdownJson;
+    if (typeof contextBreakdownJson !== "string") {
+      throw new Error("expected context_breakdown_json to include routing metadata");
+    }
+    expect(JSON.parse(contextBreakdownJson)).toMatchObject({
+      model: "gpt-5.4-mini",
+      modelRouting: {
+        route: "chat",
+        model: "gpt-5.4-mini",
+        reason: "chat_complex_opt_in",
+        complexity: "complex",
+        signals: expect.arrayContaining(["multi_step", "cross_domain"]),
+      },
+    });
+  });
+
   it("persists context budget breakdown with post-call calibration", async () => {
     const userId = await createLinkedTestUser(app, "tel-chat-context-budget");
 
@@ -288,6 +357,7 @@ describe("POST /api/chat/stream — telemetry write", () => {
       _memory,
       onComplete,
       _contextBudget,
+      _options,
     ) {
       yield "primero ";
       yield "segundo";
@@ -316,6 +386,24 @@ describe("POST /api/chat/stream — telemetry write", () => {
     expect(usage.byRoute).toEqual([
       expect.objectContaining({ route: "chat_stream", callCount: 1 }),
     ]);
+    expect(runAstralAgentStreamV2Mock).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.any(Object),
+      expect.any(Array),
+      expect.any(String),
+      expect.any(Object),
+      undefined,
+      undefined,
+      expect.any(Function),
+      expect.objectContaining({
+        model: "gpt-4o-mini",
+        modelRouting: expect.objectContaining({
+          route: "chat_stream",
+          reason: "chat_simple_default",
+        }),
+      }),
+      { model: "gpt-4o-mini" },
+    );
 
     const calls = await getRecentLlmCallsForUser(userId, SINCE_BEGINNING);
     expect(calls[0]).toMatchObject({

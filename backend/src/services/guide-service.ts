@@ -2,8 +2,11 @@ import type { FastifyInstance } from "fastify";
 
 import {
   CHAT_MODEL,
+  CHAT_COMPLEX_MODEL,
+  CHAT_SIMPLE_MODEL,
   hashSystemPrompt,
 } from "../llm/model-config.js";
+import { selectChatModel, selectMemoryWriterModel } from "../llm/model-routing.js";
 import {
   ChatContextWindowExceededError,
   DEFAULT_CHAT_HISTORY_HARD_CAP_MESSAGES,
@@ -37,7 +40,7 @@ import {
 } from "../memory-writer.js";
 import { analyzeTransitImpact } from "../transit-service.js";
 import type { Intake } from "../report/types.js";
-import type { ContextBudgetSnapshot } from "../types/context-budget.js";
+import type { ContextBudgetSnapshot, ModelRoutingRoute } from "../types/context-budget.js";
 import {
   getTransitsForChat,
   type ParsedTransitChatContext,
@@ -83,6 +86,7 @@ async function buildGuideSelectedContext(
     app?: FastifyInstance;
     messages: ChatMessage[];
     transitContext?: ParsedTransitChatContext;
+    route?: Extract<ModelRoutingRoute, "chat" | "chat_stream" | "mcp_ask">;
   },
 ): Promise<{
   transits: Awaited<ReturnType<typeof getTransitsForChat>>;
@@ -96,10 +100,17 @@ async function buildGuideSelectedContext(
     activatedGates: input.profile.humanDesign?.activatedGates ?? [],
     definedCenters: input.profile.humanDesign?.definedCenters ?? [],
   });
+  const modelRouting = selectChatModel({
+    route: input.route ?? "chat",
+    messages: input.messages,
+    defaultModel: CHAT_MODEL,
+    simpleModel: CHAT_SIMPLE_MODEL,
+    complexModel: CHAT_COMPLEX_MODEL,
+  });
   const intakeForChat = FLAGS.CHAT_INTAKE_CONTEXT && input.intake ? input.intake : undefined;
   const memoryForChat = FLAGS.MEMORY_LIVING_DOCUMENT && input.memory ? input.memory : undefined;
   const selected = selectChatContextForChatBudget({
-    model: CHAT_MODEL,
+    model: modelRouting.model,
     profile: input.profile,
     transits,
     messages: input.messages,
@@ -108,25 +119,32 @@ async function buildGuideSelectedContext(
     memory: memoryForChat,
     historyMessageHardCap: CHAT_HISTORY_HARD_CAP,
   });
+  const selectedWithRouting: SelectedChatContextBudget = {
+    ...selected,
+    snapshot: {
+      ...selected.snapshot,
+      modelRouting,
+    },
+  };
 
-  if (input.app && selected.snapshot.selection.reason === "unknown_model_conservative") {
+  if (input.app && selectedWithRouting.snapshot.selection.reason === "unknown_model_conservative") {
     input.app.log.warn(
       {
-        model: selected.snapshot.model,
+        model: selectedWithRouting.snapshot.model,
         userId: input.persistedUserId,
       },
       "chat_context_unknown_model",
     );
   }
 
-  if (input.app && selected.snapshot.selection.omittedMessageCount > 0) {
+  if (input.app && selectedWithRouting.snapshot.selection.omittedMessageCount > 0) {
     input.app.log.info(
       {
         userId: input.persistedUserId,
-        reason: selected.snapshot.selection.reason,
-        selected: selected.snapshot.selection.selectedMessageCount,
-        omitted: selected.snapshot.selection.omittedMessageCount,
-        historyTokenBudget: selected.snapshot.selection.historyTokenBudget,
+        reason: selectedWithRouting.snapshot.selection.reason,
+        selected: selectedWithRouting.snapshot.selection.selectedMessageCount,
+        omitted: selectedWithRouting.snapshot.selection.omittedMessageCount,
+        historyTokenBudget: selectedWithRouting.snapshot.selection.historyTokenBudget,
       },
       "chat_context_history_selected",
     );
@@ -137,7 +155,7 @@ async function buildGuideSelectedContext(
     impact,
     intakeForChat,
     memoryForChat,
-    selected,
+    selected: selectedWithRouting,
   };
 }
 
@@ -187,25 +205,32 @@ function triggerGuideMemoryWriterAsync(
       const recent = await getRecentChatMessages(userId, MEMORY_WRITER_RECENT_MESSAGES_WINDOW);
       if (recent.length === 0) return;
 
-      const result = await runMemoryWriter(user.memory_md, recent, OPENAI_KEY);
+      const modelRouting = selectMemoryWriterModel({
+        defaultModel: CHAT_MODEL,
+        configuredModel: MEMORY_WRITER_MODEL,
+      });
+      const result = await runMemoryWriter(user.memory_md, recent, OPENAI_KEY, {
+        model: modelRouting.model,
+      });
 
       if (FLAGS.LLM_TELEMETRY) {
         try {
           await insertLlmCall({
             userId,
             route: "memory_writer",
-            model: MEMORY_WRITER_MODEL,
+            model: modelRouting.model,
             tokensIn: result.meta.usage.promptTokens,
             tokensOut: result.meta.usage.completionTokens,
             cachedTokens: result.meta.usage.cachedTokens ?? 0,
             costUsd: calculateCost(
-              MEMORY_WRITER_MODEL,
+              modelRouting.model,
               result.meta.usage.promptTokens,
               result.meta.usage.completionTokens,
               { cachedInputTokens: result.meta.usage.cachedTokens ?? 0 },
             ),
             latencyMs: result.meta.latencyMs,
             promptHash: hashSystemPrompt(result.meta.systemPrompt),
+            contextBreakdown: { modelRouting },
           });
         } catch (err) {
           app.log.warn({ err, userId }, "memory writer telemetry insert failed");
@@ -225,7 +250,8 @@ export async function runGuideTurn(
   input: RunGuideTurnInput,
 ): Promise<RunGuideTurnResult> {
   const sideEffectsMode = input.sideEffectsMode ?? "web_persisted";
-  const context = await buildGuideSelectedContext(input);
+  const route = sideEffectsMode === "mcp_read_only" ? "mcp_ask" : "chat";
+  const context = await buildGuideSelectedContext({ ...input, route });
   assertGuideContextFits(context.selected);
   const result = await runAstralAgentV2(
     input.profile,
@@ -236,14 +262,19 @@ export async function runGuideTurn(
     context.intakeForChat,
     context.memoryForChat,
     context.selected.snapshot,
+    { model: context.selected.snapshot.model },
   );
 
   if (input.persistedUserId) {
     await persistGuideLlmCall(
       input.app,
       input.persistedUserId,
-      sideEffectsMode === "mcp_read_only" ? "mcp_ask" : "chat",
-      result,
+      route,
+      {
+        ...result,
+        model: context.selected.snapshot.model,
+        contextBudget: result.contextBudget ?? context.selected.snapshot,
+      },
     );
   }
 
@@ -272,10 +303,10 @@ export async function streamGuideTurn(
   input: RunGuideTurnInput,
   onChunk: StreamGuideChunkHandler,
 ): Promise<Omit<RunGuideTurnResult, "reply">> {
-  const context = await buildGuideSelectedContext(input);
+  const context = await buildGuideSelectedContext({ ...input, route: "chat_stream" });
   assertGuideContextFits(context.selected);
   let fullText = "";
-  let captured: AgentCallMeta | null = null;
+  const captured: { meta?: AgentCallMeta } = {};
 
   for await (const chunk of runAstralAgentStreamV2(
     input.profile,
@@ -285,15 +316,20 @@ export async function streamGuideTurn(
     context.impact,
     context.intakeForChat,
     context.memoryForChat,
-    (meta) => { captured = meta; },
+    (meta) => { captured.meta = meta; },
     context.selected.snapshot,
+    { model: context.selected.snapshot.model },
   )) {
     fullText += chunk;
     onChunk(chunk);
   }
 
-  if (input.persistedUserId && captured) {
-    await persistGuideLlmCall(input.app, input.persistedUserId, "chat_stream", captured);
+  if (input.persistedUserId && captured.meta) {
+    await persistGuideLlmCall(input.app, input.persistedUserId, "chat_stream", {
+      ...captured.meta,
+      model: context.selected.snapshot.model,
+      contextBudget: captured.meta.contextBudget ?? context.selected.snapshot,
+    });
   }
 
   const persisted = await persistGuideTurnMessages({

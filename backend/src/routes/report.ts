@@ -10,6 +10,8 @@ import {
   resolveRequestCurrentUser,
   sendCurrentUserError,
 } from "../auth/current-user.js";
+import { REPORT_MODEL, REPORT_PREMIUM_MODEL } from "../llm/model-config.js";
+import { selectReportModel } from "../llm/model-routing.js";
 
 function safeParseReport(content: string): DesignReport | null {
   try {
@@ -197,7 +199,14 @@ export async function reportRoutes(app: FastifyInstance) {
     lastGenerationByUser.set(userId, now);
 
     try {
-      const report = await generateReport(profile, tier, openaiKey, intake);
+      const modelRouting = selectReportModel({
+        tier,
+        defaultModel: REPORT_MODEL,
+        premiumModel: REPORT_PREMIUM_MODEL,
+      });
+      const report = modelRouting.model === REPORT_MODEL
+        ? await generateReport(profile, tier, openaiKey, intake)
+        : await generateReport(profile, tier, openaiKey, intake, { model: modelRouting.model });
       const newId = randomUUID();
       const createdAt = new Date().toISOString();
 

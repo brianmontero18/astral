@@ -15,6 +15,7 @@ import { FLAGS } from "../config/flags.js";
 import { calculateCost } from "../llm/pricing.js";
 
 interface PersistGuideLlmCallMeta {
+  model?: string;
   usage: LlmUsage;
   latencyMs: number;
   systemPrompt: string;
@@ -31,15 +32,16 @@ export async function persistGuideLlmCall(
   if (!FLAGS.LLM_TELEMETRY) return;
 
   try {
+    const model = meta.model ?? meta.contextBudget?.model ?? CHAT_MODEL;
     await insertLlmCall({
       userId,
       route,
-      model: CHAT_MODEL,
+      model,
       tokensIn: meta.usage.promptTokens,
       tokensOut: meta.usage.completionTokens,
       cachedTokens: meta.usage.cachedTokens ?? 0,
       costUsd: calculateCost(
-        CHAT_MODEL,
+        model,
         meta.usage.promptTokens,
         meta.usage.completionTokens,
         { cachedInputTokens: meta.usage.cachedTokens ?? 0 },

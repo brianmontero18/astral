@@ -30,6 +30,8 @@ vi.mock("../auth/session.js", () => mockSessionModule());
 vi.mock("../llm/model-config.js", () => ({
   hashSystemPrompt: (input: string) => input.slice(0, 16),
   CHAT_MODEL: "gpt-4o-mini",
+  CHAT_SIMPLE_MODEL: "gpt-4o-mini",
+  CHAT_COMPLEX_MODEL: "gpt-4o-mini",
 }));
 
 vi.mock("../agent-service-v2.js", () => ({
@@ -54,7 +56,7 @@ vi.mock("../transit-service.js", async () => {
 });
 
 const { createLinkedTestUser, createTestApp, sessionHeaders } = await import("./helpers.js");
-const { getLlmUsageForUser, getUser } = await import("../db.js");
+const { getLlmUsageForUser, getRecentLlmCallsForUser, getUser } = await import("../db.js");
 
 const SINCE_BEGINNING = "1970-01-01T00:00:00.000Z";
 
@@ -156,6 +158,7 @@ describe("Memory layer — two-turn integration", () => {
       expect.objectContaining({
         selection: expect.objectContaining({ reason: "full_history_fits" }),
       }),
+      { model: "gpt-4o-mini" },
     );
 
     // The trigger is fire-and-forget: wait until the writer mock has been
@@ -168,6 +171,7 @@ describe("Memory layer — two-turn integration", () => {
       "",                                  // current memory was empty
       expect.any(Array),                   // recent messages window
       expect.any(String),                  // openai key
+      { model: "gpt-4o-mini" },
     );
 
     await vi.waitFor(async () => {
@@ -186,6 +190,18 @@ describe("Memory layer — two-turn integration", () => {
         tokensOut: SAMPLE_WRITER_NEW_FACT.meta.usage.completionTokens,
       }),
     );
+    const calls = await getRecentLlmCallsForUser(userId, SINCE_BEGINNING);
+    const writerCall = calls.find((call) => call.route === "memory_writer");
+    if (!writerCall?.contextBreakdownJson) {
+      throw new Error("expected memory writer telemetry to include routing metadata");
+    }
+    expect(JSON.parse(writerCall.contextBreakdownJson)).toMatchObject({
+      modelRouting: {
+        route: "memory_writer",
+        model: "gpt-4o-mini",
+        reason: "memory_writer_default",
+      },
+    });
 
     // ── Turn 2 ───────────────────────────────────────────────────────────
     runAstralAgentV2Mock.mockClear();
@@ -216,6 +232,7 @@ describe("Memory layer — two-turn integration", () => {
       expect.objectContaining({
         selection: expect.objectContaining({ reason: "full_history_fits" }),
       }),
+      { model: "gpt-4o-mini" },
     );
 
     // And the writer must NOT have fired again (count=2 is below cadence).
@@ -286,6 +303,7 @@ describe("Memory layer — two-turn integration", () => {
       expect.objectContaining({
         selection: expect.objectContaining({ reason: "full_history_fits" }),
       }),
+      { model: "gpt-4o-mini" },
     );
   });
 });

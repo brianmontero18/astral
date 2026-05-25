@@ -12,6 +12,43 @@ export type ContextBudgetBlockId =
 
 export type ContextBudgetProvider = "openai" | "anthropic" | "unknown";
 
+export type ModelRoutingRoute =
+  | "chat"
+  | "chat_stream"
+  | "mcp_ask"
+  | "report"
+  | "memory_writer";
+
+export type ModelRoutingComplexity = "simple" | "complex";
+
+export type ModelRoutingSignal =
+  | "long_message"
+  | "multi_step"
+  | "cross_domain"
+  | "relationship_analysis";
+
+export type ModelRoutingReason =
+  | "chat_simple_default"
+  | "chat_simple_opt_in"
+  | "chat_complex_opt_in"
+  | "chat_complex_no_upgrade_configured"
+  | "report_default"
+  | "report_premium_opt_in"
+  | "memory_writer_default"
+  | "memory_writer_configured";
+
+export interface ModelRoutingDecision {
+  route: ModelRoutingRoute;
+  model: string;
+  reason: ModelRoutingReason;
+  complexity?: ModelRoutingComplexity;
+  signals: ModelRoutingSignal[];
+}
+
+export interface LlmCallModelRoutingMetadata {
+  modelRouting: ModelRoutingDecision;
+}
+
 export interface ContextBudgetPromptBlock {
   id: Extract<
     ContextBudgetBlockId,
@@ -54,6 +91,7 @@ export interface ContextBudgetPostCall {
 export interface ContextBudgetSnapshot {
   model: string;
   provider: ContextBudgetProvider;
+  modelRouting?: ModelRoutingDecision;
   contextWindowTokens: number | null;
   estimatedInputTokens: number;
   reservedOutputTokens: number;

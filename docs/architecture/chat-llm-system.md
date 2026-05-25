@@ -1,6 +1,6 @@
 # Cómo funciona el chat con LLM en Astral
 
-**Último update**: 2026-05-24 (`astral-e2h.1`: v2 canónico, legacy eliminado).
+**Último update**: 2026-05-25 (`astral-e2h.10`: routing OpenAI-only opt-in por route).
 **Audiencia**: PMs, founders, engineers nuevos al proyecto.
 **Objetivo**: entender qué pasa cada vez que una usuaria manda un mensaje al chat, dónde gastamos tokens, qué cacheamos, y por qué.
 
@@ -16,7 +16,7 @@ El chat de Astral mezcla 3 cosas para responder:
 
 El LLM **lee** lo curado, **consulta** los datos canónicos vía tools (no los recuerda), y **aterriza** todo en el contexto del usuario para responder. El historial de la conversación se selecciona por token budget según el context window del modelo activo; el resto vive como memoria estructurada (`users.memory_md`) que se actualiza después de cada turn.
 
-Default actual: `gpt-4o-mini` vía Vercel AI SDK + tools HD. El legacy fetch directo y `FEATURE_CHAT_USE_TOOLS` ya no existen.
+Default actual: `gpt-4o-mini` vía Vercel AI SDK + tools HD. El routing de modelo es conservador: si no se configuran env vars por route, chat/report/memory siguen en los defaults actuales. El legacy fetch directo y `FEATURE_CHAT_USE_TOOLS` ya no existen.
 
 ---
 
@@ -41,9 +41,10 @@ Default actual: `gpt-4o-mini` vía Vercel AI SDK + tools HD. El legacy fetch dir
 │     • Tránsitos de la semana (Swiss Ephemeris WASM)                  │
 │     • analyzeTransitImpact() → canales/centros activados             │
 │                                                                       │
-│  3. Selecciona historial por token budget model-aware                │
+│  3. Decide modelo por routing OpenAI-only opt-in                     │
+│  4. Selecciona historial por token budget con ese modelo             │
 │                                                                       │
-│  4. Ejecuta el agente canónico:                                      │
+│  5. Ejecuta el agente canónico:                                      │
 │     agent-service-v2.ts (Vercel AI SDK + tools HD deterministas)     │
 └──────────────────────────────┬──────────────────────────────────────┘
                                │
@@ -81,7 +82,7 @@ Default actual: `gpt-4o-mini` vía Vercel AI SDK + tools HD. El legacy fetch dir
 │    • listAllChannels()         → tabla completa                      │
 │                                                                       │
 │  Llama a streamText({                                                │
-│    model: openai(CHAT_MODEL),    ← gpt-4o-mini por default           │
+│    model: openai(selectedModel), ← CHAT_MODEL por default            │
 │    system: <prompt 10K tokens>,                                      │
 │    messages: [...selected history, { user: "qué luna..." }],        │
 │    tools: hdTools,                                                   │
@@ -275,7 +276,8 @@ Fuentes detalladas en `docs/research/2026-05-*.md`.
 | Agent v2 | `backend/src/agent-service-v2.ts` | Wrapper sobre Vercel AI SDK con HD tools |
 | Prompt builder v2 | `backend/src/agent-service-v2-prompt.ts` | Arma el system prompt con orden cache-friendly |
 | Tipos compartidos | `backend/src/types/agent.ts` | `UserProfile`, mensajes y metadata de agente |
-| Config LLM | `backend/src/llm/model-config.ts` | `CHAT_MODEL` + hash de prompt |
+| Config LLM | `backend/src/llm/model-config.ts` | Defaults por route (`CHAT_MODEL`, `CHAT_COMPLEX_MODEL`, `REPORT_PREMIUM_MODEL`, etc.) + hash de prompt |
+| Model routing | `backend/src/llm/model-routing.ts` | Selector determinístico OpenAI-only para chat/report/memory |
 | Context budget | `backend/src/llm/context-budget.ts` | Selecciona historial por token budget, estima tokens por bloque + shape de `/api/me/chat/context-budget` |
 | Model registry | `backend/src/llm/model-registry.ts` | Context window, provider, tokenizer y reservas por modelo |
 | Helpers compartidos | `backend/src/agent-prompt-helpers.ts` | `buildBusinessContextBlock`, `buildUserMemoryBlock` |
@@ -298,11 +300,16 @@ Desde el dashboard de Render, editar la env var:
 | Variable | Default | Cambiar para... |
 |---|---|---|
 | `CHAT_MODEL` | `gpt-4o-mini` | Mantener default hasta eval live; ver shortlist multi-provider en `docs/adr/model-selection-2026.md` y shortlist OpenAI-only en `docs/adr/openai-model-shortlist-2026.md` |
+| `CHAT_SIMPLE_MODEL` | `CHAT_MODEL` | Opt-in para chat simple. Normalmente no tocar |
+| `CHAT_COMPLEX_MODEL` | `CHAT_MODEL` | Opt-in para subir solo turns complejos (mensaje largo, multi-step, cruce HD/tránsitos/negocio o análisis relacional) |
 | `MEMORY_WRITER_MODEL` | `gpt-4o-mini` | Mantener default hasta eval estructurado de NOOP/facts; ver `docs/adr/model-selection-2026.md` y `docs/adr/openai-model-shortlist-2026.md` |
 | `REPORT_MODEL` | `gpt-4o-mini` | Cambiar solo con fixtures de reporte y analisis economico; ver `docs/adr/model-selection-2026.md` y `docs/adr/openai-model-shortlist-2026.md` |
+| `REPORT_PREMIUM_MODEL` | `REPORT_MODEL` | Opt-in para informes premium sin cambiar informes free |
 | `CHAT_HISTORY_TURNS` | unset → `200` hard cap | Hard cap defensivo de mensajes candidatos. La política primaria selecciona por token budget/model window, no por cantidad de mensajes |
 
 Cualquier cambio requiere redeploy de Render (pero NO de código).
+
+La heurística de chat no usa LLM clasificador: mira solo el último mensaje del usuario y marca señales determinísticas (`long_message`, `multi_step`, `cross_domain`, `relationship_analysis`). Un turn es complejo si el mensaje es muy largo o combina al menos dos señales. Esto evita costo/latencia extra y mantiene el routing auditable.
 
 ---
 
@@ -320,8 +327,9 @@ budget, mensaje actual dominante y modelo desconocido.
 
 La telemetría post-call guarda el snapshot completo en
 `llm_calls.context_breakdown_json`, incluyendo calibración contra los tokens
-reales reportados por el provider. `cached_tokens` reduce costo/latencia, pero
-no reduce uso de context window.
+reales reportados por el provider y `modelRouting` con modelo elegido, route,
+razón y señales. `cached_tokens` reduce costo/latencia, pero no reduce uso de
+context window.
 
 ---
 

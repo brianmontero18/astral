@@ -29,6 +29,8 @@ vi.mock("../auth/session.js", () => mockSessionModule());
 vi.mock("../llm/model-config.js", () => ({
   hashSystemPrompt: (s: string) => s.slice(0, 16),
   CHAT_MODEL: "gpt-4o-mini",
+  CHAT_SIMPLE_MODEL: "gpt-4o-mini",
+  CHAT_COMPLEX_MODEL: "gpt-4o-mini",
 }));
 
 vi.mock("../agent-service-v2.js", () => ({
@@ -615,6 +617,7 @@ describe("Freemium message limit", () => {
       expect.objectContaining({
         selection: expect.objectContaining({ reason: "full_history_fits" }),
       }),
+      { model: "gpt-4o-mini" },
     );
     expect(getTransitSnapshotCachedMock).toHaveBeenCalledWith(
       "instant",

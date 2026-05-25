@@ -16,6 +16,15 @@ vi.mock("../report/generate-report.js", () => ({
   computeProfileHash: computeProfileHashMock,
 }));
 
+vi.mock("../llm/model-config.js", async () => {
+  const actual = await vi.importActual<typeof import("../llm/model-config.js")>("../llm/model-config.js");
+  return {
+    ...actual,
+    REPORT_MODEL: "gpt-4o-mini",
+    REPORT_PREMIUM_MODEL: "gpt-5.4-mini",
+  };
+});
+
 const {
   getReport,
   getUser,
@@ -205,6 +214,59 @@ describe("Report routes", () => {
         }),
       ],
       createdAt: expect.any(String),
+    });
+  });
+
+  it("POST /api/me/report routes premium generation to the configured premium model", async () => {
+    const userId = await createLinkedTestUser(
+      app,
+      "st-report-premium-routing",
+      "Premium Routing User",
+      undefined,
+      { plan: "premium" },
+    );
+    generateReportMock.mockResolvedValueOnce({
+      tier: "premium",
+      profileHash: "profile-hash-test",
+      sections: [
+        {
+          id: "mechanical-chart",
+          title: "Tu Carta Mecánica",
+          icon: "⚙️",
+          tier: "free",
+          staticContent: "chart",
+        },
+      ],
+      tokensUsed: 99,
+      costUsd: 0.0015,
+      degraded: false,
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/me/report",
+      headers: sessionHeaders("st-report-premium-routing"),
+      payload: { tier: "premium" },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(generateReportMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        humanDesign: expect.objectContaining({
+          type: "Generador Manifestante",
+        }),
+      }),
+      "premium",
+      "test-key-not-real",
+      undefined,
+      { model: "gpt-5.4-mini" },
+    );
+    expect(JSON.parse(res.body)).toMatchObject({
+      id: expect.any(String),
+      userId,
+      tier: "premium",
+      tokensUsed: 99,
+      costUsd: 0.0015,
     });
   });
 

@@ -9,6 +9,8 @@ const analyzeTransitImpactMock = vi.fn();
 
 vi.mock("../llm/model-config.js", () => ({
   CHAT_MODEL: "future-model",
+  CHAT_SIMPLE_MODEL: "future-model",
+  CHAT_COMPLEX_MODEL: "future-model",
   hashSystemPrompt: (input: string) => input.slice(0, 16),
 }));
 
@@ -102,11 +104,16 @@ describe("runGuideTurn context selection", () => {
       expect.objectContaining({
         model: "future-model",
         percentUsed: null,
+        modelRouting: expect.objectContaining({
+          model: "future-model",
+          reason: "chat_simple_default",
+        }),
         selection: expect.objectContaining({
           reason: "unknown_model_conservative",
           omittedMessageCount: 2,
         }),
       }),
+      { model: "future-model" },
     );
     expect(logWarn).toHaveBeenCalledWith(
       {

@@ -30,6 +30,8 @@ function mockAgentResult(content: string) {
 vi.mock("../llm/model-config.js", () => ({
   hashSystemPrompt: (s: string) => s.slice(0, 16),
   CHAT_MODEL: "gpt-4o-mini",
+  CHAT_SIMPLE_MODEL: "gpt-4o-mini",
+  CHAT_COMPLEX_MODEL: "gpt-4o-mini",
 }));
 
 vi.mock("../agent-service-v2.js", () => ({
@@ -612,6 +614,7 @@ describe("Remote MCP route", () => {
       expect.objectContaining({
         selection: expect.objectContaining({ reason: "full_history_fits" }),
       }),
+      { model: "gpt-4o-mini" },
     );
 
     const messages = await db.getChatMessages(userId);

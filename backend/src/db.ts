@@ -3,7 +3,10 @@ import { randomUUID } from "node:crypto";
 
 import { getCurrentChatUsageCycle } from "./chat-limits.js";
 import type { ReportTier } from "./report/types.js";
-import type { ContextBudgetSnapshot } from "./types/context-budget.js";
+import type {
+  ContextBudgetSnapshot,
+  LlmCallModelRoutingMetadata,
+} from "./types/context-budget.js";
 import {
   buildAssetKey,
   deleteObject as r2DeleteObject,
@@ -1816,7 +1819,7 @@ export interface LlmCallInput {
   latencyMs: number;
   promptHash: string;
   toolCalls?: string[];
-  contextBreakdown?: ContextBudgetSnapshot;
+  contextBreakdown?: ContextBudgetSnapshot | LlmCallModelRoutingMetadata;
 }
 
 export async function insertLlmCall(input: LlmCallInput): Promise<void> {
