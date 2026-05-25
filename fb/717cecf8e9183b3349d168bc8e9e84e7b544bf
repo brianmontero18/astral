@@ -1,0 +1,37 @@
+frontend/src/components/MyChartReplaceView.tsx
+  s_1970642029acbb::t_393c0f831e3545 9,15-16,22,34-39,51,154,168-171,181,202,208-211,215-219,234-235,238-239,243-244,452-461
+  s_1970642029acbb::t_165d9e93632095 65,236-237,240-242
+  s_1970642029acbb::t_5475674f59235e 172-177,185-187
+  s_1970642029acbb::t_7030a31d1e0afc 178,194,198,212,221,225
+frontend/src/components/ConfirmModal.tsx
+  s_1970642029acbb::t_54d35bc2f4adba 26,29-31,42,76
+  s_1970642029acbb::t_957aaf181996fb 1,24-25,27,34-39,41,43-69,72-75,85,91,95,98
+e2e/specs/30-my-chart-replace-confirmation.spec.ts
+  s_1970642029acbb::t_06879bb70b4b22 3,52,85
+  s_1970642029acbb::t_c1bff5dc8f9da5 99
+  s_1970642029acbb::t_4fc2658d8b7aee 95,98,158
+  s_1970642029acbb::t_549e8d349ba34e 154
+  s_1970642029acbb::t_dcf423ba5b4167 6,8-15,17-20,41,59-78
+  s_1970642029acbb::t_1b17bc4e5c8c42 1-2,4-5,7,16,21-40,42-51,53-58,79-84,86-94,96-97,100-153,155-157,159-210
+frontend/src/api.ts
+  s_1970642029acbb::t_cfa1c00eff0267 81,445-462,501-507
+frontend/src/components/MyChartView.tsx
+  s_1970642029acbb::t_93d63aa5e9a507 36,57,62
+  s_1970642029acbb::t_6bd719ae2ba2e2 176-180,218-221
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "fb717cecf8e9183b3349d168bc8e9e84e7b544bf",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": null
+    }
+  }
+}
