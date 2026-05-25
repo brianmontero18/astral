@@ -1,0 +1,21 @@
+backend/src/routes/assets.ts
+  s_1970642029acbb::t_14ef4eabf77a90 518-545,551,557,573,575,590-596
+backend/src/__tests__/api-assets.test.ts
+  s_1970642029acbb::t_44b70fe1aea182 1025-1066
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "73ed98454083896c4e4e03b11a578e8d8783b49a",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
