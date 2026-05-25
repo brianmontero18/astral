@@ -29,6 +29,7 @@ const {
   getReport,
   getUser,
   createShareToken,
+  getRecentLlmCallsForUser,
   saveReport,
   updateUserProfile,
   updateReportContent,
@@ -522,7 +523,7 @@ describe("Report routes", () => {
   });
 
   it("POST /api/me/report rate limits rapid regeneration attempts for the same user", async () => {
-    await createLinkedTestUser(app, "st-report-cooldown");
+    const userId = await createLinkedTestUser(app, "st-report-cooldown");
     generateReportMock.mockResolvedValue({
       tier: "free",
       profileHash: "profile-hash-test",
@@ -558,12 +559,50 @@ describe("Report routes", () => {
 
     expect(secondRes.statusCode).toBe(429);
     expect(JSON.parse(secondRes.body)).toEqual({
-      error: "Esperá unos segundos antes de generar otro informe.",
+      error: "report_rate_limited",
+    });
+
+    const calls = await getRecentLlmCallsForUser(userId, "1970-01-01T00:00:00.000Z");
+    expect(calls[0]).toMatchObject({
+      route: "report",
+      errorCode: "report_rate_limited",
+    });
+  });
+
+  it("POST /api/me/report returns profile_incomplete when HD data is missing", async () => {
+    const userId = await createLinkedTestUser(
+      app,
+      "st-report-profile-incomplete",
+      "Incomplete Report User",
+      {
+        humanDesign: {
+          type: "Generador",
+        },
+      },
+    );
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/me/report",
+      headers: sessionHeaders("st-report-profile-incomplete"),
+      payload: { tier: "free" },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(JSON.parse(res.body)).toEqual({
+      error: "profile_incomplete",
+    });
+    expect(generateReportMock).not.toHaveBeenCalled();
+
+    const calls = await getRecentLlmCallsForUser(userId, "1970-01-01T00:00:00.000Z");
+    expect(calls[0]).toMatchObject({
+      route: "report",
+      errorCode: "profile_incomplete",
     });
   });
 
   it("POST /api/me/report returns a sanitized 502 and does not persist a report when generation fails", async () => {
-    await createLinkedTestUser(app, "st-report-failure");
+    const userId = await createLinkedTestUser(app, "st-report-failure");
     generateReportMock.mockRejectedValueOnce(new Error("OpenAI timeout from upstream"));
 
     const res = await app.inject({
@@ -575,7 +614,7 @@ describe("Report routes", () => {
 
     expect(res.statusCode).toBe(502);
     expect(JSON.parse(res.body)).toEqual({
-      error: "Report generation failed",
+      error: "model_failed",
     });
 
     const cachedRes = await app.inject({
@@ -586,6 +625,12 @@ describe("Report routes", () => {
 
     expect(cachedRes.statusCode).toBe(404);
     expect(cachedRes.body).not.toContain("OpenAI timeout from upstream");
+
+    const calls = await getRecentLlmCallsForUser(userId, "1970-01-01T00:00:00.000Z");
+    expect(calls[0]).toMatchObject({
+      route: "report",
+      errorCode: "model_failed",
+    });
   });
 
   it("POST /api/me/report keeps the cooldown active even when the previous generation attempt failed", async () => {
@@ -601,7 +646,7 @@ describe("Report routes", () => {
 
     expect(firstRes.statusCode).toBe(502);
     expect(JSON.parse(firstRes.body)).toEqual({
-      error: "Report generation failed",
+      error: "model_failed",
     });
 
     const secondRes = await app.inject({
@@ -613,7 +658,7 @@ describe("Report routes", () => {
 
     expect(secondRes.statusCode).toBe(429);
     expect(JSON.parse(secondRes.body)).toEqual({
-      error: "Esperá unos segundos antes de generar otro informe.",
+      error: "report_rate_limited",
     });
   });
 

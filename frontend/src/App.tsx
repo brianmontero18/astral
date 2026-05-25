@@ -28,6 +28,7 @@ import { getAccessibleReportTier } from "./report-access";
 import {
   shouldPreserveAuthRedirect,
 } from "./auth/helpers";
+import { getReportFailureMessage } from "./report-errors";
 import {
   getAuthRedirectFailureDisplay,
   getAuthRequiredConfigDisplay,
@@ -68,6 +69,7 @@ export default function App() {
   const [authRedirectPending, setAuthRedirectPending] = useState(false);
   const [intake, setIntake] = useState<Intake | undefined>(undefined);
   const [report, setReport] = useState<DesignReport | null>(null);
+  const [reportErrorMessage, setReportErrorMessage] = useState<string | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [profileRevision, setProfileRevision] = useState(0);
   const [previousView, setPreviousView] = useState<View>("chat");
@@ -222,6 +224,7 @@ export default function App() {
       const cached = await getReport(tier);
       if (cached) {
         setReport(cached);
+        setReportErrorMessage(null);
         setIntakeError(false);
         handleNavigate("report");
         return;
@@ -260,6 +263,7 @@ export default function App() {
     setProfile(result.profile);
     setIntake(result.user.intake ?? undefined);
     setReport(null);
+    setReportErrorMessage(null);
     setReportLoading(false);
     setPendingRegenerateIntake(null);
     setProfileRevision((value) => value + 1);
@@ -288,6 +292,7 @@ export default function App() {
     abortRef.current = controller;
 
     setReportLoading(true);
+    setReportErrorMessage(null);
     setIntakeError(false);
     setCurrentView("report");
 
@@ -304,9 +309,15 @@ export default function App() {
 
     try {
       const result = await generateReport(getAccessibleReportTier(user.plan));
-      if (!controller.signal.aborted) setReport(result);
-    } catch {
-      if (!controller.signal.aborted && !report) setReport(null);
+      if (!controller.signal.aborted) {
+        setReport(result);
+        setReportErrorMessage(null);
+      }
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        setReportErrorMessage(getReportFailureMessage(error));
+        if (!report) setReport(null);
+      }
     } finally {
       if (!controller.signal.aborted) setReportLoading(false);
     }
@@ -317,6 +328,7 @@ export default function App() {
     setUser(null);
     setProfile(null);
     setReport(null);
+    setReportErrorMessage(null);
     setIntake(undefined);
     setIntakeError(false);
     setReportLoading(false);
@@ -544,6 +556,7 @@ export default function App() {
                   <ReportView
                     report={report}
                     loading={reportLoading}
+                    errorMessage={reportErrorMessage}
                     onBack={() => handleNavigate(previousView)}
                     onEditIntake={handleEditIntake}
                     intakeWarning={intakeError}

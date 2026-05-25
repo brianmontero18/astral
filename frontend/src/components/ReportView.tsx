@@ -6,6 +6,7 @@ import { buildReportViewModel } from "../report-view-model";
 interface Props {
   report: DesignReport | null;
   loading: boolean;
+  errorMessage?: string | null;
   onBack: () => void;
   onEditIntake?: () => void;
   intakeWarning?: boolean;
@@ -439,7 +440,7 @@ function ReportActions({ tier, reportId }: { tier: "free" | "premium"; reportId:
   );
 }
 
-export function ReportView({ report, loading, onBack, onEditIntake, intakeWarning }: Props) {
+export function ReportView({ report, loading, errorMessage, onBack, onEditIntake, intakeWarning }: Props) {
   if (loading) {
     return (
       <div style={{
@@ -475,7 +476,7 @@ export function ReportView({ report, loading, onBack, onEditIntake, intakeWarnin
         justifyContent: "center", gap: 12,
       }}>
         <span style={{ color: "#9a3737", fontSize: 14, fontWeight: 500 }}>
-          No se pudo generar el informe. Intentá de nuevo.
+          {errorMessage ?? "No se pudo generar el informe. Intentá de nuevo."}
         </span>
         <button
           onClick={onBack}

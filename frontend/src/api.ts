@@ -25,6 +25,7 @@ import type {
 } from "./types";
 import type { ChatUsageSnapshot } from "./chat-limits";
 import type { ChatContextBudgetSummary } from "./chat-context-pressure";
+import { isReportFailureCode, type ReportFailureCode } from "./report-errors";
 import type { TransitChatContext } from "./transits/types";
 
 const BASE = "/api";
@@ -48,10 +49,25 @@ export interface ReportStaleError extends Error {
   tier: "free" | "premium";
 }
 
+export interface ReportRequestError extends Error {
+  code: ReportFailureCode | "unknown";
+  status: number;
+}
+
 function buildReportStaleError(tier: "free" | "premium"): ReportStaleError {
   const err = new Error("report_stale") as ReportStaleError;
   err.code = "report_stale";
   err.tier = tier;
+  return err;
+}
+
+function buildReportRequestError(
+  status: number,
+  rawError: string | undefined,
+): ReportRequestError {
+  const err = new Error(rawError ?? `Request failed (${status})`) as ReportRequestError;
+  err.code = isReportFailureCode(rawError) ? rawError : "unknown";
+  err.status = status;
   return err;
 }
 
@@ -738,8 +754,12 @@ export async function generateReport(
     body: JSON.stringify({ tier }),
   });
   if (!res.ok) {
-    const err = await readErrorMessage(res);
-    throw new Error(err);
+    const data = await readJsonBody<{ error?: string }>(res);
+    if (data?.error) {
+      throw buildReportRequestError(res.status, data.error);
+    }
+    const err = data ? undefined : await readErrorMessage(res);
+    throw buildReportRequestError(res.status, err);
   }
   return res.json();
 }

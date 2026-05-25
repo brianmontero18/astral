@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { randomUUID } from "node:crypto";
-import { getUser, getReport, getReportById, saveReport, updateReportContent, createShareToken, getShareByToken, cleanupExpiredShares } from "../db.js";
+import { getUser, getReport, getReportById, saveReport, updateReportContent, createShareToken, getShareByToken, cleanupExpiredShares, insertLlmCall } from "../db.js";
 import { generateReport, computeProfileHash } from "../report/generate-report.js";
 import { renderReportPDF } from "../report/pdf-renderer.js";
 import type { UserProfile } from "../types/agent.js";
@@ -27,8 +27,14 @@ function getBaseUrl(req: { protocol: string; headers: { host?: string }; hostnam
 
 const lastGenerationByUser = new Map<string, number>();
 const GENERATION_COOLDOWN_MS = 30_000;
-const REPORT_GENERATION_FAILED_ERROR = "Report generation failed";
 const REPORT_STALE_ERROR = "report_stale";
+const REPORT_ERROR = {
+  profileIncomplete: "profile_incomplete",
+  rateLimited: "report_rate_limited",
+  modelFailed: "model_failed",
+} as const;
+
+type ReportErrorCode = (typeof REPORT_ERROR)[keyof typeof REPORT_ERROR];
 
 function resolveReportTier(input: string | undefined): ReportTier {
   return input === "premium" ? "premium" : "free";
@@ -75,6 +81,29 @@ async function sendReportStale(
 }
 
 export async function reportRoutes(app: FastifyInstance) {
+  async function recordReportFailure(
+    userId: string,
+    errorCode: ReportErrorCode,
+    model = REPORT_MODEL,
+    startedAt = Date.now(),
+  ) {
+    try {
+      await insertLlmCall({
+        userId,
+        route: "report",
+        model,
+        tokensIn: 0,
+        tokensOut: 0,
+        costUsd: 0,
+        latencyMs: Math.max(0, Date.now() - startedAt),
+        promptHash: "report-error",
+        errorCode,
+      });
+    } catch (err) {
+      app.log.warn({ err, userId, errorCode }, "[report] llm_calls error telemetry insert failed");
+    }
+  }
+
   async function resolveOwnedReportUser(
     request: AuthenticatedRequest,
     reply: import("fastify").FastifyReply,
@@ -161,15 +190,18 @@ export async function reportRoutes(app: FastifyInstance) {
     tierInput: ReportTier | undefined,
     reply: import("fastify").FastifyReply,
   ) {
+    const startedAt = Date.now();
     const openaiKey = process.env.OPENAI_API_KEY;
     if (!openaiKey) {
-      return reply.status(500).send({ error: "OpenAI API key not configured" });
+      await recordReportFailure(userId, REPORT_ERROR.modelFailed, REPORT_MODEL, startedAt);
+      return reply.status(500).send({ error: REPORT_ERROR.modelFailed });
     }
 
     const now = Date.now();
     const last = lastGenerationByUser.get(userId) ?? 0;
     if (now - last < GENERATION_COOLDOWN_MS) {
-      return reply.status(429).send({ error: "Esperá unos segundos antes de generar otro informe." });
+      await recordReportFailure(userId, REPORT_ERROR.rateLimited, REPORT_MODEL, startedAt);
+      return reply.status(429).send({ error: REPORT_ERROR.rateLimited });
     }
 
     const user = await getUser(userId);
@@ -180,7 +212,8 @@ export async function reportRoutes(app: FastifyInstance) {
     const profile = user.profile as UserProfile;
     const hd = profile?.humanDesign;
     if (!hd?.type || !Array.isArray(hd.channels) || !Array.isArray(hd.undefinedCenters) || !Array.isArray(hd.definedCenters)) {
-      return reply.status(400).send({ error: "User profile incomplete — missing HD data" });
+      await recordReportFailure(userId, REPORT_ERROR.profileIncomplete, REPORT_MODEL, startedAt);
+      return reply.status(400).send({ error: REPORT_ERROR.profileIncomplete });
     }
 
     const tier = resolveReportTier(tierInput);
@@ -198,12 +231,13 @@ export async function reportRoutes(app: FastifyInstance) {
 
     lastGenerationByUser.set(userId, now);
 
+    const modelRouting = selectReportModel({
+      tier,
+      defaultModel: REPORT_MODEL,
+      premiumModel: REPORT_PREMIUM_MODEL,
+    });
+
     try {
-      const modelRouting = selectReportModel({
-        tier,
-        defaultModel: REPORT_MODEL,
-        premiumModel: REPORT_PREMIUM_MODEL,
-      });
       const report = modelRouting.model === REPORT_MODEL
         ? await generateReport(profile, tier, openaiKey, intake)
         : await generateReport(profile, tier, openaiKey, intake, { model: modelRouting.model });
@@ -226,7 +260,8 @@ export async function reportRoutes(app: FastifyInstance) {
       return reply.send({ ...report, id: savedId, userId, createdAt });
     } catch (err) {
       app.log.error(err, "[report] generation pipeline failed");
-      return reply.status(502).send({ error: REPORT_GENERATION_FAILED_ERROR });
+      await recordReportFailure(userId, REPORT_ERROR.modelFailed, modelRouting.model, startedAt);
+      return reply.status(502).send({ error: REPORT_ERROR.modelFailed });
     }
   }
 

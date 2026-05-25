@@ -14,6 +14,7 @@ import { createClient, type Client } from "@libsql/client";
 import {
   addLlmCallsCachedTokensColumnIfMissing,
   addLlmCallsContextBreakdownColumnIfMissing,
+  addLlmCallsErrorCodeColumnIfMissing,
   addLlmCallsToolCallsColumnsIfMissing,
   widenLlmCallsRouteCheckIfNeeded,
 } from "../db.js";
@@ -141,6 +142,7 @@ async function createContextBreakdownWithOldRouteCheckTable(client: Client) {
       tool_calls_count       INTEGER NOT NULL DEFAULT 0,
       tool_calls_json        TEXT DEFAULT NULL,
       context_breakdown_json TEXT DEFAULT NULL,
+      error_code             TEXT DEFAULT NULL,
       cost_usd               REAL    NOT NULL DEFAULT 0,
       latency_ms             INTEGER NOT NULL DEFAULT 0,
       prompt_hash            TEXT NOT NULL,
@@ -269,6 +271,29 @@ describe("addLlmCallsContextBreakdownColumnIfMissing", () => {
   });
 });
 
+describe("addLlmCallsErrorCodeColumnIfMissing", () => {
+  it("adds error_code on migrated telemetry schema", async () => {
+    const client = makeClient();
+    await createMigratedLlmCallsTable(client);
+
+    await addLlmCallsErrorCodeColumnIfMissing(client);
+
+    const columns = await readLlmCallsColumns(client);
+    expect(columns).toContain("error_code");
+  });
+
+  it("is idempotent when error_code already exists", async () => {
+    const client = makeClient();
+    await createContextBreakdownWithOldRouteCheckTable(client);
+
+    await addLlmCallsErrorCodeColumnIfMissing(client);
+    await addLlmCallsErrorCodeColumnIfMissing(client);
+
+    const columns = await readLlmCallsColumns(client);
+    expect(columns.filter((c) => c === "error_code")).toHaveLength(1);
+  });
+});
+
 describe("widenLlmCallsRouteCheckIfNeeded", () => {
   it("preserves cached_tokens when rebuilding the old route CHECK table", async () => {
     const client = makeClient();
@@ -352,8 +377,8 @@ describe("widenLlmCallsRouteCheckIfNeeded", () => {
     });
     await client.execute({
       sql: `INSERT INTO llm_calls
-        (user_id, route, model, tokens_in, tokens_out, cached_tokens, tool_calls_count, tool_calls_json, context_breakdown_json, cost_usd, latency_ms, prompt_hash)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (user_id, route, model, tokens_in, tokens_out, cached_tokens, tool_calls_count, tool_calls_json, context_breakdown_json, error_code, cost_usd, latency_ms, prompt_hash)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         "u1",
         "chat_stream",
@@ -364,6 +389,7 @@ describe("widenLlmCallsRouteCheckIfNeeded", () => {
         1,
         JSON.stringify(["findChannelByGates"]),
         contextBreakdown,
+        "model_failed",
         0.001,
         1000,
         "hash",
@@ -373,12 +399,13 @@ describe("widenLlmCallsRouteCheckIfNeeded", () => {
     await widenLlmCallsRouteCheckIfNeeded(client);
 
     const res = await client.execute(
-      "SELECT route, context_breakdown_json FROM llm_calls",
+      "SELECT route, context_breakdown_json, error_code FROM llm_calls",
     );
     expect(res.rows).toHaveLength(1);
     expect(res.rows[0]).toMatchObject({
       route: "chat_stream",
       context_breakdown_json: contextBreakdown,
+      error_code: "model_failed",
     });
   });
 });
