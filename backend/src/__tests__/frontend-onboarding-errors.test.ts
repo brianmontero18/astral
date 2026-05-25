@@ -31,16 +31,16 @@ describe("frontend onboarding error helpers", () => {
 
     expect(
       getOnboardingFailureMessage(new TypeError("Failed to fetch")),
-    ).toBe("No pudimos leer tu carta ahora. Reintentá en unos segundos.");
+    ).toBe("No pudimos calcular tu carta ahora. Reintentá en unos segundos.");
   });
 
-  it("hides internal extractor/bootstrap details behind a generic fallback", () => {
+  it("hides internal calculation/bootstrap details behind a generic fallback", () => {
     expect(
       getOnboardingFailureMessage(new Error("vector store timeout on worker 3")),
-    ).toBe("No pudimos leer tu carta ahora. Reintentá con otro PDF o probá de nuevo.");
+    ).toBe("No pudimos calcular tu carta ahora. Probá de nuevo en un momento.");
 
     expect(
       getOnboardingFailureMessage(new Error("Update current user error 500: boom")),
-    ).toBe("No pudimos leer tu carta ahora. Reintentá con otro PDF o probá de nuevo.");
+    ).toBe("No pudimos calcular tu carta ahora. Probá de nuevo en un momento.");
   });
 });

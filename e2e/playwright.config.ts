@@ -1,5 +1,4 @@
 import { defineConfig } from "@playwright/test";
-
 export default defineConfig({
   testDir: "./specs",
   fullyParallel: true,
@@ -20,6 +19,7 @@ export default defineConfig({
   ],
   webServer: {
     command: "npm run dev",
+    cwd: process.cwd(),
     url: "http://localhost:5173",
     reuseExistingServer: true,
     timeout: 30_000,

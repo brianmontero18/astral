@@ -78,7 +78,7 @@ export interface CurrentUserResponse {
 export interface ReplaceBodygraphResponse {
   user: CurrentUserResponse;
   profile: UserProfile;
-  asset: AssetMeta;
+  asset?: AssetMeta;
 }
 
 export interface OnboardingPatchInput {
@@ -442,6 +442,24 @@ export async function replaceBodygraph(
   return res.json();
 }
 
+export async function replaceBodygraphConfirmed(
+  file: File,
+): Promise<ReplaceBodygraphResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("confirmReplace", "true");
+
+  const res = await fetch(`${BASE}/me/bodygraph/replace`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await readErrorMessage(res);
+    throw new Error(err);
+  }
+  return res.json();
+}
+
 export interface BirthPlace {
   /** Coordenadas geográficas — único input que el backend usa para resolver
    *  el timezone histórico (geo-tz + luxon). */
@@ -472,6 +490,21 @@ export async function submitBodygraphFromBirth(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    const err = await readErrorMessage(res);
+    throw new Error(err);
+  }
+  return res.json();
+}
+
+export async function replaceBodygraphFromBirthConfirmed(
+  input: BodygraphFromBirthInput,
+): Promise<ReplaceBodygraphResponse> {
+  const res = await fetch(`${BASE}/me/bodygraph/replace`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...input, confirmReplace: true }),
   });
   if (!res.ok) {
     const err = await readErrorMessage(res);

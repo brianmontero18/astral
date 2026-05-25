@@ -91,6 +91,33 @@ export async function mockChatHistory(
   });
 }
 
+export async function mockChatContextBudget(page: Page) {
+  await page.route("**/api/me/chat/context-budget", async (route) => {
+    if (route.request().method() === "GET" && isExactPath(route.request().url(), "/api/me/chat/context-budget")) {
+      await route.fulfill({
+        status: 200,
+        json: {
+          model: "gpt-4o-mini",
+          provider: "openai",
+          used: 1200,
+          limit: 128000,
+          percentUsed: 0.009375,
+          breakdown: {
+            system: 400,
+            memory: 100,
+            history: 200,
+            tools: 300,
+            response: 200,
+          },
+          blocks: [],
+        },
+      });
+    } else {
+      await route.fallback();
+    }
+  });
+}
+
 export async function mockTruncate(page: Page, usage?: number | MockUsageSnapshot) {
   const snapshot = typeof usage === "number"
     ? buildUsageSnapshot({ used: usage })
@@ -251,6 +278,51 @@ export async function mockReplaceBodygraph(
             isActive: response.asset?.isActive ?? true,
           },
         },
+      });
+    } else {
+      await route.fallback();
+    }
+  });
+}
+
+export async function mockBodygraphChartSvg(page: Page, label = "Bodygraph SVG") {
+  await page.route("**/api/me/bodygraph/chart-svg**", async (route) => {
+    if (route.request().method() === "GET" && isExactPath(route.request().url(), "/api/me/bodygraph/chart-svg")) {
+      await route.fulfill({
+        status: 200,
+        headers: { "Content-Type": "image/svg+xml" },
+        body: `<svg width="900" height="1200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${label}"><rect width="900" height="1200" fill="#fffaf0"/><text x="40" y="80">${label}</text></svg>`,
+      });
+    } else {
+      await route.fallback();
+    }
+  });
+}
+
+export async function mockBodygraphFullSvg(page: Page, label = "Bodygraph full SVG") {
+  await page.route("**/api/me/bodygraph/full-svg**", async (route) => {
+    if (route.request().method() === "GET" && isExactPath(route.request().url(), "/api/me/bodygraph/full-svg")) {
+      await route.fulfill({
+        status: 200,
+        headers: { "Content-Type": "image/svg+xml" },
+        body: `<svg width="1400" height="2000" xmlns="http://www.w3.org/2000/svg"><rect width="1400" height="2000" fill="#ffffff"/><text x="60" y="120">${label}</text></svg>`,
+      });
+    } else {
+      await route.fallback();
+    }
+  });
+}
+
+export async function mockBodygraphPdfDownload(page: Page) {
+  await page.route("**/api/me/bodygraph/pdf", async (route) => {
+    if (route.request().method() === "GET" && isExactPath(route.request().url(), "/api/me/bodygraph/pdf")) {
+      await route.fulfill({
+        status: 200,
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": "attachment; filename=\"bodygraph.pdf\"",
+        },
+        body: "%PDF-1.4\n% Astral bodygraph test\n",
       });
     } else {
       await route.fallback();
@@ -640,35 +712,5 @@ export async function mockTransitsError(
       status,
       json: { error },
     });
-  });
-}
-
-export async function mockGetAssets(page: Page, assets: AssetMeta[]) {
-  await page.route("**/api/me/assets", async (route) => {
-    if (route.request().method() === "GET" && isExactPath(route.request().url(), "/api/me/assets")) {
-      await route.fulfill({
-        status: 200,
-        json: { assets },
-      });
-    } else {
-      await route.fallback();
-    }
-  });
-}
-
-export async function mockGetAssetsError(
-  page: Page,
-  status = 500,
-  error = "Internal error",
-) {
-  await page.route("**/api/me/assets", async (route) => {
-    if (route.request().method() === "GET" && isExactPath(route.request().url(), "/api/me/assets")) {
-      await route.fulfill({
-        status,
-        json: { error },
-      });
-    } else {
-      await route.fallback();
-    }
   });
 }

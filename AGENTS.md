@@ -77,6 +77,7 @@ Detalle de investigación original en [`docs/architecture/bug-investigation-dani
 - **Re-subir pisa la anterior.** No hay UI para "elegir entre múltiples cartas cargadas".
 - **Profile único** en `users.profile` (JSON con birthData + humanDesign).
 - **Chat, informe, tránsitos** todos leen el único profile activo.
+- **Replace consciente = wipe atómico.** Reemplazar carta/bodygraph debe limpiar contexto dependiente de la carta anterior (chat, memory, intake, informes) con confirmación explícita. ADR: [`docs/adr/v1-mono-card-replace-policy.md`](docs/adr/v1-mono-card-replace-policy.md).
 
 **V2 (próxima versión, sin definiciones de producto cerradas todavía — epic `astral-yaa`):**
 - **Multiple profiles per user.** Una coach HD puede tener su propia carta + cartas de sus clientas + carta de "Negocio Nuevo" como entidades separadas con IDs estables.

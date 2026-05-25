@@ -6,32 +6,35 @@
  * - PDF de Genetic Matrix / Jovian Archive (secundario, advanced).
  *
  * En esta versión solo hay una carta activa por usuario, así que ambos
- * caminos REEMPLAZAN la actual. El upload PDF reusa el flow existente
- * (replaceBodygraph → /api/me/bodygraph). El de datos reusa el endpoint
- * autenticado /api/me/bodygraph/from-birth.
+ * caminos REEMPLAZAN la actual después de una confirmación explícita.
  */
 import { useEffect, useRef, useState } from "react";
-import type { LocalUser, UserProfile } from "../types";
 import {
   PlacesTimeoutError,
-  replaceBodygraph,
+  replaceBodygraphConfirmed,
+  replaceBodygraphFromBirthConfirmed,
   searchPlaces,
-  submitBodygraphFromBirth,
   type PlaceResult,
   type ReplaceBodygraphResponse,
 } from "../api";
 import { getAssetFailureMessage } from "../asset-errors";
+import { ConfirmModal } from "./ConfirmModal";
 
 interface Props {
   onCancel: () => void;
   onBodygraphReplaced: (result: ReplaceBodygraphResponse) => void;
-  onProfileUpdated: (user: LocalUser, profile: UserProfile) => void;
 }
 
 type Mode = "data" | "pdf";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^\d{2}:\d{2}$/;
+const REPLACE_CONFIRMATION = {
+  title: "¿Reemplazar tu carta?",
+  body: "Al confirmar, vamos a borrar el chat, la memoria, tus respuestas de contexto y los informes de la carta actual. Lo hacemos para que Astral no mezcle datos de distintas cartas. Por ahora solo podés tener una carta activa; la opción de varias cartas viene más adelante.",
+  confirmLabel: "Reemplazar y reiniciar",
+  cancelLabel: "No, mantener mi carta",
+};
 
 function formatPlaceLabel(p: PlaceResult): string {
   const parts = [p.name, p.admin1, p.country].filter((s) => s && s.length > 0);
@@ -39,10 +42,11 @@ function formatPlaceLabel(p: PlaceResult): string {
   return parts.join(", ");
 }
 
-export function MyChartReplaceView({ onCancel, onBodygraphReplaced, onProfileUpdated }: Props) {
+export function MyChartReplaceView({ onCancel, onBodygraphReplaced }: Props) {
   const [mode, setMode] = useState<Mode>("data");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingReplace, setPendingReplace] = useState<Mode | null>(null);
 
   // Birth data state
   const [birthDate, setBirthDate] = useState("");
@@ -56,6 +60,7 @@ export function MyChartReplaceView({ onCancel, onBodygraphReplaced, onProfileUpd
   const [placeOpen, setPlaceOpen] = useState(false);
   const [placeError, setPlaceError] = useState<string | null>(null);
   const placeBoxRef = useRef<HTMLDivElement>(null);
+  const replaceInFlightRef = useRef(false);
 
   // PDF state
   const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -144,7 +149,7 @@ export function MyChartReplaceView({ onCancel, onBodygraphReplaced, onProfileUpd
     setError(null);
   };
 
-  const handleSubmitData = async () => {
+  const handleSubmitData = () => {
     if (!DATE_RE.test(birthDate)) {
       setError("Ingresá una fecha válida (formato YYYY-MM-DD).");
       return;
@@ -158,48 +163,78 @@ export function MyChartReplaceView({ onCancel, onBodygraphReplaced, onProfileUpd
       return;
     }
     setError(null);
+    setPendingReplace("data");
+  };
+
+  const confirmSubmitData = async () => {
+    const place = selectedPlace;
+    if (!place) {
+      setError("Elegí un lugar de la lista para que podamos resolver tu zona horaria.");
+      return;
+    }
+
+    let completed = false;
     setSubmitting(true);
     try {
-      const { user, profile } = await submitBodygraphFromBirth({
+      const result = await replaceBodygraphFromBirthConfirmed({
         date: birthDate,
         time: birthTime,
         place: {
-          lat: selectedPlace.lat,
-          lon: selectedPlace.lon,
-          label: formatPlaceLabel(selectedPlace),
+          lat: place.lat,
+          lon: place.lon,
+          label: formatPlaceLabel(place),
         },
       });
-      onProfileUpdated(
-        { id: user.id, name: user.name, plan: user.plan, role: user.role, status: user.status },
-        profile,
-      );
+      onBodygraphReplaced(result);
+      completed = true;
     } catch (err) {
       setError(getAssetFailureMessage(err, "No pudimos calcular tu carta ahora."));
     } finally {
-      setSubmitting(false);
+      if (!completed) setSubmitting(false);
     }
   };
 
-  const handleSubmitPdf = async () => {
+  const handleSubmitPdf = () => {
     if (!pdfFile) {
       setError("Subí un PDF para reemplazar tu carta.");
       return;
     }
     setError(null);
+    setPendingReplace("pdf");
+  };
+
+  const confirmSubmitPdf = async () => {
+    let completed = false;
     setSubmitting(true);
     try {
-      const result = await replaceBodygraph(pdfFile);
+      if (!pdfFile) {
+        setError("Subí un PDF para reemplazar tu carta.");
+        return;
+      }
+      const result = await replaceBodygraphConfirmed(pdfFile);
       onBodygraphReplaced(result);
+      completed = true;
     } catch (err) {
       setError(getAssetFailureMessage(err, "No pudimos sincronizar el archivo."));
     } finally {
-      setSubmitting(false);
+      if (!completed) setSubmitting(false);
     }
   };
 
   const handleFileChange = (file: File | null) => {
     setError(null);
     setPdfFile(file);
+  };
+
+  const handleConfirmReplace = () => {
+    const action = pendingReplace;
+    if (!action || replaceInFlightRef.current) return;
+    replaceInFlightRef.current = true;
+    setPendingReplace(null);
+    setError(null);
+    void (action === "data" ? confirmSubmitData() : confirmSubmitPdf()).finally(() => {
+      replaceInFlightRef.current = false;
+    });
   };
 
   if (submitting) {
@@ -409,6 +444,16 @@ export function MyChartReplaceView({ onCancel, onBodygraphReplaced, onProfileUpd
           </div>
         )}
       </div>
+      <ConfirmModal
+        open={pendingReplace !== null}
+        title={REPLACE_CONFIRMATION.title}
+        body={REPLACE_CONFIRMATION.body}
+        confirmLabel={REPLACE_CONFIRMATION.confirmLabel}
+        cancelLabel={REPLACE_CONFIRMATION.cancelLabel}
+        destructive
+        onConfirm={handleConfirmReplace}
+        onCancel={() => setPendingReplace(null)}
+      />
     </div>
   );
 }

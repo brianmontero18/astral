@@ -319,9 +319,7 @@ test.describe("Admin user provisioning — invite premium", () => {
       await page.goto("/");
 
       // Step "name" must be skipped because admin already provided the name.
-      await expect(
-        page.getByRole("heading", { name: /sincroniz[aá] tu energ[ií]a/i }),
-      ).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Coordenadas de tu carta" })).toBeVisible();
       await expect(
         page.getByRole("heading", { name: /astral guide/i, level: 1 }),
       ).toHaveCount(0);

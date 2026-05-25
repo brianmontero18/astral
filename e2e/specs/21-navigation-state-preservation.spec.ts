@@ -3,7 +3,6 @@ import { test, expect } from "@playwright/test";
 import {
   mockChatHistory,
   mockGenerateReport,
-  mockGetAssets,
   mockGetReport,
   mockGetReportStale,
   mockGetUser,
@@ -20,17 +19,6 @@ import {
   TEST_USER_WITH_INTAKE,
 } from "../helpers/fixtures";
 
-const ASSET_FIXTURES = [
-  {
-    id: "asset-nav-1",
-    filename: "carta-base.pdf",
-    mimeType: "application/pdf",
-    fileType: "hd",
-    sizeBytes: 1024,
-    createdAt: "2026-04-20T12:00:00.000Z",
-  },
-];
-
 test.describe("Navigation — state preservation", () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript((user) => {
@@ -39,7 +27,6 @@ test.describe("Navigation — state preservation", () => {
     await mockHealth(page);
     await mockChatHistory(page, HISTORY_MESSAGES, { used: 2, limit: 20 });
     await mockTransits(page);
-    await mockGetAssets(page, ASSET_FIXTURES);
   });
 
   test("main navigation keeps the user moving across chat, transits, assets, intake, and report without losing the originating tab", async ({ page }) => {
@@ -55,19 +42,18 @@ test.describe("Navigation — state preservation", () => {
     await page.getByRole("button", { name: "Tránsitos" }).click();
     await expect(page.getByRole("heading", { name: "Tránsitos" })).toBeVisible();
 
-    await page.getByRole("button", { name: "Mis Cartas" }).click();
-    await expect(page.getByRole("heading", { name: "Mis Cartas" })).toBeVisible();
-    await expect(page.getByText("carta-base.pdf")).toBeVisible();
+    await page.getByRole("button", { name: "Mi Carta" }).click();
+    await expect(page.getByRole("heading", { name: "Todavía no calculaste tu carta" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Cargar mi carta" })).toBeVisible();
 
     await page.getByRole("button", { name: "Informe", exact: true }).click();
     await expect(page.getByText("Personalizá tu informe")).toBeVisible();
 
     await page.getByLabel("¿A qué dedicás tu energía hoy?").fill("Navego entre superficies sin perderme");
     // The NavBar back button was removed — leaving intake means clicking a tab.
-    await page.getByRole("button", { name: "Mis Cartas" }).click();
+    await page.getByRole("button", { name: "Mi Carta" }).click();
 
-    await expect(page.getByRole("heading", { name: "Mis Cartas" })).toBeVisible();
-    await expect(page.getByText("carta-base.pdf")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Todavía no calculaste tu carta" })).toBeVisible();
 
     await page.getByRole("button", { name: "Informe", exact: true }).click();
     await expect(page.getByText("Personalizá tu informe")).toBeVisible();
@@ -78,8 +64,8 @@ test.describe("Navigation — state preservation", () => {
     });
     await expect(page.getByText("Informe Personal")).toBeVisible();
 
-    await page.getByRole("button", { name: "Mis Cartas" }).click();
-    await expect(page.getByRole("heading", { name: "Mis Cartas" })).toBeVisible();
+    await page.getByRole("button", { name: "Mi Carta" }).click();
+    await expect(page.getByRole("heading", { name: "Todavía no calculaste tu carta" })).toBeVisible();
 
     await page.getByRole("button", { name: "Chat" }).click();
     await expect(page.getByPlaceholder(/Preguntá al oráculo/)).toBeVisible();

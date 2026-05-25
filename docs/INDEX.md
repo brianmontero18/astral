@@ -24,6 +24,7 @@ Si entrás al proyecto por primera vez (humano o AI agent):
 | [`architecture/chat-llm-system.md`](architecture/chat-llm-system.md) | Diagrama del flujo turn-by-turn del chat con LLM, capas de abstracción, comparación con industria 2026. **Lectura obligada para PM o engineer que toca AI**. |
 | [`architecture/refactor-2026-05-decisions.md`](architecture/refactor-2026-05-decisions.md) | Decisiones técnicas del refactor AI (mayo 2026): por qué tools y no post-validator, por qué Vercel AI SDK, por qué mini y no 4o. |
 | [`architecture/bug-investigation-daniela-2026-05.md`](architecture/bug-investigation-daniela-2026-05.md) | Caso real que motivó el refactor: profile contaminado, file_type natal vs hd, root cause analysis. |
+| [`architecture/replace-flow-wipe-scope.md`](architecture/replace-flow-wipe-scope.md) | Auditoría V1 mono-carta: qué tablas/superficies se wipean o mantienen al reemplazar carta (`astral-pjc.2`). |
 
 ---
 
@@ -50,6 +51,7 @@ Reports de sub-agents que investigaron contra docs oficiales (Anthropic, OpenAI,
 | [`adr/context-budget-tracking.md`](adr/context-budget-tracking.md) | ADR: estrategia de medición de context budget en tiempo real para chat (`astral-e2h.5`). |
 | [`adr/chat-compaction-policy.md`](adr/chat-compaction-policy.md) | ADR: semántica y política de compactación del chat (`astral-e2h.11`). |
 | [`adr/model-aware-context-policy.md`](adr/model-aware-context-policy.md) | ADR: política model-aware para context window, selección de historial y mensajes gigantes (`astral-e2h.12`). |
+| [`adr/v1-mono-card-replace-policy.md`](adr/v1-mono-card-replace-policy.md) | ADR: política V1 mono-carta para replace consciente con wipe atómico (`astral-pjc.1`). |
 | [`adr/openai-model-shortlist-2026.md`](adr/openai-model-shortlist-2026.md) | ADR: shortlist exhaustiva OpenAI para chat, reportes, memory writer y voz antes de eval live (`astral-e2h.17`). |
 | [`economics/model-cost-margin-analysis.md`](economics/model-cost-margin-analysis.md) | Unit economics de modelos LLM para Astral: costo real por turno, escenarios de margen por modelo y relacion con `astral-sg3` (`astral-e2h.9`). |
 | [`chat-v2-rollout.md`](chat-v2-rollout.md) | Plan de roll-out del path v2 (Vercel AI SDK + tools). Criterios de cierre cuantitativos, queries SQL para telemetría. |

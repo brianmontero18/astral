@@ -525,13 +525,6 @@ export default function App() {
                     user={user}
                     profile={profile}
                     onBodygraphReplaced={handleBodygraphReplaced}
-                    onProfileUpdated={(u, p) => {
-                      setUser(u);
-                      setProfile(p);
-                      setReport(null);
-                      setReportLoading(false);
-                      setProfileRevision((v) => v + 1);
-                    }}
                   />
                 )}
                 {currentView === "intake" && (

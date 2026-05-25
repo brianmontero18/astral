@@ -56,6 +56,7 @@ const {
   sessionHeaders,
 } = await import("./helpers.js");
 const { getChatMessages } = await import("../db.js");
+const { beginBodygraphReplace } = await import("../services/user-operation-locks.js");
 
 let app: FastifyInstance;
 
@@ -114,6 +115,28 @@ afterEach(() => {
 });
 
 describe("POST /api/chat — canonical agent path", () => {
+  it("rejects a chat turn while bodygraph replace is in progress", async () => {
+    const userId = await createLinkedTestUser(app, "st-chat-replace-lock");
+    const releaseReplace = beginBodygraphReplace(userId);
+    try {
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/chat",
+        headers: sessionHeaders("st-chat-replace-lock"),
+        payload: {
+          messages: [{ role: "user", content: "¿Qué ves en mi carta?" }],
+        },
+      });
+
+      expect(res.statusCode).toBe(409);
+      expect(JSON.parse(res.body).error).toBe("bodygraph_replace_in_progress");
+      expect(runAstralAgentV2Mock).not.toHaveBeenCalled();
+      expect(await getChatMessages(userId)).toEqual([]);
+    } finally {
+      releaseReplace();
+    }
+  });
+
   it("routes to v2 without a feature flag", async () => {
     await createLinkedTestUser(app, "st-chat-v2-canonical");
     runAstralAgentV2Mock.mockResolvedValueOnce(mockAgentResult("Respuesta v2"));

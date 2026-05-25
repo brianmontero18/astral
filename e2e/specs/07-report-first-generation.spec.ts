@@ -190,7 +190,7 @@ test.describe("Report — First Generation", () => {
 
   test("clicking another tab from the report navigates away cleanly", async ({ page }) => {
     // The NavBar no longer renders a dedicated \"Volver\" button — the tabs
-    // (Chat / Informe / Tránsitos / Mis Cartas) are always visible and
+    // (Chat / Informe / Tránsitos / Mi Carta) are always visible and
     // doubling as the back path. This test guards against regressions
     // where a tab click while in report would bounce back to chat.
     await mockGetUser(page, TEST_USER_NO_INTAKE);
