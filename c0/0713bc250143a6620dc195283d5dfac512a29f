@@ -1,0 +1,30 @@
+frontend/src/utils.ts
+  s_1970642029acbb::t_43b61521d549c6 73-76,84-97,132
+  s_1970642029acbb::t_0486ae26a7e8e2 77-79,81-83
+  s_1970642029acbb::t_08abb038344370 106
+  s_1970642029acbb::t_a645d27a03b104 80
+  s_1970642029acbb::t_3426d6d140f7dc 31-40,64-72,98-105,107-111,127,129,131
+frontend/src/components/ReportRenderer.tsx
+  s_1970642029acbb::t_b820b625195442 85,87-95
+backend/src/__tests__/frontend-report-renderer.test.ts
+  s_1970642029acbb::t_fc4d3f03c7f2bc 18-20
+  s_1970642029acbb::t_04123e5d375300 70-80
+  s_1970642029acbb::t_b0ff3bb0c0fb23 1-7,16,21-22,25-30,32-39,41-69,81-188
+  s_1970642029acbb::t_8d3f780e3006ce 8-15,17,23-24,31,40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "c00713bc250143a6620dc195283d5dfac512a29f",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
