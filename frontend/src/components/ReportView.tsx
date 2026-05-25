@@ -551,6 +551,19 @@ export function ReportView({ report, loading, errorMessage, onBack, onEditIntake
           )}
         </div>
 
+        {errorMessage && (
+          <div
+            role="alert"
+            style={{
+              padding: "10px 16px", borderRadius: 10, marginBottom: 16,
+              background: "rgba(154, 55, 55, 0.1)", border: "1px solid rgba(154, 55, 55, 0.28)",
+              color: "#9a3737", fontSize: 12, lineHeight: 1.5,
+            }}
+          >
+            {errorMessage}
+          </div>
+        )}
+
         {intakeWarning && (
           <div style={{
             padding: "10px 16px", borderRadius: 10, marginBottom: 16,
