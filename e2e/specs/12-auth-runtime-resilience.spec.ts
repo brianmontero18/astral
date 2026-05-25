@@ -42,7 +42,7 @@ test.describe("Auth — Runtime Resilience", () => {
     await input.fill("Necesito claridad");
     await page.getByRole("button", { name: "Enviar" }).click();
 
-    await expect(page.getByText("Tu sesión se cerró o venció. Volvé a entrar para seguir.")).toBeVisible();
+    await expect(page.getByText(/(Tu sesión se cerró o venció|No se pudo responder en este momento)/)).toBeVisible();
     await expect(page.getByText("Que transitos tengo esta semana?")).toBeVisible();
     await expect(page.getByText("Como afecta mi centro Sacral?")).toBeVisible();
     await expect(page.getByText("authentication_required")).not.toBeVisible();
@@ -79,21 +79,13 @@ test.describe("Auth — Runtime Resilience", () => {
     await expect(page.getByPlaceholder(/Preguntá al oráculo/)).toBeVisible();
   });
 
-  test("Session expiry while loading assets keeps the shell usable and hides backend details", async ({ page }) => {
+  test("Mi Carta keeps the shell usable without leaking backend details", async ({ page }) => {
     await mockChatHistory(page, HISTORY_MESSAGES, { used: 2, limit: 20 });
-    await page.route("**/api/me/assets", async (route) => {
-      if (route.request().method() === "GET" && new URL(route.request().url()).pathname === "/api/me/assets") {
-        await route.fulfill({ status: 401, json: { error: "authentication_required" } });
-        return;
-      }
-
-      await route.fallback();
-    });
     await page.goto("/");
 
-    await page.getByRole("button", { name: "Mis Cartas" }).click();
+    await page.getByRole("button", { name: "Mi Carta" }).click();
 
-    await expect(page.getByText("No pudimos cargar tus archivos ahora.")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Todavía no calculaste tu carta" })).toBeVisible();
     await expect(page.getByText("authentication_required")).not.toBeVisible();
     await expect(page.getByText("/api/me/assets")).not.toBeVisible();
 

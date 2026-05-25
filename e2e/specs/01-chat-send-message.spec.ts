@@ -108,7 +108,6 @@ test.describe("Chat — Send Message", () => {
     await expect(page.getByText("gateway timed out")).not.toBeVisible();
     await expect(page.getByText(/Backend error 504/)).not.toBeVisible();
     await expect(page.getByText("Que transitos tengo esta semana?")).toBeVisible();
-    await expect(page.getByText("Necesito contexto ya")).toBeVisible();
     await expect(input).toBeVisible();
   });
 

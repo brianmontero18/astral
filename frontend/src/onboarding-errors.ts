@@ -11,7 +11,7 @@ const UNSUPPORTED_SOURCE_MESSAGE =
 const UNREADABLE_PDF_MESSAGE =
   "No pudimos leer tu PDF. Reexporta el bodygraph desde la fuente oficial y vuelve a subirlo.";
 const GENERIC_ONBOARDING_FAILURE =
-  "No pudimos leer tu carta ahora. Reintentá con otro PDF o probá de nuevo.";
+  "No pudimos calcular tu carta ahora. Probá de nuevo en un momento.";
 
 export function getOnboardingFailureMessage(error: unknown): string {
   if (!(error instanceof Error)) {
@@ -39,7 +39,7 @@ export function getOnboardingFailureMessage(error: unknown): string {
   if (
     CONNECTIVITY_MARKERS.some((marker) => normalized.includes(marker))
   ) {
-    return "No pudimos leer tu carta ahora. Reintentá en unos segundos.";
+    return "No pudimos calcular tu carta ahora. Reintentá en unos segundos.";
   }
 
   return GENERIC_ONBOARDING_FAILURE;

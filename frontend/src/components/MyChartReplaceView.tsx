@@ -9,7 +9,6 @@
  * caminos REEMPLAZAN la actual después de una confirmación explícita.
  */
 import { useEffect, useRef, useState } from "react";
-import type { LocalUser, UserProfile } from "../types";
 import {
   PlacesTimeoutError,
   replaceBodygraphConfirmed,
@@ -24,7 +23,6 @@ import { ConfirmModal } from "./ConfirmModal";
 interface Props {
   onCancel: () => void;
   onBodygraphReplaced: (result: ReplaceBodygraphResponse) => void;
-  onProfileUpdated: (user: LocalUser, profile: UserProfile) => void;
 }
 
 type Mode = "data" | "pdf";
@@ -44,7 +42,7 @@ function formatPlaceLabel(p: PlaceResult): string {
   return parts.join(", ");
 }
 
-export function MyChartReplaceView({ onCancel, onBodygraphReplaced, onProfileUpdated }: Props) {
+export function MyChartReplaceView({ onCancel, onBodygraphReplaced }: Props) {
   const [mode, setMode] = useState<Mode>("data");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -178,7 +176,7 @@ export function MyChartReplaceView({ onCancel, onBodygraphReplaced, onProfileUpd
     let completed = false;
     setSubmitting(true);
     try {
-      const { user, profile } = await replaceBodygraphFromBirthConfirmed({
+      const result = await replaceBodygraphFromBirthConfirmed({
         date: birthDate,
         time: birthTime,
         place: {
@@ -187,10 +185,7 @@ export function MyChartReplaceView({ onCancel, onBodygraphReplaced, onProfileUpd
           label: formatPlaceLabel(place),
         },
       });
-      onProfileUpdated(
-        { id: user.id, name: user.name, plan: user.plan, role: user.role, status: user.status },
-        profile,
-      );
+      onBodygraphReplaced(result);
       completed = true;
     } catch (err) {
       setError(getAssetFailureMessage(err, "No pudimos calcular tu carta ahora."));

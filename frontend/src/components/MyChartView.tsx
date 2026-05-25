@@ -25,10 +25,9 @@ interface Props {
   user: LocalUser;
   profile: UserProfile;
   onBodygraphReplaced: (result: ReplaceBodygraphResponse) => void;
-  onProfileUpdated: (user: LocalUser, profile: UserProfile) => void;
 }
 
-export function MyChartView({ user, profile, onBodygraphReplaced, onProfileUpdated }: Props) {
+export function MyChartView({ user, profile, onBodygraphReplaced }: Props) {
   const [replacing, setReplacing] = useState(false);
   const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
   const [exporting, setExporting] = useState<"png" | "pdf" | null>(null);
@@ -54,11 +53,6 @@ export function MyChartView({ user, profile, onBodygraphReplaced, onProfileUpdat
         onCancel={() => setReplacing(false)}
         onBodygraphReplaced={(result) => {
           onBodygraphReplaced(result);
-          setReplaceNotice(true);
-          setReplacing(false);
-        }}
-        onProfileUpdated={(u, p) => {
-          onProfileUpdated(u, p);
           setReplaceNotice(true);
           setReplacing(false);
         }}

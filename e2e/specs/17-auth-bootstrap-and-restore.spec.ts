@@ -1,23 +1,22 @@
 import { test, expect, type Page } from "@playwright/test";
-import path from "node:path";
-
 import {
   mockChatHistory,
   mockGetUser,
   mockHealth,
-  mockReplaceBodygraph,
   mockUpdateUser,
 } from "../helpers/mock-api";
 import {
   FREE_REPORT,
-  HD_PROFILE,
   HISTORY_MESSAGES,
   PREMIUM_REPORT,
   TEST_USER,
   TEST_USER_NO_INTAKE,
 } from "../helpers/fixtures";
-
-const CHART_FIXTURE_PATH = path.resolve("test-assets/bodygraph-sources/myhumandesign-chart.pdf");
+import {
+  BIRTH_DATA_PROFILE,
+  completeBirthDataStep,
+  mockPlacesAutocomplete,
+} from "../helpers/onboarding-birth-data";
 
 function buildLinkedUser(plan: "free" | "basic" | "premium") {
   return {
@@ -86,13 +85,19 @@ test.describe("Auth — Bootstrap & Restore", () => {
       bootstrapped = true;
       await route.fulfill({ status: 201, json: { id: "test-user-123" } });
     });
-    await mockReplaceBodygraph(page, {
-      user: {
-        ...buildLinkedUser("free"),
-        profile: HD_PROFILE,
-        intake: null,
-      },
-      profile: HD_PROFILE,
+    await mockPlacesAutocomplete(page);
+    await page.route("**/api/me/bodygraph/from-birth", async (route) => {
+      if (route.request().method() !== "POST") {
+        await route.fallback();
+        return;
+      }
+      await route.fulfill({
+        status: 201,
+        json: {
+          user: { ...buildLinkedUser("free"), profile: BIRTH_DATA_PROFILE, intake: null },
+          profile: BIRTH_DATA_PROFILE,
+        },
+      });
     });
     await mockUpdateUser(page);
 
@@ -102,10 +107,8 @@ test.describe("Auth — Bootstrap & Restore", () => {
     await page.getByRole("button", { name: "DESCUBRIR MI CARTA" }).click();
     await page.getByPlaceholder("Tu nombre").fill("Test User");
     await page.getByRole("button", { name: "CONTINUAR" }).click();
-    await page.locator('input[type="file"]').setInputFiles(CHART_FIXTURE_PATH);
-    await page.getByRole("button", { name: "CANALIZAR ENERGÍA" }).click();
+    await completeBirthDataStep(page);
 
-    await expect(page.getByText("Esto es lo que leímos")).toBeVisible();
     await expect(page.getByText("Tipo HD")).toBeVisible();
     await expect(page.getByText("Generador")).toBeVisible();
     await page.getByRole("button", { name: "CONTINUAR" }).click();

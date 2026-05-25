@@ -9,13 +9,15 @@
  * la review del perfil — este spec extiende a partir de ahí.
  */
 
-import path from "node:path";
 import { test, expect } from "@playwright/test";
 
 import { mockChatHistory, mockHealth, mockTransits } from "../helpers/mock-api";
 import { HD_PROFILE } from "../helpers/fixtures";
-
-const CHART_FIXTURE_PATH = path.resolve("test-assets/bodygraph-sources/myhumandesign-chart.pdf");
+import {
+  BIRTH_DATA_PROFILE,
+  completeBirthDataStep,
+  mockPlacesAutocomplete,
+} from "../helpers/onboarding-birth-data";
 
 const LINKED_USER_BASE = {
   id: "test-user-intake-step",
@@ -39,6 +41,7 @@ async function walkOnboardingToReview(page: import("@playwright/test").Page) {
   await mockHealth(page);
   await mockTransits(page);
   await mockChatHistory(page, []);
+  await mockPlacesAutocomplete(page);
 
   await page.route("**/api/me", async (route) => {
     if (new URL(route.request().url()).pathname !== "/api/me") {
@@ -76,22 +79,13 @@ async function walkOnboardingToReview(page: import("@playwright/test").Page) {
     await route.fulfill({ status: 201, json: { id: LINKED_USER_BASE.id } });
   });
 
-  await page.route("**/api/me/bodygraph", async (route) => {
-    if (route.request().method() === "POST" && new URL(route.request().url()).pathname === "/api/me/bodygraph") {
+  await page.route("**/api/me/bodygraph/from-birth", async (route) => {
+    if (route.request().method() === "POST" && new URL(route.request().url()).pathname === "/api/me/bodygraph/from-birth") {
       await route.fulfill({
         status: 201,
         json: {
-          user: { ...LINKED_USER_BASE, intake: null },
-          profile: HD_PROFILE,
-          asset: {
-            id: "asset-intake-1",
-            filename: "chart.pdf",
-            mimeType: "application/pdf",
-            fileType: "hd",
-            sizeBytes: 1024,
-            createdAt: "2026-04-29T09:00:00.000Z",
-            isActive: true,
-          },
+          user: { ...LINKED_USER_BASE, profile: BIRTH_DATA_PROFILE, intake: null },
+          profile: BIRTH_DATA_PROFILE,
         },
       });
     } else {
@@ -103,11 +97,7 @@ async function walkOnboardingToReview(page: import("@playwright/test").Page) {
   await page.getByRole("button", { name: "DESCUBRIR MI CARTA" }).click();
   await page.getByPlaceholder("Tu nombre").fill("Test Intake User");
   await page.getByRole("button", { name: "CONTINUAR" }).click();
-  await page.locator('input[type="file"]').setInputFiles(CHART_FIXTURE_PATH);
-  await page.getByRole("button", { name: "CANALIZAR ENERGÍA" }).click();
-
-  // We're at the review step now.
-  await expect(page.getByText("Esto es lo que leímos")).toBeVisible();
+  await completeBirthDataStep(page);
 
   return { getPutBody: () => lastPutBody };
 }

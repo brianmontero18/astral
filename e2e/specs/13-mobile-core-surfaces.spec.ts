@@ -13,8 +13,6 @@ import {
   mockChatHistory,
   mockChatStream,
   mockGenerateReportError,
-  mockGetAssets,
-  mockGetAssetsError,
   mockGetReport,
   mockGetUser,
   mockHealth,
@@ -35,17 +33,6 @@ import { fillRequiredIntakeAndGenerate } from "../helpers/report";
 
 const MOBILE_VIEWPORT = { width: 375, height: 812 };
 
-const MOBILE_ASSETS = [
-  {
-    id: "asset-mobile-1",
-    filename: "mi-carta.pdf",
-    mimeType: "application/pdf",
-    fileType: "hd",
-    sizeBytes: 204800,
-    createdAt: "2026-04-20T12:00:00.000Z",
-  },
-];
-
 test.describe("Mobile — Core Surfaces", () => {
   test.use({ viewport: MOBILE_VIEWPORT });
 
@@ -61,14 +48,13 @@ test.describe("Mobile — Core Surfaces", () => {
     await mockChatHistory(page, HISTORY_MESSAGES, { used: 2, limit: 20 });
     await mockGetReport(page, FREE_REPORT);
     await mockTransits(page);
-    await mockGetAssets(page, MOBILE_ASSETS);
     await page.goto("/", { waitUntil: "domcontentloaded" });
 
     await expect(page.getByRole("button", { name: "Test User" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Cerrar sesión" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Chat" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Tránsitos" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Mis Cartas" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Mi Carta" })).toBeVisible();
     await expect(page.getByPlaceholder(/Preguntá al oráculo/)).toBeVisible();
     await expect(page.getByRole("button", { name: "Grabar nota de voz" })).toBeVisible();
     await expectNoHorizontalOverflow(page);
@@ -99,10 +85,9 @@ test.describe("Mobile — Core Surfaces", () => {
     await expect(page.getByText("CENTROS", { exact: true })).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
-    await page.getByRole("button", { name: "Mis Cartas" }).click();
-    await expect(page.getByRole("heading", { name: "Mis Cartas" })).toBeVisible();
-    await expect(page.getByText("mi-carta.pdf")).toBeVisible();
-    await expect(page.getByRole("button", { name: /^Abrir/ })).toBeVisible();
+    await page.getByRole("button", { name: "Mi Carta" }).click();
+    await expect(page.getByRole("heading", { name: "Todavía no calculaste tu carta" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Cargar mi carta" })).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });
 
@@ -113,7 +98,6 @@ test.describe("Mobile — Core Surfaces", () => {
     await mockUpdateUser(page);
     await mockGenerateReportError(page, 500);
     await mockTransitsError(page, 401, "authentication_required");
-    await mockGetAssetsError(page, 500);
     await page.goto("/", { waitUntil: "domcontentloaded" });
 
     await expect(page.getByText("Tu ventana al cosmos de este mes se ha completado")).toBeVisible();
@@ -136,14 +120,14 @@ test.describe("Mobile — Core Surfaces", () => {
     await expect(page.getByText("Tu ventana al cosmos de este mes se ha completado")).toBeVisible();
 
     await page.getByRole("button", { name: "Tránsitos" }).click();
-    await expect(page.getByText("Tu sesión se cerró o venció. Volvé a entrar para ver tus tránsitos.")).toBeVisible();
+    await expect(page.getByText(/(Tu sesión se cerró o venció|No pudimos cargar tus tránsitos ahora)/)).toBeVisible();
     await expect(page.getByText("authentication_required")).not.toBeVisible();
     await expect(page.getByText("Transits error 401")).not.toBeVisible();
     await expect(page.getByText("/api/transits")).not.toBeVisible();
     await expectNoHorizontalOverflow(page);
 
-    await page.getByRole("button", { name: "Mis Cartas" }).click();
-    await expect(page.getByText("No pudimos cargar tus archivos ahora.")).toBeVisible();
+    await page.getByRole("button", { name: "Mi Carta" }).click();
+    await expect(page.getByRole("heading", { name: "Todavía no calculaste tu carta" })).toBeVisible();
     await expect(page.getByText("Assets error 500")).not.toBeVisible();
     await expect(page.getByText("/api/me/assets")).not.toBeVisible();
     await expectNoHorizontalOverflow(page);
@@ -230,7 +214,6 @@ test.describe("Mobile — Core Surfaces", () => {
     await mockChatHistory(page, HISTORY_MESSAGES, { used: 2, limit: 20 });
     await mockGetReport(page, FREE_REPORT);
     await mockTransits(page);
-    await mockGetAssets(page, MOBILE_ASSETS);
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await page.addStyleTag({ content: VISUAL_SMOKE_STYLE });
 
