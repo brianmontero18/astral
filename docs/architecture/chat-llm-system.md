@@ -63,7 +63,7 @@ Default actual: `gpt-4o-mini` vía Vercel AI SDK + tools HD. El routing de model
 │  │   4. HD_CONDENSED (sin tabla canales — ahora tool)  │            │
 │  │   5. BUSINESS_PACK_V1                                │            │
 │  │   6. 9 detection rules                               │            │
-│  │   7. Formato salida (reporte semanal)                │            │
+│  │   7. Política de salida chat vs informe              │            │
 │  └─────────────────────────────────────────────────────┘            │
 │  ┌─────────────────────────────────────────────────────┐            │
 │  │ [BLOQUE DINÁMICO — ~2K tokens] ← varía por user      │            │
@@ -196,7 +196,7 @@ Default actual: `gpt-4o-mini` vía Vercel AI SDK + tools HD. El routing de model
 │  CAPA 2 — Knowledge + Tools                                      │
 │   ── System prompt (estático) ──────────────                     │
 │      Rol · Filosofía · HD_CONDENSED · BUSINESS_PACK              │
-│      9 detection rules · Formato salida                          │
+│      9 detection rules · Política de salida chat vs informe      │
 │   ── User context (dinámico) ───────────────                     │
 │      Profile · Intake · Memory · Transits · Impact               │
 │   ── Tools deterministas ───────────────────                     │

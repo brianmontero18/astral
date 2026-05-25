@@ -141,3 +141,29 @@ describe("buildSystemPromptV2 cache prefix", () => {
     expectDynamicBlocksAfterContext(prompt);
   });
 });
+
+describe("buildSystemPromptV2 output policy", () => {
+  it("does not force the legacy 7-section weekly report scaffold in chat", () => {
+    const prompt = buildSystemPromptV2(BASE_PROFILE, TRANSITS_A);
+
+    expect(prompt).not.toContain("# Formato de salida — Reporte semanal");
+    expect(prompt).not.toContain("respondé con exactamente estas 7 secciones");
+    expect(prompt).not.toContain("🔭 PANORAMA GENERAL");
+    expect(prompt).not.toContain("⚡ ENERGÍA & CUERPO");
+    expect(prompt).not.toContain("💼 TRABAJO & CREATIVIDAD");
+    expect(prompt).not.toContain("❤️ VÍNCULOS & AMOR");
+    expect(prompt).not.toContain("📣 COMUNICACIÓN & MARCA");
+    expect(prompt).not.toContain("🧭 ESTRATEGIA DE LA SEMANA");
+    expect(prompt).not.toContain("⚠️ PUNTOS DE ATENCIÓN");
+  });
+
+  it("states the production policy for normal chat and explicit reports", () => {
+    const prompt = buildSystemPromptV2(BASE_PROFILE, TRANSITS_A);
+
+    expect(prompt).toContain("Chat normal: respondé directo");
+    expect(prompt).toContain("sin secciones fijas");
+    expect(prompt).toContain("Cuando pidan un informe completo");
+    expect(prompt).toContain("pestaña Informe");
+    expect(prompt).toContain("No uses la plantilla fija de 7 secciones");
+  });
+});

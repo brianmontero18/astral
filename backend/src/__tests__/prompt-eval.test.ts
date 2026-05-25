@@ -7,10 +7,10 @@
 
 import { describe, it, expect } from "vitest";
 import {
-  evalReportSections,
-  evalNoPreText,
-  evalMinSentencesPerSection,
-  evalNoMarkdown,
+  evalLegacyWeeklyReportSections,
+  evalLegacyWeeklyReportNoPreText,
+  evalLegacyWeeklyReportMinSentencesPerSection,
+  evalLegacyWeeklyReportNoMarkdown,
   evalSpanish,
   evalMentionsGates,
   evalNoHallucinatedGates,
@@ -83,14 +83,14 @@ const UNDEFINED_CENTERS = ["Head", "Ajna", "Spleen"];
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
-describe("evalReportSections", () => {
+describe("evalLegacyWeeklyReportSections", () => {
   it("passes with all 7 sections in order", () => {
-    const result = evalReportSections(GOOD_REPORT);
+    const result = evalLegacyWeeklyReportSections(GOOD_REPORT);
     expect(result.pass).toBe(true);
   });
 
   it("fails when a section is missing", () => {
-    const result = evalReportSections(BAD_REPORT_MISSING_SECTION);
+    const result = evalLegacyWeeklyReportSections(BAD_REPORT_MISSING_SECTION);
     expect(result.pass).toBe(false);
     expect(result.reason).toContain("📣 COMUNICACIÓN & MARCA");
   });
@@ -100,45 +100,45 @@ describe("evalReportSections", () => {
       .replace("⚡ ENERGÍA & CUERPO", "PLACEHOLDER")
       .replace("💼 TRABAJO & CREATIVIDAD", "⚡ ENERGÍA & CUERPO")
       .replace("PLACEHOLDER", "💼 TRABAJO & CREATIVIDAD");
-    const result = evalReportSections(swapped);
+    const result = evalLegacyWeeklyReportSections(swapped);
     expect(result.pass).toBe(false);
     expect(result.reason).toContain("orden");
   });
 });
 
-describe("evalNoPreText", () => {
+describe("evalLegacyWeeklyReportNoPreText", () => {
   it("passes when report starts with 🔭", () => {
-    expect(evalNoPreText(GOOD_REPORT).pass).toBe(true);
+    expect(evalLegacyWeeklyReportNoPreText(GOOD_REPORT).pass).toBe(true);
   });
 
   it("passes with leading whitespace before 🔭", () => {
-    expect(evalNoPreText("  \n🔭 PANORAMA GENERAL\nTexto.").pass).toBe(true);
+    expect(evalLegacyWeeklyReportNoPreText("  \n🔭 PANORAMA GENERAL\nTexto.").pass).toBe(true);
   });
 
   it("fails when there is text before the first emoji", () => {
-    const result = evalNoPreText(BAD_REPORT_PRE_TEXT);
+    const result = evalLegacyWeeklyReportNoPreText(BAD_REPORT_PRE_TEXT);
     expect(result.pass).toBe(false);
   });
 });
 
-describe("evalMinSentencesPerSection", () => {
+describe("evalLegacyWeeklyReportMinSentencesPerSection", () => {
   it("passes when each section has >= 3 sentences", () => {
-    expect(evalMinSentencesPerSection(GOOD_REPORT).pass).toBe(true);
+    expect(evalLegacyWeeklyReportMinSentencesPerSection(GOOD_REPORT).pass).toBe(true);
   });
 
   it("fails when sections are too short", () => {
-    const result = evalMinSentencesPerSection(BAD_REPORT_MISSING_SECTION);
+    const result = evalLegacyWeeklyReportMinSentencesPerSection(BAD_REPORT_MISSING_SECTION);
     expect(result.pass).toBe(false);
   });
 });
 
-describe("evalNoMarkdown", () => {
+describe("evalLegacyWeeklyReportNoMarkdown", () => {
   it("passes on clean text", () => {
-    expect(evalNoMarkdown(GOOD_REPORT).pass).toBe(true);
+    expect(evalLegacyWeeklyReportNoMarkdown(GOOD_REPORT).pass).toBe(true);
   });
 
   it("detects bold, headers, inline code, and bullets", () => {
-    const result = evalNoMarkdown(BAD_REPORT_MARKDOWN);
+    const result = evalLegacyWeeklyReportNoMarkdown(BAD_REPORT_MARKDOWN);
     expect(result.pass).toBe(false);
     expect(result.reason).toContain("bold");
     expect(result.reason).toContain("headers");

@@ -12,9 +12,9 @@ export interface EvalResult {
   reason: string;
 }
 
-// ─── Report Structure Evals ──────────────────────────────────────────────────
+// ─── Legacy Weekly Report Structure Evals ────────────────────────────────────
 
-const REPORT_SECTIONS = [
+const LEGACY_WEEKLY_REPORT_SECTIONS = [
   "🔭 PANORAMA GENERAL",
   "⚡ ENERGÍA & CUERPO",
   "💼 TRABAJO & CREATIVIDAD",
@@ -24,13 +24,13 @@ const REPORT_SECTIONS = [
   "⚠️ PUNTOS DE ATENCIÓN",
 ] as const;
 
-/** Report contains exactly the 7 required sections in order */
-export function evalReportSections(output: string): EvalResult {
+/** Legacy chat weekly report contains exactly the old 7 required sections in order. */
+export function evalLegacyWeeklyReportSections(output: string): EvalResult {
   const missing: string[] = [];
   let lastIndex = -1;
   let outOfOrder = false;
 
-  for (const section of REPORT_SECTIONS) {
+  for (const section of LEGACY_WEEKLY_REPORT_SECTIONS) {
     const idx = output.indexOf(section);
     if (idx === -1) {
       missing.push(section);
@@ -49,35 +49,35 @@ export function evalReportSections(output: string): EvalResult {
   return { pass: true, reason: "7 secciones presentes y en orden" };
 }
 
-/** No text before the first emoji in a report */
-export function evalNoPreText(output: string): EvalResult {
+/** No text before the first emoji in a legacy weekly report. */
+export function evalLegacyWeeklyReportNoPreText(output: string): EvalResult {
   const trimmed = output.trimStart();
-  const firstEmoji = trimmed.charAt(0) + trimmed.charAt(1);
-  // The first section emoji is 🔭 — check if output starts with it
   if (trimmed.startsWith("🔭")) {
     return { pass: true, reason: "Empieza directo con 🔭" };
   }
   return { pass: false, reason: `Texto antes del primer emoji: "${trimmed.slice(0, 50)}..."` };
 }
 
-/** Each section has at least 3 sentences (rough heuristic: 3+ periods) */
-export function evalMinSentencesPerSection(output: string, minSentences = 3): EvalResult {
+/** Each legacy weekly report section has at least 3 sentences (rough heuristic). */
+export function evalLegacyWeeklyReportMinSentencesPerSection(
+  output: string,
+  minSentences = 3,
+): EvalResult {
   const failures: string[] = [];
 
-  for (let i = 0; i < REPORT_SECTIONS.length; i++) {
-    const start = output.indexOf(REPORT_SECTIONS[i]);
+  for (let i = 0; i < LEGACY_WEEKLY_REPORT_SECTIONS.length; i++) {
+    const start = output.indexOf(LEGACY_WEEKLY_REPORT_SECTIONS[i]);
     if (start === -1) continue;
 
-    const contentStart = start + REPORT_SECTIONS[i].length;
-    const nextSection = i + 1 < REPORT_SECTIONS.length
-      ? output.indexOf(REPORT_SECTIONS[i + 1])
+    const contentStart = start + LEGACY_WEEKLY_REPORT_SECTIONS[i].length;
+    const nextSection = i + 1 < LEGACY_WEEKLY_REPORT_SECTIONS.length
+      ? output.indexOf(LEGACY_WEEKLY_REPORT_SECTIONS[i + 1])
       : output.length;
     const sectionText = output.slice(contentStart, nextSection === -1 ? output.length : nextSection).trim();
 
-    // Count sentence-ending punctuation
     const sentences = sectionText.split(/[.!?]+/).filter(s => s.trim().length > 10);
     if (sentences.length < minSentences) {
-      failures.push(`${REPORT_SECTIONS[i]} tiene ~${sentences.length} oraciones (mín ${minSentences})`);
+      failures.push(`${LEGACY_WEEKLY_REPORT_SECTIONS[i]} tiene ~${sentences.length} oraciones (mín ${minSentences})`);
     }
   }
 
@@ -89,8 +89,8 @@ export function evalMinSentencesPerSection(output: string, minSentences = 3): Ev
 
 // ─── Format Evals ────────────────────────────────────────────────────────────
 
-/** No markdown symbols (**, ##, `, etc.) */
-export function evalNoMarkdown(output: string): EvalResult {
+/** Legacy weekly reports disallowed markdown symbols (**, ##, `, etc.). */
+export function evalLegacyWeeklyReportNoMarkdown(output: string): EvalResult {
   const patterns = [
     { regex: /\*\*[^*]+\*\*/g, name: "bold (**)" },
     { regex: /^#{1,6}\s/gm, name: "headers (#)" },
