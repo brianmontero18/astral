@@ -1,0 +1,21 @@
+backend/src/__tests__/extraction-service.test.ts
+  s_1970642029acbb::t_424603e1c8dfff 106-117,136-147
+backend/src/extraction-service.ts
+  s_1970642029acbb::t_24b0a5be5d1f9a 276-298,392,397,402
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "b3458d4c8ff9f045b9f10c78c6d5976082f6feb8",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
