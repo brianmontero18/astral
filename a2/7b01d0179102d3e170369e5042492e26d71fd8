@@ -1,0 +1,19 @@
+frontend/src/index.css
+  s_1970642029acbb::t_13eac266c2be85 1835-1836,1841-1844,1849-1851,1878-1881
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "a27b01d0179102d3e170369e5042492e26d71fd8",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
