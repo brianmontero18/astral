@@ -1,0 +1,56 @@
+e2e/specs/21-navigation-state-preservation.spec.ts
+  s_1970642029acbb::t_e54ddb5496a958 45-47,54,56,67-68
+frontend/src/components/MyChartReplaceView.tsx
+  s_1970642029acbb::t_07824eff633d01 45,179,188
+e2e/specs/13-mobile-core-surfaces.spec.ts
+  s_1970642029acbb::t_3ac036215df6aa 123
+  s_1970642029acbb::t_e54ddb5496a958 57,88-90,129-130
+e2e/playwright.config.ts
+  s_1970642029acbb::t_4ea0f5fc6dfb12 22
+frontend/src/onboarding-errors.ts
+  s_1970642029acbb::t_212c47bdcf4590 14,42
+e2e/specs/18-onboarding-and-assets-resilience.spec.ts
+  s_1970642029acbb::t_8d25542ba4cec0 124,131
+  s_1970642029acbb::t_2e44c289ff6623 6
+  s_1970642029acbb::t_6323ab8e6272eb 7-10,19-20,23,26,61,85-86,91,93,96,106,109,118-122,125-126,128,130,134,144-146,148,150,152-155,157,159-160,162-163,165-167,169-171,174-177,181-184,188-190,192,194,196-197,199-201
+e2e/specs/29-mychart-view-and-pdf.spec.ts
+  s_1970642029acbb::t_38e886a8f07762 253,256
+  s_1970642029acbb::t_403c1877450fbd 1-227,229-246,248-252,254-255,257-313
+  s_1970642029acbb::t_07824eff633d01 247
+  s_1970642029acbb::t_6a7ebe25569daf 228
+e2e/specs/24-onboarding-intake-step.spec.ts
+  s_1970642029acbb::t_993b4b7560e44d 16-20,44,82-83,87-88,100
+e2e/specs/07-report-first-generation.spec.ts
+  s_1970642029acbb::t_ead319ea8e9dc7 193
+frontend/src/components/MyChartView.tsx
+  s_1970642029acbb::t_07824eff633d01 30
+backend/src/__tests__/frontend-onboarding-errors.test.ts
+  s_1970642029acbb::t_ffd6925fb955fa 34,37,40,44
+e2e/specs/17-auth-bootstrap-and-restore.spec.ts
+  s_1970642029acbb::t_993b4b7560e44d 15-19,88-100,110
+e2e/helpers/mock-api.ts
+  s_1970642029acbb::t_403c1877450fbd 94-120,288-325
+e2e/helpers/onboarding-birth-data.ts
+  s_1970642029acbb::t_993b4b7560e44d 1-47
+e2e/specs/25-admin-invite-flow.spec.ts
+  s_1970642029acbb::t_993b4b7560e44d 322
+e2e/specs/12-auth-runtime-resilience.spec.ts
+  s_1970642029acbb::t_e54ddb5496a958 82,86,88
+  s_1970642029acbb::t_6a7ebe25569daf 45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "dd8f5b98c26da3d91c27141c432ea80569297ee0",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
