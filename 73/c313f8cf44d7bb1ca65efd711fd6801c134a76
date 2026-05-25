@@ -1,0 +1,39 @@
+docs/evals/openai-e2h15-live-2026-05-24.md
+  s_1970642029acbb::t_d8e25a5831400c 1-55
+backend/scripts/eval-openai-live.ts
+  s_1970642029acbb::t_0a10af00eacb0d 240-242
+backend/src/evals/prompt-eval.ts
+  s_1970642029acbb::t_1e0d5820963bc4 247,277-280
+  s_1970642029acbb::t_e1b1756c297548 178,196,246,251
+  s_1970642029acbb::t_d48e8e3008bc94 265
+backend/live-eval-results/openai-e2h15-1779667638485.json
+  s_1970642029acbb::t_42e02587f85533 1-1128
+backend/src/report/generate-report.ts
+  s_1970642029acbb::t_0173949a567941 39-44,59
+backend/src/__tests__/report-generation.test.ts
+  s_1970642029acbb::t_561bbd67d6dc6f 106-107
+backend/src/memory-writer.ts
+  s_1970642029acbb::t_e778423f327be1 52-57,125
+backend/src/__tests__/memory-writer.test.ts
+  s_1970642029acbb::t_847d7a6671e930 195-196
+backend/src/__tests__/prompt-eval.test.ts
+  s_1970642029acbb::t_35840753b80537 17-18,186-215,225-231
+  s_1970642029acbb::t_bb139adba95cd8 216-224,238-246
+  s_1970642029acbb::t_2481d395c12adb 233-237,247-250
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "73c313f8cf44d7bb1ca65efd711fd6801c134a76",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
