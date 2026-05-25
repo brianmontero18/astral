@@ -1,0 +1,23 @@
+docs/INDEX.md
+  s_1970642029acbb::t_f99b8e3612bb31 27
+docs/architecture/replace-flow-wipe-scope.md
+  s_1970642029acbb::t_d96902e53ff190 52,69,104-105
+  s_1970642029acbb::t_b3e5e0f660d549 39-41,81-82
+  s_1970642029acbb::t_c8fc0b9aca8f5c 1-38,42-51,53-68,70-80,83-103,106-136
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "d389dff9780ee1821774ca35eb2dd80b187927ca",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
