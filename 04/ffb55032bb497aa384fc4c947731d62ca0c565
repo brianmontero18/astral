@@ -1,0 +1,34 @@
+e2e/specs/30-my-chart-replace-confirmation.spec.ts
+  s_1970642029acbb::t_dcf423ba5b4167 6,8-15,17-20,41,59-78
+  s_1970642029acbb::t_1b17bc4e5c8c42 1-2,4-5,7,16,21-40,42-51,53-58,79-84,86-94,96-97,100-157,159-210
+  s_1970642029acbb::t_06879bb70b4b22 3,52,85
+  s_1970642029acbb::t_4fc2658d8b7aee 95,98,158
+  s_1970642029acbb::t_c1bff5dc8f9da5 99
+frontend/src/components/MyChartReplaceView.tsx
+  s_1970642029acbb::t_5475674f59235e 171-176,184-186
+  s_1970642029acbb::t_7030a31d1e0afc 177,193,197,211,220,224
+  s_1970642029acbb::t_393c0f831e3545 9,15-16,22,34-39,51,153,167-170,180,201,207-210,214-218,233-240,448-457
+frontend/src/api.ts
+  s_1970642029acbb::t_cfa1c00eff0267 81,445-462,501-507
+frontend/src/components/MyChartView.tsx
+  s_1970642029acbb::t_6bd719ae2ba2e2 176-180,218-221
+  s_1970642029acbb::t_93d63aa5e9a507 36,57,62
+frontend/src/components/ConfirmModal.tsx
+  s_1970642029acbb::t_957aaf181996fb 1,24-26,29-34,36-64,67-70,80,86,90,93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "04ffb55032bb497aa384fc4c947731d62ca0c565",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
