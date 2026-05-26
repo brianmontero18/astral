@@ -639,7 +639,7 @@ export function ChatView({
               <span>Canalizando tu lectura...</span>
             </div>
           ) : (
-            <ReportRenderer text={msg.content} />
+            <ReportRenderer text={msg.content} variant="chat" />
           )}
                 {/* Copy + feedback */}
                 {msg.content && (

@@ -3771,13 +3771,21 @@ textarea { outline: none !important; }
    necesitan el spacing default. */
 .mychart-identity-card .profile-field,
 .mychart-variables-card .profile-field {
-  padding: 6px 0;
-  gap: 3px;
+  padding: 8px 0;
+  gap: 4px;
 }
 
 .mychart-identity-card .profile-grid,
 .mychart-variables-card .profile-grid {
   row-gap: 0;
+}
+
+.mychart-identity-card .profile-value,
+.mychart-variables-card .profile-value {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.55;
+  letter-spacing: 0.01em;
 }
 
 .mychart-name {
@@ -3793,12 +3801,12 @@ textarea { outline: none !important; }
 
 .mychart-type {
   grid-column: 1;
-  color: var(--text-muted);
-  font-family: var(--font-serif);
-  font-style: italic;
-  font-size: 15px;
+  color: rgba(248, 244, 232, 0.82);
+  font-family: var(--font-sans);
+  font-size: 14px;
   font-weight: 400;
-  letter-spacing: 0;
+  line-height: 1.55;
+  letter-spacing: 0.01em;
 }
 
 .mychart-meta-divider {

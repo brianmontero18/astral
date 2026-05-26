@@ -89,6 +89,13 @@ typography:
     fontWeight: 400
     lineHeight: 1.55
     letterSpacing: 0.02em
+  # Readable body (chat/oracle long-form on forest)
+  body-readable:
+    fontFamily: sans
+    fontSize: 16px
+    fontWeight: 400
+    lineHeight: 1.7
+    letterSpacing: 0.01em
   # Labels (form labels, button text)
   label-md:
     fontFamily: sans
@@ -233,14 +240,18 @@ No usar negro puro ni blanco puro. No usar el `gold` para texto largo (es accent
 ## Typography
 
 Dos familias y nada más: **Cormorant Garamond** (serif) para títulos, displays
-y body de lectura largo (reportes, intake). **Inter** (sans) para UI: labels,
-buttons, inputs, captions, body funcional.
+y body editorial largo (reportes, intake). **Inter** (sans) para UI: labels,
+buttons, inputs, captions, body funcional y lectura conversacional.
+
+Las respuestas del oráculo/chat usan `body-readable` en Inter. No usar Cormorant
+chico/fino para párrafos conversacionales largos ni metadata funcional densa:
+puede pasar contraste técnico y aun así leerse débil sobre `surface-dark`.
 
 Toda label de UI (button, kicker, page-header-kicker, sección report) va en
 **uppercase con letter-spacing 0.16–0.22em**. Esa cadencia tipográfica es la
 firma del sistema — respetala incluso cuando agregues componentes nuevos.
 
-Number-only escala oficial: 10, 11, 12, 13, 14, 15, 18, 20, 22, 28, display fluido.
+Number-only escala oficial: 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 28, display fluido.
 No introducir tamaños fuera de esa lista sin justificar.
 
 ## Layout
@@ -371,11 +382,15 @@ a renderer sin transición.
 
 ### Identity card
 Variante de `.glass-panel` para presentar una identidad/registro como hero:
-nombre serif 28px (`headline-lg`) → type qualifier 15px italic (`body-lg`)
+nombre serif 28px (`headline-lg`) → type qualifier sans 14px/1.55
 → divider `border cream-alpha 0.10` → `.profile-grid` con metadata key→value
 → (opcional) `.profile-wide` con campos extra (origen, momento). Toda la card
 sobre `surface-dark` (forest), padding 28px, rounded.xl 18px, **sin sombra**.
 Usado en MyChart hoy; reusable en `/profile` y `/admin/users/:id`.
+
+En MyChart, los values de metadata y variables son lectura funcional, no prosa
+editorial: usar Inter 15px/1.55 para que perfil, autoridad, variables y fechas
+se lean bien en mobile y desktop.
 
 ### Page header with actions
 Pattern canónico para vistas con acciones inline: `.page-header--editorial`
@@ -421,7 +436,7 @@ Forma: rounded `999px` (full pill) o `10px` (squared) según contexto. Padding
   `strokeWidth: 1.7`.
 - No usar `scrollIntoView()`. Manejar scroll con `el.scrollTop = el.scrollHeight`
   sobre el contenedor.
-- No agregar font-sizes fuera de la escala (10, 11, 12, 13, 14, 15, 18, 20, 22, 28).
+- No agregar font-sizes fuera de la escala (10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 28).
 - No agregar libs de UI (Mantine, Chakra, Radix, etc.). Inline styles + CSS
   utility classes en `index.css`.
 

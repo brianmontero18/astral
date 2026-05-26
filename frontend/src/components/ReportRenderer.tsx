@@ -73,13 +73,28 @@ function SectionIcon({ iconKey }: { iconKey: SectionIconKey }) {
 
 // ─── Inline formatting ───────────────────────────────────────────────────────
 
-const TEXT_STYLE: React.CSSProperties = {
+type ReportRendererVariant = "default" | "chat";
+
+const DEFAULT_TEXT_STYLE: React.CSSProperties = {
   color: "var(--text-main)",
   lineHeight: 1.85,
   fontSize: "15px",
   fontFamily: "var(--font-serif)",
   fontWeight: 400,
 };
+
+const CHAT_TEXT_STYLE: React.CSSProperties = {
+  color: "var(--text-main)",
+  lineHeight: 1.7,
+  fontSize: "16px",
+  fontFamily: "var(--font-sans)",
+  fontWeight: 400,
+  letterSpacing: "0.01em",
+};
+
+function getTextStyle(variant: ReportRendererVariant): React.CSSProperties {
+  return variant === "chat" ? CHAT_TEXT_STYLE : DEFAULT_TEXT_STYLE;
+}
 
 function renderInline(text: string): React.ReactNode {
   const parts = text.split(/(\*\*[^*\n]+\*\*|\*[^*\n]+\*)/g);
@@ -98,26 +113,35 @@ function renderInline(text: string): React.ReactNode {
 // ─── Block rendering ─────────────────────────────────────────────────────────
 
 /** Render a list item line (already detected as ul/ol) */
-function renderListItem(trimmed: string, key: number, kind: "ul" | "ol"): React.ReactNode {
+function renderListItem(
+  trimmed: string,
+  key: number,
+  kind: "ul" | "ol",
+  textStyle: React.CSSProperties,
+): React.ReactNode {
   const stripped = kind === "ul"
     ? trimmed.replace(/^[-•]\s*/, "")
     : trimmed.replace(/^\d+[.)]\s*/, "");
   return (
-    <li key={key} style={{ ...TEXT_STYLE, marginBottom: 4 }}>
+    <li key={key} style={{ ...textStyle, marginBottom: 4 }}>
       {renderInline(stripped)}
     </li>
   );
 }
 
 /** Render a markdown header line */
-function renderHeader(trimmed: string, key: number): React.ReactNode {
+function renderHeader(
+  trimmed: string,
+  key: number,
+  textStyle: React.CSSProperties,
+): React.ReactNode {
   const m = trimmed.match(/^(#{1,4})\s+(.+)/);
   if (!m) return null;
   const level = m[1].length;
   const sizes = ["18px", "16px", "14px", "13px"];
   return (
     <div key={key} style={{
-      ...TEXT_STYLE,
+      ...textStyle,
       fontSize: sizes[level - 1] ?? "13px",
       fontWeight: 600,
       color: "var(--color-primary)",
@@ -130,7 +154,7 @@ function renderHeader(trimmed: string, key: number): React.ReactNode {
 
 /** Render a body string. Consecutive non-empty lines collapse into a single paragraph;
  *  blank lines, list items and headers act as paragraph delimiters. */
-function renderBody(body: string) {
+function renderBody(body: string, textStyle: React.CSSProperties) {
   const lines = body.split("\n");
   const elements: React.ReactNode[] = [];
   let listBuffer: React.ReactNode[] = [];
@@ -154,7 +178,7 @@ function renderBody(body: string) {
   function flushParagraph() {
     if (paragraphBuffer.length > 0) {
       elements.push(
-        <p key={`p-${key++}`} style={{ ...TEXT_STYLE, margin: "0 0 10px" }}>
+        <p key={`p-${key++}`} style={{ ...textStyle, margin: "0 0 10px" }}>
           {renderInline(paragraphBuffer.join(" "))}
         </p>
       );
@@ -174,7 +198,7 @@ function renderBody(body: string) {
     if (/^#{1,4}\s+/.test(trimmed)) {
       flushParagraph();
       flushList();
-      const node = renderHeader(trimmed, key++);
+      const node = renderHeader(trimmed, key++, textStyle);
       if (node) elements.push(node);
       continue;
     }
@@ -186,12 +210,12 @@ function renderBody(body: string) {
       flushParagraph();
       if (listType !== "ul") flushList();
       listType = "ul";
-      listBuffer.push(renderListItem(trimmed, key++, "ul"));
+      listBuffer.push(renderListItem(trimmed, key++, "ul", textStyle));
     } else if (isOl) {
       flushParagraph();
       if (listType !== "ol") flushList();
       listType = "ol";
-      listBuffer.push(renderListItem(trimmed, key++, "ol"));
+      listBuffer.push(renderListItem(trimmed, key++, "ol", textStyle));
     } else {
       flushList();
       paragraphBuffer.push(trimmed);
@@ -207,20 +231,22 @@ function renderBody(body: string) {
 
 interface Props {
   text: string;
+  variant?: ReportRendererVariant;
 }
 
-export function ReportRenderer({ text }: Props) {
+export function ReportRenderer({ text, variant = "default" }: Props) {
   const sections = parseReport(text);
+  const textStyle = getTextStyle(variant);
 
   if (!sections.length) {
-    return <div style={{ display: "flex", flexDirection: "column" }}>{renderBody(text)}</div>;
+    return <div style={{ display: "flex", flexDirection: "column" }}>{renderBody(text, textStyle)}</div>;
   }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {sections.map((s, i) => {
         if (!s.icon) {
-          return <div key={i}>{renderBody(s.body)}</div>;
+          return <div key={i}>{renderBody(s.body, textStyle)}</div>;
         }
 
         const meta = SECTION_META[s.icon] ?? null;
@@ -252,7 +278,7 @@ export function ReportRenderer({ text }: Props) {
                 {meta?.label ?? s.icon}
               </span>
             </div>
-            {renderBody(s.body)}
+            {renderBody(s.body, textStyle)}
           </div>
         );
       })}

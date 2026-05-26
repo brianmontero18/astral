@@ -88,6 +88,24 @@ describe("parseReport", () => {
 });
 
 describe("ReportRenderer", () => {
+  it("keeps default report typography editorial and exposes a readable chat variant", () => {
+    const defaultTree = ReportRenderer({ text: "Texto del informe." });
+    const chatTree = ReportRenderer({ text: "Texto del oráculo.", variant: "chat" });
+
+    const defaultParagraph = collectByType(defaultTree, "p")[0];
+    const chatParagraph = collectByType(chatTree, "p")[0];
+
+    expect(defaultParagraph.props.style).toMatchObject({
+      fontFamily: "var(--font-serif)",
+      fontSize: "15px",
+    });
+    expect(chatParagraph.props.style).toMatchObject({
+      fontFamily: "var(--font-sans)",
+      fontSize: "16px",
+      lineHeight: 1.7,
+    });
+  });
+
   it("renders paragraphs, bullets, bold and italic markdown light", () => {
     const tree = ReportRenderer({
       text: [
