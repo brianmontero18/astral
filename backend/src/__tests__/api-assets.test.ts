@@ -886,7 +886,7 @@ describe("POST /api/me/bodygraph/from-birth", () => {
 describe("POST /api/me/bodygraph/replace", () => {
   const AGOS_REPLACE_FROM_BIRTH = {
     confirmReplace: true,
-    name: "Agos",
+    name: "  Agos   ",
     date: "1988-12-28",
     time: "04:13",
     place: { lat: -42.9135, lon: -71.3217, label: "Esquel, Chubut, Argentina" },
@@ -946,9 +946,13 @@ describe("POST /api/me/bodygraph/replace", () => {
     expect(res.statusCode).toBe(201);
     const body = JSON.parse(res.body);
     expect(body.profile.humanDesign.type).toBe("Proyector");
+    expect(body.user.name).toBe("Agos");
+    expect(body.profile.name).toBe("Agos");
     expect(body.user.intake).toBeNull();
 
     const afterUser = await db.getUser(userId);
+    expect(afterUser!.name).toBe("Agos");
+    expect(afterUser!.profile).toMatchObject({ name: "Agos" });
     expect(afterUser!.profile_asset_id).toBeNull();
     expect(afterUser!.intake).toBeNull();
     expect(afterUser!.memory_md).toBe("");
@@ -988,7 +992,7 @@ describe("POST /api/me/bodygraph/replace", () => {
       pdf,
       "application/pdf",
       "hd",
-      { confirmReplace: "true" },
+      { confirmReplace: "true", name: "  Carta   Nueva PDF  " },
     );
 
     const res = await app.inject({
@@ -1010,8 +1014,12 @@ describe("POST /api/me/bodygraph/replace", () => {
       isActive: true,
     });
     expect(response.profile.humanDesign.activatedGates.length).toBeGreaterThan(0);
+    expect(response.user.name).toBe("Carta Nueva PDF");
+    expect(response.profile.name).toBe("Carta Nueva PDF");
 
     const afterUser = await db.getUser(userId);
+    expect(afterUser!.name).toBe("Carta Nueva PDF");
+    expect(afterUser!.profile).toMatchObject({ name: "Carta Nueva PDF" });
     expect(afterUser!.profile_asset_id).toBe(response.asset.id);
     expect(afterUser!.intake).toBeNull();
     expect(afterUser!.memory_md).toBe("");
@@ -1020,6 +1028,29 @@ describe("POST /api/me/bodygraph/replace", () => {
     const assets = await db.getUserAssets(userId);
     expect(assets.map((asset) => asset.id)).toEqual([response.asset.id]);
     expect(assets.find((asset) => asset.id === oldAssetId)).toBeUndefined();
+  });
+
+  it("rejects confirmed replace without an active chart display name", async () => {
+    const sessionSubject = "st-replace-missing-display-name";
+    await createLinkedTestUser(app, sessionSubject);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/me/bodygraph/replace",
+      headers: {
+        "content-type": "application/json",
+        ...sessionHeaders(sessionSubject),
+      },
+      payload: {
+        ...AGOS_REPLACE_FROM_BIRTH,
+        name: "   ",
+      },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(JSON.parse(res.body)).toMatchObject({
+      error: "invalid_name",
+    });
   });
 
   it("accepts PDF replace confirmation from a real HTTP FormData request", async () => {
@@ -1044,6 +1075,7 @@ describe("POST /api/me/bodygraph/replace", () => {
         new File([pdf], "myhumandesign-chart.pdf", { type: "application/pdf" }),
       );
       form.append("confirmReplace", "true");
+      form.append("name", "HTTP PDF Persona");
 
       const res = await fetch(`http://127.0.0.1:${address.port}/api/me/bodygraph/replace`, {
         method: "POST",
@@ -1059,6 +1091,8 @@ describe("POST /api/me/bodygraph/replace", () => {
         fileType: "hd",
         isActive: true,
       });
+      expect(response.user.name).toBe("HTTP PDF Persona");
+      expect(response.profile.name).toBe("HTTP PDF Persona");
     } finally {
       await httpApp.close();
     }
@@ -1086,7 +1120,7 @@ describe("POST /api/me/bodygraph/replace", () => {
         pdf,
         "application/pdf",
         "hd",
-        { confirmReplace: "true" },
+        { confirmReplace: "true", name: "Blocked PDF Persona" },
       );
 
       const res = await app.inject({

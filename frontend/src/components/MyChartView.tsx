@@ -51,6 +51,7 @@ export function MyChartView({ user, profile, bodygraphRevision, onBodygraphRepla
   if (replacing) {
     return (
       <MyChartReplaceView
+        activeChartName={profile.name.trim() || user.name.trim() || "Mi carta"}
         onCancel={() => setReplacing(false)}
         onBodygraphReplaced={(result) => {
           onBodygraphReplaced(result);

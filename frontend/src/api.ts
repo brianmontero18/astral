@@ -460,9 +460,11 @@ export async function replaceBodygraph(
 
 export async function replaceBodygraphConfirmed(
   file: File,
+  name: string,
 ): Promise<ReplaceBodygraphResponse> {
   const formData = new FormData();
   formData.append("file", file);
+  formData.append("name", name);
   formData.append("confirmReplace", "true");
 
   const res = await fetch(`${BASE}/me/bodygraph/replace`, {
@@ -494,6 +496,10 @@ export interface BodygraphFromBirthInput {
   place: BirthPlace;
 }
 
+export interface ReplaceBodygraphFromBirthInput extends BodygraphFromBirthInput {
+  name: string;
+}
+
 export interface BodygraphFromBirthResponse {
   user: CurrentUserResponse;
   profile: UserProfile;
@@ -515,7 +521,7 @@ export async function submitBodygraphFromBirth(
 }
 
 export async function replaceBodygraphFromBirthConfirmed(
-  input: BodygraphFromBirthInput,
+  input: ReplaceBodygraphFromBirthInput,
 ): Promise<ReplaceBodygraphResponse> {
   const res = await fetch(`${BASE}/me/bodygraph/replace`, {
     method: "POST",

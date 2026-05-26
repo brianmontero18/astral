@@ -43,6 +43,10 @@ type FromBirthParse =
   | { ok: true; birth: BirthData }
   | { ok: false; status: number; error: string; message: string };
 
+type DisplayNameParse =
+  | { ok: true; name: string }
+  | { ok: false; status: number; error: string; message: string };
+
 function parseFromBirthBody(body: FromBirthBody): FromBirthParse {
   if (typeof body.date !== "string" || !FROM_BIRTH_DATE_RE.test(body.date)) {
     return { ok: false, status: 400, error: "invalid_date", message: "date must be YYYY-MM-DD" };
@@ -73,6 +77,19 @@ function parseFromBirthBody(body: FromBirthBody): FromBirthParse {
       name: typeof body.name === "string" ? body.name : undefined,
     },
   };
+}
+
+function parseReplaceDisplayName(value: unknown): DisplayNameParse {
+  if (typeof value !== "string") {
+    return { ok: false, status: 400, error: "invalid_name", message: "name must be a non-empty string" };
+  }
+
+  const name = value.trim().replace(/\s+/g, " ");
+  if (!name) {
+    return { ok: false, status: 400, error: "invalid_name", message: "name must be a non-empty string" };
+  }
+
+  return { ok: true, name };
 }
 
 function hasReplaceConfirmation(value: unknown): boolean {
@@ -401,6 +418,7 @@ export async function assetRoutes(app: FastifyInstance) {
 
   async function sendReplaceResult(input: {
     userId: string;
+    displayName: string;
     profile: UserProfile;
     profileAssetId: string | null;
     newAssetIdForCleanup?: string;
@@ -410,6 +428,7 @@ export async function assetRoutes(app: FastifyInstance) {
     try {
       const result = await replaceUserBodygraphState({
         userId: input.userId,
+        displayName: input.displayName,
         profile: input.profile,
         profileAssetId: input.profileAssetId,
       });
@@ -521,11 +540,15 @@ export async function assetRoutes(app: FastifyInstance) {
         buffer: Buffer;
       } | null = null;
       let confirmReplace: unknown;
+      let rawDisplayName: unknown;
 
       for await (const part of req.parts()) {
         if (part.type === "field") {
           if (part.fieldname === "confirmReplace") {
             confirmReplace = part.value;
+          }
+          if (part.fieldname === "name") {
+            rawDisplayName = part.value;
           }
           continue;
         }
@@ -547,6 +570,10 @@ export async function assetRoutes(app: FastifyInstance) {
       }
       if (!hasReplaceConfirmation(confirmReplace)) {
         return reply.status(400).send({ error: "replace_confirmation_required" });
+      }
+      const displayName = parseReplaceDisplayName(rawDisplayName);
+      if (!displayName.ok) {
+        return reply.status(displayName.status).send({ error: displayName.error, message: displayName.message });
       }
       if (uploadedFile.mimetype !== "application/pdf") {
         return reply.status(400).send({
@@ -586,7 +613,7 @@ export async function assetRoutes(app: FastifyInstance) {
           return reply.status(502).send({ error: message });
         }
 
-        profile.name = profile.name || existingUser.name;
+        profile.name = displayName.name;
         const assetId = await createAsset(
           userId,
           uploadedFile.filename,
@@ -597,6 +624,7 @@ export async function assetRoutes(app: FastifyInstance) {
 
         return await sendReplaceResult({
           userId,
+          displayName: displayName.name,
           profile,
           profileAssetId: assetId,
           newAssetIdForCleanup: assetId,
@@ -609,6 +637,11 @@ export async function assetRoutes(app: FastifyInstance) {
 
     if (!hasReplaceConfirmation(req.body?.confirmReplace)) {
       return reply.status(400).send({ error: "replace_confirmation_required" });
+    }
+
+    const displayName = parseReplaceDisplayName(req.body?.name);
+    if (!displayName.ok) {
+      return reply.status(displayName.status).send({ error: displayName.error, message: displayName.message });
     }
 
     const parsed = parseFromBirthBody(req.body ?? {});
@@ -625,17 +658,21 @@ export async function assetRoutes(app: FastifyInstance) {
     try {
       let profile: UserProfile;
       try {
-        profile = await calculateBodygraph(parsed.birth);
+        profile = await calculateBodygraph({
+          ...parsed.birth,
+          name: displayName.name,
+        });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         app.log.error({ err, correlationId }, "bodygraph replace calculation failed");
         return reply.status(500).send({ error: "calculation_failed", message });
       }
 
-      profile.name = profile.name || existingUser.name;
+      profile.name = displayName.name;
 
       return await sendReplaceResult({
         userId,
+        displayName: displayName.name,
         profile,
         profileAssetId: null,
         correlationId,

@@ -22,6 +22,7 @@ import { getPlaceSearchStatus } from "../place-search-status";
 import { ConfirmModal } from "./ConfirmModal";
 
 interface Props {
+  activeChartName: string;
   onCancel: () => void;
   onBodygraphReplaced: (result: ReplaceBodygraphResponse) => void;
 }
@@ -43,11 +44,16 @@ function formatPlaceLabel(p: PlaceResult): string {
   return parts.join(", ");
 }
 
-export function MyChartReplaceView({ onCancel, onBodygraphReplaced }: Props) {
+function normalizeDisplayName(value: string): string {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+export function MyChartReplaceView({ activeChartName, onCancel, onBodygraphReplaced }: Props) {
   const [mode, setMode] = useState<Mode>("data");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingReplace, setPendingReplace] = useState<Mode | null>(null);
+  const [displayName, setDisplayName] = useState(activeChartName);
 
   // Birth data state
   const [birthDate, setBirthDate] = useState("");
@@ -169,7 +175,19 @@ export function MyChartReplaceView({ onCancel, onBodygraphReplaced }: Props) {
     setError(null);
   };
 
+  const validateDisplayName = (): string | null => {
+    const name = normalizeDisplayName(displayName);
+    if (!name) {
+      setError("Ingresá el nombre que querés mostrar para esta carta.");
+      return null;
+    }
+    return name;
+  };
+
   const handleSubmitData = () => {
+    if (!validateDisplayName()) {
+      return;
+    }
     if (!DATE_RE.test(birthDate)) {
       setError("Ingresá una fecha válida (formato YYYY-MM-DD).");
       return;
@@ -188,6 +206,10 @@ export function MyChartReplaceView({ onCancel, onBodygraphReplaced }: Props) {
 
   const confirmSubmitData = async () => {
     const place = selectedPlace;
+    const name = validateDisplayName();
+    if (!name) {
+      return;
+    }
     if (!place) {
       setError("Elegí un lugar de la lista para que podamos resolver tu zona horaria.");
       return;
@@ -197,6 +219,7 @@ export function MyChartReplaceView({ onCancel, onBodygraphReplaced }: Props) {
     setSubmitting(true);
     try {
       const result = await replaceBodygraphFromBirthConfirmed({
+        name,
         date: birthDate,
         time: birthTime,
         place: {
@@ -215,6 +238,9 @@ export function MyChartReplaceView({ onCancel, onBodygraphReplaced }: Props) {
   };
 
   const handleSubmitPdf = () => {
+    if (!validateDisplayName()) {
+      return;
+    }
     if (!pdfFile) {
       setError("Subí un PDF para reemplazar tu carta.");
       return;
@@ -224,6 +250,10 @@ export function MyChartReplaceView({ onCancel, onBodygraphReplaced }: Props) {
   };
 
   const confirmSubmitPdf = async () => {
+    const name = validateDisplayName();
+    if (!name) {
+      return;
+    }
     let completed = false;
     setSubmitting(true);
     try {
@@ -231,7 +261,7 @@ export function MyChartReplaceView({ onCancel, onBodygraphReplaced }: Props) {
         setError("Subí un PDF para reemplazar tu carta.");
         return;
       }
-      const result = await replaceBodygraphConfirmed(pdfFile);
+      const result = await replaceBodygraphConfirmed(pdfFile, name);
       onBodygraphReplaced(result);
       completed = true;
     } catch (err) {
@@ -315,141 +345,153 @@ export function MyChartReplaceView({ onCancel, onBodygraphReplaced }: Props) {
           <div className="onboarding-inline-error" style={{ marginBottom: 20 }}>{error}</div>
         )}
 
-        {mode === "data" && (
-          <div className="mychart-replace-fields">
-            <BirthField label="Fecha de nacimiento">
-              <input
-                type="date"
-                value={birthDate}
-                onChange={(e) => { setBirthDate(e.target.value); setError(null); }}
-                className="onboarding-birth-input"
-                max={new Date().toISOString().slice(0, 10)}
-              />
-            </BirthField>
+        <div className="mychart-replace-fields">
+          <BirthField label="Nombre de esta carta">
+            <input
+              type="text"
+              value={displayName}
+              onChange={(e) => { setDisplayName(e.target.value); setError(null); }}
+              className="onboarding-birth-input"
+              autoComplete="name"
+            />
+          </BirthField>
 
-            <BirthField label="Hora local">
-              <input
-                type="time"
-                value={birthTime}
-                onChange={(e) => { setBirthTime(e.target.value); setError(null); }}
-                className="onboarding-birth-input"
-              />
-            </BirthField>
-
-            <BirthField label="Lugar de nacimiento">
-              <div ref={placeBoxRef} style={{ position: "relative" }}>
+          {mode === "data" && (
+            <>
+              <BirthField label="Fecha de nacimiento">
                 <input
-                  type="text"
-                  value={placeQuery}
-                  onChange={(e) => handlePlaceInputChange(e.target.value)}
-                  onFocus={() => { if (placeResults.length > 0) setPlaceOpen(true); }}
-                  placeholder="Empezá a escribir (ej. Buenos Aires, Bogotá...)"
+                  type="date"
+                  value={birthDate}
+                  onChange={(e) => { setBirthDate(e.target.value); setError(null); }}
                   className="onboarding-birth-input"
-                  autoComplete="off"
-                  spellCheck={false}
+                  max={new Date().toISOString().slice(0, 10)}
                 />
-                {placeStatus.kind !== "idle" && (
-                  <div
-                    className={
-                      placeStatus.tone === "error"
-                        ? "onboarding-inline-error mychart-place-status"
-                        : "mychart-place-status mychart-place-status-muted"
-                    }
-                    role={placeStatus.tone === "error" ? "alert" : "status"}
-                  >
-                    {placeStatus.message}
-                  </div>
-                )}
-                {placeOpen && placeResults.length > 0 && (
-                  <ul role="listbox" className="mychart-place-listbox">
-                    {placeResults.map((p) => (
-                      <li key={p.geonameId}>
-                        <button
-                          type="button"
-                          className="mychart-place-option"
-                          onClick={() => handlePlacePick(p)}
-                        >
-                          <span className="mychart-place-option-name">{p.name}</span>
-                          <span className="mychart-place-option-sub">
-                            {[p.admin1, p.country].filter(Boolean).join(", ")}
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </BirthField>
+              </BirthField>
 
-            <button
-              type="button"
-              className="astral-auth-primary"
-              onClick={handleSubmitData}
-              style={{ width: "100%", marginTop: 12 }}
-            >
-              Calcular y guardar
-            </button>
-          </div>
-        )}
+              <BirthField label="Hora local">
+                <input
+                  type="time"
+                  value={birthTime}
+                  onChange={(e) => { setBirthTime(e.target.value); setError(null); }}
+                  className="onboarding-birth-input"
+                />
+              </BirthField>
 
-        {mode === "pdf" && (
-          <div className="mychart-replace-fields">
-            <div
-              onClick={() => fileRef.current?.click()}
-              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-              onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
-              onDrop={(e) => {
-                e.preventDefault(); setIsDragging(false);
-                const file = e.dataTransfer.files?.[0];
-                if (!file) return;
-                if (file.type !== "application/pdf") {
-                  setError("Solo aceptamos PDF.");
-                  return;
-                }
-                handleFileChange(file);
-              }}
-              role="button"
-              tabIndex={0}
-              aria-label={pdfFile ? `Archivo seleccionado: ${pdfFile.name}` : "Subí tu PDF"}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileRef.current?.click(); }
-              }}
-              className={"onboarding-dropzone" + (pdfFile ? " has-file" : "") + (isDragging ? " is-dragging" : "")}
-            >
-              <input
-                ref={fileRef}
-                type="file"
-                accept="application/pdf,.pdf"
-                style={{ position: "absolute", width: 0, height: 0, opacity: 0, pointerEvents: "none" }}
-                aria-hidden="true"
-                tabIndex={-1}
-                onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
-              />
-              <div className="onboarding-dropzone-icon" aria-hidden="true">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 16V4" />
-                  <path d="M6 10l6-6 6 6" />
-                  <path d="M4 20h16" />
-                </svg>
+              <BirthField label="Lugar de nacimiento">
+                <div ref={placeBoxRef} style={{ position: "relative" }}>
+                  <input
+                    type="text"
+                    value={placeQuery}
+                    onChange={(e) => handlePlaceInputChange(e.target.value)}
+                    onFocus={() => { if (placeResults.length > 0) setPlaceOpen(true); }}
+                    placeholder="Empezá a escribir (ej. Buenos Aires, Bogotá...)"
+                    className="onboarding-birth-input"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                  {placeStatus.kind !== "idle" && (
+                    <div
+                      className={
+                        placeStatus.tone === "error"
+                          ? "onboarding-inline-error mychart-place-status"
+                          : "mychart-place-status mychart-place-status-muted"
+                      }
+                      role={placeStatus.tone === "error" ? "alert" : "status"}
+                    >
+                      {placeStatus.message}
+                    </div>
+                  )}
+                  {placeOpen && placeResults.length > 0 && (
+                    <ul role="listbox" className="mychart-place-listbox">
+                      {placeResults.map((p) => (
+                        <li key={p.geonameId}>
+                          <button
+                            type="button"
+                            className="mychart-place-option"
+                            onClick={() => handlePlacePick(p)}
+                          >
+                            <span className="mychart-place-option-name">{p.name}</span>
+                            <span className="mychart-place-option-sub">
+                              {[p.admin1, p.country].filter(Boolean).join(", ")}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </BirthField>
+
+              <button
+                type="button"
+                className="astral-auth-primary"
+                onClick={handleSubmitData}
+                style={{ width: "100%", marginTop: 12 }}
+              >
+                Calcular y guardar
+              </button>
+            </>
+          )}
+
+          {mode === "pdf" && (
+            <>
+              <div
+                onClick={() => fileRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
+                onDrop={(e) => {
+                  e.preventDefault(); setIsDragging(false);
+                  const file = e.dataTransfer.files?.[0];
+                  if (!file) return;
+                  if (file.type !== "application/pdf") {
+                    setError("Solo aceptamos PDF.");
+                    return;
+                  }
+                  handleFileChange(file);
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label={pdfFile ? `Archivo seleccionado: ${pdfFile.name}` : "Subí tu PDF"}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileRef.current?.click(); }
+                }}
+                className={"onboarding-dropzone" + (pdfFile ? " has-file" : "") + (isDragging ? " is-dragging" : "")}
+              >
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  style={{ position: "absolute", width: 0, height: 0, opacity: 0, pointerEvents: "none" }}
+                  aria-hidden="true"
+                  tabIndex={-1}
+                  onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
+                />
+                <div className="onboarding-dropzone-icon" aria-hidden="true">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 16V4" />
+                    <path d="M6 10l6-6 6 6" />
+                    <path d="M4 20h16" />
+                  </svg>
+                </div>
+                <div className="onboarding-dropzone-label">Tu carta en PDF</div>
+                <div className="onboarding-dropzone-hint">
+                  {pdfFile ? pdfFile.name : isDragging ? "Soltá tu archivo aquí" : "Arrastrá tu PDF o hacé clic para elegirlo"}
+                </div>
               </div>
-              <div className="onboarding-dropzone-label">Tu carta en PDF</div>
-              <div className="onboarding-dropzone-hint">
-                {pdfFile ? pdfFile.name : isDragging ? "Soltá tu archivo aquí" : "Arrastrá tu PDF o hacé clic para elegirlo"}
+              <div className="mychart-replace-disclaimer">
+                ⓘ Solo aceptamos PDFs de Genetic Matrix o Jovian Archive. Hasta 10 MB.
               </div>
-            </div>
-            <div className="mychart-replace-disclaimer">
-              ⓘ Solo aceptamos PDFs de Genetic Matrix o Jovian Archive. Hasta 10 MB.
-            </div>
-            <button
-              type="button"
-              className="astral-auth-primary"
-              onClick={handleSubmitPdf}
-              style={{ width: "100%", marginTop: 12 }}
-            >
-              Subir y canalizar
-            </button>
-          </div>
-        )}
+              <button
+                type="button"
+                className="astral-auth-primary"
+                onClick={handleSubmitPdf}
+                style={{ width: "100%", marginTop: 12 }}
+              >
+                Subir y canalizar
+              </button>
+            </>
+          )}
+        </div>
       </div>
       <ConfirmModal
         open={pendingReplace !== null}

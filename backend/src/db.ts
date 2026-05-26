@@ -930,6 +930,7 @@ export function __setReplaceBodygraphFailureForTesting(
 
 export async function replaceUserBodygraphState(input: {
   userId: string;
+  displayName: string;
   profile: object;
   profileAssetId: string | null;
 }): Promise<ReplaceUserBodygraphStateResult> {
@@ -966,14 +967,20 @@ export async function replaceUserBodygraphState(input: {
     {
       sql: `
         UPDATE users
-        SET profile = ?,
+        SET name = ?,
+            profile = ?,
             profile_asset_id = ?,
             intake = NULL,
             memory_md = '',
             updated_at = datetime('now')
         WHERE id = ?
       `,
-      args: [JSON.stringify(input.profile), input.profileAssetId, input.userId],
+      args: [
+        input.displayName,
+        JSON.stringify(input.profile),
+        input.profileAssetId,
+        input.userId,
+      ],
     },
   ];
 
