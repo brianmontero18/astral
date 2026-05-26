@@ -1,0 +1,29 @@
+frontend/src/place-search-status.ts
+  s_1970642029acbb::t_de645a210029ac 1-8,10-54,56-64
+  s_1970642029acbb::t_5d16bdc0050bc1 9,55
+frontend/src/components/MyChartReplaceView.tsx
+  s_1970642029acbb::t_cbf4be76b940c9 63,79,91,111,123,168
+  s_1970642029acbb::t_602eae362dbf3a 21,71-78,80,90,108,122,166-167,351-360
+frontend/src/index.css
+  s_1970642029acbb::t_cc7c284bb7dca3 4127-4128,4130,4135,4137,4141-4144,4146,4150-4154,4159,4291-4302,4351-4359
+  s_1970642029acbb::t_9ba57f462fffbb 4145,4147-4149,4155
+backend/src/__tests__/frontend-place-search-status.test.ts
+  s_1970642029acbb::t_9d71f223486c47 17,49
+  s_1970642029acbb::t_a3d2608a020d57 1-16,18-48,50-57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "be24aefde66085a7c6766b272fd87deb96e1a1d9",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
