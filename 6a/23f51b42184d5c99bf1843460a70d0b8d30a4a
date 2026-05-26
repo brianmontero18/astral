@@ -1,0 +1,25 @@
+frontend/src/App.tsx
+  s_1970642029acbb::t_56f7018881f8b8 539
+frontend/src/index.css
+  s_1970642029acbb::t_58ad31842646d2 3829-3837
+backend/src/__tests__/frontend-my-chart-view.test.ts
+  s_1970642029acbb::t_94da4908cae271 1-14
+frontend/src/components/MyChartView.tsx
+  s_1970642029acbb::t_703db2a4437cf0 27,31,168,239,423-424
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "6a23f51b42184d5c99bf1843460a70d0b8d30a4a",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
