@@ -85,9 +85,6 @@ export function ActiveChartNameEditor({ value, variant, onSave }: Props) {
   if (!editing) {
     return (
       <div className={`active-chart-name active-chart-name--${variant}`}>
-        {variant === "panel" && (
-          <span className="active-chart-name-label">Carta activa</span>
-        )}
         <div className="active-chart-name-display">
           {variant === "heading" ? (
             <h2 className="mychart-name">{displayName}</h2>
