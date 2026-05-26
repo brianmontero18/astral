@@ -3826,6 +3826,15 @@ textarea { outline: none !important; }
   font-family: var(--font-sans);
 }
 
+.mychart-replace-success {
+  border-color: rgba(82, 104, 80, 0.28);
+  background: rgba(255, 252, 244, 0.88);
+  color: #31513d;
+  box-shadow: 0 10px 28px rgba(48, 63, 45, 0.08);
+  font-family: var(--font-sans);
+  font-weight: 600;
+}
+
 .mychart-identity-card .profile-grid {
   grid-column: 1 / -1;
 }

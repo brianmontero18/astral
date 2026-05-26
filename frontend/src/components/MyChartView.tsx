@@ -24,10 +24,11 @@ import { MyChartReplaceView } from "./MyChartReplaceView";
 interface Props {
   user: LocalUser;
   profile: UserProfile;
+  bodygraphRevision: number;
   onBodygraphReplaced: (result: ReplaceBodygraphResponse) => void;
 }
 
-export function MyChartView({ user, profile, onBodygraphReplaced }: Props) {
+export function MyChartView({ user, profile, bodygraphRevision, onBodygraphReplaced }: Props) {
   const [replacing, setReplacing] = useState(false);
   const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
   const [exporting, setExporting] = useState<"png" | "pdf" | null>(null);
@@ -164,7 +165,7 @@ export function MyChartView({ user, profile, onBodygraphReplaced }: Props) {
         <div className="mychart-export-error" role="alert">{exportError}</div>
       )}
       {replaceNotice && (
-        <div className="astral-auth-feedback astral-auth-feedback-success" role="status">
+        <div className="astral-auth-feedback astral-auth-feedback-success mychart-replace-success" role="status">
           Carta reemplazada. Tu chat, memoria e informes se reiniciaron.
         </div>
       )}
@@ -235,7 +236,7 @@ export function MyChartView({ user, profile, onBodygraphReplaced }: Props) {
         <div className="mychart-hero-grid">
           <div className="mychart-hero">
             <img
-              src="/api/me/bodygraph/chart-svg?width=900"
+              src={buildMyChartBodygraphSrc(bodygraphRevision)}
               alt="Bodygraph"
               className="mychart-hero-img"
             />
@@ -417,6 +418,10 @@ function padGateId(id: string): string {
 
 function stripChannelPrefix(name: string): string {
   return name.replace(/^Canal\s+(de\s+l[ao]s?\s+|del\s+|de\s+)/i, "");
+}
+
+export function buildMyChartBodygraphSrc(bodygraphRevision: number): string {
+  return `/api/me/bodygraph/chart-svg?width=900&revision=${bodygraphRevision}`;
 }
 
 async function downloadFullDocumentAsPng(basename: string): Promise<void> {

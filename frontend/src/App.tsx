@@ -536,6 +536,7 @@ export default function App() {
                   <MyChartView
                     user={user}
                     profile={profile}
+                    bodygraphRevision={profileRevision}
                     onBodygraphReplaced={handleBodygraphReplaced}
                   />
                 )}
