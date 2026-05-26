@@ -1,0 +1,27 @@
+frontend/src/index.css
+  s_1970642029acbb::t_9331b6c55d72f6 3709-3710
+  s_1970642029acbb::t_8c7500b135a683 4096-4097,4102,4107,4123-4124,4130,4135-4145
+  s_1970642029acbb::t_f96772386b2437 4127-4128,4132-4134,4148,4153-4156,4158-4177
+  s_1970642029acbb::t_2a0dab4db6ab6a 3715-3718,3746-3748,3754,3784,3795,3805,3821-3822
+  s_1970642029acbb::t_599b76a0254810 3751-3752
+frontend/src/components/MyChartView.tsx
+  s_1970642029acbb::t_8427fcf5c1f5af 189-222
+  s_1970642029acbb::t_50d1deca4896b0 176-178
+  s_1970642029acbb::t_f6f8a46d7ba56d 10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "f7fac7b26cc1a0d06e4a472b2dee44bcc9d5f567",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
