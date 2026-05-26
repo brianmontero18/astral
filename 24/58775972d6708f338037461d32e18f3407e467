@@ -1,0 +1,21 @@
+frontend/src/index.css
+  s_1970642029acbb::t_30ceecedc18f83 2274-2275,2317-2323,3951-3952,3954-3955,4040,4042,4044
+backend/src/__tests__/frontend-dark-card-typography.test.ts
+  s_1970642029acbb::t_4bfaadf0f4d87f 1-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "2458775972d6708f338037461d32e18f3407e467",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
