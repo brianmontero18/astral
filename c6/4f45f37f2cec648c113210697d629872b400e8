@@ -1,0 +1,30 @@
+backend/src/__tests__/auth-surface.test.ts
+  s_1970642029acbb::t_418c9078784e79 59-67,69-71,73-88,213,220-233,240-266,273-284
+  s_1970642029acbb::t_f8155047b0c7e8 16-18,207-209,211-212,215-219,234-239,267-272
+  s_1970642029acbb::t_14a32a776eee0e 2-10,19,68,72
+  s_1970642029acbb::t_4de93b84149b5a 20-32,210,214
+backend/src/app.ts
+  s_1970642029acbb::t_b27454d04e2853 45
+  s_1970642029acbb::t_eab24adfe7229e 50,55-56
+  s_1970642029acbb::t_b68054b5017718 44,46-49,51-54,57-61,63,67
+docs/architecture/project-overview.md
+  s_1970642029acbb::t_4d80056f6660f5 249-250
+backend/.env.example
+  s_1970642029acbb::t_c0c2b0c27aeb6e 55-57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "c64f45f37f2cec648c113210697d629872b400e8",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
