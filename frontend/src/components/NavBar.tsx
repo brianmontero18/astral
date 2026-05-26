@@ -14,6 +14,7 @@ interface Props {
   profile: UserProfile;
   onReset: () => void;
   onGenerateReport?: () => void;
+  onRenameActiveChart?: (name: string) => Promise<void>;
 }
 
 type TabDef = { key: NavView; label: string };
@@ -37,6 +38,7 @@ export function NavBar({
   profile,
   onReset,
   onGenerateReport,
+  onRenameActiveChart,
 }: Props) {
   const [showProfile, setShowProfile] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -93,6 +95,7 @@ export function NavBar({
             <ProfilePanel
               profile={profile}
               userPlan={userPlan}
+              onRenameActiveChart={onRenameActiveChart}
               onGenerateReport={onGenerateReport ? () => { setShowProfile(false); onGenerateReport(); } : undefined}
             />
           )}

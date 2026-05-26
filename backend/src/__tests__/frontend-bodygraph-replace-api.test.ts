@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   replaceBodygraphConfirmed,
   replaceBodygraphFromBirthConfirmed,
+  updateActiveChartName,
 } from "../../../frontend/src/api";
 
 describe("frontend bodygraph replace API", () => {
@@ -56,6 +57,32 @@ describe("frontend bodygraph replace API", () => {
       name: "Carta Nueva",
       date: "1991-03-04",
       time: "11:22",
+    });
+  });
+});
+
+describe("frontend active chart name API", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("renames the active chart through the focused endpoint", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({
+        user: { id: "user-1", name: "Carta Nueva" },
+        profile: { name: "Carta Nueva" },
+      }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    await updateActiveChartName("Carta Nueva");
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/me/bodygraph/name", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Carta Nueva" }),
     });
   });
 });

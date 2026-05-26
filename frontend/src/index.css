@@ -2275,6 +2275,140 @@ textarea { outline: none !important; }
   line-height: 1.6;
 }
 
+.active-chart-name {
+  min-width: 0;
+}
+
+.active-chart-name--heading,
+.active-chart-name-editor--heading {
+  grid-column: 1;
+  margin-bottom: 6px;
+}
+
+.active-chart-name--panel,
+.active-chart-name-editor--panel {
+  margin-bottom: 8px;
+}
+
+.active-chart-name-display {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.active-chart-name--heading .mychart-name {
+  margin-bottom: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.active-chart-name-label {
+  color: var(--text-faint);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.active-chart-name-value {
+  color: var(--text-main);
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.active-chart-name-edit-button {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(248, 244, 232, 0.12);
+  background: rgba(248, 244, 232, 0.04);
+  color: rgba(248, 244, 232, 0.68);
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+.active-chart-name-edit-button:hover,
+.active-chart-name-edit-button:focus-visible {
+  color: var(--color-gold);
+  background: rgba(207, 172, 108, 0.10);
+  border-color: rgba(207, 172, 108, 0.32);
+  outline: none;
+}
+
+.active-chart-name-status {
+  margin-top: 6px;
+  color: var(--color-gold);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.active-chart-name-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.active-chart-name-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.active-chart-name-input {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid rgba(248, 244, 232, 0.14);
+  background: rgba(248, 244, 232, 0.04);
+  color: var(--text-main);
+  padding: 12px 14px;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.4;
+  outline: none;
+}
+
+.active-chart-name-input:focus {
+  border-color: rgba(207, 172, 108, 0.45);
+}
+
+.active-chart-name-input[aria-invalid="true"] {
+  border-color: rgba(196, 96, 96, 0.55);
+}
+
+.active-chart-name-error {
+  color: #f3c2c2;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.active-chart-name-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.active-chart-name-action {
+  width: auto;
+  min-height: 38px;
+  padding: 9px 14px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+}
+
 .profile-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4124,7 +4258,25 @@ textarea { outline: none !important; }
 
   .mychart-name {
     font-size: 22px;
+  }
+
+  .active-chart-name--heading,
+  .active-chart-name-editor--heading {
     order: 1;
+    width: 100%;
+  }
+
+  .active-chart-name-display {
+    align-items: flex-start;
+  }
+
+  .active-chart-name-actions {
+    flex-direction: column;
+  }
+
+  .active-chart-name-action {
+    width: 100%;
+    min-height: 44px;
   }
 
   .mychart-type {

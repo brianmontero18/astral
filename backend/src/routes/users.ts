@@ -22,6 +22,7 @@ import {
   type AppUserRole,
   type AppUserStatus,
   updateUserAccess,
+  updateUserActiveChartName,
   updateUserProfile,
 } from "../db.js";
 import { deleteObject as r2DeleteObject } from "../storage/r2.js";
@@ -36,6 +37,7 @@ import {
   AdminInviteEmailUnavailableError,
   sendAdminInviteEmail,
 } from "../auth/admin-invite-email.js";
+import { parseActiveChartName } from "../active-chart-name.js";
 import { getMessageLimitForPlan } from "../chat-limits.js";
 import { deriveImpliedFields } from "../extraction-service.js";
 import type { UserProfile } from "../types/agent.js";
@@ -106,6 +108,7 @@ function buildMagicLink(input: {
     : "";
   return `${websiteDomain}${websiteBasePath}/verify?preAuthSessionId=${encodeURIComponent(input.preAuthSessionId)}&tenantId=${encodeURIComponent(input.tenantId)}${intentParam}#${encodeURIComponent(input.linkCode)}`;
 }
+
 export async function userRoutes(app: FastifyInstance) {
   app.post<{ Body: { name: string; profile: object } }>("/users", async (req, reply) => {
     const { name, profile } = req.body;
@@ -291,6 +294,69 @@ export async function userRoutes(app: FastifyInstance) {
       }
 
       return reply.send({ ok: true });
+    },
+  );
+
+  app.patch<{ Body: { name?: unknown } }>(
+    "/me/bodygraph/name",
+    async (req, reply) => {
+      const currentUser = await resolveRequestUser(
+        req as AuthenticatedRequest,
+        reply,
+      );
+
+      if (reply.sent) {
+        return;
+      }
+
+      if (currentUser.kind !== "linked") {
+        return sendCurrentUserError(reply, currentUser);
+      }
+
+      const parsed = parseActiveChartName(req.body?.name);
+      if (!parsed.ok) {
+        return reply.status(parsed.status).send({
+          error: parsed.error,
+          message: parsed.message,
+        });
+      }
+
+      const updated = await updateUserActiveChartName(
+        currentUser.user.id,
+        parsed.name,
+      );
+
+      if (!updated) {
+        return reply.status(409).send({
+          error: "identity_not_linked",
+          provider: currentUser.provider,
+          subject: currentUser.subject,
+        });
+      }
+
+      const user = await getUser(currentUser.user.id);
+      if (!user) {
+        return reply.status(409).send({
+          error: "identity_not_linked",
+          provider: currentUser.provider,
+          subject: currentUser.subject,
+        });
+      }
+
+      const profile = user.profile as UserProfile;
+      if (profile?.humanDesign) {
+        deriveImpliedFields(profile);
+      }
+
+      return reply.send({
+        user: {
+          ...user,
+          onboardingStatus: user.onboarding_status,
+          onboardingStep: user.onboarding_step,
+          accessSource: user.access_source,
+        },
+        profile,
+      });
     },
   );
 

@@ -16,6 +16,7 @@ import {
   resolveRequestCurrentUser,
   sendCurrentUserError,
 } from "../auth/current-user.js";
+import { parseActiveChartName } from "../active-chart-name.js";
 import { calculateBodygraph, type BirthData } from "../bodygraph/calculate.js";
 import { renderFullDocument } from "../bodygraph/render-svg.js";
 import { renderBodygraphPdf } from "../bodygraph/render-pdf.js";
@@ -41,10 +42,6 @@ interface ReplaceFromBirthBody extends FromBirthBody {
 
 type FromBirthParse =
   | { ok: true; birth: BirthData }
-  | { ok: false; status: number; error: string; message: string };
-
-type DisplayNameParse =
-  | { ok: true; name: string }
   | { ok: false; status: number; error: string; message: string };
 
 function parseFromBirthBody(body: FromBirthBody): FromBirthParse {
@@ -77,19 +74,6 @@ function parseFromBirthBody(body: FromBirthBody): FromBirthParse {
       name: typeof body.name === "string" ? body.name : undefined,
     },
   };
-}
-
-function parseReplaceDisplayName(value: unknown): DisplayNameParse {
-  if (typeof value !== "string") {
-    return { ok: false, status: 400, error: "invalid_name", message: "name must be a non-empty string" };
-  }
-
-  const name = value.trim().replace(/\s+/g, " ");
-  if (!name) {
-    return { ok: false, status: 400, error: "invalid_name", message: "name must be a non-empty string" };
-  }
-
-  return { ok: true, name };
 }
 
 function hasReplaceConfirmation(value: unknown): boolean {
@@ -571,7 +555,7 @@ export async function assetRoutes(app: FastifyInstance) {
       if (!hasReplaceConfirmation(confirmReplace)) {
         return reply.status(400).send({ error: "replace_confirmation_required" });
       }
-      const displayName = parseReplaceDisplayName(rawDisplayName);
+      const displayName = parseActiveChartName(rawDisplayName);
       if (!displayName.ok) {
         return reply.status(displayName.status).send({ error: displayName.error, message: displayName.message });
       }
@@ -639,7 +623,7 @@ export async function assetRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "replace_confirmation_required" });
     }
 
-    const displayName = parseReplaceDisplayName(req.body?.name);
+    const displayName = parseActiveChartName(req.body?.name);
     if (!displayName.ok) {
       return reply.status(displayName.status).send({ error: displayName.error, message: displayName.message });
     }

@@ -209,6 +209,13 @@ components:
     rounded: '{rounded.lg}'
     padding: '12px 16px'
     typography: '{typography.body-sm}'
+  editable-identity-label:
+    iconButtonSize: 32px
+    inputMinHeight: 44px
+    inputPadding: '12px 14px'
+    actionMinHeight: 38px
+    desktopPattern: 'inline Pencil icon next to visible name'
+    mobilePattern: 'editor stacks full-width below the visible label'
 ---
 
 # Astral Guide — Design System
@@ -347,6 +354,25 @@ están entre paréntesis para facilitar la migración a un nuevo design system.
 - Pattern: `label uppercase 10px gold-deep alpha` → `value serif 14px main`.
   Se compone en `.profile-grid` (2 columnas) o `.profile-wide` (full width).
   Reusable en onboarding review, ProfilePanel, futuras vistas de cuenta.
+
+### Editable identity label
+Para nombres visibles editables (ej. `Nombre de esta carta`), usar un lápiz
+inline explícito junto al texto. No usar click-to-edit invisible sobre headings.
+
+Patrón normal: nombre visible + botón ícono `Pencil` de 32px con
+`aria-label="Editar nombre de esta carta"` y tooltip equivalente. Patrón en
+edición: label `Nombre de esta carta`, input explícito, acciones `Cancelar` y
+`Guardar`. En mobile el editor pasa a layout vertical full-width.
+
+Estados obligatorios: loading (`Guardando...`, input y botones disabled),
+success breve (`Nombre actualizado.`), error inline y reintento sin perder el
+draft. `Enter` guarda y `Escape` cancela. `Guardar` queda disabled si no hubo
+cambios o si el valor es inválido.
+
+Regla de producto V1: editar el nombre de carta activa no reemplaza carta, no
+recalcula bodygraph, no borra chat/memoria/informes y no implica múltiples
+perfiles. En V1 persiste `users.name` + `profile.name`; en V2 este patrón puede
+mapear a `activeProfile.name` sin cambiar la UX.
 
 ### Section card (report)
 - Borde-izquierdo de color (gold/sage/tan según sección), header con icon SVG

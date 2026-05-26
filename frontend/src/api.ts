@@ -421,6 +421,23 @@ export async function updateCurrentUser(
   }
 }
 
+export async function updateActiveChartName(
+  name: string,
+): Promise<ReplaceBodygraphResponse> {
+  const res = await fetch(`${BASE}/me/bodygraph/name`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+
+  if (!res.ok) {
+    const err = await readErrorMessage(res);
+    throw new Error(err);
+  }
+
+  return res.json();
+}
+
 // ─── Assets ──────────────────────────────────────────────────────────────────
 
 export async function getUserAssets(

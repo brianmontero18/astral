@@ -21,6 +21,7 @@ import {
   getCurrentUser,
   getReport,
   isReportStaleError,
+  updateActiveChartName,
   updateCurrentUser,
 } from "./api";
 import type { ReplaceBodygraphResponse } from "./api";
@@ -269,6 +270,19 @@ export default function App() {
     setProfileRevision((value) => value + 1);
   };
 
+  const handleActiveChartNameRenamed = async (name: string) => {
+    const result = await updateActiveChartName(name);
+    setUser({
+      id: result.user.id,
+      name: result.user.name,
+      plan: result.user.plan,
+      role: result.user.role,
+      status: result.user.status,
+    });
+    setProfile(result.profile);
+    setProfileRevision((value) => value + 1);
+  };
+
   const handleEditIntake = () => {
     handleNavigate("intake");
   };
@@ -443,6 +457,7 @@ export default function App() {
             profile={profile}
             onReset={handleReset}
             onGenerateReport={handleGoToReport}
+            onRenameActiveChart={handleActiveChartNameRenamed}
           />
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
             {adminSupportRoute ? (
@@ -538,6 +553,7 @@ export default function App() {
                     profile={profile}
                     bodygraphRevision={profileRevision}
                     onBodygraphReplaced={handleBodygraphReplaced}
+                    onActiveChartNameRenamed={handleActiveChartNameRenamed}
                   />
                 )}
                 {currentView === "intake" && (

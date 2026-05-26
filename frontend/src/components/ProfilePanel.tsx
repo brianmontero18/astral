@@ -1,11 +1,13 @@
 import type { AppUserPlan, UserProfile } from "../types";
 import { translateCenters } from "../utils";
+import { ActiveChartNameEditor } from "./ActiveChartNameEditor";
 import { ChannelChips } from "./ChannelChips";
 
 interface Props {
   profile: UserProfile;
   userPlan: AppUserPlan;
   onGenerateReport?: () => void;
+  onRenameActiveChart?: (name: string) => Promise<void>;
 }
 
 const PLAN_LABELS: Record<AppUserPlan, string> = {
@@ -29,7 +31,12 @@ function ProfileField({
   );
 }
 
-export function ProfilePanel({ profile, userPlan, onGenerateReport }: Props) {
+export function ProfilePanel({
+  profile,
+  userPlan,
+  onGenerateReport,
+  onRenameActiveChart,
+}: Props) {
   const { humanDesign: hd } = profile;
   const definedCenters = Array.isArray(hd.definedCenters) ? hd.definedCenters : [];
   const undefinedCenters = Array.isArray(hd.undefinedCenters)
@@ -42,7 +49,7 @@ export function ProfilePanel({ profile, userPlan, onGenerateReport }: Props) {
         )
         .filter((channel) => channel.length > 0)
     : [];
-  const displayName = profile.name?.trim() || "Perfil activo";
+  const displayName = profile.name?.trim() || "Carta activa";
   const compactRows: Array<[string, string]> = [
     ["Plan actual", PLAN_LABELS[userPlan]],
     ["Tipo", hd.type || "—"],
@@ -59,10 +66,18 @@ export function ProfilePanel({ profile, userPlan, onGenerateReport }: Props) {
   ];
 
   return (
-    <div className="profile-panel" role="dialog" aria-label="Perfil activo">
+    <div className="profile-panel" role="dialog" aria-label="Carta activa">
       <div className="profile-panel-header">
-        <div className="profile-panel-kicker">✦ Perfil activo</div>
-        <div className="profile-panel-name">{displayName}</div>
+        <div className="profile-panel-kicker">✦ Carta activa</div>
+        {onRenameActiveChart ? (
+          <ActiveChartNameEditor
+            value={displayName}
+            variant="panel"
+            onSave={onRenameActiveChart}
+          />
+        ) : (
+          <div className="profile-panel-name">{displayName}</div>
+        )}
         <div className="profile-panel-description">
           Resumen rápido de tu Diseño Humano disponible en esta cuenta.
         </div>

@@ -17,6 +17,10 @@ import {
   type PlaceResult,
   type ReplaceBodygraphResponse,
 } from "../api";
+import {
+  getActiveChartNameError,
+  normalizeActiveChartName,
+} from "../active-chart-name";
 import { getAssetFailureMessage } from "../asset-errors";
 import { getPlaceSearchStatus } from "../place-search-status";
 import { ConfirmModal } from "./ConfirmModal";
@@ -42,10 +46,6 @@ function formatPlaceLabel(p: PlaceResult): string {
   const parts = [p.name, p.admin1, p.country].filter((s) => s && s.length > 0);
   if (parts.length >= 2 && parts[1] === parts[0]) parts.splice(1, 1);
   return parts.join(", ");
-}
-
-function normalizeDisplayName(value: string): string {
-  return value.trim().replace(/\s+/g, " ");
 }
 
 export function MyChartReplaceView({ activeChartName, onCancel, onBodygraphReplaced }: Props) {
@@ -176,12 +176,12 @@ export function MyChartReplaceView({ activeChartName, onCancel, onBodygraphRepla
   };
 
   const validateDisplayName = (): string | null => {
-    const name = normalizeDisplayName(displayName);
-    if (!name) {
-      setError("Ingresá el nombre que querés mostrar para esta carta.");
+    const validationError = getActiveChartNameError(displayName);
+    if (validationError) {
+      setError(validationError);
       return null;
     }
-    return name;
+    return normalizeActiveChartName(displayName);
   };
 
   const handleSubmitData = () => {

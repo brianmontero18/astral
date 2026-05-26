@@ -19,6 +19,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { LocalUser, UserProfile } from "../types";
 import type { ReplaceBodygraphResponse } from "../api";
+import { ActiveChartNameEditor } from "./ActiveChartNameEditor";
 import { MyChartReplaceView } from "./MyChartReplaceView";
 
 interface Props {
@@ -26,9 +27,16 @@ interface Props {
   profile: UserProfile;
   bodygraphRevision: number;
   onBodygraphReplaced: (result: ReplaceBodygraphResponse) => void;
+  onActiveChartNameRenamed: (name: string) => Promise<void>;
 }
 
-export function MyChartView({ user, profile, bodygraphRevision, onBodygraphReplaced }: Props) {
+export function MyChartView({
+  user,
+  profile,
+  bodygraphRevision,
+  onBodygraphReplaced,
+  onActiveChartNameRenamed,
+}: Props) {
   const [replacing, setReplacing] = useState(false);
   const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
   const [exporting, setExporting] = useState<"png" | "pdf" | null>(null);
@@ -178,7 +186,11 @@ export function MyChartView({ user, profile, bodygraphRevision, onBodygraphRepla
         <div className="mychart-identity-header">
           <div className="mychart-identity-kicker">Identidad</div>
         </div>
-        <h2 className="mychart-name">{user.name || profile.name}</h2>
+        <ActiveChartNameEditor
+          value={profile.name || user.name}
+          variant="heading"
+          onSave={onActiveChartNameRenamed}
+        />
         {hd.type && (
           <div className="mychart-type">
             {hd.typeQualifier ? `${hd.typeQualifier} ${hd.type}` : hd.type}

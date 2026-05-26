@@ -217,3 +217,111 @@ describe("PUT /api/me", () => {
     });
   });
 });
+
+describe("PATCH /api/me/bodygraph/name", () => {
+  it("returns authentication_required when there is no validated session", async () => {
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/api/me/bodygraph/name",
+      payload: {
+        name: "Carta Nueva",
+      },
+    });
+
+    expect(res.statusCode).toBe(401);
+    expect(JSON.parse(res.body)).toEqual({
+      error: "authentication_required",
+    });
+  });
+
+  it("renames the active chart without changing bodygraph-dependent state", async () => {
+    const userId = await createLinkedTestUser(
+      app,
+      "st-rename-active-chart",
+      "Nombre Viejo",
+      {
+        name: "Nombre Viejo",
+        humanDesign: {
+          type: "Projector",
+          channels: [{ id: "10-20", name: "Canal del Despertar" }],
+          activatedGates: [{ number: 10 }],
+        },
+      },
+    );
+
+    const db = await import("../db.js");
+    await db.updateUserMemory(userId, "Memory should stay");
+    await db.saveChatMessage(userId, "user", "Chat should stay");
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/api/me/bodygraph/name",
+      headers: {
+        "x-test-session-subject": "st-rename-active-chart",
+      },
+      payload: {
+        name: "  María   José  ",
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toMatchObject({
+      user: {
+        id: userId,
+        name: "María José",
+      },
+      profile: {
+        name: "María José",
+        humanDesign: {
+          type: "Projector",
+          channels: [{ id: "10-20", name: "Canal del Despertar" }],
+        },
+      },
+    });
+
+    const user = await db.getUser(userId);
+    expect(user?.name).toBe("María José");
+    expect(user?.profile).toMatchObject({
+      name: "María José",
+      humanDesign: {
+        type: "Projector",
+        channels: [{ id: "10-20", name: "Canal del Despertar" }],
+      },
+    });
+    expect(user?.memory_md).toBe("Memory should stay");
+    expect(await db.getChatMessages(userId)).toHaveLength(1);
+  });
+
+  it("rejects invalid active chart names without mutating the user", async () => {
+    const userId = await createLinkedTestUser(
+      app,
+      "st-rename-active-chart-blank",
+      "Nombre Estable",
+      {
+        name: "Nombre Estable",
+        humanDesign: { type: "Generator" },
+      },
+    );
+
+    for (const name of ["   ", "a".repeat(61), "\u0000Agus", "!!!"]) {
+      const res = await app.inject({
+        method: "PATCH",
+        url: "/api/me/bodygraph/name",
+        headers: {
+          "x-test-session-subject": "st-rename-active-chart-blank",
+        },
+        payload: { name },
+      });
+
+      expect(res.statusCode).toBe(400);
+      expect(JSON.parse(res.body)).toMatchObject({
+        error: "invalid_name",
+      });
+    }
+
+    const { getUser } = await import("../db.js");
+    const user = await getUser(userId);
+    expect(user?.name).toBe("Nombre Estable");
+    expect(user?.profile).toMatchObject({ name: "Nombre Estable" });
+  });
+});

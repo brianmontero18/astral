@@ -899,6 +899,27 @@ export async function updateUserProfile(
   return result.rowsAffected > 0;
 }
 
+export async function updateUserActiveChartName(
+  id: string,
+  name: string,
+): Promise<boolean> {
+  const user = await getUser(id);
+  if (!user) {
+    return false;
+  }
+
+  const profile =
+    user.profile && typeof user.profile === "object" && !Array.isArray(user.profile)
+      ? { ...user.profile, name }
+      : { name };
+
+  const result = await client.execute({
+    sql: "UPDATE users SET name = ?, profile = ?, updated_at = datetime('now') WHERE id = ?",
+    args: [name, JSON.stringify(profile), id],
+  });
+  return result.rowsAffected > 0;
+}
+
 export async function updateUserBodygraph(
   id: string,
   profile: object,
