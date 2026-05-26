@@ -246,7 +246,8 @@ created_at, updated_at
 - **Dev local:** `npm run dev` desde la raíz (concurrently levanta backend `:3000` + frontend `:5173`).
 - **Build:** `cd backend && npm run build` (tsc) + `cd frontend && npm run build` (Vite). El backend en prod sirve el build estático del frontend (no Next.js, no SSR).
 - **Deploy:** Render (Dockerfile multi-stage Node 20 Alpine). Una imagen, un deploy.
-- **Env vars críticas:** OPENAI_API_KEY · TURSO_DATABASE_URL/AUTH_TOKEN · R2_* · SUPERTOKENS_* · GEONAMES_USERNAME · CHAT_MODEL · MEMORY_WRITER_MODEL · REPORT_MODEL · FEATURE_REMOTE_MCP
+- **Env vars críticas:** OPENAI_API_KEY · TURSO_DATABASE_URL/AUTH_TOKEN · R2_* · SUPERTOKENS_* · GEONAMES_USERNAME · FRONTEND_ORIGIN · CHAT_MODEL · MEMORY_WRITER_MODEL · REPORT_MODEL · FEATURE_REMOTE_MCP
+- **CORS:** en dev el backend refleja cualquier origin para no romper Vite/proxies locales. En producción solo permite `FRONTEND_ORIGIN`; si falta, CORS queda cerrado.
 - **Schema migraciones:** idempotentes en `db.ts:initDb()` — corren al boot, validan + crean tablas/columnas faltantes.
 
 ---

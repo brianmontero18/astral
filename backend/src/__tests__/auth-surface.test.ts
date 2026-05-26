@@ -1,9 +1,34 @@
 import type { FastifyInstance } from "fastify";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "vitest";
 import { buildApp } from "../app.js";
 import type { AuthRuntime } from "../auth/supertokens.js";
 
 class FakeAuthError extends Error {}
+
+const originalNodeEnv = process.env.NODE_ENV;
+const originalFrontendOrigin = process.env.FRONTEND_ORIGIN;
+
+function restoreCorsEnv(): void {
+  if (originalNodeEnv === undefined) {
+    delete process.env.NODE_ENV;
+  } else {
+    process.env.NODE_ENV = originalNodeEnv;
+  }
+
+  if (originalFrontendOrigin === undefined) {
+    delete process.env.FRONTEND_ORIGIN;
+  } else {
+    process.env.FRONTEND_ORIGIN = originalFrontendOrigin;
+  }
+}
 
 function createFakeAuthRuntime(): AuthRuntime {
   return {
@@ -29,6 +54,36 @@ function createFakeAuthRuntime(): AuthRuntime {
       return false;
     },
   };
+}
+
+async function buildReadyAuthApp(): Promise<FastifyInstance> {
+  const app = await buildApp({
+    logger: false,
+    auth: createFakeAuthRuntime(),
+  });
+  await app.ready();
+  return app;
+}
+
+function injectHealthPreflight(
+  app: FastifyInstance,
+  origin: string,
+  requestHeaders?: string,
+): ReturnType<FastifyInstance["inject"]> {
+  const headers: Record<string, string> = {
+    origin,
+    "access-control-request-method": "GET",
+  };
+
+  if (requestHeaders) {
+    headers["access-control-request-headers"] = requestHeaders;
+  }
+
+  return app.inject({
+    method: "OPTIONS",
+    url: "/api/health",
+    headers,
+  });
 }
 
 describe("auth surface wiring", () => {
@@ -147,5 +202,85 @@ describe("auth surface wiring", () => {
 
     expect(genericRes.statusCode).toBe(500);
     expect(genericRes.body).toContain("generic failure");
+  });
+});
+
+describe("CORS origin policy", () => {
+  beforeEach(() => {
+    restoreCorsEnv();
+  });
+
+  afterEach(restoreCorsEnv);
+  afterAll(restoreCorsEnv);
+
+  it("keeps permissive reflected origins outside production", async () => {
+    process.env.NODE_ENV = "development";
+    delete process.env.FRONTEND_ORIGIN;
+
+    const devApp = await buildReadyAuthApp();
+    try {
+      const res = await injectHealthPreflight(
+        devApp,
+        "https://unconfigured-local.example",
+      );
+
+      expect(res.statusCode).toBe(204);
+      expect(res.headers["access-control-allow-origin"]).toBe(
+        "https://unconfigured-local.example",
+      );
+    } finally {
+      await devApp.close();
+    }
+  });
+
+  it("allows only FRONTEND_ORIGIN in production", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.FRONTEND_ORIGIN = "https://app.astral.example";
+
+    const prodApp = await buildReadyAuthApp();
+    try {
+      const allowedRes = await injectHealthPreflight(
+        prodApp,
+        "https://app.astral.example",
+        "content-type,anti-csrf",
+      );
+
+      expect(allowedRes.statusCode).toBe(204);
+      expect(allowedRes.headers["access-control-allow-origin"]).toBe(
+        "https://app.astral.example",
+      );
+      expect(allowedRes.headers["access-control-allow-credentials"]).toBe("true");
+      expect(allowedRes.headers["access-control-allow-headers"]).toContain(
+        "anti-csrf",
+      );
+
+      const blockedRes = await injectHealthPreflight(
+        prodApp,
+        "https://evil.example",
+      );
+
+      expect(blockedRes.statusCode).toBe(204);
+      expect(blockedRes.headers["access-control-allow-origin"]).toBeUndefined();
+    } finally {
+      await prodApp.close();
+    }
+  });
+
+  it("fails closed when production FRONTEND_ORIGIN is missing", async () => {
+    process.env.NODE_ENV = "production";
+    delete process.env.FRONTEND_ORIGIN;
+
+    const prodApp = await buildReadyAuthApp();
+    try {
+      const res = await injectHealthPreflight(
+        prodApp,
+        "https://app.astral.example",
+      );
+
+      expect(res.statusCode).toBe(404);
+      expect(res.headers["access-control-allow-origin"]).toBeUndefined();
+    } finally {
+      await prodApp.close();
+    }
   });
 });

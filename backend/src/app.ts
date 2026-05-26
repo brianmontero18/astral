@@ -41,13 +41,30 @@ function isHtmlAuthEntryRequest(acceptHeader: string | undefined, requestUrl: st
   );
 }
 
-function buildCorsOptions(auth: AuthRuntime) {
+interface CorsOptions {
+  origin: boolean | Array<string>;
+  credentials?: boolean;
+  allowedHeaders?: Array<string>;
+}
+
+function getCorsOrigin(): boolean | Array<string> {
+  if (process.env.NODE_ENV !== "production") {
+    return true;
+  }
+
+  const frontendOrigin = process.env.FRONTEND_ORIGIN?.trim();
+  return frontendOrigin ? [frontendOrigin] : false;
+}
+
+function buildCorsOptions(auth: AuthRuntime): CorsOptions {
+  const origin = getCorsOrigin();
+
   if (!auth.enabled) {
-    return { origin: true };
+    return { origin };
   }
 
   return {
-    origin: true,
+    origin,
     credentials: true,
     allowedHeaders: Array.from(
       new Set(["content-type", ...auth.corsHeaders]),
