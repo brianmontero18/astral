@@ -18,6 +18,7 @@ import {
   type ReplaceBodygraphResponse,
 } from "../api";
 import { getAssetFailureMessage } from "../asset-errors";
+import { getPlaceSearchStatus } from "../place-search-status";
 import { ConfirmModal } from "./ConfirmModal";
 
 interface Props {
@@ -59,6 +60,7 @@ export function MyChartReplaceView({ onCancel, onBodygraphReplaced }: Props) {
   const [placeTimedOut, setPlaceTimedOut] = useState(false);
   const [placeOpen, setPlaceOpen] = useState(false);
   const [placeError, setPlaceError] = useState<string | null>(null);
+  const [placeSearchCompleted, setPlaceSearchCompleted] = useState(false);
   const placeBoxRef = useRef<HTMLDivElement>(null);
   const replaceInFlightRef = useRef(false);
 
@@ -66,6 +68,16 @@ export function MyChartReplaceView({ onCancel, onBodygraphReplaced }: Props) {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const placeStatus = getPlaceSearchStatus({
+    query: placeQuery,
+    loading: placeLoading,
+    slow: placeSlow,
+    timedOut: placeTimedOut,
+    error: placeError,
+    selected: selectedPlace !== null,
+    resultCount: placeResults.length,
+    completed: placeSearchCompleted,
+  });
 
   // Places autocomplete: debounce 250ms + slow signal a los 2.5s + timeout 30s.
   useEffect(() => {
@@ -75,6 +87,8 @@ export function MyChartReplaceView({ onCancel, onBodygraphReplaced }: Props) {
       setPlaceResults([]);
       setPlaceTimedOut(false);
       setPlaceSlow(false);
+      setPlaceError(null);
+      setPlaceSearchCompleted(false);
       return;
     }
     const callerCtrl = new AbortController();
@@ -91,9 +105,10 @@ export function MyChartReplaceView({ onCancel, onBodygraphReplaced }: Props) {
         const results = await searchPlaces(q, { signal: callerCtrl.signal });
         if (!cancelled) {
           setPlaceResults(results);
-          setPlaceOpen(true);
+          setPlaceOpen(results.length > 0);
           setPlaceError(null);
           setPlaceTimedOut(false);
+          setPlaceSearchCompleted(true);
         }
       } catch (err) {
         if (cancelled) return;
@@ -104,6 +119,8 @@ export function MyChartReplaceView({ onCancel, onBodygraphReplaced }: Props) {
           setPlaceError(err instanceof Error ? err.message : String(err));
         }
         setPlaceResults([]);
+        setPlaceOpen(false);
+        setPlaceSearchCompleted(true);
       } finally {
         if (!cancelled) {
           setPlaceLoading(false);
@@ -146,6 +163,9 @@ export function MyChartReplaceView({ onCancel, onBodygraphReplaced }: Props) {
     if (selectedPlace && value !== formatPlaceLabel(selectedPlace)) {
       setSelectedPlace(null);
     }
+    setPlaceError(null);
+    setPlaceTimedOut(false);
+    setPlaceSearchCompleted(false);
     setError(null);
   };
 
@@ -328,19 +348,16 @@ export function MyChartReplaceView({ onCancel, onBodygraphReplaced }: Props) {
                   autoComplete="off"
                   spellCheck={false}
                 />
-                {placeLoading && !placeSlow && (
-                  <div style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", fontSize: 12, fontFamily: "var(--font-sans)" }}>
-                    buscando…
-                  </div>
-                )}
-                {placeLoading && placeSlow && (
-                  <div style={{ marginTop: 8, color: "var(--text-muted)", fontSize: 12, fontFamily: "var(--font-sans)" }}>
-                    Está tardando más de lo normal… seguimos buscando.
-                  </div>
-                )}
-                {placeTimedOut && (
-                  <div className="onboarding-inline-error" style={{ marginTop: 8, fontSize: 13 }}>
-                    La búsqueda tardó demasiado. Probá de nuevo en un momento.
+                {placeStatus.kind !== "idle" && (
+                  <div
+                    className={
+                      placeStatus.tone === "error"
+                        ? "onboarding-inline-error mychart-place-status"
+                        : "mychart-place-status mychart-place-status-muted"
+                    }
+                    role={placeStatus.tone === "error" ? "alert" : "status"}
+                  >
+                    {placeStatus.message}
                   </div>
                 )}
                 {placeOpen && placeResults.length > 0 && (
@@ -360,16 +377,6 @@ export function MyChartReplaceView({ onCancel, onBodygraphReplaced }: Props) {
                       </li>
                     ))}
                   </ul>
-                )}
-                {placeError && (
-                  <div className="onboarding-inline-error" style={{ marginTop: 8, fontSize: 13 }}>
-                    No pudimos buscar lugares ahora. Intentá de nuevo en un momento.
-                  </div>
-                )}
-                {!placeError && !placeLoading && !selectedPlace && placeQuery.trim().length >= 2 && placeResults.length === 0 && (
-                  <div style={{ marginTop: 8, color: "var(--text-muted)", fontSize: 12, fontFamily: "var(--font-sans)" }}>
-                    No encontramos ese lugar. Probá con otro nombre o ortografía.
-                  </div>
                 )}
               </div>
             </BirthField>
