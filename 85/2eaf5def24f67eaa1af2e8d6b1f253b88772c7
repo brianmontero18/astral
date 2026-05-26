@@ -1,0 +1,53 @@
+frontend/src/index.css
+  s_1970642029acbb::t_d596db32a626ce 2278-2411
+  s_1970642029acbb::t_4d6fd455698422 4261-4264,4266-4279
+frontend/src/components/NavBar.tsx
+  s_1970642029acbb::t_1510aa4ce2eb63 17,41,98
+backend/src/__tests__/api-me.test.ts
+  s_1970642029acbb::t_4ffd84d60ac6d8 220-294,296-305,315,321-327
+  s_1970642029acbb::t_2e8b939e457aa8 295,306-314,316-320
+backend/src/db.ts
+  s_1970642029acbb::t_61147d473b6318 902-922
+backend/src/__tests__/frontend-active-chart-name.test.ts
+  s_1970642029acbb::t_7b264042b444f1 1-23
+backend/src/routes/assets.ts
+  s_1970642029acbb::t_3fb19cd4058f1f 19,558,626
+frontend/src/api.ts
+  s_1970642029acbb::t_c99622630e21fb 424-440
+backend/src/routes/users.ts
+  s_1970642029acbb::t_abc01bbe06dc2d 40
+  s_1970642029acbb::t_f1336fe0c5c589 25,111,300-359
+frontend/src/components/ProfilePanel.tsx
+  s_1970642029acbb::t_7af03f43e06c2f 3,10,34-39,72-80
+backend/src/active-chart-name.ts
+  s_1970642029acbb::t_3c80ba12d38ab5 1-24
+backend/src/__tests__/frontend-bodygraph-replace-api.test.ts
+  s_1970642029acbb::t_6b655680a82315 6,63-85
+frontend/src/active-chart-name.ts
+  s_1970642029acbb::t_b1b9a5fd27c038 1-19
+frontend/src/App.tsx
+  s_1970642029acbb::t_70fd83a4855ae4 24,273-285,460,556
+frontend/src/components/MyChartView.tsx
+  s_1970642029acbb::t_b1d61c887c7965 22,30,33-39,189-193
+DESIGN.md
+  s_1970642029acbb::t_8fd8e5a6225fd5 212-218,358-375
+frontend/src/components/ActiveChartNameEditor.tsx
+  s_1970642029acbb::t_e00132755022a1 1,23,127,145
+  s_1970642029acbb::t_69f516bb4fe8c6 2-22,24-126,128-144,146-169
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "852eaf5def24f67eaa1af2e8d6b1f253b88772c7",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
