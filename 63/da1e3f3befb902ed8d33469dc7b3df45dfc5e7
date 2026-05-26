@@ -1,0 +1,38 @@
+backend/src/__tests__/api-assets.test.ts
+  s_1970642029acbb::t_e44956c2cc15e4 955,1022
+  s_1970642029acbb::t_6f7f7977646f74 949-950,954,1017-1018,1021,1078,1094-1095,1123
+  s_1970642029acbb::t_d87aa8d12ae4d7 889,995
+  s_1970642029acbb::t_03deca67409bb8 1033-1055
+frontend/src/components/MyChartView.tsx
+  s_1970642029acbb::t_d14744e3d9f688 54
+backend/src/db.ts
+  s_1970642029acbb::t_3a25d768285fae 933,970-971,978-983
+frontend/src/api.ts
+  s_1970642029acbb::t_974bef40fb90cb 463,467
+  s_1970642029acbb::t_8bc0af4de52be7 499-502,524
+backend/src/__tests__/frontend-bodygraph-replace-api.test.ts
+  s_1970642029acbb::t_25e8c243f78843 1-25,32-61
+  s_1970642029acbb::t_9e1426efa75f82 26-31
+frontend/src/components/MyChartReplaceView.tsx
+  s_1970642029acbb::t_d1f88796992a60 348-357,359-360,433-434,436-437,492-494
+  s_1970642029acbb::t_0d8e3541eaac4a 361,363-365,367,369-378,380-432,438-479,481-482,484-491
+  s_1970642029acbb::t_38457c7c600836 25,47-51,56,178-186,188-190,209-212,222,241-243,253-256,264,358,435
+backend/src/routes/assets.ts
+  s_1970642029acbb::t_9c5a1be87cdd3e 46-49,82-94,421,431,543,550-552,574-577,616,627,642-646,661-664,671,675
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "63da1e3f3befb902ed8d33469dc7b3df45dfc5e7",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
