@@ -1,0 +1,30 @@
+backend/src/__tests__/frontend-report-renderer.test.ts
+  s_1970642029acbb::t_25e915e8b62a56 91-108
+frontend/src/components/ReportRenderer.tsx
+  s_1970642029acbb::t_9b148d45d2a8f4 181
+  s_1970642029acbb::t_aba269f5d80651 76-78,86-98,116-121,126,133-137,144,157,201,213,218,234,237,239,242,249,281
+frontend/src/index.css
+  s_1970642029acbb::t_b050f89901d2ba 3774-3775,3783-3790,3804-3806,3808-3809
+frontend/src/components/ChatView.tsx
+  s_1970642029acbb::t_ae2ca8e10865da 642
+DESIGN.md
+  s_1970642029acbb::t_ff332abf19a1cf 243-248,254,391-393
+  s_1970642029acbb::t_9143cb82d9a14f 385
+  s_1970642029acbb::t_53a98cba8c8348 92-98,439
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "02672c4b7d4fbee8a03d83cc8ffa0e3abeba73ac",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
