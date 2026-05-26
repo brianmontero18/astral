@@ -3706,13 +3706,16 @@ textarea { outline: none !important; }
   gap: 18px;
 }
 
-/* Action slot — vive dentro de .mychart-identity-header (top-right de la
-   identity card forest). Las pills usan .astral-auth-secondary (cream-alpha
-   sobre forest, patrón canónico) + .mychart-action-pill override de tamaño. */
+/* Action slot — desktop top-right de la identity card; mobile stack debajo del
+   tipo. Las pills ajustan el tamaño base de los botones auth. */
 .mychart-actions {
   display: flex;
   gap: 8px;
   flex-shrink: 0;
+  align-self: start;
+  justify-self: end;
+  grid-column: 2;
+  grid-row: 1 / 4;
 }
 
 /* Sobreescribe sólo el tamaño de .astral-auth-secondary (que es full-width 50px
@@ -3740,17 +3743,15 @@ textarea { outline: none !important; }
   border-radius: 18px;
   padding: 28px;
   color: var(--text-main);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 16px;
 }
 
-/* Header row de la identity card — kicker IDENTIDAD izquierda + acciones
-   (Descargar/Reemplazar) derecha, en flex space-between. Visualmente
-   matchea el patrón controls-bar de Tránsitos. */
+/* Header de la identity card. Las acciones se ubican con grid en desktop
+   y se apilan debajo del nombre/tipo en mobile. */
 .mychart-identity-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
+  min-width: 0;
   margin-bottom: 12px;
 }
 
@@ -3780,6 +3781,7 @@ textarea { outline: none !important; }
 }
 
 .mychart-name {
+  grid-column: 1;
   margin: 0 0 6px;
   color: var(--text-main);
   font-family: var(--font-serif);
@@ -3790,6 +3792,7 @@ textarea { outline: none !important; }
 }
 
 .mychart-type {
+  grid-column: 1;
   color: var(--text-muted);
   font-family: var(--font-serif);
   font-style: italic;
@@ -3799,6 +3802,7 @@ textarea { outline: none !important; }
 }
 
 .mychart-meta-divider {
+  grid-column: 1 / -1;
   height: 1px;
   background: var(--glass-border);
   margin: 20px 0;
@@ -3812,6 +3816,10 @@ textarea { outline: none !important; }
   border-radius: 10px;
   font-size: 13px;
   font-family: var(--font-sans);
+}
+
+.mychart-identity-card .profile-grid {
+  grid-column: 1 / -1;
 }
 
 /* Hero card — glass-panel forest envolviendo bodygraph + side panel. El SVG
@@ -4085,14 +4093,18 @@ textarea { outline: none !important; }
 
   .mychart-identity-card {
     padding: 20px;
+    display: flex;
+    flex-direction: column;
   }
 
   .mychart-name {
     font-size: 22px;
+    order: 1;
   }
 
   .mychart-type {
     font-size: 14px;
+    order: 2;
   }
 
   .mychart-hero-card {
@@ -4108,16 +4120,61 @@ textarea { outline: none !important; }
     gap: 16px;
   }
 
-  /* Acciones se acomodan: wrap si no entran, pills full-width al ancho disponible. */
+  .mychart-identity-header {
+    order: 0;
+  }
+
+  /* En mobile las acciones dejan de competir como CTAs distintos: stack
+     full-width, mismo peso visual, menú alineado al ancho del botón. */
   .mychart-actions {
-    flex-wrap: wrap;
+    order: 3;
     width: 100%;
-    justify-content: flex-end;
+    flex-direction: column;
+    gap: 10px;
+    justify-content: stretch;
+    align-self: stretch;
+    justify-self: auto;
+    margin: 16px 0 2px;
+  }
+
+  .mychart-meta-divider {
+    order: 4;
+  }
+
+  .mychart-identity-card .profile-grid {
+    order: 5;
+  }
+
+  .mychart-download-wrap {
+    width: 100%;
   }
 
   .mychart-action-pill {
-    flex: 1 1 auto;
+    width: 100%;
+    min-height: 48px;
+    padding: 12px 14px;
+    flex: none;
     text-align: center;
+    justify-content: center;
+  }
+
+  .mychart-actions .astral-auth-primary.mychart-action-pill {
+    border-color: rgba(248, 244, 232, 0.16);
+    background: rgba(248, 244, 232, 0.04);
+    color: var(--text-main);
+    box-shadow: none;
+  }
+
+  .mychart-actions .astral-auth-primary.mychart-action-pill:hover:not(:disabled) {
+    border-color: rgba(232, 201, 132, 0.42);
+    background: rgba(207, 172, 108, 0.10);
+    box-shadow: none;
+  }
+
+  .mychart-menu {
+    left: 0;
+    right: 0;
+    min-width: 0;
   }
 }
 
@@ -4334,15 +4391,6 @@ textarea { outline: none !important; }
   .mychart-shell {
     padding: 20px 16px 48px;
     gap: 20px;
-  }
-
-  .mychart-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .mychart-actions {
-    align-self: flex-start;
   }
 
   .mychart-hero {

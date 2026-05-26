@@ -7,7 +7,7 @@
  * shell HTML alrededor y evitan la doble lectura).
  *
  * Layout:
- *   - Cluster de acciones top-right (Descargar ▾ + Reemplazar carta).
+ *   - Cluster de acciones responsive (desktop inline, mobile stack).
  *   - Identity card forest con nombre, tipo, perfil/autoridad/etc.
  *   - Origin band con lugar, momento, coordenadas.
  *   - Hero grid 60/40: chart SVG | panel derecho con Canales / Diseño /
@@ -160,10 +160,6 @@ export function MyChartView({ user, profile, onBodygraphReplaced }: Props) {
 
   return (
     <section className="mychart-shell">
-      {/* (a) Page header canónico + acciones inline en page-header-meta.
-          Reusa el patrón de Informe (page-header--editorial + page-header-meta
-          con flex: space-between). Antes había un .mychart-action-bar absolute
-          que se solapaba con el contenido. */}
       {exportError && (
         <div className="mychart-export-error" role="alert">{exportError}</div>
       )}
@@ -173,50 +169,12 @@ export function MyChartView({ user, profile, onBodygraphReplaced }: Props) {
         </div>
       )}
 
-      {/* (b) Identity card — glass-panel-gold (border gold-alpha) parity con
-          el "primary insight" de Tránsitos. Header row: kicker IDENTIDAD a la
-          izquierda + acciones (Descargar/Reemplazar) a la derecha. Adentro:
-          nombre serif 28px + type italic + profile-grid de meta + origen/momento
-          como profile-wide. Las acciones viven acá (no en un meta row aparte)
-          para apretar el layout y porque los pills sobre forest matchean el
-          patrón canónico .astral-auth-secondary. */}
+      {/* (b) Identity card — kicker, nombre, tipo, acciones y metadata. En
+          desktop las acciones se ubican arriba a la derecha; en mobile se
+          apilan debajo del tipo para evitar CTAs desbalanceados. */}
       <div className="mychart-identity-card">
         <div className="mychart-identity-header">
           <div className="mychart-identity-kicker">Identidad</div>
-          <div className="mychart-actions">
-            <div ref={downloadMenuRef} className="mychart-download-wrap">
-              <button
-                type="button"
-                className="astral-auth-primary mychart-action-pill"
-                onClick={() => setDownloadMenuOpen((v) => !v)}
-                disabled={exporting !== null}
-                aria-haspopup="menu"
-                aria-expanded={downloadMenuOpen}
-              >
-                {exporting === "png" ? "Generando imagen…" : exporting === "pdf" ? "Generando PDF…" : "Descargar ▾"}
-              </button>
-              {downloadMenuOpen && (
-                <div role="menu" className="mychart-menu">
-                  <button role="menuitem" className="mychart-menu-item" onClick={handleDownloadImage}>
-                    Como imagen
-                  </button>
-                  <button role="menuitem" className="mychart-menu-item" onClick={handleDownloadPdf}>
-                    Como PDF
-                  </button>
-                </div>
-              )}
-            </div>
-            <button
-              type="button"
-              className="astral-auth-secondary mychart-action-pill"
-              onClick={() => {
-                setReplaceNotice(false);
-                setReplacing(true);
-              }}
-            >
-              Reemplazar carta
-            </button>
-          </div>
         </div>
         <h2 className="mychart-name">{user.name || profile.name}</h2>
         {hd.type && (
@@ -224,6 +182,40 @@ export function MyChartView({ user, profile, onBodygraphReplaced }: Props) {
             {hd.typeQualifier ? `${hd.typeQualifier} ${hd.type}` : hd.type}
           </div>
         )}
+        <div className="mychart-actions">
+          <div ref={downloadMenuRef} className="mychart-download-wrap">
+            <button
+              type="button"
+              className="astral-auth-primary mychart-action-pill"
+              onClick={() => setDownloadMenuOpen((v) => !v)}
+              disabled={exporting !== null}
+              aria-haspopup="menu"
+              aria-expanded={downloadMenuOpen}
+            >
+              {exporting === "png" ? "Generando imagen…" : exporting === "pdf" ? "Generando PDF…" : "Descargar ▾"}
+            </button>
+            {downloadMenuOpen && (
+              <div role="menu" className="mychart-menu">
+                <button role="menuitem" className="mychart-menu-item" onClick={handleDownloadImage}>
+                  Como imagen
+                </button>
+                <button role="menuitem" className="mychart-menu-item" onClick={handleDownloadPdf}>
+                  Como PDF
+                </button>
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            className="astral-auth-secondary mychart-action-pill"
+            onClick={() => {
+              setReplaceNotice(false);
+              setReplacing(true);
+            }}
+          >
+            Reemplazar carta
+          </button>
+        </div>
         <div className="mychart-meta-divider" />
         <div className="profile-grid">
           {meta.map((m) => (
