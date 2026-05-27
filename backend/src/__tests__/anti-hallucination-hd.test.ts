@@ -17,10 +17,12 @@ interface AiTool<TInput, TOutput> {
 interface HdToolsForTest {
   findChannelByGates: AiTool<{ gateA: number; gateB: number }, HdChannel | null>;
   findChannelsByGate: AiTool<{ gate: number }, HdChannel[]>;
+  findChannelById: AiTool<{ id: string }, HdChannel | null>;
 }
 
 interface AgentGenerateOptions {
   model: { model: string };
+  system: string;
   messages: ChatMessage[];
   tools: HdToolsForTest;
 }
@@ -130,6 +132,19 @@ function successResult(text: string, toolName: string): MockGenerateTextResult {
   };
 }
 
+function unsafeResult(text: string): MockGenerateTextResult {
+  return {
+    text,
+    usage: {
+      inputTokens: 100,
+      outputTokens: 40,
+      cachedInputTokens: 0,
+      inputTokenDetails: { cacheReadTokens: 0 },
+    },
+    steps: [{ toolCalls: [] }],
+  };
+}
+
 function lastUserMessage(messages: ChatMessage[]): string {
   return messages.at(-1)?.content ?? "";
 }
@@ -153,6 +168,32 @@ async function executeTool<TInput, TOutput>(
 
 async function mockGenerateText(options: AgentGenerateOptions): Promise<MockGenerateTextResult> {
   const message = lastUserMessage(options.messages);
+
+  if (/aprovecho esto esta semana/i.test(message)) {
+    if (options.system.includes("LEAK_IMPACT_CHANNEL")) {
+      return unsafeResult(
+        "LEAK_IMPACT_CHANNEL te pide usar esa energía esta semana.",
+      );
+    }
+
+    const channelId = options.system.match(/channel_id="(\d{1,2}-\d{1,2})"/)?.[1];
+    if (!channelId) {
+      throw new Error("Impact context did not provide a channel_id hint");
+    }
+
+    const channel = await executeTool(
+      options.tools.findChannelById,
+      { id: channelId },
+      "findChannelById",
+    );
+    if (!channel) {
+      throw new Error(`findChannelById did not resolve ${channelId}`);
+    }
+    return successResult(
+      `${channel.name} (${channel.id}) está activado como contexto de la semana; usalo como foco, no como adorno.`,
+      "findChannelById",
+    );
+  }
 
   if (/puerta\s+8/i.test(message)) {
     const channels = await executeTool(
@@ -281,6 +322,46 @@ describe("anti-hallucination HD regression suite", () => {
     expect(evals.failed, evals.results.map((r) => r.reason).join("; ")).toBe(0);
     expect(result.toolCalls).toEqual(["findChannelByGates"]);
     expect(result.toolsUsed).toEqual(["findChannelByGates"]);
+  });
+
+  it("does not let deterministic impact context replace channel tool lookup", async () => {
+    const profileWithChannelLeak: UserProfile = {
+      ...profile,
+      humanDesign: {
+        ...profile.humanDesign,
+        channels: [{ id: "1-8", name: "LEAK_NATAL_CHANNEL", circuit: "Individual" }],
+      },
+    };
+    const transitsWithChannelLeak: WeeklyTransits = {
+      ...transits,
+      activatedChannels: ["LEAK_TRANSIT_CHANNEL"],
+    };
+
+    const result = await runAstralAgentV2(
+      profileWithChannelLeak,
+      transitsWithChannelLeak,
+      [{ role: "user", content: "¿Cómo aprovecho esto esta semana?" }],
+      "test-openai-key",
+      {
+        personalChannels: [
+          {
+            channelId: "1-8",
+            channelName: "LEAK_IMPACT_CHANNEL",
+            userGate: 1,
+            transitGate: 8,
+            transitPlanet: "Sol",
+          },
+        ],
+        educationalChannels: [],
+        reinforcedGates: [],
+        conditionedCenters: [],
+      },
+    );
+
+    expect(result.content).toContain("Canal de Inspiración");
+    expect(result.content).not.toContain("LEAK_IMPACT_CHANNEL");
+    expect(result.toolCalls).toEqual(["findChannelById"]);
+    expect(result.toolsUsed).toEqual(["findChannelById"]);
   });
 });
 

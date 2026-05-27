@@ -55,6 +55,9 @@ Desde `backend/`:
 # Últimos chat_stream con tokens/cache/tools de un user
 ./node_modules/.bin/tsx scripts/prod-audits/chat-tokens-detail.ts foo@bar.com 12
 
+# Respuestas con claims HD verificables pero sin tool calls
+./node_modules/.bin/tsx scripts/prod-audits/examples/chat-hd-tool-compliance.ts foo@bar.com 7
+
 # Patrones de data inconsistente
 ./node_modules/.bin/tsx scripts/prod-audits/examples/find-anomalies.ts
 ```
@@ -75,6 +78,16 @@ ORDER BY created_at DESC;
 Si aparece una respuesta con claims puerta/canal/centro y `tool_calls_count = 0`,
 hay que revisar el prompt o el tool-call loop: el modelo contestó sin consultar
 la fuente determinística.
+
+Para revisar el contenido real aproximado, usar:
+
+```bash
+./node_modules/.bin/tsx scripts/prod-audits/examples/chat-hd-tool-compliance.ts [email] [days]
+```
+
+El script cruza mensajes `assistant` con el `llm_call` inmediatamente anterior
+del mismo usuario. Es una auditoría operacional, no una foreign key perfecta:
+si reporta sospechosos, revisar manualmente el turno completo.
 
 ## Garantías de seguridad
 

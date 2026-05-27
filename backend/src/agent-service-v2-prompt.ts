@@ -16,6 +16,7 @@ import type { UserProfile } from "./types/agent.js";
 import type { ContextBudgetPromptBlock } from "./types/context-budget.js";
 import { HD_CONDENSED } from "./knowledge/hd-condensed.js";
 import { BUSINESS_PACK_V1 } from "./knowledge/business-pack-v1.js";
+import { HD_CHANNELS_FULL } from "./hd-channels.js";
 import {
   buildBusinessContextBlock,
   buildUserMemoryBlock,
@@ -38,6 +39,26 @@ function stripChannelsSection(text: string): string {
   const nextHeading = rest.indexOf("\n### ", 1);
   if (nextHeading === -1) return text.slice(0, start).trimEnd();
   return text.slice(0, start) + rest.slice(nextHeading + 1);
+}
+
+const CHANNEL_ID_RE = /^\d{1,2}-\d{1,2}$/;
+const CHANNEL_ID_BY_LABEL = new Map(
+  HD_CHANNELS_FULL.flatMap((channel) => [
+    [channel.name, channel.id],
+    [channel.nameEn, channel.id],
+  ]),
+);
+
+function formatChannelIdHints(values: string[]): string {
+  const ids = values
+    .map((value) => {
+      const trimmed = value.trim();
+      if (CHANNEL_ID_RE.test(trimmed)) return trimmed;
+      return CHANNEL_ID_BY_LABEL.get(trimmed) ?? null;
+    })
+    .filter((value): value is string => value !== null);
+
+  return [...new Set(ids)].join(", ") || "—";
 }
 
 /**
@@ -122,6 +143,8 @@ Tenés acceso a estas tools deterministas con la fuente de verdad canónica de D
 
 **Regla absoluta**: si vas a mencionar la relación entre una puerta y un canal (o entre una puerta y un centro), DEBES llamar la tool correspondiente PRIMERO y citar el resultado. NO afirmes esas relaciones de memoria — tu memoria de la tabla canónica es poco confiable y ha producido errores en producción. La tool es la única fuente válida.
 
+El contexto dinámico indica relevancia, no reemplaza las tools. Si ves un channel_id, una puerta o un centro en <user_profile>, <transits> o <impact>, usalo como pista para decidir qué consultar; no lo conviertas en nombre, explicación o relación canónica sin tool lookup.
+
 Esto aplica también cuando el usuario te corrige: si dice "Canal X no es eso", consultá las tools antes de aceptar o rebatir.
 
 # Instrucciones
@@ -189,7 +212,7 @@ ${profile.birthData ? `<birth>${formatBirthForPrompt(profile.birthData)}</birth>
   <authority>${hd.authority}</authority>
   <profile>${hd.profile}</profile>
   <definition>${hd.definition}</definition>${hd.incarnationCross ? `\n  <incarnation_cross>${hd.incarnationCross}</incarnation_cross>` : ""}${hd.notSelfTheme ? `\n  <not_self_theme>${hd.notSelfTheme}</not_self_theme>` : ""}${hasVariable ? `\n  <variable>${hd.variable || "—"}${variableDetails.length ? ` (${variableDetails.join(" | ")})` : ""}</variable>` : ""}
-  <natal_channels>${hd.channels.map((c) => `${c.name} (${c.id})`).join(", ") || "—"}</natal_channels>${hasGates ? `\n  <personality_gates>${gatesPersonality.map((g) => `${g.number}.${g.line} via ${g.planet}`).join(", ") || "—"}</personality_gates>\n  <design_gates>${gatesDesign.map((g) => `${g.number}.${g.line} via ${g.planet}`).join(", ") || "—"}</design_gates>` : ""}
+  <natal_channel_ids>${hd.channels.map((c) => c.id).join(", ") || "—"}</natal_channel_ids>${hasGates ? `\n  <personality_gates>${gatesPersonality.map((g) => `${g.number}.${g.line} via ${g.planet}`).join(", ") || "—"}</personality_gates>\n  <design_gates>${gatesDesign.map((g) => `${g.number}.${g.line} via ${g.planet}`).join(", ") || "—"}</design_gates>` : ""}
   <defined_centers>${hd.definedCenters.join(", ") || "—"}</defined_centers>
   <undefined_centers>${hd.undefinedCenters.join(", ") || "—"}</undefined_centers>
 </human_design>
@@ -199,15 +222,15 @@ ${profile.birthData ? `<birth>${formatBirthForPrompt(profile.birthData)}</birth>
 
 <transits week="${transits.weekRange}" calculated="${transits.fetchedAt}" source="Swiss Ephemeris">
 ${transits.planets.map((p) => `<planet name="${p.name}" sign="${p.sign}" degree="${p.degree}" retrograde="${p.isRetrograde}" hd_gate="${p.hdGate}" hd_line="${p.hdLine}" />`).join("\n")}
-<activated_channels>${transits.activatedChannels.length ? transits.activatedChannels.join(", ") : "Ninguno esta semana"}</activated_channels>
+<activated_channel_ids>${formatChannelIdHints(transits.activatedChannels)}</activated_channel_ids>
 </transits>`;
 
   const impactBlock = impact ? `
 
 <impact>
-<personal_channels>
-${impact.personalChannels.map((c) => `- ${c.channelName} (${c.channelId}): Puerta del usuario ${c.userGate} + ${c.transitPlanet} en Puerta ${c.transitGate}`).join("\n") || "- Ninguno esta semana"}
-</personal_channels>
+<personal_channel_activations>
+${impact.personalChannels.map((c) => `- channel_id="${c.channelId}" user_gate="${c.userGate}" transit_planet="${c.transitPlanet}" transit_gate="${c.transitGate}"`).join("\n") || "- Ninguno esta semana"}
+</personal_channel_activations>
 <conditioned_centers>
 ${impact.conditionedCenters.map((c) => `- ${c.center}: ${c.gates.map((g) => `${g.planet} en Puerta ${g.gate}`).join(", ")}`).join("\n") || "- Ninguno esta semana"}
 </conditioned_centers>

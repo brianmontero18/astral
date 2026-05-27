@@ -70,8 +70,8 @@ Default actual: `gpt-4o-mini` vía Vercel AI SDK + tools HD. El routing de model
 │  │   8. <user_profile> (su HD)                          │            │
 │  │   9. <business_context> (intake)                     │            │
 │  │  10. <user_memory> (memory_md)                       │            │
-│  │  11. <transits> (semana actual)                      │            │
-│  │  12. <impact> (cruce HD × transits)                  │            │
+│  │  11. <transits> (semana actual + channel IDs)        │            │
+│  │  12. <impact> (hints mínimos; nombres vía tools)     │            │
 │  └─────────────────────────────────────────────────────┘            │
 │                                                                       │
 │  REGISTRA 5 TOOLS (Zod schemas + descriptions):                      │
@@ -199,6 +199,8 @@ Default actual: `gpt-4o-mini` vía Vercel AI SDK + tools HD. El routing de model
 │      9 detection rules · Política de salida chat vs informe      │
 │   ── User context (dinámico) ───────────────                     │
 │      Profile · Intake · Memory · Transits · Impact               │
+│      Los canales viajan como IDs/hints; nombres/relaciones        │
+│      canónicas se resuelven con tools.                            │
 │   ── Tools deterministas ───────────────────                     │
 │      hdTools (5) sobre HD_CHANNELS_FULL y GATE_TO_CENTER         │
 │   ── Memory layer ──────────────────────────                     │

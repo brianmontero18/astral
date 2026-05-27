@@ -167,3 +167,54 @@ describe("buildSystemPromptV2 output policy", () => {
     expect(prompt).toContain("No uses la plantilla fija de 7 secciones");
   });
 });
+
+describe("buildSystemPromptV2 tool-compliance hints", () => {
+  it("normalizes known transit channel names to ids without leaking the label", () => {
+    const transits: WeeklyTransits = {
+      ...TRANSITS_A,
+      activatedChannels: ["Canal de Inspiración"],
+    };
+
+    const prompt = buildSystemPromptV2(BASE_PROFILE, transits);
+
+    expect(prompt).toContain("<activated_channel_ids>1-8</activated_channel_ids>");
+    expect(prompt).not.toContain("<activated_channels>");
+    expect(prompt).not.toContain("Canal de Inspiración");
+  });
+
+  it("does not leak channel names from dynamic context as ready-to-use facts", () => {
+    const profile: UserProfile = {
+      ...BASE_PROFILE,
+      humanDesign: {
+        ...BASE_PROFILE.humanDesign,
+        channels: [{ id: "1-8", name: "LEAK_NATAL_CHANNEL", circuit: "Individual" }],
+      },
+    };
+    const transits: WeeklyTransits = {
+      ...TRANSITS_A,
+      activatedChannels: ["LEAK_TRANSIT_CHANNEL"],
+    };
+    const impact: TransitImpact = {
+      ...IMPACT,
+      personalChannels: [
+        {
+          channelId: "1-8",
+          channelName: "LEAK_IMPACT_CHANNEL",
+          userGate: 1,
+          transitGate: 8,
+          transitPlanet: "Sol",
+        },
+      ],
+    };
+
+    const prompt = buildSystemPromptV2(profile, transits, impact);
+
+    expect(prompt).not.toContain("LEAK_NATAL_CHANNEL");
+    expect(prompt).not.toContain("LEAK_TRANSIT_CHANNEL");
+    expect(prompt).not.toContain("LEAK_IMPACT_CHANNEL");
+    expect(prompt).toContain("<natal_channel_ids>1-8</natal_channel_ids>");
+    expect(prompt).toContain("<activated_channel_ids>—</activated_channel_ids>");
+    expect(prompt).toContain("channel_id=\"1-8\"");
+    expect(prompt).toContain("contexto dinámico indica relevancia");
+  });
+});
