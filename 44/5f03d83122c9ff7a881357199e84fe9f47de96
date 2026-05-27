@@ -1,0 +1,30 @@
+backend/src/__tests__/prompt-cache-discipline.test.ts
+  s_1970642029acbb::t_91cfc852545adc 170-171,185-220
+  s_1970642029acbb::t_a17f0f01961f9a 172-184
+backend/scripts/prod-audits/README.md
+  s_1970642029acbb::t_aeb569ef068f46 58-60,82-90
+docs/architecture/chat-llm-system.md
+  s_1970642029acbb::t_1b3b3712a80b1a 73-74,202-203
+backend/src/__tests__/anti-hallucination-hd.test.ts
+  s_1970642029acbb::t_976c5164cfb351 20,25,135-147,172-197,326-364
+backend/scripts/prod-audits/examples/chat-hd-tool-compliance.ts
+  s_1970642029acbb::t_f51d5cea55bce6 1-108
+backend/src/agent-service-v2-prompt.ts
+  s_1970642029acbb::t_cbb0bed1a118d5 19,44-63,146-147,215,225,231-233
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "445f03d83122c9ff7a881357199e84fe9f47de96",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
