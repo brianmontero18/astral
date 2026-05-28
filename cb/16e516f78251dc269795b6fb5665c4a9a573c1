@@ -1,0 +1,23 @@
+backend/src/mcp/tools/bodygraph-app-v1.ts
+  s_73bd4594ecfd09::t_ea1615fef11835 84-94,433,468,547,549-551,560,572,574-576,586
+backend/src/__tests__/api-mcp.test.ts
+  s_73bd4594ecfd09::t_4cb70215346a9f 732,747,765,781
+backend/scripts/smoke-mcp-curl.sh
+  s_73bd4594ecfd09::t_32c7247a27ebcd 381,389
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "cb16e516f78251dc269795b6fb5665c4a9a573c1",
+  "prompts": {},
+  "sessions": {
+    "s_73bd4594ecfd09": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e6bdf-f48e-7e92-b3c2-27a0f2e65dd6",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
