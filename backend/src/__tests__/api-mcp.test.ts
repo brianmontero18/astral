@@ -17,6 +17,14 @@ const runAstralAgentStreamV2Mock = vi.fn();
 const runMemoryWriterMock = vi.fn();
 const analyzeTransitImpactMock = vi.fn();
 const getTransitSnapshotCachedMock = vi.fn();
+const autocompletePlacesMock = vi.fn();
+
+class MockPlacesProviderError extends Error {
+  constructor(message: string, public status: number) {
+    super(message);
+    this.name = "PlacesProviderError";
+  }
+}
 
 function mockAgentResult(content: string) {
   return {
@@ -58,6 +66,12 @@ vi.mock("../transit-service.js", async () => {
   };
 });
 
+vi.mock("../places/geonames.js", () => ({
+  autocompletePlaces: autocompletePlacesMock,
+  PlacesProviderError: MockPlacesProviderError,
+  __clearPlacesCacheForTesting: vi.fn(),
+}));
+
 afterEach(async () => {
   await app?.close();
   app = null;
@@ -86,6 +100,7 @@ afterEach(async () => {
   runMemoryWriterMock.mockReset();
   analyzeTransitImpactMock.mockReset();
   getTransitSnapshotCachedMock.mockReset();
+  autocompletePlacesMock.mockReset();
   vi.resetModules();
 });
 
@@ -235,6 +250,15 @@ function toolsCallBody(
   };
 }
 
+function resourcesReadBody(uri: string, id: string = "req-1") {
+  return {
+    jsonrpc: "2.0",
+    id,
+    method: "resources/read",
+    params: { uri },
+  };
+}
+
 function mcpHeaders(token: string = RAW_TOKEN) {
   return {
     authorization: `Bearer ${token}`,
@@ -245,6 +269,39 @@ function mcpHeaders(token: string = RAW_TOKEN) {
 
 function futureExpiry(): string {
   return new Date(Date.now() + 60 * 60 * 1000).toISOString();
+}
+
+async function installInMemoryR2Stub(): Promise<void> {
+  const { __setHandleForTesting } = await import("../storage/r2.js");
+  const objects = new Map<string, { body: Buffer; contentType: string }>();
+  __setHandleForTesting({
+    bucket: "test-bucket",
+    client: {
+      send: async (command: unknown) => {
+        const cmd = command as {
+          constructor?: { name?: string };
+          input?: { Key?: string; Body?: Buffer; ContentType?: string };
+        };
+        const name = cmd.constructor?.name ?? "";
+        const key = cmd.input?.Key ?? "";
+
+        if (name === "PutObjectCommand") {
+          objects.set(key, {
+            body: Buffer.isBuffer(cmd.input?.Body)
+              ? cmd.input.Body
+              : Buffer.from((cmd.input?.Body as Uint8Array | undefined) ?? []),
+            contentType: cmd.input?.ContentType ?? "application/octet-stream",
+          });
+          return {};
+        }
+        if (name === "DeleteObjectCommand") {
+          objects.delete(key);
+          return {};
+        }
+        return {};
+      },
+    },
+  });
 }
 
 describe("Remote MCP route", () => {
@@ -499,7 +556,7 @@ describe("Remote MCP route", () => {
     expect(toolNames).not.toContain("get_center_for_gate_v1");
   });
 
-  it("lists deterministic HD tools, but not ask_astral_guide_v1, for a read-only mcp:read_hd client", async () => {
+  it("lists read-HD tools, but not write bodygraph or ask tools, for a read-only mcp:read_hd client", async () => {
     const harness = await buildMcpTestApp(true);
     const db = await import("../db.js");
     await seedMcpAccess(db, {
@@ -525,6 +582,9 @@ describe("Remote MCP route", () => {
       "get_center_for_gate_v1",
     ]);
     expect(toolNames).not.toContain("ask_astral_guide_v1");
+    expect(toolNames).not.toContain("create_my_bodygraph_from_birth_v1");
+    expect(toolNames).not.toContain("open_bodygraph_form_v1");
+    expect(toolNames).not.toContain("search_birth_places_v1");
     expect(body.result.tools).toContainEqual(
       expect.objectContaining({
         name: "find_channel_by_gates_v1",
@@ -534,6 +594,1046 @@ describe("Remote MCP route", () => {
         }),
       }),
     );
+  });
+
+  it("lists and reads read-HD MCP resources for a read-HD client", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    const { userId } = await seedMcpAccess(db, {
+      tokenScopes: ["mcp:read_hd"],
+      consentScopes: ["mcp:read_hd"],
+    });
+
+    const listRes = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: jsonRpcBody("resources/list", "req-resources"),
+    });
+    expect(listRes.statusCode).toBe(200);
+    const listBody = JSON.parse(listRes.body);
+    const resourceUris = listBody.result.resources.map((resource: { uri: string }) => resource.uri);
+    expect(resourceUris).not.toContain("ui://astral/bodygraph-form-v1.html");
+    expect(listBody.result.resources).toContainEqual(
+      expect.objectContaining({
+        uri: "astral://bodygraph/active/full-svg",
+        mimeType: "image/svg+xml",
+      }),
+    );
+    expect(listBody.result.resources).toContainEqual(
+      expect.objectContaining({
+        uri: "astral://bodygraph/active/pdf",
+        mimeType: "application/pdf",
+      }),
+    );
+
+    const svgRes = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: resourcesReadBody("astral://bodygraph/active/full-svg", "req-svg"),
+    });
+    expect(svgRes.statusCode).toBe(200);
+    expect(JSON.parse(svgRes.body)).toMatchObject({
+      jsonrpc: "2.0",
+      id: "req-svg",
+      result: {
+        contents: [
+          {
+            uri: "astral://bodygraph/active/full-svg",
+            mimeType: "image/svg+xml",
+            text: expect.stringContaining("<svg"),
+          },
+        ],
+      },
+    });
+
+    const pdfRes = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: resourcesReadBody("astral://bodygraph/active/pdf", "req-pdf"),
+    });
+    expect(pdfRes.statusCode).toBe(200);
+    const pdfBody = JSON.parse(pdfRes.body);
+    expect(pdfBody).toMatchObject({
+      jsonrpc: "2.0",
+      id: "req-pdf",
+      result: {
+        contents: [
+          {
+            uri: "astral://bodygraph/active/pdf",
+            mimeType: "application/pdf",
+          },
+        ],
+      },
+    });
+    expect(pdfBody.result.contents[0].blob).toEqual(expect.stringMatching(/^JVBER/));
+    expect(await db.getMcpAuditEventsForUser(userId)).toEqual([
+      expect.objectContaining({
+        event: "resource_read_started",
+        tool_name: "astral://bodygraph/active/full-svg",
+        side_effects_mode: "mcp_read_only",
+        status: "success",
+      }),
+      expect.objectContaining({
+        event: "resource_read_completed",
+        tool_name: "astral://bodygraph/active/full-svg",
+        side_effects_mode: "mcp_read_only",
+        status: "success",
+      }),
+      expect.objectContaining({
+        event: "resource_read_started",
+        tool_name: "astral://bodygraph/active/pdf",
+        side_effects_mode: "mcp_read_only",
+        status: "success",
+      }),
+      expect.objectContaining({
+        event: "resource_read_completed",
+        tool_name: "astral://bodygraph/active/pdf",
+        side_effects_mode: "mcp_read_only",
+        status: "success",
+      }),
+    ]);
+  });
+
+  it("rejects resource reads when the token lacks the resource scope", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    await seedMcpAccess(db, {
+      tokenScopes: ["mcp:read_hd"],
+      consentScopes: ["mcp:read_hd"],
+    });
+
+    const res = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: resourcesReadBody("ui://astral/bodygraph-form-v1.html", "req-form-denied"),
+    });
+
+    expect(res.statusCode).toBe(403);
+    expect(JSON.parse(res.body)).toEqual({
+      jsonrpc: "2.0",
+      id: "req-form-denied",
+      error: {
+        code: -32006,
+        message: "insufficient_scope",
+        data: {
+          requiredScopes: ["mcp:write_bodygraph"],
+        },
+      },
+    });
+  });
+
+  it("returns no_active_bodygraph when reading active bodygraph resources without a chart", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    await seedMcpAccess(db, {
+      profile: {
+        name: "No Chart User",
+        humanDesign: {
+          channels: [],
+          activatedGates: [],
+          definedCenters: [],
+        },
+      },
+      tokenScopes: ["mcp:read_hd"],
+      consentScopes: ["mcp:read_hd"],
+    });
+
+    const res = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: resourcesReadBody("astral://bodygraph/active/full-svg", "req-no-chart"),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toEqual({
+      jsonrpc: "2.0",
+      id: "req-no-chart",
+      error: {
+        code: -32019,
+        message: "no_active_bodygraph",
+      },
+    });
+  });
+
+  it("rate limits active bodygraph resource reads with the resource-read budget event", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    const { userId, clientId } = await seedMcpAccess(db, {
+      tokenScopes: ["mcp:read_hd"],
+      consentScopes: ["mcp:read_hd"],
+    });
+    for (let i = 0; i < 100; i += 1) {
+      await db.insertMcpAuditEvent({
+        userId,
+        clientId,
+        event: "resource_read_completed",
+        toolName: "astral://bodygraph/active/full-svg",
+        sideEffectsMode: "mcp_read_only",
+        status: "success",
+      });
+    }
+
+    const res = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: resourcesReadBody("astral://bodygraph/active/full-svg", "req-resource-budget"),
+    });
+
+    expect(res.statusCode).toBe(429);
+    expect(JSON.parse(res.body)).toMatchObject({
+      jsonrpc: "2.0",
+      id: "req-resource-budget",
+      error: {
+        code: -32011,
+        message: "budget_exceeded",
+        data: {
+          period: "day",
+          limit: 100,
+          used: 100,
+        },
+      },
+    });
+  });
+
+  it("returns an MCP error for unknown resources", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    await seedMcpAccess(db, {
+      tokenScopes: ["mcp:read_hd"],
+      consentScopes: ["mcp:read_hd"],
+    });
+
+    const res = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: resourcesReadBody("astral://bodygraph/missing", "req-missing-resource"),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toEqual({
+      jsonrpc: "2.0",
+      id: "req-missing-resource",
+      error: {
+        code: -32602,
+        message: "Unknown resource",
+        data: {
+          uri: "astral://bodygraph/missing",
+        },
+      },
+    });
+  });
+
+  it("lists write bodygraph tools and form resource only for mcp:write_bodygraph clients", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    await seedMcpAccess(db, {
+      tokenScopes: ["mcp:read_hd", "mcp:write_bodygraph"],
+      consentScopes: ["mcp:read_hd", "mcp:write_bodygraph"],
+    });
+
+    const toolsRes = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: jsonRpcBody("tools/list", "req-tools-write"),
+    });
+    expect(toolsRes.statusCode).toBe(200);
+    const toolsBody = JSON.parse(toolsRes.body);
+    const toolNames = toolsBody.result.tools.map((tool: { name: string }) => tool.name).sort();
+    expect(toolNames).toEqual([
+      "create_my_bodygraph_from_birth_v1",
+      "find_channel_by_gates_v1",
+      "find_channels_by_gate_v1",
+      "get_center_for_gate_v1",
+      "open_bodygraph_form_v1",
+      "search_birth_places_v1",
+    ]);
+    expect(toolsBody.result.tools).toContainEqual(
+      expect.objectContaining({
+        name: "open_bodygraph_form_v1",
+        outputSchema: expect.objectContaining({ type: "object" }),
+        annotations: expect.objectContaining({
+          readOnlyHint: true,
+          destructiveHint: false,
+        }),
+        _meta: expect.objectContaining({
+          ui: { resourceUri: "ui://astral/bodygraph-form-v1.html" },
+          "openai/outputTemplate": "ui://astral/bodygraph-form-v1.html",
+        }),
+      }),
+    );
+    expect(toolsBody.result.tools).toContainEqual(
+      expect.objectContaining({
+        name: "create_my_bodygraph_from_birth_v1",
+        annotations: expect.objectContaining({
+          readOnlyHint: false,
+          destructiveHint: true,
+        }),
+        _meta: expect.objectContaining({
+          "openai/widgetAccessible": true,
+        }),
+      }),
+    );
+    expect(toolsBody.result.tools).toContainEqual(
+      expect.objectContaining({
+        name: "search_birth_places_v1",
+        _meta: expect.objectContaining({
+          "openai/widgetAccessible": true,
+        }),
+      }),
+    );
+
+    const resourcesRes = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: jsonRpcBody("resources/list", "req-resources-write"),
+    });
+    expect(resourcesRes.statusCode).toBe(200);
+    expect(JSON.parse(resourcesRes.body).result.resources).toContainEqual(
+      expect.objectContaining({
+        uri: "ui://astral/bodygraph-form-v1.html",
+        mimeType: "text/html;profile=mcp-app",
+      }),
+    );
+
+    const formRes = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: resourcesReadBody("ui://astral/bodygraph-form-v1.html"),
+    });
+    expect(formRes.statusCode).toBe(200);
+    expect(JSON.parse(formRes.body)).toMatchObject({
+      jsonrpc: "2.0",
+      id: "req-1",
+      result: {
+        contents: [
+          {
+            uri: "ui://astral/bodygraph-form-v1.html",
+            mimeType: "text/html;profile=mcp-app",
+            text: expect.stringContaining("create_my_bodygraph_from_birth_v1"),
+          },
+        ],
+      },
+    });
+    const formHtml = JSON.parse(formRes.body).result.contents[0].text;
+    const formMeta = JSON.parse(formRes.body).result.contents[0]._meta;
+    expect(formMeta).toMatchObject({
+      ui: {
+        csp: {
+          resourceDomains: ["https://cdn.jsdelivr.net"],
+        },
+      },
+      "openai/widgetCSP": {
+        resource_domains: ["https://cdn.jsdelivr.net"],
+      },
+    });
+    expect(formHtml).toContain("@modelcontextprotocol/ext-apps");
+    expect(formHtml).toContain("App");
+    expect(formHtml).toContain("callServerTool");
+    expect(formHtml).toContain("mcpRpc(\"tools/call\"");
+    expect(formHtml).toContain("window.openai.callTool");
+    expect(formHtml).toContain("confirmReplace: state.hasActiveBodygraph === true");
+    expect(formHtml).toContain("confirmText.textContent = state.hasActiveBodygraph ? destructiveConfirmCopy : firstChartConfirmCopy");
+    expect(formHtml).toContain("confirmInput.checked = false");
+    expect(formHtml).toContain("Si ya existe una carta activa");
+    expect(formHtml).toContain("limpia chat, memoria, contexto e informes");
+  });
+
+  it("renders non-destructive form copy for users without an active bodygraph", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    await seedMcpAccess(db, {
+      tokenScopes: ["mcp:write_bodygraph"],
+      consentScopes: ["mcp:write_bodygraph"],
+      profile: {
+        name: "No Chart User",
+        humanDesign: {
+          channels: [],
+          activatedGates: [],
+          definedCenters: [],
+        },
+      },
+    });
+
+    const formRes = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: resourcesReadBody("ui://astral/bodygraph-form-v1.html"),
+    });
+
+    expect(formRes.statusCode).toBe(200);
+    const formHtml = JSON.parse(formRes.body).result.contents[0].text;
+    expect(formHtml).toContain("hasActiveBodygraph: false");
+    expect(formHtml).toContain("<span id=\"confirm-text\">Confirmo que quiero guardar esta carta como activa en Astral.</span>");
+    expect(formHtml).not.toContain("<span id=\"confirm-text\">Confirmo que quiero guardar esta carta como activa. Si ya existe una carta activa");
+  });
+
+  it("forces a fresh destructive confirmation when backend reports stale active-bodygraph state", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    await seedMcpAccess(db, {
+      tokenScopes: ["mcp:write_bodygraph"],
+      consentScopes: ["mcp:write_bodygraph"],
+      profile: {
+        name: "No Chart User",
+        humanDesign: {
+          channels: [],
+          activatedGates: [],
+          definedCenters: [],
+        },
+      },
+    });
+
+    const formRes = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: resourcesReadBody("ui://astral/bodygraph-form-v1.html"),
+    });
+
+    expect(formRes.statusCode).toBe(200);
+    const formHtml = JSON.parse(formRes.body).result.contents[0].text;
+    expect(formHtml).toContain("hasActiveBodygraph: false");
+    expect(formHtml).toContain("confirmText.textContent = state.hasActiveBodygraph ? destructiveConfirmCopy : firstChartConfirmCopy");
+    expect(formHtml).toContain("status === \"confirmation_required\"");
+    expect(formHtml).toContain("confirmInput.checked = false");
+  });
+
+  it("renders destructive replacement copy when only profile_asset_id marks the active bodygraph", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    const { userId } = await seedMcpAccess(db, {
+      tokenScopes: ["mcp:write_bodygraph"],
+      consentScopes: ["mcp:write_bodygraph"],
+      profile: {
+        name: "Legacy Asset User",
+        humanDesign: {
+          channels: [],
+          activatedGates: [],
+          definedCenters: [],
+        },
+      },
+    });
+    await installInMemoryR2Stub();
+    const assetId = await db.createAsset(
+      userId,
+      "legacy-active-chart.pdf",
+      "application/pdf",
+      "hd",
+      Buffer.from("%PDF-legacy"),
+    );
+    const user = await db.getUser(userId);
+    await db.updateUserBodygraph(userId, user!.profile, assetId);
+
+    const formRes = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: resourcesReadBody("ui://astral/bodygraph-form-v1.html"),
+    });
+
+    expect(formRes.statusCode).toBe(200);
+    const formHtml = JSON.parse(formRes.body).result.contents[0].text;
+    expect(formHtml).toContain("hasActiveBodygraph: true");
+    expect(formHtml).toContain("Si ya existe una carta activa");
+    expect(formHtml).toContain("limpia chat, memoria, contexto e informes");
+  });
+
+  it("opens the bodygraph form through a tool result for MCP Apps hosts", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    await seedMcpAccess(db, {
+      tokenScopes: ["mcp:read_hd", "mcp:write_bodygraph"],
+      consentScopes: ["mcp:read_hd", "mcp:write_bodygraph"],
+    });
+
+    const res = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: toolsCallBody("open_bodygraph_form_v1", {}),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toMatchObject({
+      jsonrpc: "2.0",
+      id: "req-1",
+      result: {
+        content: [
+          {
+            type: "text",
+            text: expect.stringContaining("create_my_bodygraph_from_birth_v1"),
+          },
+        ],
+        structuredContent: {
+          status: "form_ready",
+          uiResourceUri: "ui://astral/bodygraph-form-v1.html",
+          model: "v1_single_active_chart",
+        },
+        _meta: {
+          ui: {
+            resourceUri: "ui://astral/bodygraph-form-v1.html",
+          },
+          "openai/outputTemplate": "ui://astral/bodygraph-form-v1.html",
+        },
+      },
+    });
+  });
+
+  it("blocks direct write bodygraph tool calls from read-HD-only tokens", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    const { userId } = await seedMcpAccess(db, {
+      tokenScopes: ["mcp:read_hd"],
+      consentScopes: ["mcp:read_hd"],
+    });
+
+    for (const payload of [
+      toolsCallBody("open_bodygraph_form_v1", {}, "req-open-denied"),
+      toolsCallBody("search_birth_places_v1", { q: "Buenos Aires" }, "req-search-denied"),
+      toolsCallBody("create_my_bodygraph_from_birth_v1", {
+        name: "Should Not Save",
+        date: "1989-02-18",
+        time: "09:00",
+        place: { lat: -34.6037, lon: -58.3816, label: "Buenos Aires, Argentina" },
+        confirmReplace: true,
+      }, "req-create-denied"),
+    ]) {
+      const res = await harness.app.inject({
+        method: "POST",
+        url: "/api/mcp/v1",
+        headers: mcpHeaders(),
+        payload,
+      });
+
+      expect(res.statusCode).toBe(403);
+      expect(JSON.parse(res.body)).toMatchObject({
+        error: {
+          code: -32006,
+          message: "insufficient_scope",
+          data: {
+            requiredScopes: ["mcp:write_bodygraph"],
+          },
+        },
+      });
+    }
+
+    const user = await db.getUser(userId);
+    expect(user?.name).toBe("MCP Route User");
+  });
+
+  it("searches birth places through the MCP form tool", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    await seedMcpAccess(db, {
+      tokenScopes: ["mcp:write_bodygraph"],
+      consentScopes: ["mcp:write_bodygraph"],
+    });
+    autocompletePlacesMock.mockResolvedValueOnce([
+      {
+        geonameId: 3435910,
+        name: "Buenos Aires",
+        admin1: "Buenos Aires F.D.",
+        country: "Argentina",
+        countryCode: "AR",
+        lat: -34.61315,
+        lon: -58.37723,
+        population: 13076300,
+      },
+    ]);
+
+    const res = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: toolsCallBody("search_birth_places_v1", {
+        q: "Buenos Aires",
+        limit: 2,
+      }),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(autocompletePlacesMock).toHaveBeenCalledWith("Buenos Aires", {
+      limit: 2,
+      lang: "es",
+    });
+    expect(JSON.parse(res.body)).toMatchObject({
+      result: {
+        structuredContent: {
+          results: [
+            {
+              name: "Buenos Aires",
+              countryCode: "AR",
+              lat: -34.61315,
+              lon: -58.37723,
+            },
+          ],
+        },
+      },
+    });
+  });
+
+  it("maps birth place provider failures to MCP tool errors", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    await seedMcpAccess(db, {
+      tokenScopes: ["mcp:write_bodygraph"],
+      consentScopes: ["mcp:write_bodygraph"],
+    });
+    autocompletePlacesMock.mockRejectedValueOnce(
+      new MockPlacesProviderError("GeoNames hourly limit", 503),
+    );
+
+    const res = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: toolsCallBody("search_birth_places_v1", {
+        q: "Buenos Aires",
+      }),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toEqual({
+      jsonrpc: "2.0",
+      id: "req-1",
+      error: {
+        code: -32016,
+        message: "places_unavailable",
+        data: {
+          message: "GeoNames hourly limit",
+        },
+      },
+    });
+  });
+
+  it("requires explicit replacement confirmation before writing an active bodygraph from MCP", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    const { userId } = await seedMcpAccess(db, {
+      tokenScopes: ["mcp:read_hd", "mcp:write_bodygraph"],
+      consentScopes: ["mcp:read_hd", "mcp:write_bodygraph"],
+      intake: {
+        actividad: "old business",
+      },
+      memory: "old memory",
+    });
+    const beforeUser = await db.getUser(userId);
+    await installInMemoryR2Stub();
+    const oldAssetId = await db.createAsset(
+      userId,
+      "old-chart.pdf",
+      "application/pdf",
+      "hd",
+      Buffer.from("%PDF-old"),
+    );
+    await db.updateUserBodygraph(userId, beforeUser!.profile, oldAssetId);
+    await db.saveChatMessage(userId, "user", "mensaje viejo");
+    const reportId = await db.saveReport({
+      id: `report-${userId}-confirm-required`,
+      userId,
+      tier: "free",
+      profileHash: "old-profile-hash",
+      content: JSON.stringify({ id: "old-report", userId, summary: "old report" }),
+      tokensUsed: 10,
+      costUsd: 0.01,
+    });
+    const shareToken = await db.createShareToken(userId, reportId);
+
+    const res = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: toolsCallBody("create_my_bodygraph_from_birth_v1", {
+        name: "Nombre No Confirmado",
+        date: "1989-02-18",
+        time: "09:00",
+        place: { lat: -34.6037, lon: -58.3816, label: "Buenos Aires, Argentina" },
+      }),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toMatchObject({
+      result: {
+        structuredContent: {
+          status: "confirmation_required",
+          hasActiveBodygraph: true,
+          requiredArgument: "confirmReplace",
+        },
+      },
+    });
+
+    const updated = await db.getUser(userId);
+    expect(updated?.name).toBe("MCP Route User");
+    expect((updated?.profile as { name?: string } | undefined)?.name).toBe("MCP Route User");
+    expect(updated?.profile_asset_id).toBe(oldAssetId);
+    expect(updated?.profile).toEqual(beforeUser?.profile);
+    expect(updated?.intake).toEqual({ actividad: "old business" });
+    expect(updated?.memory_md).toBe("old memory");
+    expect(await db.getChatMessages(userId)).toHaveLength(1);
+    expect(await db.getReport(userId, "free")).toBeDefined();
+    expect(await db.getShareByToken(shareToken)).toBeDefined();
+    expect((await db.getUserAssets(userId)).find((asset) => asset.id === oldAssetId)).toBeDefined();
+    expect(await db.getMcpAuditEventsForUser(userId)).toEqual([
+      expect.objectContaining({
+        event: "tool_call_started",
+        tool_name: "create_my_bodygraph_from_birth_v1",
+        side_effects_mode: "mcp_write_bodygraph",
+        status: "success",
+      }),
+      expect.objectContaining({
+        event: "tool_call_confirmation_required",
+        tool_name: "create_my_bodygraph_from_birth_v1",
+        side_effects_mode: "mcp_write_bodygraph",
+        status: "denied",
+      }),
+    ]);
+  });
+
+  it("rejects invalid birth date and time before calculation", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    await seedMcpAccess(db, {
+      tokenScopes: ["mcp:write_bodygraph"],
+      consentScopes: ["mcp:write_bodygraph"],
+      profile: {
+        name: "No Chart User",
+        humanDesign: {
+          channels: [],
+          activatedGates: [],
+          definedCenters: [],
+        },
+      },
+    });
+
+    for (const [payload, reason] of [
+      [
+        {
+          name: "   ",
+          date: "1989-02-18",
+          time: "09:00",
+          place: { lat: -34.6037, lon: -58.3816, label: "Buenos Aires, Argentina" },
+        },
+        "invalid_name",
+      ],
+      [
+        {
+          name: "Invalid Date",
+          date: "2026-99-99",
+          time: "09:00",
+          place: { lat: -34.6037, lon: -58.3816, label: "Buenos Aires, Argentina" },
+        },
+        "invalid_date",
+      ],
+      [
+        {
+          name: "Invalid Time",
+          date: "1989-02-18",
+          time: "99:99",
+          place: { lat: -34.6037, lon: -58.3816, label: "Buenos Aires, Argentina" },
+        },
+        "invalid_time",
+      ],
+      [
+        {
+          name: "Missing Place",
+          date: "1989-02-18",
+          time: "09:00",
+        },
+        "invalid_place",
+      ],
+      [
+        {
+          name: "Bad Latitude",
+          date: "1989-02-18",
+          time: "09:00",
+          place: { lat: -91, lon: -58.3816, label: "Buenos Aires, Argentina" },
+        },
+        "invalid_place",
+      ],
+      [
+        {
+          name: "Bad Longitude",
+          date: "1989-02-18",
+          time: "09:00",
+          place: { lat: -34.6037, lon: 181, label: "Buenos Aires, Argentina" },
+        },
+        "invalid_place",
+      ],
+      [
+        {
+          name: "Bad Place Label",
+          date: "1989-02-18",
+          time: "09:00",
+          place: { lat: -34.6037, lon: -58.3816, label: " " },
+        },
+        "invalid_place",
+      ],
+    ] as const) {
+      const res = await harness.app.inject({
+        method: "POST",
+        url: "/api/mcp/v1",
+        headers: mcpHeaders(),
+        payload: toolsCallBody("create_my_bodygraph_from_birth_v1", payload, `req-${reason}`),
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(JSON.parse(res.body)).toMatchObject({
+        id: `req-${reason}`,
+        error: {
+          code: -32602,
+          message: "Invalid params",
+          data: {
+            reason,
+          },
+        },
+      });
+    }
+  });
+
+  it("creates the first active bodygraph from MCP without replacement wipe", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    const { userId } = await seedMcpAccess(db, {
+      userName: "Original Account Name",
+      tokenScopes: ["mcp:read_hd", "mcp:write_bodygraph"],
+      consentScopes: ["mcp:read_hd", "mcp:write_bodygraph"],
+      profile: {
+        name: "No Chart User",
+        humanDesign: {
+          channels: [],
+          activatedGates: [],
+          definedCenters: [],
+        },
+      },
+      intake: {
+        actividad: "active intake",
+      },
+      memory: "existing memory",
+    });
+    await db.saveChatMessage(userId, "user", "mensaje previo sin carta activa");
+    await installInMemoryR2Stub();
+    const detachedAssetId = await db.createAsset(
+      userId,
+      "detached-note.pdf",
+      "application/pdf",
+      "report",
+      Buffer.from("%PDF-detached"),
+    );
+    const reportId = await db.saveReport({
+      id: `report-${userId}-first-chart`,
+      userId,
+      tier: "free",
+      profileHash: "pre-chart-profile-hash",
+      content: JSON.stringify({ id: "first-chart-report", userId, summary: "keep me" }),
+      tokensUsed: 10,
+      costUsd: 0.01,
+    });
+    const shareToken = await db.createShareToken(userId, reportId);
+
+    const res = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: toolsCallBody("create_my_bodygraph_from_birth_v1", {
+        name: "Primera Carta MCP",
+        date: "1989-02-18",
+        time: "09:00",
+        place: { lat: -34.6037, lon: -58.3816, label: "Buenos Aires, Argentina" },
+      }),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toMatchObject({
+      result: {
+        structuredContent: {
+          status: "saved",
+          profile: {
+            name: "Primera Carta MCP",
+            activatedGateCount: 26,
+          },
+        },
+      },
+    });
+
+    const updated = await db.getUser(userId);
+    expect(updated?.name).toBe("Primera Carta MCP");
+    expect((updated?.profile as { name?: string } | undefined)?.name).toBe("Primera Carta MCP");
+    expect(updated?.intake).toEqual({ actividad: "active intake" });
+    expect(updated?.memory_md).toBe("existing memory");
+    expect(await db.getChatMessages(userId)).toHaveLength(1);
+    expect(await db.getReport(userId, "free")).toBeDefined();
+    expect(await db.getShareByToken(shareToken)).toBeDefined();
+    expect((await db.getUserAssets(userId)).find((asset) => asset.id === detachedAssetId)).toBeDefined();
+  });
+
+  it("rejects stale confirmReplace=true when no active bodygraph exists", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    const { userId } = await seedMcpAccess(db, {
+      userName: "Original Account Name",
+      tokenScopes: ["mcp:write_bodygraph"],
+      consentScopes: ["mcp:write_bodygraph"],
+      profile: {
+        name: "No Chart User",
+        humanDesign: {
+          channels: [],
+          activatedGates: [],
+          definedCenters: [],
+        },
+      },
+      intake: {
+        actividad: "keep intake",
+      },
+      memory: "keep memory",
+    });
+    await db.saveChatMessage(userId, "user", "mensaje previo");
+    const reportId = await db.saveReport({
+      id: `report-${userId}-stale-confirm`,
+      userId,
+      tier: "free",
+      profileHash: "pre-chart-profile-hash",
+      content: JSON.stringify({ id: "stale-confirm-report", userId, summary: "keep me" }),
+      tokensUsed: 10,
+      costUsd: 0.01,
+    });
+    const shareToken = await db.createShareToken(userId, reportId);
+
+    const res = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: toolsCallBody("create_my_bodygraph_from_birth_v1", {
+        name: "Should Not Save",
+        date: "1989-02-18",
+        time: "09:00",
+        place: { lat: -34.6037, lon: -58.3816, label: "Buenos Aires, Argentina" },
+        confirmReplace: true,
+      }),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toMatchObject({
+      error: {
+        code: -32602,
+        message: "Invalid params",
+        data: {
+          reason: "confirm_replace_without_active_bodygraph",
+        },
+      },
+    });
+
+    const updated = await db.getUser(userId);
+    expect(updated?.name).toBe("Original Account Name");
+    expect(updated?.profile_asset_id).toBeNull();
+    expect(updated?.intake).toEqual({ actividad: "keep intake" });
+    expect(updated?.memory_md).toBe("keep memory");
+    expect(await db.getChatMessages(userId)).toHaveLength(1);
+    expect(await db.getReport(userId, "free")).toBeDefined();
+    expect(await db.getShareByToken(shareToken)).toBeDefined();
+  });
+
+  it("replaces the active bodygraph from MCP only after confirmation and audits it as a write", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    const { userId } = await seedMcpAccess(db, {
+      tokenScopes: ["mcp:read_hd", "mcp:write_bodygraph"],
+      consentScopes: ["mcp:read_hd", "mcp:write_bodygraph"],
+      intake: {
+        actividad: "old business",
+        desafio_actual: "old challenge",
+      },
+      memory: "memoria vieja",
+    });
+
+    const beforeUser = await db.getUser(userId);
+    await installInMemoryR2Stub();
+    const oldAssetId = await db.createAsset(
+      userId,
+      "old-chart.pdf",
+      "application/pdf",
+      "hd",
+      Buffer.from("%PDF-old"),
+    );
+    await db.updateUserBodygraph(userId, beforeUser!.profile, oldAssetId);
+    await db.saveChatMessage(userId, "user", "mensaje viejo");
+    const reportId = await db.saveReport({
+      id: `report-${userId}-free`,
+      userId,
+      tier: "free",
+      profileHash: "old-profile-hash",
+      content: JSON.stringify({ id: "old-report", userId, summary: "old report" }),
+      tokensUsed: 10,
+      costUsd: 0.01,
+    });
+    const shareToken = await db.createShareToken(userId, reportId);
+
+    const res = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: toolsCallBody("create_my_bodygraph_from_birth_v1", {
+        name: "Nueva Carta MCP",
+        date: "1989-02-18",
+        time: "09:00",
+        place: { lat: -34.6037, lon: -58.3816, label: "Buenos Aires, Argentina" },
+        confirmReplace: true,
+      }),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toMatchObject({
+      result: {
+        structuredContent: {
+          status: "saved",
+          profile: {
+            name: "Nueva Carta MCP",
+            activatedGateCount: 26,
+          },
+          resources: {
+            fullSvg: "astral://bodygraph/active/full-svg",
+            pdf: "astral://bodygraph/active/pdf",
+          },
+        },
+        _meta: {
+          "openai/closeWidget": true,
+        },
+      },
+    });
+
+    const updated = await db.getUser(userId);
+    expect(updated?.name).toBe("Nueva Carta MCP");
+    expect(updated?.profile_asset_id).toBeNull();
+    expect(updated?.intake).toBeNull();
+    expect(await db.getChatMessages(userId)).toEqual([]);
+    expect(updated?.memory_md).toBe("");
+    expect(await db.getReport(userId, "free")).toBeUndefined();
+    expect(await db.getShareByToken(shareToken)).toBeUndefined();
+    expect((await db.getUserAssets(userId)).find((asset) => asset.id === oldAssetId)).toBeUndefined();
+    expect(await db.getMcpAuditEventsForUser(userId)).toEqual([
+      expect.objectContaining({
+        event: "tool_call_started",
+        tool_name: "create_my_bodygraph_from_birth_v1",
+        side_effects_mode: "mcp_write_bodygraph",
+        status: "success",
+      }),
+      expect.objectContaining({
+        event: "tool_call_completed",
+        tool_name: "create_my_bodygraph_from_birth_v1",
+        side_effects_mode: "mcp_write_bodygraph",
+        status: "success",
+      }),
+    ]);
   });
 
   it("acknowledges notifications without a JSON-RPC response body", async () => {

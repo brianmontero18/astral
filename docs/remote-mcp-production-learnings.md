@@ -7,6 +7,10 @@
 **Audiencia**: PMs tecnicos, architects y AI agents que tengan que replicar este
 patron en otra app.
 
+Nota de alcance: este doc captura el smoke real del conector Remote MCP/OAuth.
+La UI embebida MCP Apps para calcular bodygraph se agrego despues y necesita su
+propio UAT real en Claude/ChatGPT antes de considerarse validada como producto.
+
 Docs relacionados:
 
 - [`remote-mcp-oauth-connectors-genesis.md`](remote-mcp-oauth-connectors-genesis.md)
@@ -145,7 +149,7 @@ Tu app decide "que puede hacer este usuario dentro de mi producto".
                            v
                  +---------+----------+
                  | Astral tools       |
-                 | ask + HD read-only |
+                 | ask + HD deterministic + audited bodygraph write |
                  +--------------------+
 ```
 
@@ -274,7 +278,8 @@ clientes modernos que registran clientes dinamicos.
 
 No son lo mismo en esta implementacion. OAuth usa scopes estandar:
 `openid profile email offline_access`. MCP permissions (`mcp:read_hd`,
-`mcp:ask`) son permisos internos derivados del plan Astral.
+`mcp:write_bodygraph`, `mcp:ask`) son permisos internos derivados del plan
+Astral.
 
 ---
 
@@ -313,8 +318,8 @@ Los permisos de tools se derivan asi:
 
 ```text
 free    -> no MCP
-basic   -> mcp:read_hd
-premium -> mcp:read_hd + mcp:ask
+basic   -> mcp:read_hd + mcp:write_bodygraph
+premium -> mcp:read_hd + mcp:write_bodygraph + mcp:ask
 ```
 
 Esto evita que el proveedor OAuth sea la fuente de verdad de producto. WorkOS
@@ -417,7 +422,7 @@ audience/resource exacto
 firma via JWKS
 subject presente
 plan/status/onboarding internos
-tools read-only salvo ask controlado
+tools minimizadas; escrituras solo con scope dedicado, confirmacion y auditoria
 ```
 
 ---
@@ -777,7 +782,7 @@ Aceptar `application/octet-stream` y parsear como JSON si corresponde.
 | SuperTokens              | Sesion humana dentro de Astral |
 | Astral /api/mcp/v1       | Resource server MCP            |
 | Astral policy            | Plan -> permisos MCP internos  |
-| Astral tools             | ask + HD deterministic tools   |
+| Astral tools             | ask + HD deterministic + audited bodygraph write |
 | Astral audit/quota       | trazabilidad y limites         |
 +--------------------------+-------------------------------+
 ```
@@ -900,8 +905,8 @@ Astral resolves internal principal
 tools/list
   |
   +-- free    -> no MCP
-  +-- basic   -> deterministic HD read-only tools
-  +-- premium -> deterministic HD read-only tools + ask_astral_guide_v1
+  +-- basic   -> deterministic HD tools + bodygraph write tools
+  +-- premium -> deterministic HD tools + bodygraph write tools + ask_astral_guide_v1
 ```
 
 Invariant final:

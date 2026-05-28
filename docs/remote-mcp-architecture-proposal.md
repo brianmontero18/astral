@@ -37,9 +37,9 @@ Estas decisiones cierran el primer bloqueo de arquitectura. No habilitan MCP tod
 | Auth produccion | OAuth/OIDC-compatible antes de soporte consumer o ChatGPT/App publicable. La forma interna del principal queda fija desde Slice 2: `userId`, `clientId`, `scopes`, `audience`, `tokenId`. |
 | Consentimiento | Obligatorio desde Slice 2 incluso para PAT beta: `mcp_consents(user_id, client_id, scopes_json, status, created_at, revoked_at)`. Sin consentimiento activo no se listan ni ejecutan tools. |
 | Primer smoke beta | Orden: Claude Code con HTTP + bearer; Codex y Cursor si aceptan configuracion remote HTTP/OAuth-bearer en la version local; ChatGPT solo despues de OAuth real. Gemini queda research-only hasta validar soporte MCP actual. |
-| Budgets MVP | Superseded en Slice 11 para `ask_astral_guide_v1`: `mcp:ask` consume la misma cuota mensual que el chat web. Los budgets tecnicos siguen aplicando a tools read-only deterministicas: max 100 llamadas/dia y 500/mes por usuario+cliente+tool; timeout duro 45s para `ask` y 5s para deterministic tools. |
+| Budgets MVP | Superseded en Slice 11 para `ask_astral_guide_v1`: `mcp:ask` consume la misma cuota mensual que el chat web. Los budgets tecnicos siguen aplicando por tool para lecturas deterministicas y workflows MCP con efectos laterales; timeout duro 45s para `ask` y 5s para deterministic tools. |
 | Relacion con chat quota | Superseded en Slice 11: `mcp:ask` consume la cuota mensual de chat web del plan. Billing/telemetry igual debe poder atribuir costo por usuario, cliente y tool. |
-| Persistencia | MVP `mcp_read_only`: no escribe `chat_messages`, no dispara `memory_writer`, no muta profile/intake/memory. Solo audit, cost telemetry y counters. |
+| Persistencia | Superseded para Slice MCP Apps bodygraph V1: el baseline sigue siendo `mcp_read_only`, pero `mcp:write_bodygraph` puede reemplazar la carta activa unica con confirmacion explicita, wipe atomico de contexto dependiente y auditoria. No hay writes genericos ni multi-profile en V1. |
 
 Exit criteria cumplido para Slice 0:
 
@@ -334,9 +334,9 @@ Antes de emitir token debe existir consentimiento explicito:
 Scopes iniciales:
 
 ```text
-mcp:ask
 mcp:read_hd
-mcp:read_transits
+mcp:write_bodygraph
+mcp:ask
 ```
 
 Scopes diferidos para tools que revelan perfil o impacto personal:
@@ -352,7 +352,10 @@ No usar bearer permanente sin scopes para produccion. Un PAT puede servir solo p
 
 ## Side effects contract
 
-Default MVP: **`sideEffectsMode=read_only`**.
+Default MVP: **`sideEffectsMode=mcp_read_only`**. Excepcion posterior acotada:
+`mcp:write_bodygraph` usa `sideEffectsMode=mcp_write_bodygraph` solo para
+reemplazar la carta activa unica con confirmacion explicita, wipe atomico y
+auditoria.
 
 Permitido:
 
@@ -366,8 +369,9 @@ Prohibido en MVP:
 
 - escribir en `chat_messages`;
 - disparar `memory_writer`;
-- modificar profile/intake/memory;
-- subir o borrar assets;
+- modificar profile/intake/memory fuera del workflow confirmado de
+  `mcp:write_bodygraph`;
+- subir o borrar assets fuera del workflow confirmado de `mcp:write_bodygraph`;
 - ejecutar admin actions;
 - devolver prompt, `memory_md`, intake completo, profile raw o secrets.
 
@@ -390,11 +394,11 @@ Propuesta:
 
 ## Observabilidad minima
 
-Cada tool call debe registrar:
+Cada tool/resource read debe registrar:
 
 - `userId`;
 - `clientId`;
-- tool;
+- tool o resource URI;
 - scopes;
 - latency;
 - tokens in/out;
@@ -430,7 +434,7 @@ mcp_budget_exceeded
 
 1. Path versionado desde el dia 1: `/api/mcp/v1` para MVP. No registrar `/mcp/v1` ni subdominio dedicado hasta Fase 2.
 2. Feature flag default off: `FEATURE_REMOTE_MCP=false`.
-3. No write tools en MVP.
+3. No write tools genericas en MVP. Excepcion posterior: `mcp:write_bodygraph` para reemplazar la carta activa unica con confirmacion explicita, wipe atomico y auditoria.
 4. No memory raw.
 5. No `userId` enviado por cliente.
 6. No profile enviado por cliente.
@@ -441,7 +445,7 @@ mcp_budget_exceeded
 11. Respuestas minimizadas: no prompt interno, no secrets, no stack traces.
 12. Todo costo MCP debe quedar atribuible por usuario, cliente y tool.
 13. Tokens short-lived, scoped, revocables y ligados a `clientId + userId + audience`.
-14. `mcp:ask` consume la misma cuota mensual del chat web; tools read-only pueden conservar budgets tecnicos propios.
+14. `mcp:ask` consume la misma cuota mensual del chat web; cada tool MCP puede conservar budgets tecnicos propios.
 
 ---
 
@@ -495,7 +499,7 @@ El route HTTP y MCP deben ser adapters finos sobre esa funcion.
 10. Rollback = cambiar una env var.
 11. Un cliente sin consentimiento activo no puede listar ni ejecutar tools.
 12. Token expirado, wrong audience o scope insuficiente falla antes de tocar DB/LLM.
-13. Si `mcp:ask` excede cuota mensual compartida, o una tool read-only excede budget tecnico, responde error controlado sin llamar al agente.
+13. Si `mcp:ask` excede cuota mensual compartida, o una tool MCP excede budget tecnico, responde error controlado sin llamar al agente.
 14. Ninguna respuesta MCP contiene prompt, `memory_md`, intake completo, profile raw ni secrets.
 
 ---

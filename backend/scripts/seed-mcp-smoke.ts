@@ -68,7 +68,7 @@ const clientId = await createMcpClient({
 await createMcpConsent({
   userId,
   clientId,
-  scopes: ["mcp:ask", "mcp:read_hd", "mcp:read_transits"],
+  scopes: ["mcp:ask", "mcp:read_hd", "mcp:write_bodygraph"],
 });
 
 const noConsentUserId = await createUser("MCP No Consent User", profile, {
@@ -84,7 +84,7 @@ const valid = await seedToken({
   label: "valid",
   userId,
   clientId,
-  scopes: ["mcp:ask", "mcp:read_hd", "mcp:read_transits"],
+  scopes: ["mcp:ask", "mcp:read_hd", "mcp:write_bodygraph"],
 });
 const noConsent = await seedToken({
   label: "no_consent",

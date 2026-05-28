@@ -28,6 +28,7 @@ export const MCP_AUDIENCE = "astral-mcp";
 export type McpScope =
   | "mcp:ask"
   | "mcp:read_hd"
+  | "mcp:write_bodygraph"
   | "mcp:read_transits"
   | "mcp:read_profile_summary"
   | "mcp:read_personal_impact";

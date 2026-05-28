@@ -313,7 +313,64 @@ request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"tools","method":
   -H "authorization: Bearer ${VALID_TOKEN}"
 assert_status "200" "tools/list"
 assert_json "tools/list exposes ask tool for mcp:ask clients" "Array.isArray(data.result.tools) && data.result.tools.some((tool) => tool.name === 'ask_astral_guide_v1')"
+assert_json "tools/list exposes bodygraph form for write clients" "data.result.tools.some((tool) => tool.name === 'open_bodygraph_form_v1') && data.result.tools.some((tool) => tool.name === 'create_my_bodygraph_from_birth_v1')"
 pass "tools/list exposes ask tool for mcp:ask clients"
+
+request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"resources","method":"resources/list"}' \
+  -H "content-type: application/json" \
+  -H "accept: application/json, text/event-stream" \
+  -H "authorization: Bearer ${VALID_TOKEN}"
+assert_status "200" "resources/list"
+assert_json "resources/list exposes bodygraph form for write clients" "Array.isArray(data.result.resources) && data.result.resources.some((resource) => resource.uri === 'ui://astral/bodygraph-form-v1.html')"
+pass "resources/list exposes bodygraph form"
+
+request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"form-resource","method":"resources/read","params":{"uri":"ui://astral/bodygraph-form-v1.html"}}' \
+  -H "content-type: application/json" \
+  -H "accept: application/json, text/event-stream" \
+  -H "authorization: Bearer ${VALID_TOKEN}"
+assert_status "200" "bodygraph form resource"
+assert_json "bodygraph form resource contains widget call wiring" "data.result.contents[0].text.includes('@modelcontextprotocol/ext-apps') && data.result.contents[0].text.includes('callServerTool') && data.result.contents[0].text.includes('window.openai.callTool') && data.result.contents[0].text.includes('confirmReplace: state.hasActiveBodygraph === true')"
+pass "bodygraph form resource can be read"
+
+request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"open-form","method":"tools/call","params":{"name":"open_bodygraph_form_v1","arguments":{}}}' \
+  -H "content-type: application/json" \
+  -H "accept: application/json, text/event-stream" \
+  -H "authorization: Bearer ${VALID_TOKEN}"
+assert_status "200" "open bodygraph form tool"
+assert_json "open bodygraph form returns UI metadata" "data.result.structuredContent.status === 'form_ready' && data.result._meta['openai/outputTemplate'] === 'ui://astral/bodygraph-form-v1.html'"
+pass "open bodygraph form tool returns UI metadata"
+
+request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"create-confirmation","method":"tools/call","params":{"name":"create_my_bodygraph_from_birth_v1","arguments":{"name":"MCP Smoke User","date":"1989-02-18","time":"09:00","place":{"lat":-34.6037,"lon":-58.3816,"label":"Buenos Aires, Argentina"}}}}' \
+  -H "content-type: application/json" \
+  -H "accept: application/json, text/event-stream" \
+  -H "authorization: Bearer ${VALID_TOKEN}"
+assert_status "200" "create bodygraph requires confirmation"
+assert_json "create bodygraph returns confirmation_required before replace" "data.result.structuredContent.status === 'confirmation_required' && data.result.structuredContent.requiredArgument === 'confirmReplace'"
+pass "create bodygraph requires explicit replacement confirmation"
+
+request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"create-confirmed","method":"tools/call","params":{"name":"create_my_bodygraph_from_birth_v1","arguments":{"name":"MCP Smoke User","date":"1989-02-18","time":"09:00","place":{"lat":-34.6037,"lon":-58.3816,"label":"Buenos Aires, Argentina"},"confirmReplace":true}}}' \
+  -H "content-type: application/json" \
+  -H "accept: application/json, text/event-stream" \
+  -H "authorization: Bearer ${VALID_TOKEN}"
+assert_status "200" "confirmed bodygraph write"
+assert_json "confirmed bodygraph write saves active chart" "data.result.structuredContent.status === 'saved' && data.result.structuredContent.resources.fullSvg === 'astral://bodygraph/active/full-svg' && data.result.structuredContent.resources.pdf === 'astral://bodygraph/active/pdf'"
+pass "confirmed bodygraph write saves active chart"
+
+request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"active-svg","method":"resources/read","params":{"uri":"astral://bodygraph/active/full-svg"}}' \
+  -H "content-type: application/json" \
+  -H "accept: application/json, text/event-stream" \
+  -H "authorization: Bearer ${VALID_TOKEN}"
+assert_status "200" "active bodygraph SVG resource"
+assert_json "active bodygraph SVG resource renders" "data.result.contents[0].mimeType === 'image/svg+xml' && data.result.contents[0].text.includes('<svg')"
+pass "active bodygraph SVG resource renders"
+
+request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"active-pdf","method":"resources/read","params":{"uri":"astral://bodygraph/active/pdf"}}' \
+  -H "content-type: application/json" \
+  -H "accept: application/json, text/event-stream" \
+  -H "authorization: Bearer ${VALID_TOKEN}"
+assert_status "200" "active bodygraph PDF resource"
+assert_json "active bodygraph PDF resource renders" "data.result.contents[0].mimeType === 'application/pdf' && /^JVBER/.test(data.result.contents[0].blob)"
+pass "active bodygraph PDF resource renders"
 
 request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"call","method":"tools/call","params":{"name":"ask_astral_guide_v1","arguments":{"question":"hello"}}}' \
   -H "content-type: application/json" \
@@ -329,8 +386,17 @@ request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"read-only-tools"
   -H "authorization: Bearer ${READ_ONLY_TOKEN}"
 assert_status "200" "read-only tools/list"
 assert_json "read-only token does not list ask" "Array.isArray(data.result.tools) && !data.result.tools.some((tool) => tool.name === 'ask_astral_guide_v1')"
+assert_json "read-only token does not list write bodygraph tools" "!data.result.tools.some((tool) => tool.name === 'create_my_bodygraph_from_birth_v1') && !data.result.tools.some((tool) => tool.name === 'open_bodygraph_form_v1') && !data.result.tools.some((tool) => tool.name === 'search_birth_places_v1')"
 assert_json "read-only token lists deterministic HD tool" "data.result.tools.some((tool) => tool.name === 'get_center_for_gate_v1')"
 pass "read-only token lists deterministic HD tools without ask"
+
+request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"read-only-create-denied","method":"tools/call","params":{"name":"create_my_bodygraph_from_birth_v1","arguments":{"name":"Denied","date":"1989-02-18","time":"09:00","place":{"lat":-34.6037,"lon":-58.3816,"label":"Buenos Aires, Argentina"},"confirmReplace":true}}}' \
+  -H "content-type: application/json" \
+  -H "accept: application/json, text/event-stream" \
+  -H "authorization: Bearer ${READ_ONLY_TOKEN}"
+assert_status "403" "read-only token cannot create bodygraph"
+assert_json "read-only token cannot call bodygraph write tool" "data.error.code === -32006 && data.error.message === 'insufficient_scope' && data.error.data.requiredScopes.includes('mcp:write_bodygraph')"
+pass "read-only token cannot call bodygraph write tool"
 
 request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"read-only-hd-call","method":"tools/call","params":{"name":"get_center_for_gate_v1","arguments":{"gate":1}}}' \
   -H "content-type: application/json" \

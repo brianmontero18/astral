@@ -74,7 +74,7 @@ export interface AppUserIdentityRecord {
 export type McpClientStatus = "active" | "disabled";
 export type McpConsentStatus = "active" | "revoked";
 export type McpAuditStatus = "success" | "error" | "denied";
-export type McpSideEffectsMode = "mcp_read_only";
+export type McpSideEffectsMode = "mcp_read_only" | "mcp_write_bodygraph";
 
 export interface McpTokenAuthRecord {
   id: string;
@@ -406,7 +406,7 @@ export async function createMcpAuthSchemaIfMissing(c: Client): Promise<void> {
         token_id          TEXT DEFAULT NULL REFERENCES mcp_tokens(id) ON DELETE SET NULL,
         event             TEXT NOT NULL,
         tool_name         TEXT DEFAULT NULL,
-        side_effects_mode TEXT DEFAULT NULL CHECK(side_effects_mode IS NULL OR side_effects_mode IN ('mcp_read_only')),
+        side_effects_mode TEXT DEFAULT NULL CHECK(side_effects_mode IS NULL OR side_effects_mode IN ('mcp_read_only','mcp_write_bodygraph')),
         status            TEXT NOT NULL CHECK(status IN ('success','error','denied')),
         metadata_json     TEXT DEFAULT NULL CHECK(metadata_json IS NULL OR json_valid(metadata_json)),
         created_at        TEXT NOT NULL DEFAULT (datetime('now'))
@@ -416,6 +416,45 @@ export async function createMcpAuthSchemaIfMissing(c: Client): Promise<void> {
       "CREATE UNIQUE INDEX IF NOT EXISTS idx_mcp_consents_active_user_client ON mcp_consents(user_id, client_id) WHERE status = 'active' AND revoked_at IS NULL",
       "CREATE INDEX IF NOT EXISTS idx_mcp_tokens_user_client ON mcp_tokens(user_id, client_id)",
       "CREATE INDEX IF NOT EXISTS idx_mcp_tokens_expires ON mcp_tokens(expires_at)",
+      "CREATE INDEX IF NOT EXISTS idx_mcp_audit_user_client_created ON mcp_audit_events(user_id, client_id, created_at)",
+      "CREATE INDEX IF NOT EXISTS idx_mcp_audit_token_created ON mcp_audit_events(token_id, created_at)",
+    ],
+    "write",
+  );
+
+  await migrateMcpAuditSideEffectsMode(c);
+}
+
+async function migrateMcpAuditSideEffectsMode(c: Client): Promise<void> {
+  const table = await c.execute({
+    sql: "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'mcp_audit_events'",
+    args: [],
+  });
+  const createSql = typeof table.rows[0]?.sql === "string" ? table.rows[0].sql : "";
+  if (!createSql || createSql.includes("mcp_write_bodygraph")) {
+    return;
+  }
+
+  await c.batch(
+    [
+      `CREATE TABLE mcp_audit_events_new (
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id           TEXT DEFAULT NULL REFERENCES users(id) ON DELETE SET NULL,
+        client_id         TEXT DEFAULT NULL REFERENCES mcp_clients(id) ON DELETE SET NULL,
+        token_id          TEXT DEFAULT NULL REFERENCES mcp_tokens(id) ON DELETE SET NULL,
+        event             TEXT NOT NULL,
+        tool_name         TEXT DEFAULT NULL,
+        side_effects_mode TEXT DEFAULT NULL CHECK(side_effects_mode IS NULL OR side_effects_mode IN ('mcp_read_only','mcp_write_bodygraph')),
+        status            TEXT NOT NULL CHECK(status IN ('success','error','denied')),
+        metadata_json     TEXT DEFAULT NULL CHECK(metadata_json IS NULL OR json_valid(metadata_json)),
+        created_at        TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `INSERT INTO mcp_audit_events_new
+        (id, user_id, client_id, token_id, event, tool_name, side_effects_mode, status, metadata_json, created_at)
+       SELECT id, user_id, client_id, token_id, event, tool_name, side_effects_mode, status, metadata_json, created_at
+       FROM mcp_audit_events`,
+      "DROP TABLE mcp_audit_events",
+      "ALTER TABLE mcp_audit_events_new RENAME TO mcp_audit_events",
       "CREATE INDEX IF NOT EXISTS idx_mcp_audit_user_client_created ON mcp_audit_events(user_id, client_id, created_at)",
       "CREATE INDEX IF NOT EXISTS idx_mcp_audit_token_created ON mcp_audit_events(token_id, created_at)",
     ],
@@ -924,10 +963,18 @@ export async function updateUserBodygraph(
   id: string,
   profile: object,
   profileAssetId: string | null,
+  displayName?: string,
 ): Promise<boolean> {
+  const name = typeof displayName === "string" && displayName.trim().length > 0
+    ? displayName.trim()
+    : null;
   const result = await client.execute({
-    sql: "UPDATE users SET profile = ?, profile_asset_id = ?, updated_at = datetime('now') WHERE id = ?",
-    args: [JSON.stringify(profile), profileAssetId, id],
+    sql: name
+      ? "UPDATE users SET name = ?, profile = ?, profile_asset_id = ?, updated_at = datetime('now') WHERE id = ?"
+      : "UPDATE users SET profile = ?, profile_asset_id = ?, updated_at = datetime('now') WHERE id = ?",
+    args: name
+      ? [name, JSON.stringify(profile), profileAssetId, id]
+      : [JSON.stringify(profile), profileAssetId, id],
   });
   return result.rowsAffected > 0;
 }

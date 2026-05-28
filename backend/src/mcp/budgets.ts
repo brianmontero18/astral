@@ -2,6 +2,7 @@ import { countMcpAuditEvents } from "../db.js";
 import type { McpPrincipal } from "./auth.js";
 
 export const MCP_TOOL_CALL_COMPLETED_EVENT = "tool_call_completed";
+export const MCP_RESOURCE_READ_COMPLETED_EVENT = "resource_read_completed";
 
 export interface McpToolBudget {
   dailyLimit: number;
@@ -39,6 +40,7 @@ export async function checkMcpToolBudget(input: {
   principal: McpPrincipal;
   toolName: string;
   budget?: McpToolBudget;
+  event?: string;
   now?: Date;
 }): Promise<McpBudgetCheckResult> {
   if (!input.budget) {
@@ -50,7 +52,7 @@ export async function checkMcpToolBudget(input: {
     userId: input.principal.userId,
     clientId: input.principal.clientId,
     toolName: input.toolName,
-    event: MCP_TOOL_CALL_COMPLETED_EVENT,
+    event: input.event ?? MCP_TOOL_CALL_COMPLETED_EVENT,
     status: "success" as const,
   };
 

@@ -123,12 +123,12 @@ Connect / MCP Auth:
 
 Connect dynamic app:
   Claude/ChatGPT pueden crear la app via DCR/CIMD.
-  No configurar ni depender de mcp:ask / mcp:read_hd como OAuth scopes.
+  No configurar ni depender de mcp:ask / mcp:read_hd / mcp:write_bodygraph como OAuth scopes.
 ```
 
 Nota importante aprendida en el smoke Claude Web: AuthKit anuncia scopes OAuth
 estandar (`openid`, `profile`, `email`, `offline_access`). Astral no debe
-anunciar `mcp:ask` / `mcp:read_hd` como OAuth scopes publicos para WorkOS,
+anunciar `mcp:ask` / `mcp:read_hd` / `mcp:write_bodygraph` como OAuth scopes publicos para WorkOS,
 porque clientes como Claude pueden pedirlos durante OAuth y WorkOS puede
 rechazar el flujo con `invalid_scope` o fallar el token exchange. En V1, OAuth
 solo autentica identidad; Astral deriva permisos MCP internamente desde plan y
@@ -136,8 +136,8 @@ onboarding:
 
 ```text
 free    -> sin MCP
-basic   -> mcp:read_hd
-premium -> mcp:read_hd + mcp:ask
+basic   -> mcp:read_hd + mcp:write_bodygraph
+premium -> mcp:read_hd + mcp:write_bodygraph + mcp:ask
 ```
 
 ---
@@ -159,12 +159,27 @@ Ya existe:
 - consentimiento en `mcp_consents`;
 - audit en `mcp_audit_events`;
 - `McpPrincipal` con `userId`, `clientId`, `scopes`, `audience`, `tokenId`;
-- cuota mensual compartida para `mcp:ask` y budgets tecnicos para tools read-only;
+- cuota mensual compartida para `mcp:ask` y budgets tecnicos para tools MCP;
 - `ask_astral_guide_v1` en `mcp_read_only`;
 - deterministic HD tools:
   - `find_channel_by_gates_v1`
   - `find_channels_by_gate_v1`
   - `get_center_for_gate_v1`
+- MCP Apps bodygraph V1 tools:
+  - `open_bodygraph_form_v1`
+  - `search_birth_places_v1`
+  - `create_my_bodygraph_from_birth_v1`
+- MCP Apps bodygraph V1 UI bridge:
+  - usa `_meta.ui.resourceUri` como contrato MCP Apps portable;
+  - el widget intenta `@modelcontextprotocol/ext-apps` (`App.connect` +
+    `callServerTool`) para Claude/MCP Apps hosts;
+  - mantiene `window.openai.callTool` como fallback ChatGPT/OpenAI Apps;
+  - dentro del iframe, fallback JSON-RPC `tools/call` por `postMessage`;
+  - fuera del iframe, el texto de `open_bodygraph_form_v1` explica como llamar
+    la tool manualmente si el host no renderiza UI.
+  - estado actual: implementado y cubierto por tests/smoke backend; pendiente
+    UAT real de la UI bodygraph embebida en Claude y ChatGPT antes de declararla
+    producto final.
 - smoke verde con Claude Code HTTP + bearer;
 - `npm run smoke:mcp` cubriendo auth, transport, scopes, tools, cuota y
   discovery OAuth/MCP.
@@ -180,6 +195,9 @@ Validado despues de este genesis:
 
 - smoke real de Claude Web;
 - smoke real de ChatGPT.
+
+Nota: esos smokes validaron el conector Remote MCP/OAuth y tools existentes. El
+form MCP Apps de bodygraph V1 es posterior y requiere UAT propio en hosts reales.
 
 ---
 
@@ -651,6 +669,7 @@ Mantener permisos MCP internos minimos:
 
 ```text
 mcp:read_hd
+mcp:write_bodygraph
 mcp:ask
 ```
 
@@ -674,6 +693,11 @@ mcp:read_hd
   - find_channel_by_gates_v1
   - find_channels_by_gate_v1
   - get_center_for_gate_v1
+
+mcp:write_bodygraph
+  - open_bodygraph_form_v1
+  - search_birth_places_v1
+  - create_my_bodygraph_from_birth_v1
 
 mcp:ask
   - ask_astral_guide_v1
@@ -750,10 +774,12 @@ free:
 
 basic:
   - permite mcp:read_hd
+  - permite mcp:write_bodygraph
   - no permite mcp:ask en V1
 
 premium:
   - permite mcp:read_hd
+  - permite mcp:write_bodygraph
   - permite mcp:ask
 ```
 
@@ -768,6 +794,8 @@ Razonamiento:
   Astral sin recibir datos HD crudos/exportables.
 - `mcp:read_hd` no debe implicar `mcp:ask`. Leer datos deterministas y pedir
   guia LLM son permisos distintos.
+- `mcp:write_bodygraph` no debe implicar `mcp:ask`; reemplazar carta activa es
+  un workflow deterministico auditado, no un canal LLM.
 
 ### Decision de cuota para `mcp:ask`
 
@@ -780,7 +808,7 @@ mcp:ask consume la misma cuota mensual que el chat web:
 
 Implicacion: `mcp:ask` no debe ser un bypass de `/api/chat`. Para `mcp:ask`, la
 regla producto visible y operativa es la cuota mensual normal del plan. Los
-budgets MCP defensivos quedan para herramientas read-only cuando aplique.
+budgets MCP defensivos quedan por tool cuando aplique.
 
 ### Gating obligatorio
 
@@ -827,10 +855,8 @@ No alcanza con que WorkOS emita un token. El resource server sigue siendo Astral
 
 | Escenario | Experiencia esperada | Comportamiento server | Slice 11 |
 |---|---|---|---|
-| Usuario premium activo y onboarded pide `mcp:read_hd` | Conecta, consiente y ve tools HD. | Link WorkOS->Astral, valida plan, token y grant; lista solo HD tools. | Implementar |
-| Usuario premium activo y onboarded pide `mcp:ask` | Conecta, consiente y puede preguntar mientras tenga cuota mensual. | Valida `mcp:ask`; consume la misma cuota mensual del chat web; audit `mcp_ask`. | Implementar |
-| Usuario premium pide ambos scopes | Conecta y ve ambos grupos de tools. | Grant con ambos scopes; `tools/list` filtra por scope. | Implementar |
-| Usuario basic pide `mcp:read_hd` | Conecta y ve tools HD deterministicas. | Permite `mcp:read_hd`; bloquea `mcp:ask`. | Implementar |
+| Usuario premium activo y onboarded conecta | Conecta, consiente y ve HD deterministico, bodygraph write y ask mientras tenga cuota mensual. | Link WorkOS->Astral; OAuth usa scopes estandar; Astral deriva `mcp:read_hd + mcp:write_bodygraph + mcp:ask` por plan. | Implementar |
+| Usuario basic activo y onboarded conecta | Conecta y ve HD deterministico + bodygraph write, sin ask. | Astral deriva `mcp:read_hd + mcp:write_bodygraph`; bloquea `mcp:ask` con upgrade required. | Implementar |
 | Usuario basic pide `mcp:ask` | Ve upgrade/premium required. | No completar grant util para `mcp:ask`; tool call devuelve 403. | Implementar como rechazo |
 | Usuario free intenta conectar | Ve upgrade/paywall MCP. | No crear grant util; bloquear tools. | Implementar como rechazo |
 | Visitante no registrado | Ve login/signup Astral. | Sin usuario no hay completion util; despues de signup cae en free/onboarding. | Implementar |
@@ -1079,8 +1105,9 @@ Implementar:
 - SuperTokens session check y login/signup redirect si no hay sesion;
 - resolve user + auto-link existente;
 - gates de `status`, `onboarding_status` y `plan`;
-- enforcement de producto: `free=no MCP`, `basic=mcp:read_hd`,
-  `premium=mcp:read_hd+mcp:ask`;
+- enforcement de producto: `free=no MCP`,
+  `basic=mcp:read_hd+mcp:write_bodygraph`,
+  `premium=mcp:read_hd+mcp:write_bodygraph+mcp:ask`;
 - `mcp:ask` consume la cuota mensual del chat web;
 - WorkOS completion API usando `external_auth_id`;
 - creacion/actualizacion de `user_identities(provider='workos')` con el
@@ -1137,12 +1164,16 @@ La direccion queda validada cuando:
 
 - Claude Desktop o Claude Web puede conectar Astral MCP sin PAT manual;
 - ChatGPT puede conectar Astral MCP sin PAT manual;
+- la UI MCP Apps de bodygraph V1 renderiza y ejecuta search/create en Claude y
+  ChatGPT reales;
 - ambos usan OAuth/discovery;
-- `mcp:read_hd` y `mcp:ask` filtran tools correctamente;
+- `mcp:read_hd`, `mcp:write_bodygraph` y `mcp:ask` filtran tools correctamente;
 - `ask_astral_guide_v1` sigue `mcp_read_only`;
-- no hay `chat_messages` ni `memory_writer` desde MCP;
+- `mcp:ask` no persiste `chat_messages` ni dispara `memory_writer`;
+- `mcp:write_bodygraph` solo limpia contexto dependiente durante replace
+  confirmado;
 - cuota compartida/audit siguen activos para `mcp:ask`;
-- budgets tecnicos read-only siguen activos donde correspondan;
+- budgets tecnicos por tool siguen activos donde correspondan;
 - Claude Code/Codex pueden seguir usando PAT beta para desarrollo;
 - rollback sigue siendo por feature flag/env.
 
@@ -1170,8 +1201,9 @@ La direccion queda validada cuando:
      tests unitarios.
 
 6. **Privacidad / prompt injection**
-   - Mitigacion: mantener tools read-only y minimizadas; no exponer profile raw,
-     memory raw, intake completo ni birth data.
+   - Mitigacion: minimizar write tools; exigir scope dedicado, confirmacion y
+     auditoria para efectos laterales; no exponer profile raw, memory raw,
+     intake completo ni birth data innecesaria.
 
 ---
 

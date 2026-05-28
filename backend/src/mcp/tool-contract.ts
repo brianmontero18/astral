@@ -4,6 +4,7 @@ export interface McpToolCallResult {
     text: string;
   }>;
   structuredContent?: Record<string, unknown>;
+  _meta?: Record<string, unknown>;
 }
 
 export class McpToolCallError extends Error {

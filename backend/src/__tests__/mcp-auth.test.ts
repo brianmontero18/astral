@@ -255,7 +255,7 @@ describe("resolveMcpPrincipal", () => {
       principal: {
         userId: seeded.userId,
         clientId: seeded.clientId,
-        scopes: ["mcp:read_hd", "mcp:ask"],
+        scopes: ["mcp:read_hd", "mcp:write_bodygraph", "mcp:ask"],
         audience: OAUTH_AUDIENCE,
         tokenId: null,
       },
@@ -294,7 +294,7 @@ describe("resolveMcpPrincipal", () => {
       principal: {
         userId: seeded.userId,
         clientId: seeded.clientId,
-        scopes: ["mcp:read_hd", "mcp:ask"],
+        scopes: ["mcp:read_hd", "mcp:write_bodygraph", "mcp:ask"],
       },
     });
 
@@ -303,7 +303,7 @@ describe("resolveMcpPrincipal", () => {
       status: "active",
     });
     const consent = await findActiveMcpConsent(seeded.userId, seeded.clientId);
-    expect(consent?.scopes_json).toBe(JSON.stringify(["mcp:read_hd", "mcp:ask"]));
+    expect(consent?.scopes_json).toBe(JSON.stringify(["mcp:read_hd", "mcp:write_bodygraph", "mcp:ask"]));
   });
 
   it("keeps PAT beta precedence before trying WorkOS OAuth verification", async () => {
@@ -389,7 +389,7 @@ describe("resolveMcpPrincipal", () => {
       principal: {
         userId: seeded.userId,
         clientId: seeded.clientId,
-        scopes: ["mcp:read_hd", "mcp:ask"],
+        scopes: ["mcp:read_hd", "mcp:write_bodygraph", "mcp:ask"],
       },
     });
   });
@@ -456,12 +456,12 @@ describe("resolveMcpPrincipal", () => {
       principal: {
         userId: seeded.userId,
         clientId: seeded.clientId,
-        scopes: ["mcp:read_hd", "mcp:ask"],
+        scopes: ["mcp:read_hd", "mcp:write_bodygraph", "mcp:ask"],
       },
     });
 
     const consent = await findActiveMcpConsent(seeded.userId, seeded.clientId);
-    expect(consent?.scopes_json).toBe(JSON.stringify(["mcp:read_hd", "mcp:ask"]));
+    expect(consent?.scopes_json).toBe(JSON.stringify(["mcp:read_hd", "mcp:write_bodygraph", "mcp:ask"]));
   });
 
   it("rejects free users before deriving MCP access from OAuth identity", async () => {
@@ -529,6 +529,46 @@ describe("resolveMcpPrincipal", () => {
       statusCode: 403,
       error: "plan_upgrade_required",
     });
+  });
+
+  it("authorizes basic users for mcp:write_bodygraph without granting mcp:ask", async () => {
+    const seeded = await seedDbOAuthAccess({
+      userPlan: "basic",
+      consentScopes: ["mcp:read_hd"],
+    });
+
+    await expect(
+      resolveMcpPrincipal(
+        {
+          authorizationHeader: `Bearer ${RAW_OAUTH_TOKEN}`,
+          requiredScopes: ["mcp:write_bodygraph"],
+          oauthAudience: OAUTH_AUDIENCE,
+          now: NOW,
+        },
+        {
+          findTokenByHash: async () => null,
+          verifyOAuthToken: async () => ({
+            kind: "verified",
+            claims: {
+              subject: seeded.subject,
+              clientId: seeded.clientId,
+              scopes: ["openid", "profile", "email"],
+              audience: OAUTH_AUDIENCE,
+            },
+          }),
+        },
+      ),
+    ).resolves.toMatchObject({
+      kind: "authorized",
+      principal: {
+        userId: seeded.userId,
+        clientId: seeded.clientId,
+        scopes: ["mcp:read_hd", "mcp:write_bodygraph"],
+      },
+    });
+
+    const consent = await findActiveMcpConsent(seeded.userId, seeded.clientId);
+    expect(consent?.scopes_json).toBe(JSON.stringify(["mcp:read_hd", "mcp:write_bodygraph"]));
   });
 
   it("rejects onboarding-pending users before deriving MCP access from OAuth identity", async () => {

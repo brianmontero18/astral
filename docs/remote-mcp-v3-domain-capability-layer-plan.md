@@ -182,6 +182,9 @@ resolve_birth_place_v1
 ```
 
 Riesgo: birth data es sensible. Requiere scope separado y politica clara.
+Primer corte V1 implementado: `mcp:write_bodygraph` habilita reemplazar la
+carta activa unica desde birth data normalizada, con confirmacion explicita,
+wipe atomico de contexto dependiente y auditoria `mcp_write_bodygraph`.
 
 ### 3. My profile context tools
 
@@ -335,6 +338,9 @@ mcp:read_transits
 
 mcp:read_transit_impact
   transit impact against a profile
+
+mcp:write_bodygraph
+  V1 single active chart replacement from normalized birth data
 
 mcp:write_profiles
   future write tools, not initial V3

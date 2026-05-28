@@ -17,7 +17,14 @@ import {
   type McpToolDefinition,
 } from "./tools.js";
 import {
+  allMcpResources,
+  findMcpResource,
+  serializeMcpResource,
+  type McpResourceDefinition,
+} from "./resources.js";
+import {
   checkMcpToolBudget,
+  MCP_RESOURCE_READ_COMPLETED_EVENT,
   MCP_TOOL_CALL_COMPLETED_EVENT,
 } from "./budgets.js";
 import { addMcpAuthenticateHeader } from "./discovery.js";
@@ -166,6 +173,11 @@ function authErrorResponse(
   );
 }
 
+function isConfirmationRequiredResult(result: unknown): boolean {
+  const candidate = result as { structuredContent?: { status?: unknown } };
+  return candidate?.structuredContent?.status === "confirmation_required";
+}
+
 function bearerDiagnostics(request: FastifyRequest): object {
   const authorization = getHeaderValue(request.headers.authorization);
   const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
@@ -229,6 +241,9 @@ function initializeResult() {
       tools: {
         listChanged: false,
       },
+      resources: {
+        listChanged: false,
+      },
     },
     serverInfo: {
       name: "astral-guide-remote-mcp",
@@ -273,6 +288,21 @@ function parseToolCallParams(
   };
 }
 
+function parseResourceReadParams(
+  params: unknown,
+): { uri: string } | { error: JsonRpcErrorResponse } {
+  if (!params || typeof params !== "object" || Array.isArray(params)) {
+    return { error: errorResponse(null, -32602, "Invalid params") };
+  }
+
+  const candidate = params as { uri?: unknown };
+  if (typeof candidate.uri !== "string" || candidate.uri.trim().length === 0) {
+    return { error: errorResponse(null, -32602, "Invalid params") };
+  }
+
+  return { uri: candidate.uri.trim() };
+}
+
 type McpAuditIdentity = {
   userId?: string | null;
   clientId?: string | null;
@@ -303,6 +333,7 @@ async function recordMcpToolAudit(
   input: {
     event: string;
     toolName: string;
+    sideEffectsMode?: McpToolDefinition["sideEffectsMode"];
     status: McpAuditStatus;
     metadata?: object;
   },
@@ -314,12 +345,41 @@ async function recordMcpToolAudit(
       tokenId: identity?.tokenId,
       event: input.event,
       toolName: input.toolName,
-      sideEffectsMode: "mcp_read_only",
+      sideEffectsMode: input.sideEffectsMode ?? "mcp_read_only",
       status: input.status,
       metadata: input.metadata,
     });
   } catch (err) {
     request.log.warn({ err, toolName: input.toolName }, "mcp audit insert failed");
+  }
+}
+
+async function recordMcpResourceAudit(
+  request: FastifyRequest,
+  identity: McpAuditIdentity | null,
+  input: {
+    event: string;
+    resource: McpResourceDefinition;
+    status: McpAuditStatus;
+    metadata?: object;
+  },
+): Promise<void> {
+  try {
+    await insertMcpAuditEvent({
+      userId: identity?.userId,
+      clientId: identity?.clientId,
+      tokenId: identity?.tokenId,
+      event: input.event,
+      toolName: input.resource.uri,
+      sideEffectsMode: input.resource.sideEffectsMode ?? "mcp_read_only",
+      status: input.status,
+      metadata: {
+        resourceUri: input.resource.uri,
+        ...(input.metadata ?? {}),
+      },
+    });
+  } catch (err) {
+    request.log.warn({ err, uri: input.resource.uri }, "mcp resource audit insert failed");
   }
 }
 
@@ -338,11 +398,33 @@ async function visibleToolsForRequest(
   return visible;
 }
 
+async function visibleResourcesForRequest(
+  request: FastifyRequest,
+): Promise<Array<ReturnType<typeof serializeMcpResource>>> {
+  const visible = [];
+
+  for (const resource of allMcpResources()) {
+    const auth = await authorizeForMethod(request, resource.requiredScopes);
+    if (auth.kind === "authorized" && includesAllScopes(auth.principal.scopes, resource.requiredScopes)) {
+      visible.push(serializeMcpResource(resource));
+    }
+  }
+
+  return visible;
+}
+
 async function authorizeToolCall(
   request: FastifyRequest,
   tool: McpToolDefinition,
 ): Promise<ResolveMcpPrincipalResult> {
   return authorizeForMethod(request, tool.requiredScopes);
+}
+
+async function authorizeResourceRead(
+  request: FastifyRequest,
+  resource: McpResourceDefinition,
+): Promise<ResolveMcpPrincipalResult> {
+  return authorizeForMethod(request, resource.requiredScopes);
 }
 
 export async function handleMcpPost(
@@ -417,6 +499,137 @@ export async function handleMcpPost(
     return;
   }
 
+  if (message.method === "resources/list") {
+    await reply
+      .status(200)
+      .type("application/json")
+      .send(success(message.id ?? null, { resources: await visibleResourcesForRequest(request) }));
+    return;
+  }
+
+  if (message.method === "resources/read") {
+    const parsed = parseResourceReadParams(message.params);
+    if ("error" in parsed) {
+      await reply
+        .status(200)
+        .type("application/json")
+        .send({
+          ...parsed.error,
+          id: message.id ?? null,
+        });
+      return;
+    }
+
+    const resource = findMcpResource(parsed.uri);
+    if (!resource) {
+      await reply
+        .status(200)
+        .type("application/json")
+        .send(errorResponse(message.id ?? null, -32602, "Unknown resource", {
+          uri: parsed.uri,
+        }));
+      return;
+    }
+
+    const resourceAuth = await authorizeResourceRead(request, resource);
+    if (resourceAuth.kind !== "authorized") {
+      logMcpAuthRejection(request, resourceAuth);
+      if (resourceAuth.statusCode === 401) {
+        addMcpAuthenticateHeader(request, reply);
+      }
+      await recordMcpResourceAudit(request, auditIdentityFromAuth(resourceAuth), {
+        event: "resource_read_blocked",
+        resource,
+        status: "denied",
+        metadata: { reason: resourceAuth.error },
+      });
+      await reply
+        .status(resourceAuth.statusCode)
+        .type("application/json")
+        .send(authErrorResponse(message.id ?? null, resourceAuth));
+      return;
+    }
+
+    const budget = await checkMcpToolBudget({
+      principal: resourceAuth.principal,
+      toolName: resource.uri,
+      budget: resource.budget,
+      event: MCP_RESOURCE_READ_COMPLETED_EVENT,
+    });
+    if (!budget.allowed) {
+      await recordMcpResourceAudit(request, resourceAuth.principal, {
+        event: "resource_read_blocked",
+        resource,
+        status: "denied",
+        metadata: {
+          reason: "budget_exceeded",
+          period: budget.period,
+          limit: budget.limit,
+          used: budget.used,
+        },
+      });
+      await reply
+        .status(429)
+        .type("application/json")
+        .send(errorResponse(message.id ?? null, -32011, "budget_exceeded", {
+          period: budget.period,
+          limit: budget.limit,
+          used: budget.used,
+        }));
+      return;
+    }
+
+    try {
+      await recordMcpResourceAudit(request, resourceAuth.principal, {
+        event: "resource_read_started",
+        resource,
+        status: "success",
+      });
+      const result = await resource.read({
+        app: request.server,
+        principal: resourceAuth.principal,
+      });
+      await recordMcpResourceAudit(request, resourceAuth.principal, {
+        event: MCP_RESOURCE_READ_COMPLETED_EVENT,
+        resource,
+        status: "success",
+      });
+      await reply
+        .status(200)
+        .type("application/json")
+        .send(success(message.id ?? null, result));
+    } catch (err) {
+      await recordMcpResourceAudit(request, resourceAuth.principal, {
+        event: "resource_read_failed",
+        resource,
+        status: "error",
+        metadata: {
+          message: err instanceof Error ? err.message : String(err),
+        },
+      });
+      if (err instanceof Error && err.message === "no_active_bodygraph") {
+        await reply
+          .status(200)
+          .type("application/json")
+          .send(errorResponse(message.id ?? null, -32019, "no_active_bodygraph"));
+        return;
+      }
+      if (err instanceof Error && err.message === "user_not_found") {
+        await reply
+          .status(200)
+          .type("application/json")
+          .send(errorResponse(message.id ?? null, -32010, "user_not_found"));
+        return;
+      }
+      request.log.error({ err, uri: resource.uri }, "mcp resource read failed");
+      await reply
+        .status(502)
+        .type("application/json")
+        .send(errorResponse(message.id ?? null, -32000, "resource_read_failed"));
+    }
+    return;
+  }
+
   if (message.method === "tools/call") {
     const parsed = parseToolCallParams(message.params);
     if ("error" in parsed) {
@@ -450,6 +663,7 @@ export async function handleMcpPost(
       await recordMcpToolAudit(request, auditIdentityFromAuth(toolAuth), {
         event: "tool_call_blocked",
         toolName: tool.name,
+        sideEffectsMode: tool.sideEffectsMode,
         status: "denied",
         metadata: { reason: toolAuth.error },
       });
@@ -469,6 +683,7 @@ export async function handleMcpPost(
       await recordMcpToolAudit(request, toolAuth.principal, {
         event: "tool_call_blocked",
         toolName: tool.name,
+        sideEffectsMode: tool.sideEffectsMode,
         status: "denied",
         metadata: {
           reason: "budget_exceeded",
@@ -492,17 +707,28 @@ export async function handleMcpPost(
       await recordMcpToolAudit(request, toolAuth.principal, {
         event: "tool_call_started",
         toolName: tool.name,
+        sideEffectsMode: tool.sideEffectsMode,
         status: "success",
       });
       const result = await tool.call(parsed.args, {
         app: request.server,
         principal: toolAuth.principal,
       });
-      await recordMcpToolAudit(request, toolAuth.principal, {
-        event: MCP_TOOL_CALL_COMPLETED_EVENT,
-        toolName: tool.name,
-        status: "success",
-      });
+      if (isConfirmationRequiredResult(result)) {
+        await recordMcpToolAudit(request, toolAuth.principal, {
+          event: "tool_call_confirmation_required",
+          toolName: tool.name,
+          sideEffectsMode: tool.sideEffectsMode,
+          status: "denied",
+        });
+      } else {
+        await recordMcpToolAudit(request, toolAuth.principal, {
+          event: MCP_TOOL_CALL_COMPLETED_EVENT,
+          toolName: tool.name,
+          sideEffectsMode: tool.sideEffectsMode,
+          status: "success",
+        });
+      }
       await reply
         .status(200)
         .type("application/json")
@@ -511,6 +737,7 @@ export async function handleMcpPost(
       await recordMcpToolAudit(request, toolAuth.principal, {
         event: "tool_call_failed",
         toolName: tool.name,
+        sideEffectsMode: tool.sideEffectsMode,
         status: "error",
         metadata: {
           message: err instanceof Error ? err.message : String(err),

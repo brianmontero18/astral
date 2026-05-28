@@ -7,6 +7,14 @@ import {
   callAskAstralGuideV1,
 } from "./tools/ask-astral-guide-v1.js";
 import {
+  callCreateBodygraphFromBirthV1,
+  callOpenBodygraphFormV1,
+  callSearchBirthPlacesV1,
+  createBodygraphFromBirthToolDefinition,
+  openBodygraphFormToolDefinition,
+  searchBirthPlacesToolDefinition,
+} from "./tools/bodygraph-app-v1.js";
+import {
   callFindChannelByGatesV1,
   callFindChannelsByGateV1,
   callGetCenterForGateV1,
@@ -25,8 +33,12 @@ export interface McpToolDefinition {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
+  outputSchema?: Record<string, unknown>;
   requiredScopes: ReadonlyArray<string>;
   budget?: McpToolBudget;
+  sideEffectsMode?: "mcp_read_only" | "mcp_write_bodygraph";
+  annotations?: Record<string, unknown>;
+  _meta?: Record<string, unknown>;
   call(args: unknown, context: McpToolContext): Promise<McpToolCallResult>;
 }
 
@@ -52,6 +64,18 @@ const MCP_TOOLS: McpToolDefinition[] = [
     ...getCenterForGateToolDefinition,
     call: callGetCenterForGateV1,
   },
+  {
+    ...openBodygraphFormToolDefinition,
+    call: callOpenBodygraphFormV1,
+  },
+  {
+    ...searchBirthPlacesToolDefinition,
+    call: callSearchBirthPlacesV1,
+  },
+  {
+    ...createBodygraphFromBirthToolDefinition,
+    call: callCreateBodygraphFromBirthV1,
+  },
 ];
 
 export function allMcpTools(): ReadonlyArray<McpToolDefinition> {
@@ -67,5 +91,8 @@ export function serializeMcpTool(tool: McpToolDefinition) {
     name: tool.name,
     description: tool.description,
     inputSchema: tool.inputSchema,
+    ...(tool.outputSchema ? { outputSchema: tool.outputSchema } : {}),
+    ...(tool.annotations ? { annotations: tool.annotations } : {}),
+    ...(tool._meta ? { _meta: tool._meta } : {}),
   };
 }
