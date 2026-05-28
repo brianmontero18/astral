@@ -8,9 +8,13 @@ import {
 } from "./tools/ask-astral-guide-v1.js";
 import {
   callCreateBodygraphFromBirthV1,
+  callGetActiveBodygraphPdfV1,
+  callGetActiveBodygraphSvgV1,
   callOpenBodygraphFormV1,
   callSearchBirthPlacesV1,
   createBodygraphFromBirthToolDefinition,
+  getActiveBodygraphPdfToolDefinition,
+  getActiveBodygraphSvgToolDefinition,
   openBodygraphFormToolDefinition,
   searchBirthPlacesToolDefinition,
 } from "./tools/bodygraph-app-v1.js";
@@ -63,6 +67,14 @@ const MCP_TOOLS: McpToolDefinition[] = [
   {
     ...getCenterForGateToolDefinition,
     call: callGetCenterForGateV1,
+  },
+  {
+    ...getActiveBodygraphSvgToolDefinition,
+    call: callGetActiveBodygraphSvgV1,
+  },
+  {
+    ...getActiveBodygraphPdfToolDefinition,
+    call: callGetActiveBodygraphPdfV1,
   },
   {
     ...openBodygraphFormToolDefinition,

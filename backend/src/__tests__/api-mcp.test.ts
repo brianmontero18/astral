@@ -579,6 +579,8 @@ describe("Remote MCP route", () => {
     expect(toolNames).toEqual([
       "find_channel_by_gates_v1",
       "find_channels_by_gate_v1",
+      "get_active_bodygraph_pdf_v1",
+      "get_active_bodygraph_svg_v1",
       "get_center_for_gate_v1",
     ]);
     expect(toolNames).not.toContain("ask_astral_guide_v1");
@@ -591,6 +593,15 @@ describe("Remote MCP route", () => {
         inputSchema: expect.objectContaining({
           type: "object",
           required: ["gateA", "gateB"],
+        }),
+      }),
+    );
+    expect(body.result.tools).toContainEqual(
+      expect.objectContaining({
+        name: "get_active_bodygraph_pdf_v1",
+        annotations: expect.objectContaining({
+          readOnlyHint: true,
+          destructiveHint: false,
         }),
       }),
     );
@@ -691,6 +702,107 @@ describe("Remote MCP route", () => {
       expect.objectContaining({
         event: "resource_read_completed",
         tool_name: "astral://bodygraph/active/pdf",
+        side_effects_mode: "mcp_read_only",
+        status: "success",
+      }),
+    ]);
+  });
+
+  it("returns active bodygraph SVG and PDF through explicit tools for hosts that do not expose resources", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    const { userId } = await seedMcpAccess(db, {
+      tokenScopes: ["mcp:read_hd"],
+      consentScopes: ["mcp:read_hd"],
+    });
+
+    const svgRes = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: toolsCallBody("get_active_bodygraph_svg_v1", {}, "req-tool-svg"),
+    });
+    expect(svgRes.statusCode).toBe(200);
+    const svgBody = JSON.parse(svgRes.body);
+    expect(svgBody).toMatchObject({
+      jsonrpc: "2.0",
+      id: "req-tool-svg",
+      result: {
+        content: [
+          { type: "text", text: "SVG del bodygraph activo listo." },
+          {
+            type: "resource",
+            resource: {
+              uri: "astral://bodygraph/active/full-svg",
+              mimeType: "image/svg+xml",
+              text: expect.stringContaining("<svg"),
+            },
+          },
+        ],
+        structuredContent: {
+          status: "ready",
+          resourceUri: "astral://bodygraph/active/full-svg",
+          mimeType: "image/svg+xml",
+          svg: expect.stringContaining("<svg"),
+        },
+      },
+    });
+
+    const pdfRes = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: toolsCallBody("get_active_bodygraph_pdf_v1", {}, "req-tool-pdf"),
+    });
+    expect(pdfRes.statusCode).toBe(200);
+    const pdfBody = JSON.parse(pdfRes.body);
+    expect(pdfBody).toMatchObject({
+      jsonrpc: "2.0",
+      id: "req-tool-pdf",
+      result: {
+        content: [
+          { type: "text", text: "PDF del bodygraph activo listo para descargar." },
+          {
+            type: "resource",
+            resource: {
+              uri: "astral://bodygraph/active/pdf",
+              mimeType: "application/pdf",
+              blob: expect.stringMatching(/^JVBER/),
+            },
+          },
+        ],
+        structuredContent: {
+          status: "ready",
+          resourceUri: "astral://bodygraph/active/pdf",
+          mimeType: "application/pdf",
+          filename: "astral-bodygraph.pdf",
+          base64: expect.stringMatching(/^JVBER/),
+        },
+      },
+    });
+
+    expect(await db.getMcpAuditEventsForUser(userId)).toEqual([
+      expect.objectContaining({
+        event: "tool_call_started",
+        tool_name: "get_active_bodygraph_svg_v1",
+        side_effects_mode: "mcp_read_only",
+        status: "success",
+      }),
+      expect.objectContaining({
+        event: "tool_call_completed",
+        tool_name: "get_active_bodygraph_svg_v1",
+        side_effects_mode: "mcp_read_only",
+        status: "success",
+      }),
+      expect.objectContaining({
+        event: "tool_call_started",
+        tool_name: "get_active_bodygraph_pdf_v1",
+        side_effects_mode: "mcp_read_only",
+        status: "success",
+      }),
+      expect.objectContaining({
+        event: "tool_call_completed",
+        tool_name: "get_active_bodygraph_pdf_v1",
         side_effects_mode: "mcp_read_only",
         status: "success",
       }),
@@ -851,6 +963,8 @@ describe("Remote MCP route", () => {
       "create_my_bodygraph_from_birth_v1",
       "find_channel_by_gates_v1",
       "find_channels_by_gate_v1",
+      "get_active_bodygraph_pdf_v1",
+      "get_active_bodygraph_svg_v1",
       "get_center_for_gate_v1",
       "open_bodygraph_form_v1",
       "search_birth_places_v1",

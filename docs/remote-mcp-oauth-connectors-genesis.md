@@ -169,6 +169,8 @@ Ya existe:
   - `open_bodygraph_form_v1`
   - `search_birth_places_v1`
   - `create_my_bodygraph_from_birth_v1`
+  - `get_active_bodygraph_svg_v1`
+  - `get_active_bodygraph_pdf_v1`
 - MCP Apps bodygraph V1 UI bridge:
   - usa `_meta.ui.resourceUri` como contrato MCP Apps portable;
   - el widget intenta `@modelcontextprotocol/ext-apps` (`App.connect` +
@@ -693,6 +695,8 @@ mcp:read_hd
   - find_channel_by_gates_v1
   - find_channels_by_gate_v1
   - get_center_for_gate_v1
+  - get_active_bodygraph_svg_v1
+  - get_active_bodygraph_pdf_v1
 
 mcp:write_bodygraph
   - open_bodygraph_form_v1

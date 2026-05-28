@@ -6,6 +6,8 @@ import {
 } from "../../db.js";
 import { parseActiveChartName } from "../../active-chart-name.js";
 import { calculateBodygraph, type BirthData } from "../../bodygraph/calculate.js";
+import { renderBodygraphPdf } from "../../bodygraph/render-pdf.js";
+import { renderFullDocument } from "../../bodygraph/render-svg.js";
 import type { UserProfile } from "../../types/agent.js";
 import { autocompletePlaces, PlacesProviderError } from "../../places/geonames.js";
 import { deleteObject as r2DeleteObject } from "../../storage/r2.js";
@@ -28,7 +30,10 @@ import type { McpToolContext } from "../tools.js";
 export const OPEN_BODYGRAPH_FORM_TOOL_NAME = "open_bodygraph_form_v1";
 export const SEARCH_BIRTH_PLACES_TOOL_NAME = "search_birth_places_v1";
 export const CREATE_BODYGRAPH_FROM_BIRTH_TOOL_NAME = "create_my_bodygraph_from_birth_v1";
+export const GET_ACTIVE_BODYGRAPH_SVG_TOOL_NAME = "get_active_bodygraph_svg_v1";
+export const GET_ACTIVE_BODYGRAPH_PDF_TOOL_NAME = "get_active_bodygraph_pdf_v1";
 
+const READ_HD_SCOPE = "mcp:read_hd";
 const WRITE_BODYGRAPH_SCOPE = "mcp:write_bodygraph";
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^\d{2}:\d{2}$/;
@@ -48,6 +53,31 @@ function textResult(text: string, structuredContent: Record<string, unknown>, me
     content: [{ type: "text", text }],
     structuredContent,
     ...(meta ? { _meta: meta } : {}),
+  };
+}
+
+function resourceResult(input: {
+  text: string;
+  uri: string;
+  mimeType: string;
+  resourceText?: string;
+  blob?: string;
+  structuredContent: Record<string, unknown>;
+}): McpToolCallResult {
+  return {
+    content: [
+      { type: "text", text: input.text },
+      {
+        type: "resource",
+        resource: {
+          uri: input.uri,
+          mimeType: input.mimeType,
+          ...(input.resourceText !== undefined ? { text: input.resourceText } : {}),
+          ...(input.blob !== undefined ? { blob: input.blob } : {}),
+        },
+      },
+    ],
+    structuredContent: input.structuredContent,
   };
 }
 
@@ -159,6 +189,24 @@ function hasActiveBodygraph(user: Awaited<ReturnType<typeof getUser>>): boolean 
     user.profile_asset_id ||
     (profile.humanDesign?.activatedGates?.length ?? 0) > 0,
   );
+}
+
+function profileHasCalculatedBodygraph(profile: unknown): profile is UserProfile {
+  const candidate = profile as {
+    humanDesign?: { activatedGates?: Array<unknown> };
+  };
+  return Boolean(candidate?.humanDesign?.activatedGates?.length);
+}
+
+async function getActiveProfile(userId: string): Promise<UserProfile> {
+  const user = await getUser(userId);
+  if (!user) {
+    throw new McpToolCallError(-32010, "user_not_found");
+  }
+  if (!profileHasCalculatedBodygraph(user.profile)) {
+    throw new McpToolCallError(-32019, "no_active_bodygraph");
+  }
+  return user.profile as UserProfile;
 }
 
 function serializeProfileSummary(profile: UserProfile) {
@@ -356,6 +404,73 @@ export const createBodygraphFromBirthToolDefinition = {
   },
 } as const;
 
+export const getActiveBodygraphSvgToolDefinition = {
+  name: GET_ACTIVE_BODYGRAPH_SVG_TOOL_NAME,
+  description:
+    "Return the authenticated user's active Astral bodygraph as SVG. Use this when the user asks to view, export, or download their bodygraph image.",
+  inputSchema: {
+    type: "object",
+    properties: {},
+  },
+  outputSchema: {
+    type: "object",
+    properties: {
+      status: { type: "string" },
+      resourceUri: { type: "string" },
+      mimeType: { type: "string" },
+      svg: { type: "string" },
+    },
+    required: ["status", "resourceUri", "mimeType", "svg"],
+  },
+  requiredScopes: [READ_HD_SCOPE],
+  budget: BODYGRAPH_READ_BUDGET,
+  sideEffectsMode: "mcp_read_only",
+  annotations: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false,
+  },
+  _meta: {
+    "openai/toolInvocation/invoking": "Preparando SVG del bodygraph",
+    "openai/toolInvocation/invoked": "SVG del bodygraph listo",
+  },
+} as const;
+
+export const getActiveBodygraphPdfToolDefinition = {
+  name: GET_ACTIVE_BODYGRAPH_PDF_TOOL_NAME,
+  description:
+    "Return the authenticated user's active Astral bodygraph as a PDF file. Use this when the user asks to export or download their bodygraph PDF.",
+  inputSchema: {
+    type: "object",
+    properties: {},
+  },
+  outputSchema: {
+    type: "object",
+    properties: {
+      status: { type: "string" },
+      resourceUri: { type: "string" },
+      mimeType: { type: "string" },
+      filename: { type: "string" },
+      base64: { type: "string" },
+    },
+    required: ["status", "resourceUri", "mimeType", "filename", "base64"],
+  },
+  requiredScopes: [READ_HD_SCOPE],
+  budget: BODYGRAPH_READ_BUDGET,
+  sideEffectsMode: "mcp_read_only",
+  annotations: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false,
+  },
+  _meta: {
+    "openai/toolInvocation/invoking": "Preparando PDF del bodygraph",
+    "openai/toolInvocation/invoked": "PDF del bodygraph listo",
+  },
+} as const;
+
 export async function callOpenBodygraphFormV1(
   _args: unknown,
   context: McpToolContext,
@@ -408,6 +523,48 @@ export async function callSearchBirthPlacesV1(
     }
     throw err;
   }
+}
+
+export async function callGetActiveBodygraphSvgV1(
+  _args: unknown,
+  context: McpToolContext,
+): Promise<McpToolCallResult> {
+  const profile = await getActiveProfile(context.principal.userId);
+  const svg = renderFullDocument(profile, { width: 1400 });
+  return resourceResult({
+    text: "SVG del bodygraph activo listo.",
+    uri: ACTIVE_BODYGRAPH_FULL_SVG_RESOURCE_URI,
+    mimeType: "image/svg+xml",
+    resourceText: svg,
+    structuredContent: {
+      status: "ready",
+      resourceUri: ACTIVE_BODYGRAPH_FULL_SVG_RESOURCE_URI,
+      mimeType: "image/svg+xml",
+      svg,
+    },
+  });
+}
+
+export async function callGetActiveBodygraphPdfV1(
+  _args: unknown,
+  context: McpToolContext,
+): Promise<McpToolCallResult> {
+  const profile = await getActiveProfile(context.principal.userId);
+  const pdf = await renderBodygraphPdf(profile);
+  const base64 = pdf.toString("base64");
+  return resourceResult({
+    text: "PDF del bodygraph activo listo para descargar.",
+    uri: ACTIVE_BODYGRAPH_PDF_RESOURCE_URI,
+    mimeType: "application/pdf",
+    blob: base64,
+    structuredContent: {
+      status: "ready",
+      resourceUri: ACTIVE_BODYGRAPH_PDF_RESOURCE_URI,
+      mimeType: "application/pdf",
+      filename: "astral-bodygraph.pdf",
+      base64,
+    },
+  });
 }
 
 export async function callCreateBodygraphFromBirthV1(

@@ -314,6 +314,7 @@ request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"tools","method":
 assert_status "200" "tools/list"
 assert_json "tools/list exposes ask tool for mcp:ask clients" "Array.isArray(data.result.tools) && data.result.tools.some((tool) => tool.name === 'ask_astral_guide_v1')"
 assert_json "tools/list exposes bodygraph form for write clients" "data.result.tools.some((tool) => tool.name === 'open_bodygraph_form_v1') && data.result.tools.some((tool) => tool.name === 'create_my_bodygraph_from_birth_v1')"
+assert_json "tools/list exposes bodygraph export tools for read-HD clients" "data.result.tools.some((tool) => tool.name === 'get_active_bodygraph_svg_v1') && data.result.tools.some((tool) => tool.name === 'get_active_bodygraph_pdf_v1')"
 pass "tools/list exposes ask tool for mcp:ask clients"
 
 request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"resources","method":"resources/list"}' \
@@ -372,6 +373,22 @@ assert_status "200" "active bodygraph PDF resource"
 assert_json "active bodygraph PDF resource renders" "data.result.contents[0].mimeType === 'application/pdf' && /^JVBER/.test(data.result.contents[0].blob)"
 pass "active bodygraph PDF resource renders"
 
+request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"active-svg-tool","method":"tools/call","params":{"name":"get_active_bodygraph_svg_v1","arguments":{}}}' \
+  -H "content-type: application/json" \
+  -H "accept: application/json, text/event-stream" \
+  -H "authorization: Bearer ${VALID_TOKEN}"
+assert_status "200" "active bodygraph SVG tool"
+assert_json "active bodygraph SVG tool returns downloadable resource" "data.result.structuredContent.status === 'ready' && data.result.structuredContent.resourceUri === 'astral://bodygraph/active/full-svg' && data.result.content.some((item) => item.type === 'resource' && item.resource.mimeType === 'image/svg+xml')"
+pass "active bodygraph SVG tool returns downloadable resource"
+
+request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"active-pdf-tool","method":"tools/call","params":{"name":"get_active_bodygraph_pdf_v1","arguments":{}}}' \
+  -H "content-type: application/json" \
+  -H "accept: application/json, text/event-stream" \
+  -H "authorization: Bearer ${VALID_TOKEN}"
+assert_status "200" "active bodygraph PDF tool"
+assert_json "active bodygraph PDF tool returns downloadable resource" "data.result.structuredContent.status === 'ready' && data.result.structuredContent.resourceUri === 'astral://bodygraph/active/pdf' && data.result.structuredContent.filename === 'astral-bodygraph.pdf' && /^JVBER/.test(data.result.structuredContent.base64) && data.result.content.some((item) => item.type === 'resource' && item.resource.mimeType === 'application/pdf' && /^JVBER/.test(item.resource.blob))"
+pass "active bodygraph PDF tool returns downloadable resource"
+
 request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"call","method":"tools/call","params":{"name":"ask_astral_guide_v1","arguments":{"question":"hello"}}}' \
   -H "content-type: application/json" \
   -H "accept: application/json, text/event-stream" \
@@ -388,6 +405,7 @@ assert_status "200" "read-only tools/list"
 assert_json "read-only token does not list ask" "Array.isArray(data.result.tools) && !data.result.tools.some((tool) => tool.name === 'ask_astral_guide_v1')"
 assert_json "read-only token does not list write bodygraph tools" "!data.result.tools.some((tool) => tool.name === 'create_my_bodygraph_from_birth_v1') && !data.result.tools.some((tool) => tool.name === 'open_bodygraph_form_v1') && !data.result.tools.some((tool) => tool.name === 'search_birth_places_v1')"
 assert_json "read-only token lists deterministic HD tool" "data.result.tools.some((tool) => tool.name === 'get_center_for_gate_v1')"
+assert_json "read-only token lists bodygraph export tools" "data.result.tools.some((tool) => tool.name === 'get_active_bodygraph_svg_v1') && data.result.tools.some((tool) => tool.name === 'get_active_bodygraph_pdf_v1')"
 pass "read-only token lists deterministic HD tools without ask"
 
 request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"read-only-create-denied","method":"tools/call","params":{"name":"create_my_bodygraph_from_birth_v1","arguments":{"name":"Denied","date":"1989-02-18","time":"09:00","place":{"lat":-34.6037,"lon":-58.3816,"label":"Buenos Aires, Argentina"},"confirmReplace":true}}}' \
