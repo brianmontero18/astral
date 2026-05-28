@@ -1,0 +1,43 @@
+backend/src/__tests__/api-mcp.test.ts
+  s_73bd4594ecfd09::t_20e5eca1283efa 630,645,654,707-713,769,777,896,922,932,1753
+  s_73bd4594ecfd09::t_13fc5d968ba5c7 641,647-648,650
+  s_73bd4594ecfd09::t_aec1075607f229 662-675
+  s_73bd4594ecfd09::t_4546cc02bdff7e 719,725
+  s_73bd4594ecfd09::t_1c69b20f3f6775 582,744,752,756,758-760,762,765,779-780,822,828,1001
+backend/src/__tests__/api-assets.test.ts
+  s_73bd4594ecfd09::t_7c877cfed21dc0 630-663
+backend/src/mcp/tools/bodygraph-app-v1.ts
+  s_73bd4594ecfd09::t_59db917be37974 19,552,557,705
+  s_73bd4594ecfd09::t_8fc252c4d07603 33,84,418-419,421,432,435,447-448,541,546-547,550-551,554,559
+backend/src/mcp/tools.ts
+  s_73bd4594ecfd09::t_fa2d2708af5708 11,16,72-73
+backend/scripts/smoke-mcp-curl.sh
+  s_73bd4594ecfd09::t_e64ea137089fe5 317,376,380,382,408
+  s_73bd4594ecfd09::t_dcca4ea9e7dfac 364-366
+  s_73bd4594ecfd09::t_20e5eca1283efa 357,360,381
+docs/remote-mcp-oauth-connectors-genesis.md
+  s_73bd4594ecfd09::t_d2c7066e428af6 172,698
+backend/src/mcp/resources.ts
+  s_73bd4594ecfd09::t_3e8f1205ca64c2 10,510,522
+  s_73bd4594ecfd09::t_6e9e435d62cb44 12,559,563
+  s_73bd4594ecfd09::t_d7bb294aea02ac 511-512
+  s_73bd4594ecfd09::t_36af59663f7cd7 560-562
+backend/src/routes/assets.ts
+  s_73bd4594ecfd09::t_7d44902cb7619f 702-705,727-738
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "49cb4585e84ab039fcf3ad4e74cb848097205504",
+  "prompts": {},
+  "sessions": {
+    "s_73bd4594ecfd09": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e6bdf-f48e-7e92-b3c2-27a0f2e65dd6",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
