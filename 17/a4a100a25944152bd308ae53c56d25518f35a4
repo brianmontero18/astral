@@ -1,0 +1,29 @@
+backend/scripts/smoke-mcp-curl.sh
+  s_73bd4594ecfd09::t_4b0560f57d5673 317,376-391,408
+docs/remote-mcp-oauth-connectors-genesis.md
+  s_73bd4594ecfd09::t_b1393b2f7f0ea2 172-173,698-699
+backend/src/mcp/tools.ts
+  s_73bd4594ecfd09::t_6cfccadc3a63e0 11-12,16-17,71-77
+backend/src/mcp/tools/bodygraph-app-v1.ts
+  s_73bd4594ecfd09::t_a70eba0ce81ded 9-10,33-34,36,59-83,194-211,407-473,528-567
+backend/src/mcp/tool-contract.ts
+  s_73bd4594ecfd09::t_b650bc09d3770e 2-16
+backend/src/__tests__/api-mcp.test.ts
+  s_73bd4594ecfd09::t_d24d29ac5cd538 582-583,599-607,711-811,966-967
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "17a4a100a25944152bd308ae53c56d25518f35a4",
+  "prompts": {},
+  "sessions": {
+    "s_73bd4594ecfd09": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e6bdf-f48e-7e92-b3c2-27a0f2e65dd6",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
