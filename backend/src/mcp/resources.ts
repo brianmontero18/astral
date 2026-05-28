@@ -7,8 +7,9 @@ import type { McpPrincipal } from "./auth.js";
 import type { McpToolBudget } from "./budgets.js";
 
 export const BODYGRAPH_FORM_RESOURCE_URI = "ui://astral/bodygraph-form-v1.html";
-export const ACTIVE_BODYGRAPH_FULL_SVG_RESOURCE_URI = "astral://bodygraph/active/full-svg";
+export const ACTIVE_BODYGRAPH_IMAGE_RESOURCE_URI = "astral://bodygraph/active/image";
 export const ACTIVE_BODYGRAPH_PDF_RESOURCE_URI = "astral://bodygraph/active/pdf";
+const LEGACY_ACTIVE_BODYGRAPH_FULL_SVG_RESOURCE_URI = "astral://bodygraph/active/full-svg";
 
 export interface McpResourceDefinition {
   uri: string;
@@ -506,9 +507,9 @@ const MCP_RESOURCES: McpResourceDefinition[] = [
     },
   },
   {
-    uri: ACTIVE_BODYGRAPH_FULL_SVG_RESOURCE_URI,
-    name: "Active bodygraph SVG",
-    description: "Full vector SVG for the authenticated user's active Astral bodygraph.",
+    uri: ACTIVE_BODYGRAPH_IMAGE_RESOURCE_URI,
+    name: "Active bodygraph image",
+    description: "Image export source for the authenticated user's active Astral bodygraph.",
     mimeType: "image/svg+xml",
     requiredScopes: [READ_HD_SCOPE],
     budget: ACTIVE_BODYGRAPH_RESOURCE_BUDGET,
@@ -518,7 +519,7 @@ const MCP_RESOURCES: McpResourceDefinition[] = [
       return {
         contents: [
           {
-            uri: ACTIVE_BODYGRAPH_FULL_SVG_RESOURCE_URI,
+            uri: ACTIVE_BODYGRAPH_IMAGE_RESOURCE_URI,
             mimeType: "image/svg+xml",
             text: renderFullDocument(profile, { width: 1400 }),
           },
@@ -555,6 +556,11 @@ export function allMcpResources(): ReadonlyArray<McpResourceDefinition> {
 }
 
 export function findMcpResource(uri: string): McpResourceDefinition | null {
+  if (uri === LEGACY_ACTIVE_BODYGRAPH_FULL_SVG_RESOURCE_URI) {
+    return MCP_RESOURCES.find(
+      (resource) => resource.uri === ACTIVE_BODYGRAPH_IMAGE_RESOURCE_URI,
+    ) ?? null;
+  }
   return MCP_RESOURCES.find((resource) => resource.uri === uri) ?? null;
 }
 

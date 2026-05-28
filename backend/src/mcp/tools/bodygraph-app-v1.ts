@@ -16,7 +16,7 @@ import {
   UserOperationConflictError,
 } from "../../services/user-operation-locks.js";
 import {
-  ACTIVE_BODYGRAPH_FULL_SVG_RESOURCE_URI,
+  ACTIVE_BODYGRAPH_IMAGE_RESOURCE_URI,
   ACTIVE_BODYGRAPH_PDF_RESOURCE_URI,
   BODYGRAPH_FORM_RESOURCE_URI,
 } from "../resources.js";
@@ -30,7 +30,7 @@ import type { McpToolContext } from "../tools.js";
 export const OPEN_BODYGRAPH_FORM_TOOL_NAME = "open_bodygraph_form_v1";
 export const SEARCH_BIRTH_PLACES_TOOL_NAME = "search_birth_places_v1";
 export const CREATE_BODYGRAPH_FROM_BIRTH_TOOL_NAME = "create_my_bodygraph_from_birth_v1";
-export const GET_ACTIVE_BODYGRAPH_SVG_TOOL_NAME = "get_active_bodygraph_svg_v1";
+export const GET_ACTIVE_BODYGRAPH_IMAGE_TOOL_NAME = "get_active_bodygraph_image_v1";
 export const GET_ACTIVE_BODYGRAPH_PDF_TOOL_NAME = "get_active_bodygraph_pdf_v1";
 
 const READ_HD_SCOPE = "mcp:read_hd";
@@ -81,7 +81,7 @@ function resourceResult(input: {
   };
 }
 
-function bodygraphDownloadUrl(path: "/api/me/bodygraph/pdf" | "/api/me/bodygraph/full-svg"): string | null {
+function bodygraphDownloadUrl(path: "/api/me/bodygraph/image" | "/api/me/bodygraph/pdf"): string | null {
   const raw = process.env.MCP_RESOURCE_URL?.trim();
   if (!raw) return null;
 
@@ -415,10 +415,10 @@ export const createBodygraphFromBirthToolDefinition = {
   },
 } as const;
 
-export const getActiveBodygraphSvgToolDefinition = {
-  name: GET_ACTIVE_BODYGRAPH_SVG_TOOL_NAME,
+export const getActiveBodygraphImageToolDefinition = {
+  name: GET_ACTIVE_BODYGRAPH_IMAGE_TOOL_NAME,
   description:
-    "Return the authenticated user's active Astral bodygraph as SVG. Use this when the user asks to view, export, or download their bodygraph image.",
+    "Return the authenticated user's active Astral bodygraph image export. Use this when the user asks to view, export, or download their bodygraph as an image, matching Astral web app's Mi Carta > Descargar > Como imagen flow.",
   inputSchema: {
     type: "object",
     properties: {},
@@ -429,10 +429,10 @@ export const getActiveBodygraphSvgToolDefinition = {
       status: { type: "string" },
       resourceUri: { type: "string" },
       mimeType: { type: "string" },
-      svg: { type: "string" },
+      image: { type: "string" },
       downloadUrl: { type: "string" },
     },
-    required: ["status", "resourceUri", "mimeType", "svg"],
+    required: ["status", "resourceUri", "mimeType", "image"],
   },
   requiredScopes: [READ_HD_SCOPE],
   budget: BODYGRAPH_READ_BUDGET,
@@ -444,8 +444,8 @@ export const getActiveBodygraphSvgToolDefinition = {
     openWorldHint: false,
   },
   _meta: {
-    "openai/toolInvocation/invoking": "Preparando SVG del bodygraph",
-    "openai/toolInvocation/invoked": "SVG del bodygraph listo",
+    "openai/toolInvocation/invoking": "Preparando imagen del bodygraph",
+    "openai/toolInvocation/invoked": "Imagen del bodygraph lista",
   },
 } as const;
 
@@ -538,25 +538,25 @@ export async function callSearchBirthPlacesV1(
   }
 }
 
-export async function callGetActiveBodygraphSvgV1(
+export async function callGetActiveBodygraphImageV1(
   _args: unknown,
   context: McpToolContext,
 ): Promise<McpToolCallResult> {
   const profile = await getActiveProfile(context.principal.userId);
-  const svg = renderFullDocument(profile, { width: 1400 });
-  const downloadUrl = bodygraphDownloadUrl("/api/me/bodygraph/full-svg");
+  const image = renderFullDocument(profile, { width: 1400 });
+  const downloadUrl = bodygraphDownloadUrl("/api/me/bodygraph/image");
   return resourceResult({
     text: downloadUrl
-      ? `SVG del bodygraph activo listo. Link web: ${downloadUrl}`
-      : "SVG del bodygraph activo listo.",
-    uri: ACTIVE_BODYGRAPH_FULL_SVG_RESOURCE_URI,
+      ? `Imagen del bodygraph activo lista. Link web: ${downloadUrl}`
+      : "Imagen del bodygraph activo lista.",
+    uri: ACTIVE_BODYGRAPH_IMAGE_RESOURCE_URI,
     mimeType: "image/svg+xml",
-    resourceText: svg,
+    resourceText: image,
     structuredContent: {
       status: "ready",
-      resourceUri: ACTIVE_BODYGRAPH_FULL_SVG_RESOURCE_URI,
+      resourceUri: ACTIVE_BODYGRAPH_IMAGE_RESOURCE_URI,
       mimeType: "image/svg+xml",
-      svg,
+      image,
       ...(downloadUrl ? { downloadUrl } : {}),
     },
   });
@@ -702,7 +702,7 @@ export async function callCreateBodygraphFromBirthV1(
       status: "saved",
       profile: summary,
       resources: {
-        fullSvg: ACTIVE_BODYGRAPH_FULL_SVG_RESOURCE_URI,
+        image: ACTIVE_BODYGRAPH_IMAGE_RESOURCE_URI,
         pdf: ACTIVE_BODYGRAPH_PDF_RESOURCE_URI,
       },
     },

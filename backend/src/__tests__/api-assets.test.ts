@@ -627,6 +627,40 @@ describe("GET /api/me/bodygraph/chart-svg", () => {
   });
 });
 
+describe("GET /api/me/bodygraph/image", () => {
+  it("returns authentication_required without a validated session", async () => {
+    const res = await app.inject({ method: "GET", url: "/api/me/bodygraph/image" });
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("returns the same bodygraph image export source used by Mi carta", async () => {
+    const sessionSubject = "st-bodygraph-image-ok";
+    await createLinkedTestUser(app, sessionSubject, "Brian Montero", EMPTY_BODYGRAPH_PROFILE);
+    await app.inject({
+      method: "POST",
+      url: "/api/me/bodygraph/from-birth",
+      headers: { "content-type": "application/json", ...sessionHeaders(sessionSubject) },
+      payload: {
+        name: "Brian Montero",
+        date: "1989-02-18",
+        time: "08:00",
+        place: { lat: 11.6757, lon: -70.2197, label: "Punta Cardón, Falcón, Venezuela" },
+      },
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/me/bodygraph/image?width=1400",
+      headers: sessionHeaders(sessionSubject),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toMatch(/image\/svg\+xml/);
+    expect(res.body).toContain("<svg");
+    expect(res.body).toContain("Brian Montero");
+  });
+});
+
 describe("GET /api/me/bodygraph/pdf", () => {
   it("returns authentication_required without a validated session", async () => {
     const res = await app.inject({ method: "GET", url: "/api/me/bodygraph/pdf" });

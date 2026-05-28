@@ -579,8 +579,8 @@ describe("Remote MCP route", () => {
     expect(toolNames).toEqual([
       "find_channel_by_gates_v1",
       "find_channels_by_gate_v1",
+      "get_active_bodygraph_image_v1",
       "get_active_bodygraph_pdf_v1",
-      "get_active_bodygraph_svg_v1",
       "get_center_for_gate_v1",
     ]);
     expect(toolNames).not.toContain("ask_astral_guide_v1");
@@ -627,7 +627,7 @@ describe("Remote MCP route", () => {
     expect(resourceUris).not.toContain("ui://astral/bodygraph-form-v1.html");
     expect(listBody.result.resources).toContainEqual(
       expect.objectContaining({
-        uri: "astral://bodygraph/active/full-svg",
+        uri: "astral://bodygraph/active/image",
         mimeType: "image/svg+xml",
       }),
     );
@@ -638,20 +638,41 @@ describe("Remote MCP route", () => {
       }),
     );
 
-    const svgRes = await harness.app.inject({
+    const imageResourceRes = await harness.app.inject({
       method: "POST",
       url: "/api/mcp/v1",
       headers: mcpHeaders(),
-      payload: resourcesReadBody("astral://bodygraph/active/full-svg", "req-svg"),
+      payload: resourcesReadBody("astral://bodygraph/active/image", "req-image"),
     });
-    expect(svgRes.statusCode).toBe(200);
-    expect(JSON.parse(svgRes.body)).toMatchObject({
+    expect(imageResourceRes.statusCode).toBe(200);
+    expect(JSON.parse(imageResourceRes.body)).toMatchObject({
       jsonrpc: "2.0",
-      id: "req-svg",
+      id: "req-image",
       result: {
         contents: [
           {
-            uri: "astral://bodygraph/active/full-svg",
+            uri: "astral://bodygraph/active/image",
+            mimeType: "image/svg+xml",
+            text: expect.stringContaining("<svg"),
+          },
+        ],
+      },
+    });
+
+    const legacyImageResourceRes = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: resourcesReadBody("astral://bodygraph/active/full-svg", "req-image-legacy"),
+    });
+    expect(legacyImageResourceRes.statusCode).toBe(200);
+    expect(JSON.parse(legacyImageResourceRes.body)).toMatchObject({
+      jsonrpc: "2.0",
+      id: "req-image-legacy",
+      result: {
+        contents: [
+          {
+            uri: "astral://bodygraph/active/image",
             mimeType: "image/svg+xml",
             text: expect.stringContaining("<svg"),
           },
@@ -683,13 +704,25 @@ describe("Remote MCP route", () => {
     expect(await db.getMcpAuditEventsForUser(userId)).toEqual([
       expect.objectContaining({
         event: "resource_read_started",
-        tool_name: "astral://bodygraph/active/full-svg",
+        tool_name: "astral://bodygraph/active/image",
         side_effects_mode: "mcp_read_only",
         status: "success",
       }),
       expect.objectContaining({
         event: "resource_read_completed",
-        tool_name: "astral://bodygraph/active/full-svg",
+        tool_name: "astral://bodygraph/active/image",
+        side_effects_mode: "mcp_read_only",
+        status: "success",
+      }),
+      expect.objectContaining({
+        event: "resource_read_started",
+        tool_name: "astral://bodygraph/active/image",
+        side_effects_mode: "mcp_read_only",
+        status: "success",
+      }),
+      expect.objectContaining({
+        event: "resource_read_completed",
+        tool_name: "astral://bodygraph/active/image",
         side_effects_mode: "mcp_read_only",
         status: "success",
       }),
@@ -708,7 +741,7 @@ describe("Remote MCP route", () => {
     ]);
   });
 
-  it("returns active bodygraph SVG and PDF through explicit tools for hosts that do not expose resources", async () => {
+  it("returns active bodygraph image and PDF through explicit tools for hosts that do not expose resources", async () => {
     const harness = await buildMcpTestApp(true);
     const db = await import("../db.js");
     const { userId } = await seedMcpAccess(db, {
@@ -716,24 +749,24 @@ describe("Remote MCP route", () => {
       consentScopes: ["mcp:read_hd"],
     });
 
-    const svgRes = await harness.app.inject({
+    const imageRes = await harness.app.inject({
       method: "POST",
       url: "/api/mcp/v1",
       headers: mcpHeaders(),
-      payload: toolsCallBody("get_active_bodygraph_svg_v1", {}, "req-tool-svg"),
+      payload: toolsCallBody("get_active_bodygraph_image_v1", {}, "req-tool-image"),
     });
-    expect(svgRes.statusCode).toBe(200);
-    const svgBody = JSON.parse(svgRes.body);
-    expect(svgBody).toMatchObject({
+    expect(imageRes.statusCode).toBe(200);
+    const imageBody = JSON.parse(imageRes.body);
+    expect(imageBody).toMatchObject({
       jsonrpc: "2.0",
-      id: "req-tool-svg",
+      id: "req-tool-image",
       result: {
         content: [
-          { type: "text", text: "SVG del bodygraph activo listo. Link web: https://mcp.astral.test/api/me/bodygraph/full-svg" },
+          { type: "text", text: "Imagen del bodygraph activo lista. Link web: https://mcp.astral.test/api/me/bodygraph/image" },
           {
             type: "resource",
             resource: {
-              uri: "astral://bodygraph/active/full-svg",
+              uri: "astral://bodygraph/active/image",
               mimeType: "image/svg+xml",
               text: expect.stringContaining("<svg"),
             },
@@ -741,10 +774,10 @@ describe("Remote MCP route", () => {
         ],
         structuredContent: {
           status: "ready",
-          resourceUri: "astral://bodygraph/active/full-svg",
+          resourceUri: "astral://bodygraph/active/image",
           mimeType: "image/svg+xml",
-          svg: expect.stringContaining("<svg"),
-          downloadUrl: "https://mcp.astral.test/api/me/bodygraph/full-svg",
+          image: expect.stringContaining("<svg"),
+          downloadUrl: "https://mcp.astral.test/api/me/bodygraph/image",
         },
       },
     });
@@ -786,13 +819,13 @@ describe("Remote MCP route", () => {
     expect(await db.getMcpAuditEventsForUser(userId)).toEqual([
       expect.objectContaining({
         event: "tool_call_started",
-        tool_name: "get_active_bodygraph_svg_v1",
+        tool_name: "get_active_bodygraph_image_v1",
         side_effects_mode: "mcp_read_only",
         status: "success",
       }),
       expect.objectContaining({
         event: "tool_call_completed",
-        tool_name: "get_active_bodygraph_svg_v1",
+        tool_name: "get_active_bodygraph_image_v1",
         side_effects_mode: "mcp_read_only",
         status: "success",
       }),
@@ -860,7 +893,7 @@ describe("Remote MCP route", () => {
       method: "POST",
       url: "/api/mcp/v1",
       headers: mcpHeaders(),
-      payload: resourcesReadBody("astral://bodygraph/active/full-svg", "req-no-chart"),
+      payload: resourcesReadBody("astral://bodygraph/active/image", "req-no-chart"),
     });
 
     expect(res.statusCode).toBe(200);
@@ -886,7 +919,7 @@ describe("Remote MCP route", () => {
         userId,
         clientId,
         event: "resource_read_completed",
-        toolName: "astral://bodygraph/active/full-svg",
+        toolName: "astral://bodygraph/active/image",
         sideEffectsMode: "mcp_read_only",
         status: "success",
       });
@@ -896,7 +929,7 @@ describe("Remote MCP route", () => {
       method: "POST",
       url: "/api/mcp/v1",
       headers: mcpHeaders(),
-      payload: resourcesReadBody("astral://bodygraph/active/full-svg", "req-resource-budget"),
+      payload: resourcesReadBody("astral://bodygraph/active/image", "req-resource-budget"),
     });
 
     expect(res.statusCode).toBe(429);
@@ -965,8 +998,8 @@ describe("Remote MCP route", () => {
       "create_my_bodygraph_from_birth_v1",
       "find_channel_by_gates_v1",
       "find_channels_by_gate_v1",
+      "get_active_bodygraph_image_v1",
       "get_active_bodygraph_pdf_v1",
-      "get_active_bodygraph_svg_v1",
       "get_center_for_gate_v1",
       "open_bodygraph_form_v1",
       "search_birth_places_v1",
@@ -1717,7 +1750,7 @@ describe("Remote MCP route", () => {
             activatedGateCount: 26,
           },
           resources: {
-            fullSvg: "astral://bodygraph/active/full-svg",
+            image: "astral://bodygraph/active/image",
             pdf: "astral://bodygraph/active/pdf",
           },
         },

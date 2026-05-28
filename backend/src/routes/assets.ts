@@ -699,11 +699,10 @@ export async function assetRoutes(app: FastifyInstance) {
       .send(svg);
   });
 
-  // GET /me/bodygraph/full-svg — SVG completo (chart + header + paneles
-  // Diseño/Personalidad/Canales). Mismo layout que el PDF, en SVG. Usado por
-  // el frontend para exportar como PNG (rasterización client-side) sin perder
-  // los paneles que sí trae el PDF.
-  app.get<{ Querystring: { width?: string } }>("/me/bodygraph/full-svg", async (req, reply) => {
+  async function sendFullBodygraphImage(
+    req: AuthenticatedRequest & { query: { width?: string } },
+    reply: import("fastify").FastifyReply,
+  ) {
     const userId = await resolveOwnedUser(req as AuthenticatedRequest, reply);
     if (!userId) return;
 
@@ -725,6 +724,18 @@ export async function assetRoutes(app: FastifyInstance) {
       .header("Cache-Control", "private, max-age=60")
       .status(200)
       .send(svg);
+  }
+
+  // GET /me/bodygraph/full-svg — fuente tecnica actual para la exportacion
+  // "Como imagen" de Mi carta. Se conserva porque la web la consume.
+  app.get<{ Querystring: { width?: string } }>("/me/bodygraph/full-svg", async (req, reply) => {
+    return sendFullBodygraphImage(req as AuthenticatedRequest & { query: { width?: string } }, reply);
+  });
+
+  // GET /me/bodygraph/image — alias de producto para superficies externas
+  // como MCP: misma capacidad que Mi carta > Descargar > Como imagen.
+  app.get<{ Querystring: { width?: string } }>("/me/bodygraph/image", async (req, reply) => {
+    return sendFullBodygraphImage(req as AuthenticatedRequest & { query: { width?: string } }, reply);
   });
 
   // GET /me/bodygraph/pdf — genera el PDF on-demand desde users.profile.
