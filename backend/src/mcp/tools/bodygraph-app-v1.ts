@@ -81,6 +81,17 @@ function resourceResult(input: {
   };
 }
 
+function bodygraphDownloadUrl(path: "/api/me/bodygraph/pdf" | "/api/me/bodygraph/full-svg"): string | null {
+  const raw = process.env.MCP_RESOURCE_URL?.trim();
+  if (!raw) return null;
+
+  try {
+    return new URL(path, raw).toString();
+  } catch {
+    return null;
+  }
+}
+
 function readArgsObject(args: unknown): Record<string, unknown> {
   if (!args || typeof args !== "object" || Array.isArray(args)) {
     throw new McpToolCallError(-32602, "Invalid params", {
@@ -419,6 +430,7 @@ export const getActiveBodygraphSvgToolDefinition = {
       resourceUri: { type: "string" },
       mimeType: { type: "string" },
       svg: { type: "string" },
+      downloadUrl: { type: "string" },
     },
     required: ["status", "resourceUri", "mimeType", "svg"],
   },
@@ -453,6 +465,7 @@ export const getActiveBodygraphPdfToolDefinition = {
       mimeType: { type: "string" },
       filename: { type: "string" },
       base64: { type: "string" },
+      downloadUrl: { type: "string" },
     },
     required: ["status", "resourceUri", "mimeType", "filename", "base64"],
   },
@@ -531,8 +544,11 @@ export async function callGetActiveBodygraphSvgV1(
 ): Promise<McpToolCallResult> {
   const profile = await getActiveProfile(context.principal.userId);
   const svg = renderFullDocument(profile, { width: 1400 });
+  const downloadUrl = bodygraphDownloadUrl("/api/me/bodygraph/full-svg");
   return resourceResult({
-    text: "SVG del bodygraph activo listo.",
+    text: downloadUrl
+      ? `SVG del bodygraph activo listo. Link web: ${downloadUrl}`
+      : "SVG del bodygraph activo listo.",
     uri: ACTIVE_BODYGRAPH_FULL_SVG_RESOURCE_URI,
     mimeType: "image/svg+xml",
     resourceText: svg,
@@ -541,6 +557,7 @@ export async function callGetActiveBodygraphSvgV1(
       resourceUri: ACTIVE_BODYGRAPH_FULL_SVG_RESOURCE_URI,
       mimeType: "image/svg+xml",
       svg,
+      ...(downloadUrl ? { downloadUrl } : {}),
     },
   });
 }
@@ -552,8 +569,11 @@ export async function callGetActiveBodygraphPdfV1(
   const profile = await getActiveProfile(context.principal.userId);
   const pdf = await renderBodygraphPdf(profile);
   const base64 = pdf.toString("base64");
+  const downloadUrl = bodygraphDownloadUrl("/api/me/bodygraph/pdf");
   return resourceResult({
-    text: "PDF del bodygraph activo listo para descargar.",
+    text: downloadUrl
+      ? `PDF del bodygraph activo listo. Link web de descarga: ${downloadUrl}`
+      : "PDF del bodygraph activo listo para descargar.",
     uri: ACTIVE_BODYGRAPH_PDF_RESOURCE_URI,
     mimeType: "application/pdf",
     blob: base64,
@@ -563,6 +583,7 @@ export async function callGetActiveBodygraphPdfV1(
       mimeType: "application/pdf",
       filename: "astral-bodygraph.pdf",
       base64,
+      ...(downloadUrl ? { downloadUrl } : {}),
     },
   });
 }

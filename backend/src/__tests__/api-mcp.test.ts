@@ -729,7 +729,7 @@ describe("Remote MCP route", () => {
       id: "req-tool-svg",
       result: {
         content: [
-          { type: "text", text: "SVG del bodygraph activo listo." },
+          { type: "text", text: "SVG del bodygraph activo listo. Link web: https://mcp.astral.test/api/me/bodygraph/full-svg" },
           {
             type: "resource",
             resource: {
@@ -744,6 +744,7 @@ describe("Remote MCP route", () => {
           resourceUri: "astral://bodygraph/active/full-svg",
           mimeType: "image/svg+xml",
           svg: expect.stringContaining("<svg"),
+          downloadUrl: "https://mcp.astral.test/api/me/bodygraph/full-svg",
         },
       },
     });
@@ -761,7 +762,7 @@ describe("Remote MCP route", () => {
       id: "req-tool-pdf",
       result: {
         content: [
-          { type: "text", text: "PDF del bodygraph activo listo para descargar." },
+          { type: "text", text: "PDF del bodygraph activo listo. Link web de descarga: https://mcp.astral.test/api/me/bodygraph/pdf" },
           {
             type: "resource",
             resource: {
@@ -777,6 +778,7 @@ describe("Remote MCP route", () => {
           mimeType: "application/pdf",
           filename: "astral-bodygraph.pdf",
           base64: expect.stringMatching(/^JVBER/),
+          downloadUrl: "https://mcp.astral.test/api/me/bodygraph/pdf",
         },
       },
     });

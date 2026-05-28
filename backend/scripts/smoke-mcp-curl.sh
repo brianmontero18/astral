@@ -378,7 +378,7 @@ request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"active-svg-tool"
   -H "accept: application/json, text/event-stream" \
   -H "authorization: Bearer ${VALID_TOKEN}"
 assert_status "200" "active bodygraph SVG tool"
-assert_json "active bodygraph SVG tool returns downloadable resource" "data.result.structuredContent.status === 'ready' && data.result.structuredContent.resourceUri === 'astral://bodygraph/active/full-svg' && data.result.content.some((item) => item.type === 'resource' && item.resource.mimeType === 'image/svg+xml')"
+assert_json "active bodygraph SVG tool returns downloadable resource" "data.result.structuredContent.status === 'ready' && data.result.structuredContent.resourceUri === 'astral://bodygraph/active/full-svg' && data.result.structuredContent.downloadUrl === '${BASE_URL}/api/me/bodygraph/full-svg' && data.result.content.some((item) => item.type === 'resource' && item.resource.mimeType === 'image/svg+xml')"
 pass "active bodygraph SVG tool returns downloadable resource"
 
 request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"active-pdf-tool","method":"tools/call","params":{"name":"get_active_bodygraph_pdf_v1","arguments":{}}}' \
@@ -386,7 +386,7 @@ request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"active-pdf-tool"
   -H "accept: application/json, text/event-stream" \
   -H "authorization: Bearer ${VALID_TOKEN}"
 assert_status "200" "active bodygraph PDF tool"
-assert_json "active bodygraph PDF tool returns downloadable resource" "data.result.structuredContent.status === 'ready' && data.result.structuredContent.resourceUri === 'astral://bodygraph/active/pdf' && data.result.structuredContent.filename === 'astral-bodygraph.pdf' && /^JVBER/.test(data.result.structuredContent.base64) && data.result.content.some((item) => item.type === 'resource' && item.resource.mimeType === 'application/pdf' && /^JVBER/.test(item.resource.blob))"
+assert_json "active bodygraph PDF tool returns downloadable resource" "data.result.structuredContent.status === 'ready' && data.result.structuredContent.resourceUri === 'astral://bodygraph/active/pdf' && data.result.structuredContent.filename === 'astral-bodygraph.pdf' && data.result.structuredContent.downloadUrl === '${BASE_URL}/api/me/bodygraph/pdf' && /^JVBER/.test(data.result.structuredContent.base64) && data.result.content.some((item) => item.type === 'resource' && item.resource.mimeType === 'application/pdf' && /^JVBER/.test(item.resource.blob))"
 pass "active bodygraph PDF tool returns downloadable resource"
 
 request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"call","method":"tools/call","params":{"name":"ask_astral_guide_v1","arguments":{"question":"hello"}}}' \
