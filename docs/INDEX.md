@@ -121,6 +121,7 @@ Sub-directorio dedicado al refactor AI completo (precede al refactor 2026-05):
 - [`ai-refactor/03-research-context-engineering.md`](ai-refactor/03-research-context-engineering.md) — research context engineering (versión expandida).
 - [`ai-refactor/04-research-holistic-competitors.md`](ai-refactor/04-research-holistic-competitors.md) — competidores holísticos.
 - [`ai-refactor/05-plan.md`](ai-refactor/05-plan.md) — plan general del refactor.
+- [`ai-refactor/06-advisor-quality-audit.md`](ai-refactor/06-advisor-quality-audit.md) — rúbrica cualitativa y mini corpus anti-respuesta genérica para evals/persona.
 - [`ai-refactor/README.md`](ai-refactor/README.md) — README del knowledge pack.
 
 ---

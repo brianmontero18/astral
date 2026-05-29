@@ -1,7 +1,7 @@
 # Astral AI Refactor — Plan
 
 **Fecha**: 2026-04-26
-**Status**: aprobado por owner. Sprint 0 cerrado (este doc + `00-product-position.md`). Sprint 1 = next.
+**Status**: plan base aprobado por owner. El estado de avance vivo se consulta en Beads (`bd show astral-y3c` + `bd ready`); varias brechas listadas abajo ya fueron trabajadas después de esta fecha.
 
 > Este plan se construyó cruzando el mapeo del estado actual del código (`01-current-state-audit.md`) con investigación de mercado (`02-`, `03-`, `04-`). Las secciones de research dejan citas inline a sus fuentes; este plan resume las decisiones, no repite la evidencia.
 
@@ -21,7 +21,7 @@
 
 | # | Gap | Evidencia |
 |---|---|---|
-| 1 | **Intake del negocio NO se inyecta en chat** — el user llena 10 min de contexto y el chat no lo ve | El intake vive en `users.intake`, pero `agent-service.ts:buildSystemPrompt()` no lo lee. Sera vs Wysa/Woebot: la diferencia entre "lo borro" y "me quedo" es memoria/contexto persistente. |
+| 1 | **Intake del negocio NO se inyectaba en chat** — gap histórico del 2026-04-26; verificar estado actual antes de actuar | El intake vive en `users.intake`; al momento del plan el chat no lo leía. Sera vs Wysa/Woebot: la diferencia entre "lo borro" y "me quedo" es memoria/contexto persistente. |
 | 2 | **Cero memoria entre sesiones** | Mem0 + Karpathy LLM-wiki + Claude Memory feature = consenso: living-document pattern es el ganador a esta escala. Astral hoy = stateless. |
 | 3 | **Conversation history sin límite** → context rot inevitable | Chroma "Context Rot" (2025): degradación medible empieza a 1k–32k tokens en TODOS los frontier models. Astral hoy mete toda la history. |
 | 4 | **System prompt sin estructura cache-friendly** | Manus: "KV-cache hit rate is the single most important metric" — 10× ahorro en Sonnet con prefijos estables. Astral no usa caching. |
