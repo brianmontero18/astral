@@ -1,0 +1,30 @@
+docs/ai-refactor/README.md
+  s_1970642029acbb::t_6e5fe72d2caa7c 57-58,60
+  s_1970642029acbb::t_9a604a0232668f 27-28,31-32,34-36,48-49,52
+  s_1970642029acbb::t_bf175bb2de59c0 15
+docs/ai-refactor/06-advisor-quality-audit.md
+  s_1970642029acbb::t_3a24416adea8dc 3-4
+  s_1970642029acbb::t_deca7a119a0649 1-2,5-114,117-125,128-138,141-149,152-160,163-171,174-237
+  s_1970642029acbb::t_f42c57ddfe73e2 115-116,126-127,139-140,150-151,161-162,172-173
+docs/ai-refactor/05-plan.md
+  s_1970642029acbb::t_ac07ac9f27bc34 4
+  s_1970642029acbb::t_fd69779cd5f154 24
+docs/INDEX.md
+  s_1970642029acbb::t_9a604a0232668f 124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "c3853df34092638665d4a7ed38e4592fb39c0ff5",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
