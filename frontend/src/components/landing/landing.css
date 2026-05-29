@@ -1,0 +1,888 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Landing Page — Astral Guide
+   Réplica fiel del diseño Stitch "Astral Guide Landing Page" (desktop).
+   Estética dark "Editorial Premium / Botanical" — distinta del tema sage-soft
+   in-app. Tokens espejados del design system de Stitch (ver DESIGN.md).
+   Convención: prefijo .lp- para scopear y no colisionar con index.css.
+
+   Capa de movimiento: scroll-reveal escalonado, aura del mandala, hovers
+   "levitando" y micro-brillos dorados — magia holística sin perder lo premium.
+   Todo se desactiva bajo prefers-reduced-motion (ver final del archivo).
+   ───────────────────────────────────────────────────────────────────────── */
+
+.lp-root {
+  /* ─── Paleta (Stitch design tokens, dark mode) ─── */
+  --lp-surface: #0e150b;
+  --lp-surface-container-low: #161e13;
+  --lp-surface-container-high: #242c21;
+  --lp-surface-dim: #0e150b;
+  --lp-forest: #294c38;
+  --lp-cream: #f8f4e8;
+  --lp-on-surface: #dce5d4;
+  --lp-on-surface-variant: #d1c5b5;
+  --lp-sage-soft: #adc2b6;
+  --lp-primary: #ecc785;
+  --lp-gold-deep: #9d7f4d;
+  --lp-outline: #9a8f81;
+
+  --lp-border: rgba(248, 244, 232, 0.1);
+  --lp-border-faint: rgba(248, 244, 232, 0.05);
+  --lp-gold-glow: rgba(236, 199, 133, 0.3);
+
+  --lp-serif: "Cormorant Garamond", Georgia, serif;
+  --lp-sans: "Inter", system-ui, -apple-system, sans-serif;
+
+  --lp-ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --lp-content-max: 760px;
+  --lp-archive-max: 1080px;
+
+  min-height: 100vh;
+  background: var(--lp-surface);
+  color: var(--lp-on-surface);
+  font-family: var(--lp-sans);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* La app monta dentro de body{height:100vh}; en la landing dejamos scroll
+   natural de toda la página. */
+.lp-root,
+.lp-root * {
+  box-sizing: border-box;
+}
+
+/* ─── Tipografía (escala Stitch) ─── */
+.lp-display {
+  font-family: var(--lp-serif);
+  font-size: 48px;
+  line-height: 1.1;
+  letter-spacing: 0.005em;
+  font-weight: 500;
+}
+.lp-headline-lg {
+  font-family: var(--lp-serif);
+  font-size: 28px;
+  line-height: 1.2;
+  font-weight: 500;
+}
+.lp-headline-md {
+  font-family: var(--lp-serif);
+  font-size: 22px;
+  line-height: 1.25;
+  font-weight: 500;
+}
+.lp-headline-sm {
+  font-family: var(--lp-serif);
+  font-size: 20px;
+  line-height: 1.3;
+  font-weight: 500;
+}
+.lp-body-readable {
+  font-family: var(--lp-sans);
+  font-size: 16px;
+  line-height: 1.7;
+  letter-spacing: 0.01em;
+  font-weight: 400;
+}
+.lp-body-lg {
+  font-family: var(--lp-serif);
+  font-size: 15px;
+  line-height: 1.85;
+  font-weight: 400;
+}
+.lp-body-md {
+  font-family: var(--lp-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  font-weight: 400;
+}
+.lp-kicker {
+  font-family: var(--lp-sans);
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.2em;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.lp-label-md {
+  font-family: var(--lp-sans);
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: 0.16em;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.lp-label-sm {
+  font-family: var(--lp-sans);
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.18em;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* ─── Helpers de color ─── */
+.lp-text-cream { color: var(--lp-cream); }
+.lp-text-variant { color: var(--lp-on-surface-variant); }
+.lp-text-sage { color: var(--lp-sage-soft); }
+.lp-text-gold { color: var(--lp-gold-deep); }
+
+/* ─── Layout containers ─── */
+.lp-wrap {
+  width: 100%;
+  max-width: var(--lp-archive-max);
+  margin: 0 auto;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+.lp-wrap-narrow {
+  width: 100%;
+  max-width: var(--lp-content-max);
+  margin: 0 auto;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+.lp-main {
+  padding-top: 128px;
+  padding-bottom: 24px;
+}
+.lp-section {
+  margin-bottom: 128px;
+  scroll-margin-top: 96px;
+}
+.lp-section-band {
+  background: var(--lp-surface-container-low);
+  padding-top: 128px;
+  padding-bottom: 128px;
+  border-top: 1px solid var(--lp-border-faint);
+  border-bottom: 1px solid var(--lp-border-faint);
+  margin-bottom: 128px;
+  scroll-margin-top: 0;
+}
+
+.lp-section-head {
+  text-align: center;
+  margin-bottom: 24px;
+}
+.lp-section-head--wide {
+  margin-bottom: 32px;
+}
+.lp-section-head--wide h2 {
+  margin-bottom: 12px;
+}
+.lp-section-head .lp-kicker {
+  color: var(--lp-gold-deep);
+  margin-bottom: 8px;
+}
+.lp-section-head h2 {
+  margin: 0;
+  color: var(--lp-cream);
+}
+.lp-section-lead {
+  max-width: 42rem;
+  margin: 12px auto 0;
+  color: var(--lp-on-surface-variant);
+}
+
+.lp-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ─── Surfaces ─── */
+.lp-editorial-border {
+  border: 1px solid var(--lp-border);
+}
+.lp-card {
+  background: var(--lp-forest);
+  border-radius: 12px;
+  border: 1px solid var(--lp-border);
+  padding: 24px;
+  transition: transform 0.45s var(--lp-ease), border-color 0.45s ease,
+    box-shadow 0.45s ease;
+}
+.lp-card:hover {
+  transform: translateY(-5px);
+  border-color: var(--lp-gold-glow);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.35), 0 0 26px rgba(236, 199, 133, 0.08);
+}
+.lp-card:hover .lp-icon {
+  filter: drop-shadow(0 0 10px rgba(236, 199, 133, 0.45));
+}
+
+/* ─── Buttons ─── */
+.lp-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: var(--lp-sans);
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: 0.16em;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 12px 24px;
+  transition: background 0.3s ease, color 0.3s ease, transform 0.3s var(--lp-ease),
+    border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.lp-btn-gold {
+  background: linear-gradient(135deg, var(--lp-primary) 0%, var(--lp-gold-deep) 100%);
+  color: var(--lp-forest);
+  box-shadow: 0 4px 20px rgba(236, 199, 133, 0.15);
+}
+.lp-btn-gold:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 28px rgba(236, 199, 133, 0.32);
+}
+/* Brillo dorado que cruza el botón al hacer hover */
+.lp-btn-gold::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 45%;
+  height: 100%;
+  background: linear-gradient(
+    100deg,
+    transparent,
+    rgba(255, 255, 255, 0.45),
+    transparent
+  );
+  transform: translateX(-180%) skewX(-12deg);
+  pointer-events: none;
+}
+.lp-btn-gold:hover::after {
+  animation: lpShimmer 0.9s var(--lp-ease);
+}
+.lp-btn-ghost {
+  background: rgba(248, 244, 232, 0.05);
+  border: 1px solid var(--lp-border);
+  color: var(--lp-cream);
+}
+.lp-btn-ghost:hover {
+  background: rgba(248, 244, 232, 0.1);
+  transform: translateY(-1px);
+}
+.lp-btn-outline {
+  background: transparent;
+  border: 1px solid var(--lp-border);
+  color: var(--lp-gold-deep);
+}
+.lp-btn-outline:hover {
+  color: var(--lp-cream);
+  border-color: var(--lp-gold-glow);
+}
+.lp-btn-block {
+  width: 100%;
+}
+.lp-btn-wide {
+  padding-left: 32px;
+  padding-right: 32px;
+}
+
+/* ─── Header ─── */
+.lp-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 50;
+  background: rgba(14, 21, 11, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--lp-border);
+}
+.lp-header-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: var(--lp-archive-max);
+  margin: 0 auto;
+  padding: 12px 16px;
+}
+.lp-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: var(--lp-cream);
+}
+.lp-brand-mark {
+  display: inline-flex;
+  color: var(--lp-primary);
+  filter: drop-shadow(0 0 6px rgba(236, 199, 133, 0.45));
+  animation: lpTwinkle 4.5s ease-in-out infinite;
+}
+.lp-brand-name {
+  font-family: var(--lp-serif);
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--lp-cream);
+}
+.lp-nav {
+  display: flex;
+  gap: 24px;
+}
+.lp-nav-link {
+  position: relative;
+  color: var(--lp-cream);
+  opacity: 0.8;
+  text-decoration: none;
+  padding-bottom: 4px;
+  transition: color 0.3s ease, opacity 0.3s ease;
+}
+.lp-nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 1px;
+  background: var(--lp-primary);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.35s var(--lp-ease);
+}
+.lp-nav-link:hover {
+  color: var(--lp-primary);
+  opacity: 1;
+}
+.lp-nav-link:hover::after {
+  transform: scaleX(1);
+}
+
+/* ─── Hero ─── */
+.lp-hero {
+  text-align: center;
+}
+.lp-hero h1 {
+  margin: 0 0 16px;
+  color: var(--lp-cream);
+  text-shadow: 0 0 40px rgba(236, 199, 133, 0.12);
+}
+.lp-hero-sub {
+  max-width: 42rem;
+  margin: 0 auto 24px;
+  color: var(--lp-on-surface-variant);
+}
+.lp-hero-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+}
+.lp-hero-media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  margin-top: 32px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--lp-border);
+}
+.lp-hero-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: lpBreath 9s ease-in-out infinite;
+}
+/* Aura dorada que respira sobre el centro del mandala */
+.lp-hero-glow {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(236, 199, 133, 0.22),
+    transparent 55%
+  );
+  mix-blend-mode: screen;
+  animation: lpAura 7s ease-in-out infinite;
+  pointer-events: none;
+}
+.lp-hero-media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: linear-gradient(to top, var(--lp-surface), transparent 55%);
+  pointer-events: none;
+}
+
+/* ─── Grids ─── */
+.lp-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.lp-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 32px;
+}
+/* Variante más compacta (cards del Informe). */
+.lp-grid-2--tight {
+  gap: 16px;
+}
+
+/* ─── Filosofía cards ─── */
+.lp-philo-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.lp-philo-card .lp-icon {
+  color: var(--lp-primary);
+  margin-bottom: 12px;
+  transition: filter 0.45s ease, transform 0.45s var(--lp-ease);
+}
+.lp-philo-card:hover .lp-icon {
+  transform: translateY(-2px) scale(1.06);
+}
+.lp-philo-card h3 {
+  margin: 0 0 8px;
+  color: var(--lp-cream);
+}
+.lp-philo-card p {
+  margin: 0;
+  color: var(--lp-sage-soft);
+}
+
+/* ─── Sistema (features alternados) ─── */
+.lp-feature {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+}
+.lp-feature--reverse {
+  flex-direction: row-reverse;
+}
+.lp-feature-media {
+  width: 50%;
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  background: var(--lp-surface-container-high);
+  border: 1px solid var(--lp-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: border-color 0.45s ease, box-shadow 0.45s ease;
+}
+.lp-feature-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+  transition: transform 0.7s var(--lp-ease);
+}
+.lp-feature-media:hover {
+  border-color: var(--lp-gold-glow);
+  box-shadow: 0 0 30px rgba(236, 199, 133, 0.1);
+}
+.lp-feature-media:hover img {
+  transform: scale(1.05);
+}
+.lp-feature-copy {
+  width: 50%;
+}
+.lp-feature-copy h3 {
+  margin: 0 0 8px;
+  color: var(--lp-cream);
+}
+.lp-feature-copy p {
+  margin: 0;
+  color: var(--lp-on-surface-variant);
+}
+
+/* ─── Mentores ─── */
+.lp-mentors {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 32px;
+  margin-bottom: 32px;
+}
+.lp-mentor {
+  display: flex;
+  flex-direction: column;
+}
+.lp-mentor-photo {
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid var(--lp-border);
+  margin-bottom: 16px;
+  transition: border-color 0.45s ease, box-shadow 0.45s ease;
+}
+.lp-mentor-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.9s var(--lp-ease);
+}
+.lp-mentor-photo:hover {
+  border-color: var(--lp-gold-glow);
+  box-shadow: 0 0 34px rgba(236, 199, 133, 0.1);
+}
+.lp-mentor-photo:hover img {
+  transform: scale(1.05);
+}
+.lp-mentor h3 {
+  margin: 0 0 4px;
+  font-family: var(--lp-serif);
+  color: var(--lp-cream);
+}
+.lp-mentor-role {
+  color: var(--lp-gold-deep);
+  margin: 0 0 12px;
+}
+.lp-mentor p {
+  margin: 0;
+  color: var(--lp-on-surface-variant);
+}
+.lp-mentors-quote {
+  max-width: 42rem;
+  margin: 0 auto;
+  text-align: center;
+}
+.lp-mentors-quote blockquote {
+  margin: 0 0 24px;
+  color: var(--lp-cream);
+  font-style: italic;
+}
+
+/* ─── Cómo funciona (timeline) ─── */
+.lp-steps {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.lp-steps .lp-steps-line {
+  position: absolute;
+  left: 50%;
+  top: 32px;
+  bottom: 32px;
+  width: 1px;
+  background: var(--lp-border);
+  transform: translateX(-50%) scaleY(0);
+  transform-origin: top;
+  transition: transform 1.2s var(--lp-ease);
+}
+.lp-steps .lp-steps-line.lp-in {
+  transform: translateX(-50%) scaleY(1);
+}
+.lp-step {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+}
+.lp-step-side {
+  width: 50%;
+}
+.lp-step-side--right {
+  text-align: right;
+}
+.lp-step-side h3 {
+  margin: 0 0 4px;
+  color: var(--lp-cream);
+}
+.lp-step-side p {
+  margin: 0;
+  color: var(--lp-on-surface-variant);
+}
+.lp-step-dot {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--lp-forest);
+  border: 1px solid var(--lp-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--lp-primary);
+  font-family: var(--lp-serif);
+  font-size: 22px;
+  font-weight: 500;
+  transition: box-shadow 0.45s ease, border-color 0.45s ease, transform 0.45s var(--lp-ease);
+}
+.lp-step:hover .lp-step-dot {
+  border-color: var(--lp-gold-glow);
+  box-shadow: 0 0 0 4px rgba(236, 199, 133, 0.12), 0 0 24px rgba(236, 199, 133, 0.25);
+  transform: scale(1.08);
+}
+.lp-step-spacer {
+  width: 50%;
+}
+
+/* ─── Informe (report cards) ─── */
+.lp-report-card {
+  background: var(--lp-forest);
+  border: 1px solid var(--lp-border);
+  border-left: 4px solid var(--lp-primary);
+  border-radius: 0 12px 12px 0;
+  padding: 24px;
+  transition: transform 0.45s var(--lp-ease), border-color 0.45s ease,
+    box-shadow 0.45s ease;
+}
+.lp-report-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--lp-gold-glow);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.35), 0 0 26px rgba(236, 199, 133, 0.08);
+}
+.lp-report-card h4 {
+  margin: 0 0 8px;
+  color: var(--lp-cream);
+}
+.lp-report-card p {
+  margin: 0;
+  color: var(--lp-sage-soft);
+}
+
+/* ─── Planes ─── */
+.lp-plan {
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  border: 1px solid var(--lp-border);
+  padding: 24px;
+  background: var(--lp-surface);
+  transition: transform 0.45s var(--lp-ease), border-color 0.45s ease,
+    box-shadow 0.45s ease;
+}
+.lp-plan:hover {
+  transform: translateY(-6px);
+  border-color: var(--lp-gold-glow);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.4);
+}
+.lp-plan--featured {
+  position: relative;
+  background: var(--lp-forest);
+  transform: translateY(-16px);
+  box-shadow: 0 8px 30px rgba(236, 199, 133, 0.1);
+}
+.lp-plan--featured:hover {
+  transform: translateY(-22px);
+  box-shadow: 0 24px 52px rgba(236, 199, 133, 0.16);
+}
+.lp-plan-badge {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--lp-primary);
+  color: var(--lp-forest);
+  border-radius: 999px;
+  padding: 4px 12px;
+}
+.lp-plan h3 {
+  margin: 0 0 4px;
+  color: var(--lp-cream);
+}
+.lp-plan-blurb {
+  margin: 0 0 12px;
+  min-height: 48px;
+  color: var(--lp-on-surface-variant);
+}
+.lp-plan--featured .lp-plan-blurb {
+  color: var(--lp-sage-soft);
+}
+.lp-plan-price {
+  margin-bottom: 16px;
+}
+.lp-plan-price-amount {
+  font-family: var(--lp-serif);
+  font-size: 30px;
+  font-weight: 500;
+  color: var(--lp-cream);
+}
+.lp-plan-price-suffix {
+  color: var(--lp-on-surface-variant);
+  font-size: 14px;
+}
+.lp-plan--featured .lp-plan-price-suffix {
+  color: var(--lp-sage-soft);
+}
+.lp-plan-features {
+  list-style: none;
+  margin: 0 0 24px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1 1 auto;
+}
+.lp-plan-features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  color: var(--lp-sage-soft);
+}
+.lp-plan--featured .lp-plan-features li {
+  color: var(--lp-cream);
+}
+.lp-plan-features .lp-icon {
+  color: var(--lp-primary);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* ─── Footer ─── */
+.lp-footer {
+  width: 100%;
+  background: var(--lp-surface-dim);
+  border-top: 1px solid var(--lp-border-faint);
+  padding-top: 24px;
+  padding-bottom: 24px;
+  margin-top: 128px;
+}
+.lp-footer-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  max-width: var(--lp-archive-max);
+  margin: 0 auto;
+  padding: 0 16px;
+}
+.lp-footer-brand {
+  font-family: var(--lp-serif);
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--lp-gold-deep);
+}
+.lp-footer-links {
+  display: flex;
+  gap: 16px;
+}
+.lp-footer-link {
+  color: var(--lp-outline);
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+.lp-footer-link:hover {
+  color: var(--lp-cream);
+}
+.lp-footer-copy {
+  color: var(--lp-outline);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Scroll-reveal — entrada escalonada al cruzar el viewport.
+   El JS agrega .lp-in vía IntersectionObserver; el delay viene inline.
+   ───────────────────────────────────────────────────────────────────────── */
+/* Usamos la propiedad `translate` (no `transform`) para la entrada: así
+   compone con los `transform` de hover/elevación de las cards en vez de
+   pisarlos. La transición es comprensiva para cubrir también el hover. */
+[data-reveal] {
+  opacity: 0;
+  translate: 0 28px;
+  transition:
+    opacity 0.9s var(--lp-ease),
+    translate 0.9s var(--lp-ease),
+    transform 0.45s var(--lp-ease),
+    border-color 0.45s ease,
+    box-shadow 0.45s ease;
+  will-change: opacity, translate;
+}
+[data-reveal].lp-in {
+  opacity: 1;
+  translate: 0 0;
+}
+/* La línea del timeline revela su trazo (scaleY), no opacidad ni translate. */
+.lp-steps .lp-steps-line[data-reveal] {
+  opacity: 1;
+  translate: 0 0;
+}
+
+/* ─── Keyframes ─── */
+@keyframes lpAura {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+@keyframes lpBreath {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.035); }
+}
+@keyframes lpTwinkle {
+  0%, 100% { opacity: 0.7; transform: scale(0.92) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.12) rotate(18deg); }
+}
+@keyframes lpShimmer {
+  from { transform: translateX(-180%) skewX(-12deg); }
+  to { transform: translateX(320%) skewX(-12deg); }
+}
+
+/* ─── Responsive: colapso a 1 columna (paridad con breakpoints md: de Stitch).
+   La versión mobile pulida llega en una iteración aparte. ─── */
+@media (max-width: 768px) {
+  .lp-nav { display: none; }
+  .lp-display { font-size: 38px; }
+  .lp-main { padding-top: 96px; }
+  .lp-section,
+  .lp-section-band { margin-bottom: 80px; }
+  .lp-section-band { padding-top: 80px; padding-bottom: 80px; }
+  .lp-footer { margin-top: 80px; }
+
+  .lp-grid-3,
+  .lp-grid-2,
+  .lp-mentors { grid-template-columns: 1fr; }
+
+  .lp-feature,
+  .lp-feature--reverse { flex-direction: column; }
+  .lp-feature-media,
+  .lp-feature-copy { width: 100%; }
+
+  .lp-steps-line { display: none; }
+  .lp-step { flex-direction: column; text-align: center; }
+  .lp-step-side,
+  .lp-step-spacer { width: 100%; }
+  .lp-step-side--right { text-align: center; }
+  .lp-step-spacer { display: none; }
+
+  .lp-plan--featured { transform: none; }
+  .lp-plan--featured:hover { transform: translateY(-6px); }
+
+  .lp-footer-inner { flex-direction: column; text-align: center; }
+  .lp-hero-actions { flex-direction: column; }
+}
+
+/* ─── Accesibilidad: respetar la preferencia de menos movimiento ─── */
+@media (prefers-reduced-motion: reduce) {
+  .lp-root [data-reveal] {
+    opacity: 1 !important;
+    translate: none !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .lp-steps .lp-steps-line { transform: translateX(-50%) scaleY(1) !important; transition: none !important; }
+  .lp-hero-glow,
+  .lp-hero-img,
+  .lp-brand-mark,
+  .lp-btn-gold::after {
+    animation: none !important;
+  }
+  .lp-root *,
+  .lp-root *::before,
+  .lp-root *::after {
+    transition-duration: 0.01ms !important;
+  }
+}
