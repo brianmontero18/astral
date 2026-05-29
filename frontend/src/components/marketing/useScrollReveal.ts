@@ -1,7 +1,7 @@
 import { useEffect, type RefObject } from "react";
 
 // Revela los elementos [data-reveal] dentro del contenedor al cruzar el
-// viewport, agregándoles la clase .lp-in (una sola vez). Respeta
+// viewport, agregándoles la clase .mkt-in (una sola vez). Respeta
 // prefers-reduced-motion mostrándolos de entrada, sin animar.
 export function useScrollReveal(
   containerRef: RefObject<HTMLElement | null>,
@@ -19,7 +19,7 @@ export function useScrollReveal(
     ).matches;
 
     if (prefersReduced || !("IntersectionObserver" in window)) {
-      targets.forEach((el) => el.classList.add("lp-in"));
+      targets.forEach((el) => el.classList.add("mkt-in"));
       return;
     }
 
@@ -27,7 +27,7 @@ export function useScrollReveal(
       (entries) => {
         for (const entry of entries) {
           if (entry.isIntersecting) {
-            entry.target.classList.add("lp-in");
+            entry.target.classList.add("mkt-in");
             observer.unobserve(entry.target);
           }
         }

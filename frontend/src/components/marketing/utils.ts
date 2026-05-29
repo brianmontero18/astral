@@ -9,7 +9,7 @@ export const HEADER_OFFSET = 88;
 // Props para marcar un elemento como objeto de scroll-reveal. Se hace spread
 // sobre el elemento semántico real (no agrega wrappers): `data-reveal` lo
 // engancha al IntersectionObserver y el delay arma el stagger.
-//   <article className="lp-card" {...revealProps(index * STAGGER_MS)}>
+//   <article className="mkt-card" {...revealProps(index * STAGGER_MS)}>
 export function revealProps(delay = 0): {
   "data-reveal": "";
   style: CSSProperties;

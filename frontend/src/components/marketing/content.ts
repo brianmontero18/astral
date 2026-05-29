@@ -1,7 +1,7 @@
-// ─── Contenido de la landing ────────────────────────────────────────────────
+// ─── Contenido de la home de marketing ──────────────────────────────────────
 // Todo el copy/data vive acá. Para cambiar textos, precios, secciones o copy
 // NO hace falta tocar los componentes: se edita solo este archivo.
-// Las imágenes son assets self-contained en /public/landing/.
+// Las imágenes son assets self-contained en /public/marketing/.
 
 export interface NavLink {
   label: string;
@@ -29,7 +29,7 @@ export const HERO = {
   primaryCta: "Empezar mi lectura",
   secondaryCta: "Ver experiencia",
   image: {
-    src: "/landing/hero-bodygraph.png",
+    src: "/marketing/hero-bodygraph.png",
     alt: "Ilustración conceptual de un mandala / bodygraph que mezcla líneas vectoriales con formas botánicas en tonos verde bosque, salvia y dorado.",
   },
 };
@@ -82,28 +82,28 @@ export const SYSTEM_HEADING: SectionHeadingContent = {
 
 export const SYSTEM_FEATURES: SystemFeature[] = [
   {
-    img: "/landing/feature-mi-carta.png",
+    img: "/marketing/feature-mi-carta.png",
     alt: "Vista del BodyGraph con centros definidos en tonos dorados y salvia sobre fondo verde bosque.",
     title: "Mi Carta",
     body: "Visualizá tu BodyGraph con un diseño claro y estético. Entendé de un vistazo tus centros definidos y sin definir.",
     reverse: false,
   },
   {
-    img: "/landing/feature-chat.png",
+    img: "/marketing/feature-chat.png",
     alt: "Interfaz de chat con un asistente respondiendo sobre el perfil de Diseño Humano del usuario.",
     title: "Chat Personalizado",
     body: "Interactuá con un asistente entrenado en tu diseño específico. Resolvé dudas sobre cómo aplicar tu estrategia y autoridad.",
     reverse: true,
   },
   {
-    img: "/landing/feature-transitos.png",
+    img: "/marketing/feature-transitos.png",
     alt: "Dashboard de tránsitos astrales impactando una carta de Diseño Humano.",
     title: "Tránsitos (Próximamente)",
     body: "Conocé cómo el clima astral actual interactúa con tu diseño base y qué energías temporales tenés disponibles.",
     reverse: false,
   },
   {
-    img: "/landing/feature-informe.png",
+    img: "/marketing/feature-informe.png",
     alt: "Documento editorial con análisis de texto y sutiles marcas botánicas de fondo.",
     title: "Informe Premium",
     body: "Accedé a un análisis profundo de tu perfil, cruz de encarnación, canales y puertas, estructurado para fácil lectura.",
@@ -127,13 +127,13 @@ export const MENTORS_HEADING: SectionHeadingContent = {
 
 export const MENTORS: Mentor[] = [
   {
-    img: "/landing/mentor-daniela.png",
+    img: "/marketing/mentor-daniela.png",
     name: "Daniela Medina",
     role: "Mentora de negocios holísticos y Diseño Humano",
     body: "Daniela aporta la mirada humana: lectura de patrones, ritmo personal, transformación y negocio alineado. Su trabajo está en traducir información profunda en claridad práctica para mujeres que crean, venden y acompañan.",
   },
   {
-    img: "/landing/mentor-brian.png",
+    img: "/marketing/mentor-brian.png",
     name: "Brian Montero",
     role: "Ingeniero de software y builder de sistemas de IA",
     body: "Brian aporta la arquitectura técnica: producto, IA, sistemas y confiabilidad. Construye la capa que permite que Astral sea personalizada, contextual y precisa, sin convertir lo humano en una respuesta genérica.",

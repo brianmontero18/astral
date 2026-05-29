@@ -5,23 +5,23 @@ import { revealProps, STAGGER_MS } from "../utils";
 
 export function HowItWorksSection(): ReactNode {
   return (
-    <section className="lp-wrap-narrow lp-section" id="como-funciona">
+    <section className="mkt-wrap-narrow mkt-section" id="como-funciona">
       <SectionHeading {...HOW_HEADING} />
-      <div className="lp-steps">
-        <div className="lp-steps-line" aria-hidden="true" {...revealProps()} />
+      <div className="mkt-steps">
+        <div className="mkt-steps-line" aria-hidden="true" {...revealProps()} />
         {STEPS.map((step, index) => {
           const onRight = index % 2 === 0;
           const copy = (
-            <div className={`lp-step-side${onRight ? " lp-step-side--right" : ""}`}>
-              <h3 className="lp-headline-md">{step.title}</h3>
-              <p className="lp-body-readable">{step.body}</p>
+            <div className={`mkt-step-side${onRight ? " mkt-step-side--right" : ""}`}>
+              <h3 className="mkt-headline-md">{step.title}</h3>
+              <p className="mkt-body-readable">{step.body}</p>
             </div>
           );
-          const dot = <div className="lp-step-dot">{step.n}</div>;
-          const spacer = <div className="lp-step-spacer" aria-hidden="true" />;
+          const dot = <div className="mkt-step-dot">{step.n}</div>;
+          const spacer = <div className="mkt-step-spacer" aria-hidden="true" />;
 
           return (
-            <div key={step.n} className="lp-step" {...revealProps(index * STAGGER_MS)}>
+            <div key={step.n} className="mkt-step" {...revealProps(index * STAGGER_MS)}>
               {onRight ? (
                 <>
                   {copy}

@@ -1,8 +1,9 @@
 import { test, expect } from "@playwright/test";
 import { expectNoHorizontalOverflow } from "../helpers/layout";
 
-// La landing es pública: la ruta /landing saltea el bootstrap de auth, así que
-// no necesita sesión ni mocks de API. Smoke estructural + layout + scroll-reveal.
+// La home de marketing es pública: la ruta /home saltea el bootstrap de auth,
+// así que no necesita sesión ni mocks de API. Smoke estructural + layout +
+// scroll-reveal.
 
 const DESKTOP_VIEWPORT = { width: 1280, height: 900 };
 
@@ -15,11 +16,11 @@ const SECTION_HEADINGS = [
   "Planes",
 ];
 
-test.describe("Landing — Desktop", () => {
+test.describe("Marketing Home — Desktop", () => {
   test.use({ viewport: DESKTOP_VIEWPORT });
 
   test("renders the hero and every section heading", async ({ page }) => {
-    await page.goto("/landing");
+    await page.goto("/home");
 
     await expect(
       page.getByRole("heading", { level: 1, name: "Astral Guide" }),
@@ -40,21 +41,21 @@ test.describe("Landing — Desktop", () => {
   });
 
   test("has no horizontal overflow at desktop and mobile widths", async ({ page }) => {
-    await page.goto("/landing");
+    await page.goto("/home");
     await expectNoHorizontalOverflow(page);
 
     await page.setViewportSize({ width: 375, height: 812 });
     await expectNoHorizontalOverflow(page);
   });
 
-  test("scroll-reveal marks sections visible as they enter the viewport", async ({ page }) => {
-    await page.goto("/landing");
+  test("scroll-reveal brings below-the-fold sections fully into view", async ({ page }) => {
+    await page.goto("/home");
 
-    const heading = page.locator("#planes .lp-section-head");
+    // El encabezado de Planes arranca translúcido (opacity 0) y el
+    // IntersectionObserver lo lleva a opacity 1 al entrar al viewport.
+    const heading = page.locator("#planes .mkt-section-head");
     await heading.scrollIntoViewIfNeeded();
 
-    // El IntersectionObserver agrega .lp-in → translate a 0 y opacity a 1.
-    await expect(heading).toHaveClass(/lp-in/);
     await expect(heading).toHaveCSS("opacity", "1");
   });
 });

@@ -18,16 +18,16 @@ export function SectionHeading({
   title,
   lead,
   wide = false,
-  leadClassName = "lp-body-readable",
+  leadClassName = "mkt-body-readable",
 }: SectionHeadingProps): ReactNode {
   return (
     <div
-      className={`lp-section-head${wide ? " lp-section-head--wide" : ""}`}
+      className={`mkt-section-head${wide ? " mkt-section-head--wide" : ""}`}
       {...revealProps()}
     >
-      <p className="lp-kicker">{kicker}</p>
-      <h2 className="lp-headline-lg">{title}</h2>
-      {lead ? <p className={`lp-section-lead ${leadClassName}`}>{lead}</p> : null}
+      <p className="mkt-kicker">{kicker}</p>
+      <h2 className="mkt-headline-lg">{title}</h2>
+      {lead ? <p className={`mkt-section-lead ${leadClassName}`}>{lead}</p> : null}
     </div>
   );
 }

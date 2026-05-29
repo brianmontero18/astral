@@ -12,18 +12,18 @@ const ICONS: Record<PhilosophyIconKey, ReactNode> = {
 
 export function PhilosophySection(): ReactNode {
   return (
-    <section className="lp-wrap lp-section">
+    <section className="mkt-wrap mkt-section">
       <SectionHeading {...PHILOSOPHY_HEADING} />
-      <div className="lp-grid-3">
+      <div className="mkt-grid-3">
         {PHILOSOPHY_CARDS.map((card, index) => (
           <article
             key={card.title}
-            className="lp-card lp-philo-card"
+            className="mkt-card mkt-philo-card"
             {...revealProps(index * STAGGER_MS)}
           >
-            <span className="lp-icon">{ICONS[card.icon]}</span>
-            <h3 className="lp-headline-sm">{card.title}</h3>
-            <p className="lp-body-readable">{card.body}</p>
+            <span className="mkt-icon">{ICONS[card.icon]}</span>
+            <h3 className="mkt-headline-sm">{card.title}</h3>
+            <p className="mkt-body-readable">{card.body}</p>
           </article>
         ))}
       </div>

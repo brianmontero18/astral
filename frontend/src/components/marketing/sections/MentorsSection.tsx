@@ -9,29 +9,29 @@ interface MentorsSectionProps {
 
 export function MentorsSection({ onEnter }: MentorsSectionProps): ReactNode {
   return (
-    <section className="lp-wrap lp-section">
-      <SectionHeading {...MENTORS_HEADING} wide leadClassName="lp-body-lg" />
-      <div className="lp-mentors">
+    <section className="mkt-wrap mkt-section">
+      <SectionHeading {...MENTORS_HEADING} wide leadClassName="mkt-body-lg" />
+      <div className="mkt-mentors">
         {MENTORS.map((mentor, index) => (
           <article
             key={mentor.name}
-            className="lp-mentor"
+            className="mkt-mentor"
             {...revealProps(index * STAGGER_MS)}
           >
-            <div className="lp-mentor-photo">
+            <div className="mkt-mentor-photo">
               <img src={mentor.img} alt={mentor.name} />
             </div>
-            <h3 className="lp-headline-md">{mentor.name}</h3>
-            <p className="lp-mentor-role lp-kicker">{mentor.role}</p>
-            <p className="lp-body-readable">{mentor.body}</p>
+            <h3 className="mkt-headline-md">{mentor.name}</h3>
+            <p className="mkt-mentor-role mkt-kicker">{mentor.role}</p>
+            <p className="mkt-body-readable">{mentor.body}</p>
           </article>
         ))}
       </div>
-      <div className="lp-mentors-quote" {...revealProps()}>
-        <blockquote className="lp-headline-sm">{MENTORS_QUOTE}</blockquote>
+      <div className="mkt-mentors-quote" {...revealProps()}>
+        <blockquote className="mkt-headline-sm">{MENTORS_QUOTE}</blockquote>
         <button
           type="button"
-          className="lp-btn lp-btn-gold lp-btn-wide"
+          className="mkt-btn mkt-btn-gold mkt-btn-wide"
           onClick={() => onEnter?.()}
         >
           {MENTORS_CTA}

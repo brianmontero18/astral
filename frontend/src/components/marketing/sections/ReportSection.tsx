@@ -5,18 +5,18 @@ import { revealProps, STAGGER_MS } from "../utils";
 
 export function ReportSection(): ReactNode {
   return (
-    <section className="lp-section-band" id="informe">
-      <div className="lp-wrap">
+    <section className="mkt-section-band" id="informe">
+      <div className="mkt-wrap">
         <SectionHeading {...REPORT_HEADING} />
-        <div className="lp-grid-2 lp-grid-2--tight">
+        <div className="mkt-grid-2 mkt-grid-2--tight">
           {REPORT_CARDS.map((card, index) => (
             <article
               key={card.title}
-              className="lp-report-card"
+              className="mkt-report-card"
               {...revealProps((index % 2) * STAGGER_MS)}
             >
-              <h4 className="lp-headline-md">{card.title}</h4>
-              <p className="lp-body-readable">{card.body}</p>
+              <h4 className="mkt-headline-md">{card.title}</h4>
+              <p className="mkt-body-readable">{card.body}</p>
             </article>
           ))}
         </div>

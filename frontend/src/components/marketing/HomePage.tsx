@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import type { ReactNode } from "react";
-import "./landing.css";
+import "./marketing.css";
 import { useScrollReveal } from "./useScrollReveal";
 import { Header } from "./sections/Header";
 import { Hero } from "./sections/Hero";
@@ -12,28 +12,29 @@ import { ReportSection } from "./sections/ReportSection";
 import { PlansSection } from "./sections/PlansSection";
 import { Footer } from "./sections/Footer";
 
-// ─── Landing Page — Astral Guide ────────────────────────────────────────────
-// Réplica del diseño Stitch "Astral Guide Landing Page" (desktop), tema dark
-// "Editorial Premium / Botanical" — independiente del tema sage-soft in-app.
+// ─── Marketing Home — Astral Guide ──────────────────────────────────────────
+// Home del sitio público de marketing. Réplica del diseño Stitch (desktop),
+// tema dark "Editorial Premium / Botanical" — independiente del tema sage-soft
+// in-app.
 //
 // Orquestador: compone secciones autocontenidas (cada una en ./sections/).
 // El copy vive en ./content.ts, la capa de movimiento en useScrollReveal +
-// landing.css (scroll-reveal, aura del mandala, hovers, prefers-reduced-motion).
+// marketing.css (scroll-reveal, aura del mandala, hovers, prefers-reduced-motion).
 // La versión mobile pulida llega en una iteración aparte.
 
-interface LandingPageProps {
+interface HomePageProps {
   /** Lleva al visitante a la app / auth (CTAs y botón ACCESO). */
   onEnter?: () => void;
 }
 
-export function LandingPage({ onEnter }: LandingPageProps): ReactNode {
+export function HomePage({ onEnter }: HomePageProps): ReactNode {
   const rootRef = useRef<HTMLDivElement>(null);
   useScrollReveal(rootRef);
 
   return (
-    <div className="lp-root" ref={rootRef}>
+    <div className="mkt-root" ref={rootRef}>
       <Header onEnter={onEnter} />
-      <main className="lp-main" id="top">
+      <main className="mkt-main" id="top">
         <Hero onEnter={onEnter} />
         <PhilosophySection />
         <SystemSection />

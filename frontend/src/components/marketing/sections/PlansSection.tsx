@@ -10,30 +10,30 @@ interface PlansSectionProps {
 
 export function PlansSection({ onEnter }: PlansSectionProps): ReactNode {
   return (
-    <section className="lp-wrap lp-section" id="planes">
+    <section className="mkt-wrap mkt-section" id="planes">
       <SectionHeading {...PLANS_HEADING} />
-      <div className="lp-grid-3">
+      <div className="mkt-grid-3">
         {PLANS.map((plan, index) => (
           <div
             key={plan.name}
-            className={`lp-plan${plan.featured ? " lp-plan--featured" : ""}`}
+            className={`mkt-plan${plan.featured ? " mkt-plan--featured" : ""}`}
             {...revealProps(index * STAGGER_MS)}
           >
             {plan.featured ? (
-              <span className="lp-plan-badge lp-kicker">Recomendado</span>
+              <span className="mkt-plan-badge mkt-kicker">Recomendado</span>
             ) : null}
-            <h3 className="lp-headline-md">{plan.name}</h3>
-            <p className="lp-plan-blurb lp-body-readable">{plan.blurb}</p>
-            <div className="lp-plan-price">
-              <span className="lp-plan-price-amount">{plan.price}</span>
+            <h3 className="mkt-headline-md">{plan.name}</h3>
+            <p className="mkt-plan-blurb mkt-body-readable">{plan.blurb}</p>
+            <div className="mkt-plan-price">
+              <span className="mkt-plan-price-amount">{plan.price}</span>
               {plan.suffix ? (
-                <span className="lp-plan-price-suffix">{plan.suffix}</span>
+                <span className="mkt-plan-price-suffix">{plan.suffix}</span>
               ) : null}
             </div>
-            <ul className="lp-plan-features lp-body-md">
+            <ul className="mkt-plan-features mkt-body-md">
               {plan.features.map((feature) => (
                 <li key={feature}>
-                  <span className="lp-icon">
+                  <span className="mkt-icon">
                     <IconCheck />
                   </span>
                   {feature}
@@ -42,7 +42,7 @@ export function PlansSection({ onEnter }: PlansSectionProps): ReactNode {
             </ul>
             <button
               type="button"
-              className={`lp-btn lp-btn-block ${plan.featured ? "lp-btn-gold" : "lp-btn-ghost"}`}
+              className={`mkt-btn mkt-btn-block ${plan.featured ? "mkt-btn-gold" : "mkt-btn-ghost"}`}
               onClick={() => onEnter?.()}
             >
               {plan.cta}

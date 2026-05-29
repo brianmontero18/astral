@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-// Iconografía de la landing: SVG stroke-based 1.7px, sin emojis (DESIGN.md).
+// Iconografía de la home de marketing: SVG stroke-based 1.7px, sin emojis (DESIGN.md).
 
 interface IconProps {
   size?: number;

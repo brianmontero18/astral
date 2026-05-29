@@ -9,24 +9,24 @@ interface HeaderProps {
 
 export function Header({ onEnter }: HeaderProps): ReactNode {
   return (
-    <header className="lp-header">
-      <div className="lp-header-inner">
+    <header className="mkt-header">
+      <div className="mkt-header-inner">
         <a
-          className="lp-brand"
+          className="mkt-brand"
           href="#top"
           aria-label="Astral Guide"
           onClick={(event) => smoothScrollToHash(event, "#top")}
         >
-          <span className="lp-brand-name">Astral Guide</span>
-          <span className="lp-brand-mark">
+          <span className="mkt-brand-name">Astral Guide</span>
+          <span className="mkt-brand-mark">
             <IconStar />
           </span>
         </a>
-        <nav className="lp-nav">
+        <nav className="mkt-nav">
           {NAV_LINKS.map((link) => (
             <a
               key={link.href}
-              className="lp-nav-link lp-label-md"
+              className="mkt-nav-link mkt-label-md"
               href={link.href}
               onClick={(event) => smoothScrollToHash(event, link.href)}
             >
@@ -34,7 +34,7 @@ export function Header({ onEnter }: HeaderProps): ReactNode {
             </a>
           ))}
         </nav>
-        <button type="button" className="lp-btn lp-btn-outline" onClick={() => onEnter?.()}>
+        <button type="button" className="mkt-btn mkt-btn-outline" onClick={() => onEnter?.()}>
           Acceso
         </button>
       </div>
