@@ -361,6 +361,49 @@
   transform: scaleX(1);
 }
 
+/* ─── Nav mobile (hamburguesa + panel). Oculto en desktop; se activa en el
+   breakpoint < 768px más abajo. ─── */
+.mkt-nav-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  color: var(--mkt-gold-deep);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: color 0.25s ease, background 0.25s ease;
+}
+.mkt-nav-toggle:hover {
+  color: var(--mkt-cream);
+  background: rgba(248, 244, 232, 0.06);
+}
+.mkt-mobile-menu {
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  border-top: 1px solid var(--mkt-border-faint);
+}
+.mkt-mobile-menu-nav {
+  display: flex;
+  flex-direction: column;
+}
+.mkt-mobile-menu-link {
+  color: var(--mkt-cream);
+  text-decoration: none;
+  padding: 15px 4px;
+  border-bottom: 1px solid var(--mkt-border-faint);
+  transition: color 0.25s ease;
+}
+.mkt-mobile-menu-link:hover {
+  color: var(--mkt-primary);
+}
+.mkt-mobile-menu .mkt-btn {
+  margin-top: 16px;
+}
+
 /* ─── Hero ─── */
 .mkt-hero {
   text-align: center;
@@ -834,9 +877,27 @@
 /* ─── Responsive: colapso a 1 columna (paridad con breakpoints md: de Stitch).
    La versión mobile pulida llega en una iteración aparte. ─── */
 @media (max-width: 768px) {
-  .mkt-nav { display: none; }
+  /* Nav → hamburguesa: oculto los links y el CTA del bar, muestro el toggle
+     y el panel desplegable (animado por max-height/opacity). */
+  .mkt-nav,
+  .mkt-header-cta { display: none; }
+  .mkt-nav-toggle { display: inline-flex; }
+  .mkt-mobile-menu {
+    display: flex;
+    max-height: 0;
+    opacity: 0;
+    padding: 0 16px;
+    transition: max-height 0.35s var(--mkt-ease), opacity 0.3s ease,
+      padding 0.35s var(--mkt-ease);
+  }
+  .mkt-mobile-menu.is-open {
+    max-height: 80vh;
+    opacity: 1;
+    padding: 8px 16px 20px;
+  }
+
   .mkt-display { font-size: 38px; }
-  .mkt-main { padding-top: 96px; }
+  .mkt-main { padding-top: 88px; }
   .mkt-section,
   .mkt-section-band { margin-bottom: 80px; }
   .mkt-section-band { padding-top: 80px; padding-bottom: 80px; }
@@ -852,7 +913,13 @@
   .mkt-feature-copy { width: 100%; }
 
   .mkt-steps-line { display: none; }
+  .mkt-steps { gap: 40px; }
   .mkt-step { flex-direction: column; text-align: center; }
+  /* El layout zig-zag alterna el orden de los hijos por paso; al apilar en
+     vertical eso dejaba el número arriba/abajo inconsistente. order:-1 fuerza
+     el círculo del número siempre primero → número arriba, luego título y
+     descripción (igual que el diseño mobile de Stitch). */
+  .mkt-step-dot { order: -1; }
   .mkt-step-side,
   .mkt-step-spacer { width: 100%; }
   .mkt-step-side--right { text-align: center; }
@@ -862,7 +929,13 @@
   .mkt-plan--featured:hover { transform: translateY(-6px); }
 
   .mkt-footer-inner { flex-direction: column; text-align: center; }
-  .mkt-hero-actions { flex-direction: column; }
+  .mkt-hero-actions {
+    flex-direction: column;
+    width: 100%;
+    max-width: 320px;
+    margin: 0 auto;
+  }
+  .mkt-hero-actions .mkt-btn { width: 100%; }
 }
 
 /* ─── Accesibilidad: respetar la preferencia de menos movimiento ─── */
