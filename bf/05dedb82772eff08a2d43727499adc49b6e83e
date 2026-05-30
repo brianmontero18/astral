@@ -1,0 +1,34 @@
+backend/src/__tests__/admin-conversations.test.ts
+  s_ed6671f79ba7d5::t_2469334482ad61 1-126
+frontend/src/components/AdminUserDetailView.tsx
+  s_ed6671f79ba7d5::t_66eb5327bce702 29
+  s_ed6671f79ba7d5::t_491ea58c6f5968 1120-1121
+frontend/src/components/AdminUserConversationsView.tsx
+  s_ed6671f79ba7d5::t_e2912d1f9f22c8 1-202
+backend/src/routes/users.ts
+  s_ed6671f79ba7d5::t_a0e0bcd7fdd715 9-10
+  s_ed6671f79ba7d5::t_72cd85ffe5fb7f 700-776
+frontend/src/types.ts
+  s_ed6671f79ba7d5::t_7a15070c8867cb 305-327
+backend/src/db.ts
+  s_ed6671f79ba7d5::t_a8af2911c27810 1483-1526
+frontend/src/api.ts
+  s_ed6671f79ba7d5::t_f70fd4e618109a 679-699
+  s_ed6671f79ba7d5::t_c577095891f4ad 16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "bf05dedb82772eff08a2d43727499adc49b6e83e",
+  "prompts": {},
+  "sessions": {
+    "s_ed6671f79ba7d5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "87e972f1-c442-4e84-b4a9-b30207030bb6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
