@@ -1,0 +1,24 @@
+docs/ai-refactor/06-advisor-quality-audit.md
+  s_ed6671f79ba7d5::t_6ea6a4b5f42c48 239-241
+  s_ed6671f79ba7d5::t_a4e69e84a079a9 3-5
+  s_ed6671f79ba7d5::t_adcfe241cf8a0e 292,294-297
+  s_ed6671f79ba7d5::t_0333a774e76263 181-229
+  s_ed6671f79ba7d5::t_b4c23cf4c4ed13 245,247,249-252,254
+  s_ed6671f79ba7d5::t_5528c12ebf8d1f 268-278
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "739dd08f225720531b5f0a036e41f5209a0860a0",
+  "prompts": {},
+  "sessions": {
+    "s_ed6671f79ba7d5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "87e972f1-c442-4e84-b4a9-b30207030bb6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
