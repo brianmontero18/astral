@@ -1480,8 +1480,6 @@ export async function getChatMessages(
   }));
 }
 
-export type FeedbackThumb = "up" | "down";
-
 export interface ChatMessageWithFeedback {
   id: number;
   role: string;
@@ -2338,6 +2336,37 @@ export async function getEvalPassRates(opts: {
       passRate: total > 0 ? passed / total : 0,
     };
   });
+}
+
+/**
+ * Upserts a human good/bad label + critique for a target (source='human',
+ * eval_name='overall'). Idempotent: re-labeling replaces the prior human label
+ * for that target instead of stacking rows, so the judge-vs-human alignment
+ * always compares against the latest human verdict.
+ */
+export async function setHumanEvalLabel(args: {
+  userId: string;
+  surface: EvalSurface;
+  targetId: string;
+  pass: boolean;
+  critique: string;
+}): Promise<void> {
+  await client.batch(
+    [
+      {
+        sql: `DELETE FROM eval_results
+              WHERE target_id = ? AND source = 'human' AND eval_name = 'overall'`,
+        args: [args.targetId],
+      },
+      {
+        sql: `INSERT INTO eval_results
+                (user_id, surface, target_id, source, eval_name, pass, reason)
+              VALUES (?, ?, ?, 'human', 'overall', ?, ?)`,
+        args: [args.userId, args.surface, args.targetId, args.pass ? 1 : 0, args.critique],
+      },
+    ],
+    "write",
+  );
 }
 
 export async function getLlmUsageForUser(

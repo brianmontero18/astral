@@ -68,6 +68,27 @@ Desde `backend/`:
 ./node_modules/.bin/tsx scripts/prod-audits/examples/find-anomalies.ts
 ```
 
+## Eval harness (astral-y3c.3)
+
+```bash
+# Exportar ~30 conversaciones recientes a JSON para análisis offline / corpus.
+./node_modules/.bin/tsx scripts/prod-audits/seed-eval-corpus.ts --limit 30 > seed.json
+
+# Alerta de degradación: pass-rate por eval (heurística, chat) últimos N días.
+# Exit code 1 si algún eval cae bajo el umbral. Postea a EVAL_ALERT_WEBHOOK_URL si está seteada.
+./node_modules/.bin/tsx scripts/prod-audits/eval-passrate-alert.ts --days 7 --threshold 0.7
+```
+
+Ambos son **read-only** y no consumen tokens. `eval-passrate-alert.ts` se piensa
+para correr semanalmente vía el scheduler de la plataforma (cron de Fury o GitHub
+Action programada); no se agrega infra de cron acá.
+
+El **etiquetado humano** (good/bad + crítica de las conversaciones) NO va por un
+script de write — se hace desde el admin panel (sección "Conversaciones recientes"),
+que postea a `POST /admin/users/:id/messages/:messageId/label` y escribe
+`eval_results` con `source='human'` por el write path normal de la app. Eso respeta
+la convención de "no scripts reutilizables de write" de más abajo.
+
 ## Query útil: chat sin tools en las últimas 24h
 
 ```sql

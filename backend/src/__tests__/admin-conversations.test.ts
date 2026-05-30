@@ -12,7 +12,8 @@ import { mockSessionModule } from "./session-mock.js";
 vi.mock("../auth/session.js", () => mockSessionModule());
 
 const { createLinkedTestUser, createTestApp, sessionHeaders } = await import("./helpers.js");
-const { saveChatMessage, insertEvalResults, setMessageFeedback } = await import("../db.js");
+const { saveChatMessage, insertEvalResults, setMessageFeedback, getEvalResultsByTarget } =
+  await import("../db.js");
 
 let app: FastifyInstance;
 
@@ -122,5 +123,70 @@ describe("GET /api/admin/users/:id/conversations — payload", () => {
 
     expect(res.statusCode).toBe(200);
     expect(JSON.parse(res.body)).toEqual({ conversations: [] });
+  });
+});
+
+describe("POST /api/admin/users/:id/messages/:messageId/label", () => {
+  it("returns 403 for non-admins", async () => {
+    const ownerId = await createLinkedTestUser(app, "label-non-admin-owner");
+    await createLinkedTestUser(app, "label-non-admin-other");
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/admin/users/${ownerId}/messages/1/label`,
+      headers: sessionHeaders("label-non-admin-other"),
+      payload: { label: "good" },
+    });
+
+    expect(res.statusCode).toBe(403);
+  });
+
+  it("rejects an invalid label with 400", async () => {
+    const targetId = await createLinkedTestUser(app, "label-invalid-target");
+    await createLinkedTestUser(app, "label-invalid-admin", "Admin", undefined, { role: "admin" });
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/admin/users/${targetId}/messages/1/label`,
+      headers: sessionHeaders("label-invalid-admin"),
+      payload: { label: "meh" },
+    });
+
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("writes a human label and replaces it on re-label (idempotent)", async () => {
+    const targetId = await createLinkedTestUser(app, "label-write-target");
+    await createLinkedTestUser(app, "label-write-admin", "Admin", undefined, { role: "admin" });
+    const assistantMsgId = await saveChatMessage(targetId, "assistant", "respuesta");
+
+    const first = await app.inject({
+      method: "POST",
+      url: `/api/admin/users/${targetId}/messages/${assistantMsgId}/label`,
+      headers: sessionHeaders("label-write-admin"),
+      payload: { label: "bad", critique: "muy genérica" },
+    });
+    expect(first.statusCode).toBe(200);
+
+    let rows = await getEvalResultsByTarget(String(assistantMsgId));
+    let human = rows.filter((r) => r.source === "human");
+    expect(human).toHaveLength(1);
+    expect(human[0].pass).toBe(false);
+    expect(human[0].reason).toBe("muy genérica");
+
+    // Re-label flips the verdict without stacking a second human row.
+    const second = await app.inject({
+      method: "POST",
+      url: `/api/admin/users/${targetId}/messages/${assistantMsgId}/label`,
+      headers: sessionHeaders("label-write-admin"),
+      payload: { label: "good", critique: "en realidad sí pone tensión" },
+    });
+    expect(second.statusCode).toBe(200);
+
+    rows = await getEvalResultsByTarget(String(assistantMsgId));
+    human = rows.filter((r) => r.source === "human");
+    expect(human).toHaveLength(1);
+    expect(human[0].pass).toBe(true);
+    expect(human[0].reason).toBe("en realidad sí pone tensión");
   });
 });

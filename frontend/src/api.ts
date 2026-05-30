@@ -697,6 +697,27 @@ export async function getAdminUserConversations(
   return await res.json() as AdminUserConversations;
 }
 
+export async function setAdminConversationLabel(
+  userId: string,
+  messageId: number,
+  label: "good" | "bad",
+  critique: string,
+): Promise<void> {
+  const res = await fetch(
+    `${BASE}/admin/users/${encodeURIComponent(userId)}/messages/${messageId}/label`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ label, critique }),
+    },
+  );
+
+  if (!res.ok) {
+    const err = await readErrorMessage(res);
+    throw new Error(`Admin label error ${res.status}: ${err}`);
+  }
+}
+
 export type AdminInviteResult =
   | { kind: "ok"; data: AdminInviteSuccess }
   | { kind: "send-failed"; data: AdminInviteSendFailure };

@@ -9,6 +9,7 @@ import {
   getChatMessagesWithFeedback,
   getEvalResultsForUser,
   getLlmUsageForUser,
+  setHumanEvalLabel,
   getUserAssetCount,
   getUserAssetStorageKeys,
   getUserIdentity,
@@ -772,6 +773,45 @@ export async function userRoutes(app: FastifyInstance) {
       // Newest first, capped at the requested limit.
       conversations.reverse();
       return reply.send({ conversations: conversations.slice(0, limit) });
+    },
+  );
+
+  app.post<{
+    Params: { id: string; messageId: string };
+    Body: { label?: string; critique?: string };
+  }>(
+    "/admin/users/:id/messages/:messageId/label",
+    async (req, reply) => {
+      const adminUser = await requireAdminUser(
+        req as AuthenticatedRequest,
+        reply,
+      );
+
+      if (!adminUser) {
+        return;
+      }
+
+      const targetUser = await getUser(req.params.id);
+      if (!targetUser) {
+        return reply.status(404).send({ error: "User not found" });
+      }
+
+      const label = req.body?.label;
+      if (label !== "good" && label !== "bad") {
+        return reply.status(400).send({ error: "label must be 'good' or 'bad'" });
+      }
+
+      const critique = (req.body?.critique ?? "").slice(0, 2000);
+
+      await setHumanEvalLabel({
+        userId: req.params.id,
+        surface: "chat",
+        targetId: req.params.messageId,
+        pass: label === "good",
+        critique,
+      });
+
+      return reply.send({ ok: true });
     },
   );
 }

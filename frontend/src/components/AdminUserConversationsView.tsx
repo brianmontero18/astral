@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { getAdminUserConversations } from "../api";
+import { getAdminUserConversations, setAdminConversationLabel } from "../api";
 import { getAdminSupportFailureMessage } from "../admin-support";
 import type { AdminConversationEntry, AdminConversationEval } from "../types";
 
@@ -60,7 +60,93 @@ function TurnPart({ label, text }: { label: string; text: string }) {
   );
 }
 
-function ConversationCard({ entry }: { entry: AdminConversationEntry }) {
+function HumanLabelControls({ userId, entry }: { userId: string; entry: AdminConversationEntry }) {
+  const existing = entry.evals.find((e) => e.source === "human" && e.name === "overall");
+  const [label, setLabel] = useState<"good" | "bad" | null>(
+    existing ? (existing.pass ? "good" : "bad") : null,
+  );
+  const [critique, setCritique] = useState(existing?.reason ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const save = async (next: "good" | "bad") => {
+    setSaving(true);
+    setError(null);
+    try {
+      await setAdminConversationLabel(userId, entry.assistantMsgId, next, critique);
+      setLabel(next);
+    } catch (err) {
+      setError(getAdminSupportFailureMessage(err, "No pudimos guardar la etiqueta."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const labelButton = (value: "good" | "bad", text: string) => {
+    const active = label === value;
+    const isGood = value === "good";
+    return (
+      <button
+        type="button"
+        disabled={saving}
+        onClick={() => void save(value)}
+        style={{
+          padding: "5px 12px",
+          borderRadius: 999,
+          fontSize: 12,
+          fontWeight: 600,
+          cursor: saving ? "default" : "pointer",
+          border: `1px solid ${isGood ? "rgba(120, 180, 120, 0.5)" : "rgba(196, 96, 96, 0.5)"}`,
+          background: active
+            ? isGood
+              ? "rgba(120, 180, 120, 0.22)"
+              : "rgba(196, 96, 96, 0.22)"
+            : "transparent",
+          color: isGood ? "#bfe3bf" : "#f3c2c2",
+          opacity: saving ? 0.6 : 1,
+        }}
+      >
+        {active ? `● ${text}` : text}
+      </button>
+    );
+  };
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 8,
+        alignItems: "center",
+        borderTop: "1px solid rgba(248, 244, 232, 0.08)",
+        paddingTop: 10,
+      }}
+    >
+      <span style={{ fontSize: 11, color: "var(--text-faint)", fontWeight: 600 }}>Label humano</span>
+      {labelButton("good", "Buena")}
+      {labelButton("bad", "Mala")}
+      <input
+        value={critique}
+        onChange={(event) => setCritique(event.target.value)}
+        placeholder="Crítica (opcional)"
+        maxLength={2000}
+        style={{
+          flex: 1,
+          minWidth: 160,
+          fontSize: 12,
+          padding: "6px 10px",
+          borderRadius: 10,
+          border: "1px solid rgba(248, 244, 232, 0.14)",
+          background: "rgba(248, 244, 232, 0.04)",
+          color: "var(--text-main)",
+        }}
+      />
+      {error && <span style={{ fontSize: 11, color: "#f3c2c2" }}>{error}</span>}
+    </div>
+  );
+}
+
+function ConversationCard({ userId, entry }: { userId: string; entry: AdminConversationEntry }) {
   const failedCount = entry.evals.filter((e) => !e.pass).length;
 
   return (
@@ -113,6 +199,8 @@ function ConversationCard({ entry }: { entry: AdminConversationEntry }) {
           ))}
         </div>
       )}
+
+      <HumanLabelControls userId={userId} entry={entry} />
     </div>
   );
 }
@@ -193,7 +281,7 @@ export function AdminUserConversationsView({ userId }: Props) {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {conversations.map((entry) => (
-            <ConversationCard key={entry.assistantMsgId} entry={entry} />
+            <ConversationCard key={entry.assistantMsgId} userId={userId} entry={entry} />
           ))}
         </div>
       )}
