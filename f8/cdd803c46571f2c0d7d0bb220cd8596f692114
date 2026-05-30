@@ -1,0 +1,22 @@
+backend/scripts/prod-audits/README.md
+  s_1970642029acbb::t_29f92901c334d6 49-54
+backend/scripts/prod-audits/recent-usage.ts
+  s_1970642029acbb::t_04e33321513447 17,81,87-89,118-134,486-489
+  s_1970642029acbb::t_fbf596685ee51d 1-16,18-80,82-86,90-117,135-485,490-496
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "f8cdd803c46571f2c0d7d0bb220cd8596f692114",
+  "prompts": {},
+  "sessions": {
+    "s_1970642029acbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e5a73-c2d1-7e22-834c-c476f627386e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
