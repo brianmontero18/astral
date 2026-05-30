@@ -59,13 +59,33 @@ describe("runChatQualityEvals", () => {
 
   it("derives valid gates from the profile so a hallucinated gate fails grounding", () => {
     const suites = runChatQualityEvals({
-      output: "Hoy la Puerta 64 te empuja a actuar.", // 64 is not in the profile
+      output: "Hoy la Puerta 64 te empuja a actuar.", // 64 is neither natal nor in transit
       userInput: "¿Qué hago hoy?",
       profile: PROFILE,
     });
     const { results } = runEvals(suites);
     const grounding = results.find((r) => r.name === "no-hallucinated-gates");
     expect(grounding?.pass).toBe(false);
+  });
+
+  it("counts transit gates as valid grounding (no false hallucination on weekly readings)", () => {
+    const groundingOf = (transitGates: number[]) => {
+      const { results } = runEvals(
+        runChatQualityEvals({
+          // Gate 17 is NOT natal (profile has 20, 34) — only valid via transit.
+          output: "Esta semana Neptuno activa tu Puerta 17, por eso conviene expresar ideas.",
+          userInput: "¿Cómo está mi energía esta semana?",
+          profile: PROFILE,
+          transitGates,
+        }),
+      );
+      return results.find((r) => r.name === "no-hallucinated-gates")?.pass;
+    };
+
+    // Without the transit context the natal-only set would flag it (the old bug).
+    expect(groundingOf([])).toBe(false);
+    // With gate 17 in transit, the same citation is correctly grounded.
+    expect(groundingOf([17])).toBe(true);
   });
 
   it("flags a generic, sycophantic chat answer", () => {

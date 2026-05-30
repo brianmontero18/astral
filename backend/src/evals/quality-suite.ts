@@ -31,6 +31,12 @@ export interface ChatEvalContext {
   profile: UserProfile;
   intake?: Intake;
   memory?: string;
+  /**
+   * Gates currently activated by transit (planets' hdGate this week). Counted as
+   * valid grounding alongside natal gates: a weekly reading legitimately cites
+   * transit gates, so they must NOT register as hallucinations.
+   */
+  transitGates?: number[];
 }
 
 export interface ReportEvalContext {
@@ -54,7 +60,7 @@ function validGatesOf(profile: UserProfile): number[] {
  * anti-alucinación (evalNoHallucinatedGates: pasa si no menciona, falla si inventa).
  */
 export function runChatQualityEvals(ctx: ChatEvalContext): EvalSuite[] {
-  const validGates = validGatesOf(ctx.profile);
+  const validGates = [...new Set([...validGatesOf(ctx.profile), ...(ctx.transitGates ?? [])])];
   return [
     { name: "no-hallucinated-gates", fn: () => evalNoHallucinatedGates(ctx.output, validGates) },
     { name: "spanish", fn: () => evalSpanish(ctx.output) },

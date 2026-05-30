@@ -259,6 +259,8 @@ interface ChatEvalsArgs {
   profile: UserProfile;
   intake?: Intake;
   memory?: string;
+  /** Gates in transit this week — valid grounding alongside natal gates. */
+  transitGates: number[];
   transitsFetchedAt: string;
   model: string;
 }
@@ -281,6 +283,7 @@ function buildChatContextSnapshot(args: ChatEvalsArgs): unknown {
       gateNumbers: hd.activatedGates.map((g) => g.number),
       channelIds: hd.channels.map((c) => c.id),
     },
+    transitGates: args.transitGates,
     transitsFetchedAt: args.transitsFetchedAt,
     model: args.model,
   };
@@ -302,6 +305,7 @@ function triggerChatEvalsAsync(args: ChatEvalsArgs): void {
         profile: args.profile,
         intake: args.intake,
         memory: args.memory,
+        transitGates: args.transitGates,
       });
       const { results } = runEvals(suites);
       const snapshot = buildChatContextSnapshot(args);
@@ -339,6 +343,7 @@ function maybeTriggerChatEvals(
     profile: input.profile,
     intake: context.intakeForChat,
     memory: context.memoryForChat,
+    transitGates: context.transits.planets.map((p) => p.hdGate),
     transitsFetchedAt: context.transits.fetchedAt,
     model: context.selected.snapshot.model,
   });
