@@ -6,6 +6,8 @@ import {
   deleteUser,
   findUserByEmail,
   findUserByIdentity,
+  getChatMessagesWithFeedback,
+  getEvalResultsForUser,
   getLlmUsageForUser,
   getUserAssetCount,
   getUserAssetStorageKeys,
@@ -693,6 +695,83 @@ export async function userRoutes(app: FastifyInstance) {
 
       const usage = await getLlmUsageForUser(req.params.id, sinceIso);
       return reply.send({ days, since: sinceIso, ...usage });
+    },
+  );
+
+  app.get<{ Params: { id: string }; Querystring: { limit?: string } }>(
+    "/admin/users/:id/conversations",
+    async (req, reply) => {
+      const adminUser = await requireAdminUser(
+        req as AuthenticatedRequest,
+        reply,
+      );
+
+      if (!adminUser) {
+        return;
+      }
+
+      const targetUser = await getUser(req.params.id);
+      if (!targetUser) {
+        return reply.status(404).send({ error: "User not found" });
+      }
+
+      const rawLimit = Number.parseInt(req.query.limit ?? "20", 10);
+      const limit =
+        Number.isFinite(rawLimit) && rawLimit > 0 && rawLimit <= 100 ? rawLimit : 20;
+
+      // Fetch a little more than `limit` turns so each assistant message can
+      // still see its preceding user message at the window boundary.
+      const messages = await getChatMessagesWithFeedback(req.params.id, limit * 2 + 2);
+      const evalRows = await getEvalResultsForUser(req.params.id, {
+        surface: "chat",
+        limit: 1000,
+      });
+
+      const evalsByTarget = new Map<string, typeof evalRows>();
+      for (const row of evalRows) {
+        const bucket = evalsByTarget.get(row.targetId);
+        if (bucket) bucket.push(row);
+        else evalsByTarget.set(row.targetId, [row]);
+      }
+
+      const conversations = [];
+      for (let i = 0; i < messages.length; i++) {
+        const message = messages[i];
+        if (message.role !== "assistant") continue;
+
+        const prev = messages[i - 1];
+        const targetEvals = evalsByTarget.get(String(message.id)) ?? [];
+        const snapshotRow = targetEvals.find((e) => e.contextSnapshotJson !== null);
+        let contextSnapshot: unknown = null;
+        if (snapshotRow?.contextSnapshotJson) {
+          try {
+            contextSnapshot = JSON.parse(snapshotRow.contextSnapshotJson);
+          } catch {
+            contextSnapshot = null;
+          }
+        }
+
+        conversations.push({
+          assistantMsgId: message.id,
+          createdAt: message.createdAt,
+          userInput: prev && prev.role === "user" ? prev.content : null,
+          output: message.content,
+          feedback: message.feedbackThumb
+            ? { thumb: message.feedbackThumb, note: message.feedbackNote }
+            : null,
+          evals: targetEvals.map((e) => ({
+            name: e.evalName,
+            pass: e.pass,
+            reason: e.reason,
+            source: e.source,
+          })),
+          contextSnapshot,
+        });
+      }
+
+      // Newest first, capped at the requested limit.
+      conversations.reverse();
+      return reply.send({ conversations: conversations.slice(0, limit) });
     },
   );
 }

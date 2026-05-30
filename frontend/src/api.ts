@@ -13,6 +13,7 @@ import type {
   AdminUserAccessPatch,
   AdminUserDetail,
   AdminUserListResponse,
+  AdminUserConversations,
   AdminUserLlmUsage,
   AppUserStatus,
   ChatMessage,
@@ -673,6 +674,27 @@ export async function getAdminUserLlmUsage(
   }
 
   return await res.json() as AdminUserLlmUsage;
+}
+
+export async function getAdminUserConversations(
+  userId: string,
+  limit = 20,
+): Promise<AdminUserConversations> {
+  const search = new URLSearchParams();
+  if (Number.isFinite(limit) && limit > 0) {
+    search.set("limit", String(limit));
+  }
+  const params = search.toString() ? `?${search.toString()}` : "";
+  const res = await fetch(
+    `${BASE}/admin/users/${encodeURIComponent(userId)}/conversations${params}`,
+  );
+
+  if (!res.ok) {
+    const err = await readErrorMessage(res);
+    throw new Error(`Admin conversations error ${res.status}: ${err}`);
+  }
+
+  return await res.json() as AdminUserConversations;
 }
 
 export type AdminInviteResult =

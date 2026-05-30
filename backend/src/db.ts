@@ -1480,6 +1480,50 @@ export async function getChatMessages(
   }));
 }
 
+export type FeedbackThumb = "up" | "down";
+
+export interface ChatMessageWithFeedback {
+  id: number;
+  role: string;
+  content: string;
+  feedbackThumb: FeedbackThumb | null;
+  feedbackNote: string | null;
+  createdAt: string;
+}
+
+/**
+ * Most recent `limit` chat messages (chronological), including feedback columns.
+ * Used by the admin conversation data viewer to pair user→assistant turns with
+ * their 👍/👎. Distinct from getChatMessages, which omits feedback for the
+ * chat-history read path.
+ */
+export async function getChatMessagesWithFeedback(
+  userId: string,
+  limit = 100,
+): Promise<ChatMessageWithFeedback[]> {
+  const result = await client.execute({
+    sql: `SELECT id, role, content, feedback_thumb, feedback_note, created_at
+          FROM chat_messages
+          WHERE user_id = ?
+          ORDER BY id DESC
+          LIMIT ?`,
+    args: [userId, limit],
+  });
+  return result.rows
+    .map((row) => ({
+      id: Number(row.id),
+      role: String(row.role),
+      content: String(row.content),
+      feedbackThumb:
+        row.feedback_thumb === "up" || row.feedback_thumb === "down"
+          ? (row.feedback_thumb as FeedbackThumb)
+          : null,
+      feedbackNote: typeof row.feedback_note === "string" ? row.feedback_note : null,
+      createdAt: String(row.created_at ?? ""),
+    }))
+    .reverse();
+}
+
 export async function deleteChatMessagesFrom(userId: string, fromId: number): Promise<number> {
   const result = await client.execute({
     sql: "DELETE FROM chat_messages WHERE user_id = ? AND id >= ?",
