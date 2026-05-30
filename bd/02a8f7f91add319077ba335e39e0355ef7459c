@@ -1,0 +1,27 @@
+backend/src/services/guide-service.ts
+  s_ed6671f79ba7d5::t_38f503bf23d687 286
+  s_ed6671f79ba7d5::t_a9318f3d228cff 346
+  s_ed6671f79ba7d5::t_9669165610ff55 262-263
+  s_ed6671f79ba7d5::t_f6f818472a4423 308
+backend/src/__tests__/quality-suite.test.ts
+  s_ed6671f79ba7d5::t_9525d0a043afaf 62,71-88
+backend/src/evals/quality-suite.ts
+  s_ed6671f79ba7d5::t_04088b632df600 63
+  s_ed6671f79ba7d5::t_52890dec824a69 34-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "bd02a8f7f91add319077ba335e39e0355ef7459c",
+  "prompts": {},
+  "sessions": {
+    "s_ed6671f79ba7d5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "87e972f1-c442-4e84-b4a9-b30207030bb6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Brian Montero <brianmontero18@gmail.com>"
+    }
+  }
+}
