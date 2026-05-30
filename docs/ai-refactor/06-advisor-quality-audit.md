@@ -1,8 +1,8 @@
 # Advisor Quality Audit — anti-respuesta genérica
 
-**Fecha**: 2026-05-29
-**Bead**: `astral-y3c.15`
-**Status**: fuente de verdad cualitativa para `astral-y3c.3` y `astral-y3c.4`
+**Fecha**: 2026-05-29 · ampliado 2026-05-30 (rúbrica v2)
+**Bead**: `astral-y3c.15` (origen) · feeds `astral-y3c.3`, `astral-y3c.4`
+**Status**: fuente de verdad cualitativa de la calidad del advisor (rúbrica + persona + capacidad)
 
 ## Decisión
 
@@ -178,6 +178,55 @@ Preguntas de critique:
 - ¿Los headings aportan claridad o suenan heredados del POC?
 - ¿La longitud es proporcional al momento?
 
+## Rúbrica v2 — a qué responder y con qué fuente (ampliación founder 2026-05-30)
+
+Las 6 dimensiones anteriores miden la respuesta "tal cual". Estas cuatro cubren el criterio previo: **a qué área responde, en qué tiempo, y con qué fuente**. Surgieron al revisar la primera conversación real en prod.
+
+### 7. Conciencia de dominio
+
+- **Pass**: en preguntas abstractas sin dominio explícito ("¿cómo está mi energía esta semana?") asume **negocio por defecto** (el chat es para emprendedoras), pero reconoce señales personales (amor, pareja, familia, duelo, salud) y responde en ese registro sin forzar negocio.
+- **Fail**: trata todo como negocio aunque la pregunta sea claramente personal, o responde en abstracto sin elegir un lente.
+
+Preguntas de critique:
+
+- ¿La pregunta indicaba dominio, o lo dejó abierto?
+- Si era ambigua, ¿tomó negocio como primera lectura?
+- Si era personal explícita ("¿cómo estaré en el amor?", "me pasó algo con mi hermana"), ¿lo respetó sin meter negocio a la fuerza?
+
+### 8. Integridad del contexto de negocio
+
+- **Pass**: cuando el tema es negocio y hay intake/memoria, usa datos concretos de forma **evidente** (la recomendación cambia por ellos) y **no inventa** datos que no fueron provistos.
+- **Fail**: ignora el intake/memoria existente, o afirma hechos de negocio (oferta, precio, etapa, equipo, lanzamiento) que la usuaria nunca dio.
+
+Preguntas de critique:
+
+- ¿Se nota qué dato del negocio usó y por qué cambió el consejo?
+- ¿Inventó algún hecho de negocio fuera del intake/memoria? (espejo de la anti-alucinación HD de `astral-e2h`, aplicada al negocio).
+- Si no hay intake/memoria, ¿lo dijo en vez de improvisar contexto?
+
+### 9. Conciencia temporal
+
+- **Pass**: identifica el marco temporal (tránsito de una fecha / presente / futuro / diseño natal). Si el tiempo es ambiguo y cambia la respuesta, **pregunta** antes de asumir. Mantiene ese marco durante la conversación.
+- **Fail**: mezcla natal con tránsito sin distinguir, asume una fecha sin avisar cuando era ambigua, o pierde el marco a mitad de la charla.
+
+Preguntas de critique:
+
+- ¿De qué tiempo hablaba la consulta? ¿Estaba claro?
+- ¿Distinguió natal vs tránsito vs proyección a futuro?
+- Ante ambigüedad temporal, ¿preguntó o asumió?
+
+> Capacidad: las proyecciones a **fecha futura** ("¿mejor fecha para lanzar?") exigen cálculo determinístico de tránsitos vía tool, NO improvisación del LLM (principio no negociable #1). Hoy el agente no tiene esa tool — ver "Capacidad faltante" abajo.
+
+### 10. Arquitectura antes que táctica
+
+- **Pass**: en consultas de negocio, diagnostica el mecanismo de la oferta (promesa, mecanismo, objeción, secuencia, activos) antes de saltar a táctica de comunicación.
+- **Fail**: responde directo con "comunicá / contá historias / contenido / testimonios" sin tocar la arquitectura comercial.
+
+Preguntas de critique:
+
+- ¿Abordó el mecanismo de la oferta o solo la difusión?
+- ¿Hay una promesa/secuencia concreta, o solo "comunicá mejor"?
+
 ## Anti-patrones detectados
 
 1. **"Esta semana es propicia"** como opener comodín.
@@ -187,23 +236,22 @@ Preguntas de critique:
 5. **Falta de tensión**: no cuestiona relanzar, vender o automatizar cuando el sistema puede no estar listo.
 6. **No usa memoria suficiente**: ignora nombres de ofertas y objetivos ya conocidos.
 7. **Sobreamabilidad**: evita decir "no hagas eso todavía" o "esto no está listo".
+8. **Inventa contexto de negocio**: afirma oferta/precio/etapa/equipo/lanzamiento que la usuaria nunca dio.
+9. **Asume el marco temporal**: mezcla natal y tránsito, o fija una fecha sin avisar, cuando era ambiguo y cambiaba la respuesta.
+10. **Fuerza el lente de negocio**: responde en clave profesional una consulta claramente personal.
 
 ## Implicancias para `astral-y3c.3`
 
-El eval harness de chat debe incluir checks nuevos, además de grounding HD:
+**v1 — implementado** (commits `4cbc7ce`…`109f3a1`): las 6 heurísticas de las dimensiones 1-6, más grounding (`evalNoHallucinatedGates` ahora natal ∪ tránsito, fix `astral-egx`), persistencia (`eval_results`), wiring post-hoc gated, data viewer admin y etiquetado humano.
 
-- `evalUsesBusinessContext(output, intake, memory)`
-- `evalHdCitationChangesAdvice(output)`
-- `evalNoGenericAdvisorLanguage(output)`
-- `evalEmotionalAltitude(input, output)`
-- `evalAntiSycophancy(input, output)`
-- `evalNoDefaultReportScaffold(input, output)`
+**v2 — a implementar** (dimensiones 7-10). La mayoría es semántica → vive mejor en el **LLM-as-judge** (token-gated); algunas tienen proxy heurístico honesto:
 
-No todos tienen que ser heurísticas puras perfectas. La capa mínima puede ser:
+- `evalDomainFit(input, output)` — dominio detectado vs respuesta; proxy: lexicón personal (amor/pareja/familia/salud) para no forzar negocio. **[heurística parcial + juez]**
+- `evalBusinessIntegrity(output, intake, memory)` — extiende `evalUsesBusinessContext` con "evidente" + "no inventa". El "no inventa" es semántico → **[juez]**.
+- `evalTimeframeHandling(input, output)` — distingue natal/tránsito/futuro y detecta "asumió vs preguntó". **[juez]**
+- `evalArchitectureBeforeTactics(output)` — proxy: blocklist de táctica-sin-mecanismo. **[heurística parcial + juez]**
 
-- heurísticas binarias para lenguaje genérico y scaffold;
-- seed corpus humano con `pass/fail + critique`;
-- LLM-as-judge solo cuando el founder autorice tokens reales.
+Capa mínima sigue igual: heurística binaria donde aplica + seed corpus humano (`source='human'`) + juez **solo con autorización de tokens**. El juez compara contra el seed humano para el alignment.
 
 ## Implicancias para `astral-y3c.4`
 
@@ -216,6 +264,17 @@ El rewrite de persona no debe pedir simplemente "más HD" ni "mantener frame HD"
 - Si el plan no está listo, decilo.
 - No uses secciones fijas salvo que la pregunta pida lectura/informe.
 - No reintroduzcas nombres de canales en el prompt dinámico como atajo; usar tools.
+
+Reglas v2 (de las dimensiones 7-10):
+
+- **Negocio por defecto**: ante una pregunta abstracta sin dominio, leéla como negocio. Cambiá de registro solo si hay señal personal explícita (amor, familia, salud, duelo).
+- **No inventes negocio**: usá lo que está en intake/memoria; si falta el dato, pedilo, no lo improvises.
+- **Marco temporal explícito**: distinguí natal / tránsito / fecha futura. Si la consulta es ambigua sobre el tiempo y eso cambia la respuesta, **preguntá** antes de responder.
+- **Arquitectura antes que comunicación**: en negocio, atacá el mecanismo de la oferta antes que la difusión.
+
+## Capacidad faltante — proyección de tránsitos a fecha futura
+
+La dimensión 9 y consultas como "¿según el tránsito, cuál es la mejor fecha para lanzar mi oferta?" exigen **cálculo determinístico** de tránsitos para fechas/rangos arbitrarios, combinado con el HD del profile y el contexto de negocio. El motor (`transit-service`) ya computa para cualquier `targetAt`, pero el agente del chat **no tiene una tool** que lo invoque: solo tiene lookups estáticos de HD (`hd-tools/`), y el tránsito le llega fijado por el front. Esto NO es un eval ni la persona: es una **capacidad nueva** (tool determinística), trackeada en bead aparte bajo `astral-y3c`, que comparte el motor con las tools de tránsito MCP (`astral-sdy.6` / `astral-sdy.7`). Principio #1: el LLM nunca calcula; la tool sí.
 
 ## Qué no tocar todavía
 
@@ -230,8 +289,9 @@ El rewrite de persona no debe pedir simplemente "más HD" ni "mantener frame HD"
 
 El próximo paso no es "hacer el prompt más lindo". Es convertir esta rúbrica en evals y recién después hacer el persona rewrite.
 
-Orden recomendado:
+Orden recomendado (actualizado 2026-05-30):
 
-1. `astral-y3c.15`: cerrar este corpus/rúbrica.
-2. `astral-y3c.3`: extender eval harness de chat con esta rúbrica.
-3. `astral-y3c.4`: rewrite de persona anti-sycophancy + voice, gated por evals.
+1. ✅ `astral-y3c.15`: corpus/rúbrica v1 (cerrado).
+2. ✅ `astral-y3c.3`: eval harness v1 implementado (dimensiones 1-6 heurísticas + persistencia + viewer). Falta: dimensiones v2 vía juez (token-gated) + medición de alignment.
+3. ⏳ `astral-y3c.4`: rewrite de persona (anti-sycophancy + voice + reglas v2: dominio, marco temporal, integridad de negocio, arquitectura), gated por evals.
+4. 🆕 Tool de proyección de tránsitos (bead nueva bajo `astral-y3c`): capacidad para la dimensión 9; comparte motor con `astral-sdy.6/7`.
