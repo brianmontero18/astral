@@ -302,6 +302,29 @@ export interface AdminUserLlmUsage {
   byModel: Array<{ model: string } & AdminUserLlmUsageBreakdownEntry>;
 }
 
+export type EvalSource = "heuristic" | "human" | "judge";
+
+export interface AdminConversationEval {
+  name: string;
+  pass: boolean;
+  reason: string;
+  source: EvalSource;
+}
+
+export interface AdminConversationEntry {
+  assistantMsgId: number;
+  createdAt: string;
+  userInput: string | null;
+  output: string;
+  feedback: { thumb: "up" | "down"; note: string | null } | null;
+  evals: AdminConversationEval[];
+  contextSnapshot: unknown;
+}
+
+export interface AdminUserConversations {
+  conversations: AdminConversationEntry[];
+}
+
 export interface AssetMeta {
   id: string;
   filename: string;

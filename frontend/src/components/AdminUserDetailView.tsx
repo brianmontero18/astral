@@ -26,6 +26,7 @@ import {
   updateAdminUserAccess,
   type AdminInviteResult,
 } from "../api";
+import { AdminUserConversationsView } from "./AdminUserConversationsView";
 import { ConfirmModal } from "./ConfirmModal";
 import type {
   AdminUserAccessValues,
@@ -1115,6 +1116,8 @@ export function AdminUserDetailView({
               </div>
             )}
           </SupportSection>
+
+          <AdminUserConversationsView userId={userId} />
 
           <SupportSection title={personContextTitle}>
             <div

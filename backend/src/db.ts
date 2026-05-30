@@ -1,4 +1,4 @@
-import { createClient, type Client } from "@libsql/client";
+import { createClient, type Client, type Row } from "@libsql/client";
 import { randomUUID } from "node:crypto";
 
 import { getCurrentChatUsageCycle } from "./chat-limits.js";
@@ -567,6 +567,25 @@ export async function initDb(): Promise<void> {
         created_at       TEXT NOT NULL DEFAULT (datetime('now')),
         UNIQUE(provider, provider_user_id)
       )`,
+      // Advisor quality eval harness (astral-y3c.3). Polymorphic by (surface, target_id):
+      // target_id holds chat_messages.id (text) or hd_reports.id (UUID) — no FK because it
+      // points at two tables; ON DELETE CASCADE rides on user_id. source unifies heuristic
+      // runs, human seed labels, and (token-gated) LLM-judge labels in one table so the
+      // judge-vs-human alignment is a GROUP BY target_id. pass CHECK(0,1) forces binary
+      // scoring (no scale 1-5, per docs/ai-refactor/06-advisor-quality-audit.md).
+      `CREATE TABLE IF NOT EXISTS eval_results (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        surface      TEXT NOT NULL CHECK(surface IN ('chat','report')),
+        target_id    TEXT NOT NULL,
+        source       TEXT NOT NULL CHECK(source IN ('heuristic','human','judge')),
+        eval_name    TEXT NOT NULL,
+        pass         INTEGER NOT NULL CHECK(pass IN (0,1)),
+        reason       TEXT NOT NULL DEFAULT '',
+        context_snapshot_json TEXT DEFAULT NULL,
+        model        TEXT DEFAULT NULL,
+        created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
     ],
     "write",
   );
@@ -649,6 +668,9 @@ export async function initDb(): Promise<void> {
       "CREATE INDEX IF NOT EXISTS idx_shares_user ON report_shares(user_id)",
       "CREATE INDEX IF NOT EXISTS idx_shares_expires ON report_shares(expires_at)",
       "CREATE INDEX IF NOT EXISTS idx_llm_calls_user_created ON llm_calls(user_id, created_at)",
+      "CREATE INDEX IF NOT EXISTS idx_eval_results_target ON eval_results(target_id, source)",
+      "CREATE INDEX IF NOT EXISTS idx_eval_results_user_created ON eval_results(user_id, created_at)",
+      "CREATE INDEX IF NOT EXISTS idx_eval_results_surface_name ON eval_results(surface, eval_name, created_at)",
       // Partial UNIQUE: prevents two users from sharing an email regardless
       // of casing, while still allowing many rows where email IS NULL.
       "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_lower ON users(lower(email)) WHERE email IS NOT NULL",
@@ -1458,6 +1480,48 @@ export async function getChatMessages(
   }));
 }
 
+export interface ChatMessageWithFeedback {
+  id: number;
+  role: string;
+  content: string;
+  feedbackThumb: FeedbackThumb | null;
+  feedbackNote: string | null;
+  createdAt: string;
+}
+
+/**
+ * Most recent `limit` chat messages (chronological), including feedback columns.
+ * Used by the admin conversation data viewer to pair user→assistant turns with
+ * their 👍/👎. Distinct from getChatMessages, which omits feedback for the
+ * chat-history read path.
+ */
+export async function getChatMessagesWithFeedback(
+  userId: string,
+  limit = 100,
+): Promise<ChatMessageWithFeedback[]> {
+  const result = await client.execute({
+    sql: `SELECT id, role, content, feedback_thumb, feedback_note, created_at
+          FROM chat_messages
+          WHERE user_id = ?
+          ORDER BY id DESC
+          LIMIT ?`,
+    args: [userId, limit],
+  });
+  return result.rows
+    .map((row) => ({
+      id: Number(row.id),
+      role: String(row.role),
+      content: String(row.content),
+      feedbackThumb:
+        row.feedback_thumb === "up" || row.feedback_thumb === "down"
+          ? (row.feedback_thumb as FeedbackThumb)
+          : null,
+      feedbackNote: typeof row.feedback_note === "string" ? row.feedback_note : null,
+      createdAt: String(row.created_at ?? ""),
+    }))
+    .reverse();
+}
+
 export async function deleteChatMessagesFrom(userId: string, fromId: number): Promise<number> {
   const result = await client.execute({
     sql: "DELETE FROM chat_messages WHERE user_id = ? AND id >= ?",
@@ -2118,6 +2182,191 @@ export async function getRecentLlmCallsForUser(
     promptHash: String(row.prompt_hash ?? ""),
     createdAt: String(row.created_at ?? ""),
   }));
+}
+
+// ─── Eval Results (advisor quality harness) ────────────────────────────────────
+
+export type EvalSurface = "chat" | "report";
+export type EvalSource = "heuristic" | "human" | "judge";
+
+export interface EvalResultInput {
+  userId: string;
+  surface: EvalSurface;
+  /** chat_messages.id (as string) o hd_reports.id (UUID). */
+  targetId: string;
+  source: EvalSource;
+  evalName: string;
+  pass: boolean;
+  reason: string;
+  /** Solo se setea en la 1ra fila por target (contexto dinámico). Se serializa a JSON. */
+  contextSnapshot?: unknown;
+  /** Solo source='judge'. */
+  model?: string | null;
+}
+
+export interface EvalResultRecord {
+  id: number;
+  userId: string;
+  surface: EvalSurface;
+  targetId: string;
+  source: EvalSource;
+  evalName: string;
+  pass: boolean;
+  reason: string;
+  contextSnapshotJson: string | null;
+  model: string | null;
+  createdAt: string;
+}
+
+export interface EvalPassRateRow {
+  evalName: string;
+  surface: EvalSurface;
+  total: number;
+  passed: number;
+  passRate: number;
+}
+
+const EVAL_RESULT_COLUMNS =
+  "id, user_id, surface, target_id, source, eval_name, pass, reason, context_snapshot_json, model, created_at";
+
+function mapEvalResultRow(row: Row): EvalResultRecord {
+  return {
+    id: Number(row.id),
+    userId: String(row.user_id),
+    surface: row.surface as EvalSurface,
+    targetId: String(row.target_id),
+    source: row.source as EvalSource,
+    evalName: String(row.eval_name),
+    pass: Number(row.pass) === 1,
+    reason: String(row.reason ?? ""),
+    contextSnapshotJson:
+      typeof row.context_snapshot_json === "string" ? row.context_snapshot_json : null,
+    model: typeof row.model === "string" ? row.model : null,
+    createdAt: String(row.created_at ?? ""),
+  };
+}
+
+/** Persiste las N filas de un runEvals() en una sola transacción batch. */
+export async function insertEvalResults(rows: EvalResultInput[]): Promise<void> {
+  if (rows.length === 0) return;
+  await client.batch(
+    rows.map((row) => ({
+      sql: `INSERT INTO eval_results
+              (user_id, surface, target_id, source, eval_name, pass, reason, context_snapshot_json, model)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        row.userId,
+        row.surface,
+        row.targetId,
+        row.source,
+        row.evalName,
+        row.pass ? 1 : 0,
+        row.reason,
+        row.contextSnapshot === undefined ? null : JSON.stringify(row.contextSnapshot),
+        row.model ?? null,
+      ],
+    })),
+    "write",
+  );
+}
+
+export async function getEvalResultsForUser(
+  userId: string,
+  opts: { surface?: EvalSurface; limit?: number } = {},
+): Promise<EvalResultRecord[]> {
+  const args: Array<string | number> = [userId];
+  let surfaceClause = "";
+  if (opts.surface) {
+    surfaceClause = " AND surface = ?";
+    args.push(opts.surface);
+  }
+  args.push(opts.limit ?? 200);
+  const result = await client.execute({
+    sql: `SELECT ${EVAL_RESULT_COLUMNS}
+          FROM eval_results
+          WHERE user_id = ?${surfaceClause}
+          ORDER BY id DESC
+          LIMIT ?`,
+    args,
+  });
+  return result.rows.map(mapEvalResultRow);
+}
+
+/** Todas las fuentes (heuristic/human/judge) de un mismo target. Base del alignment. */
+export async function getEvalResultsByTarget(targetId: string): Promise<EvalResultRecord[]> {
+  const result = await client.execute({
+    sql: `SELECT ${EVAL_RESULT_COLUMNS} FROM eval_results WHERE target_id = ? ORDER BY id ASC`,
+    args: [targetId],
+  });
+  return result.rows.map(mapEvalResultRow);
+}
+
+/** Pass-rate por eval desde una fecha. Base de la alerta de degradación. */
+export async function getEvalPassRates(opts: {
+  since: string;
+  surface?: EvalSurface;
+  source?: EvalSource;
+}): Promise<EvalPassRateRow[]> {
+  const args: Array<string> = [opts.since];
+  let filters = "";
+  if (opts.surface) {
+    filters += " AND surface = ?";
+    args.push(opts.surface);
+  }
+  if (opts.source) {
+    filters += " AND source = ?";
+    args.push(opts.source);
+  }
+  const result = await client.execute({
+    sql: `SELECT eval_name, surface, COUNT(*) AS total, COALESCE(SUM(pass), 0) AS passed
+          FROM eval_results
+          WHERE datetime(created_at) >= datetime(?)${filters}
+          GROUP BY surface, eval_name
+          ORDER BY surface, eval_name`,
+    args,
+  });
+  return result.rows.map((row) => {
+    const total = Number(row.total ?? 0);
+    const passed = Number(row.passed ?? 0);
+    return {
+      evalName: String(row.eval_name),
+      surface: row.surface as EvalSurface,
+      total,
+      passed,
+      passRate: total > 0 ? passed / total : 0,
+    };
+  });
+}
+
+/**
+ * Upserts a human good/bad label + critique for a target (source='human',
+ * eval_name='overall'). Idempotent: re-labeling replaces the prior human label
+ * for that target instead of stacking rows, so the judge-vs-human alignment
+ * always compares against the latest human verdict.
+ */
+export async function setHumanEvalLabel(args: {
+  userId: string;
+  surface: EvalSurface;
+  targetId: string;
+  pass: boolean;
+  critique: string;
+}): Promise<void> {
+  await client.batch(
+    [
+      {
+        sql: `DELETE FROM eval_results
+              WHERE target_id = ? AND source = 'human' AND eval_name = 'overall'`,
+        args: [args.targetId],
+      },
+      {
+        sql: `INSERT INTO eval_results
+                (user_id, surface, target_id, source, eval_name, pass, reason)
+              VALUES (?, ?, ?, 'human', 'overall', ?, ?)`,
+        args: [args.userId, args.surface, args.targetId, args.pass ? 1 : 0, args.critique],
+      },
+    ],
+    "write",
+  );
 }
 
 export async function getLlmUsageForUser(

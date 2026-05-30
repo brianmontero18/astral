@@ -38,4 +38,18 @@ export const FLAGS = {
    * by slice.
    */
   REMOTE_MCP: envBool("FEATURE_REMOTE_MCP", false),
+
+  /**
+   * Post-hoc advisor-quality evals on chat turns (astral-y3c.3). Default OFF.
+   * When ON: after the reply is persisted, runs the heuristic eval suite
+   * fire-and-forget and stores rows in `eval_results`. Never blocks the user;
+   * a failure only logs at warn level. Runs locally — no LLM tokens.
+   */
+  POST_HOC_EVAL_CHAT: envBool("FEATURE_POST_HOC_EVAL_CHAT", false),
+
+  /**
+   * Post-hoc advisor-quality evals on generated reports (astral-y3c.3). Default
+   * OFF. Same fire-and-forget contract as POST_HOC_EVAL_CHAT.
+   */
+  POST_HOC_EVAL_REPORT: envBool("FEATURE_POST_HOC_EVAL_REPORT", false),
 } as const;

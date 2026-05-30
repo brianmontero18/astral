@@ -1,10 +1,13 @@
 import type { FastifyInstance } from "fastify";
 import { randomUUID } from "node:crypto";
-import { getUser, getReport, getReportById, saveReport, updateReportContent, createShareToken, getShareByToken, cleanupExpiredShares, insertLlmCall } from "../db.js";
+import { getUser, getReport, getReportById, saveReport, updateReportContent, createShareToken, getShareByToken, cleanupExpiredShares, insertLlmCall, insertEvalResults } from "../db.js";
 import { generateReport, computeProfileHash } from "../report/generate-report.js";
 import { renderReportPDF } from "../report/pdf-renderer.js";
+import { runEvals } from "../evals/prompt-eval.js";
+import { runReportQualityEvals } from "../evals/quality-suite.js";
+import { FLAGS } from "../config/flags.js";
 import type { UserProfile } from "../types/agent.js";
-import type { Intake, ReportTier, DesignReport } from "../report/types.js";
+import type { Intake, ReportTier, DesignReport, ReportSection } from "../report/types.js";
 import { type AuthenticatedRequest } from "../auth/session.js";
 import {
   resolveRequestCurrentUser,
@@ -78,6 +81,62 @@ async function sendReportStale(
     error: REPORT_STALE_ERROR,
     tier,
   });
+}
+
+/** Prosa evaluable del report: concatena el llmContent de cada sección. */
+function reportProse(sections: ReportSection[]): string {
+  return sections.map((s) => s.llmContent ?? "").filter(Boolean).join("\n\n");
+}
+
+/**
+ * Fire-and-forget post-hoc advisor-quality evals for a generated report. Same
+ * contract as the chat trigger: gated by flag, detached, failures only logged.
+ */
+function triggerReportEvalsAsync(args: {
+  app: FastifyInstance;
+  userId: string;
+  reportId: string;
+  sections: ReportSection[];
+  profile: UserProfile;
+  intake?: Intake;
+}): void {
+  if (!FLAGS.POST_HOC_EVAL_REPORT) return;
+
+  void (async () => {
+    try {
+      const output = reportProse(args.sections);
+      if (!output) return;
+      const suites = runReportQualityEvals({
+        output,
+        profile: args.profile,
+        intake: args.intake,
+      });
+      const { results } = runEvals(suites);
+      await insertEvalResults(
+        results.map((r, i) => ({
+          userId: args.userId,
+          surface: "report" as const,
+          targetId: args.reportId,
+          source: "heuristic" as const,
+          evalName: r.name,
+          pass: r.pass,
+          reason: r.reason,
+          contextSnapshot:
+            i === 0
+              ? {
+                  intake: args.intake ?? null,
+                  hdSummary: {
+                    type: args.profile.humanDesign.type,
+                    gateNumbers: args.profile.humanDesign.activatedGates.map((g) => g.number),
+                  },
+                }
+              : undefined,
+        })),
+      );
+    } catch (err) {
+      args.app.log.warn({ err, userId: args.userId }, "report evals run failed");
+    }
+  })();
 }
 
 export async function reportRoutes(app: FastifyInstance) {
@@ -256,6 +315,15 @@ export async function reportRoutes(app: FastifyInstance) {
 
       const content = JSON.stringify({ ...report, id: savedId, userId, createdAt });
       await updateReportContent(savedId, content);
+
+      triggerReportEvalsAsync({
+        app,
+        userId,
+        reportId: savedId,
+        sections: report.sections,
+        profile,
+        intake,
+      });
 
       return reply.send({ ...report, id: savedId, userId, createdAt });
     } catch (err) {
