@@ -46,6 +46,12 @@ OPENAI_API_KEY=
 Desde `backend/`:
 
 ```bash
+# Uso reciente por día/usuario (chat, LLM, tokens, tools, MCP, assets)
+./node_modules/.bin/tsx scripts/prod-audits/recent-usage.ts --days 7
+
+# Mismo reporte en JSON estructurado
+./node_modules/.bin/tsx scripts/prod-audits/recent-usage.ts --since 2026-05-28 --json
+
 # Overview de todos los users
 ./node_modules/.bin/tsx scripts/prod-audits/examples/users-overview.ts
 
