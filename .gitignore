@@ -25,6 +25,11 @@ astral.db*.bak
 *.jpeg
 dummy.txt
 
+# Marketing assets — imágenes de producto que SÍ se commitean
+# (excepción al *.png de arriba; no son screenshots descartables)
+!frontend/public/marketing/
+!frontend/public/marketing/**
+
 # IDE & tools
 .codex
 .codex/

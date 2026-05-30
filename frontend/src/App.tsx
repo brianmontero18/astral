@@ -15,6 +15,7 @@ import { TransitExperienceContainer } from "./transits/TransitExperienceContaine
 import { MyChartView } from "./components/MyChartView";
 import { IntakeView } from "./components/IntakeView";
 import { ReportView } from "./components/ReportView";
+import { HomePage } from "./components/marketing/HomePage";
 import { ConfirmModal } from "./components/ConfirmModal";
 import {
   generateReport,
@@ -85,6 +86,9 @@ export default function App() {
   const [transitChatContext, setTransitChatContext] = useState<TransitChatContext | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const adminSupportRoute = parseAdminSupportRoute(pathname);
+  // Public marketing home — bypasses auth so visitors can preview it at
+  // /home without a session. Réplica del diseño Stitch (desktop).
+  const isHomeRoute = pathname === "/home" || pathname === "/home/";
 
   useEffect(() => {
     const syncPathname = () => {
@@ -101,6 +105,13 @@ export default function App() {
     let cancelled = false;
 
     const bootstrap = async () => {
+      // The home is public: skip the session lookup (and its anonymous
+      // redirect-to-auth) entirely so /home renders without a session.
+      if (isHomeRoute) {
+        setReady(true);
+        return;
+      }
+
       try {
         const result = await getCurrentUser();
 
@@ -179,7 +190,17 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [authConfig.enabled, authConfig.websiteBasePath, pathname]);
+  }, [authConfig.enabled, authConfig.websiteBasePath, pathname, isHomeRoute]);
+
+  const handleEnterFromHome = () => {
+    if (authConfig.enabled) {
+      setAuthRedirectPending(true);
+      void redirectToAuth({ redirectBack: false });
+      return;
+    }
+    window.history.pushState({}, "", "/");
+    setPathname("/");
+  };
 
   const handleOnboardingComplete = (u: LocalUser, p: UserProfile) => {
     setUser(u);
@@ -361,6 +382,10 @@ export default function App() {
   };
 
   if (!ready || authRedirectPending) return null;
+
+  if (isHomeRoute) {
+    return <HomePage onEnter={handleEnterFromHome} />;
+  }
 
   if (bootstrapError) {
     return (
