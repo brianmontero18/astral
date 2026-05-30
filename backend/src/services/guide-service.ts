@@ -26,10 +26,13 @@ import {
   getRecentChatMessages,
   getTotalUserMessageCount,
   getUser,
+  insertEvalResults,
   insertLlmCall,
   saveChatMessage,
   updateUserMemory,
 } from "../db.js";
+import { runEvals } from "../evals/prompt-eval.js";
+import { runChatQualityEvals } from "../evals/quality-suite.js";
 import { FLAGS } from "../config/flags.js";
 import { calculateCost } from "../llm/pricing.js";
 import {
@@ -247,6 +250,100 @@ function triggerGuideMemoryWriterAsync(
   })();
 }
 
+interface ChatEvalsArgs {
+  app: FastifyInstance;
+  userId: string;
+  assistantMsgId: number;
+  output: string;
+  userInput: string;
+  profile: UserProfile;
+  intake?: Intake;
+  memory?: string;
+  transitsFetchedAt: string;
+  model: string;
+}
+
+/**
+ * Snapshot of the *dynamic* context only — NOT the static system prompt (which is
+ * identical between turns and lives in versioned code). Memory content is not
+ * stored (PII; it already lives in users.memory_md), only its presence/size.
+ */
+function buildChatContextSnapshot(args: ChatEvalsArgs): unknown {
+  const hd = args.profile.humanDesign;
+  return {
+    intake: args.intake ?? null,
+    memoryPresent: Boolean(args.memory),
+    memoryChars: args.memory?.length ?? 0,
+    hdSummary: {
+      type: hd.type,
+      definedCenters: hd.definedCenters,
+      undefinedCenters: hd.undefinedCenters,
+      gateNumbers: hd.activatedGates.map((g) => g.number),
+      channelIds: hd.channels.map((c) => c.id),
+    },
+    transitsFetchedAt: args.transitsFetchedAt,
+    model: args.model,
+  };
+}
+
+/**
+ * Fire-and-forget post-hoc advisor-quality evals for a chat turn. Mirrors the
+ * memory-writer contract: gated by flag, runs in a detached async closure, and
+ * a failure only logs at warn level — it never affects the user's reply.
+ */
+function triggerChatEvalsAsync(args: ChatEvalsArgs): void {
+  if (!FLAGS.POST_HOC_EVAL_CHAT) return;
+
+  void (async () => {
+    try {
+      const suites = runChatQualityEvals({
+        output: args.output,
+        userInput: args.userInput,
+        profile: args.profile,
+        intake: args.intake,
+        memory: args.memory,
+      });
+      const { results } = runEvals(suites);
+      const snapshot = buildChatContextSnapshot(args);
+      await insertEvalResults(
+        results.map((r, i) => ({
+          userId: args.userId,
+          surface: "chat" as const,
+          targetId: String(args.assistantMsgId),
+          source: "heuristic" as const,
+          evalName: r.name,
+          pass: r.pass,
+          reason: r.reason,
+          contextSnapshot: i === 0 ? snapshot : undefined,
+        })),
+      );
+    } catch (err) {
+      args.app.log.warn({ err, userId: args.userId }, "chat evals run failed");
+    }
+  })();
+}
+
+function maybeTriggerChatEvals(
+  input: RunGuideTurnInput,
+  context: Awaited<ReturnType<typeof buildGuideSelectedContext>>,
+  persisted: { assistantMsgId?: number },
+  output: string,
+): void {
+  if (!input.persistedUserId || persisted.assistantMsgId === undefined) return;
+  triggerChatEvalsAsync({
+    app: input.app,
+    userId: input.persistedUserId,
+    assistantMsgId: persisted.assistantMsgId,
+    output,
+    userInput: input.messages[input.messages.length - 1]?.content ?? "",
+    profile: input.profile,
+    intake: context.intakeForChat,
+    memory: context.memoryForChat,
+    transitsFetchedAt: context.transits.fetchedAt,
+    model: context.selected.snapshot.model,
+  });
+}
+
 export async function runGuideTurn(
   input: RunGuideTurnInput,
 ): Promise<RunGuideTurnResult> {
@@ -294,6 +391,8 @@ export async function runGuideTurn(
       messages: input.messages,
       replyText: result.content,
     });
+
+    maybeTriggerChatEvals(input, context, persisted, result.content);
 
     return {
       reply: result.content,
@@ -347,6 +446,8 @@ export async function streamGuideTurn(
       replyText: fullText,
       requireReplyText: true,
     });
+
+    maybeTriggerChatEvals(input, context, persisted, fullText);
 
     return {
       transitsUsed: context.transits.fetchedAt,
