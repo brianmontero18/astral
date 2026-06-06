@@ -113,6 +113,7 @@ Invocar con `/skill-name`. Skills user-level provistas en `~/.claude/skills/`. L
 | `/eval-specialist` | Diseñar evals para prompts/skills. |
 | `/genai-gateway-specialist` | (MeLi) Consumir LLMs vía Gateway Hub. |
 | `/manos-api-db-specialist` | (Manos) Schema, GORM, migraciones. |
+| `/aurea-studio` | Diseñar landings / prototipos / POCs web para emprendedoras conscientes con **Stitch (Gemini)** + **Diseño Humano (Astral)**. Genera HTML+CSS real con el costo de tokens en Google, no en Claude. Detalle: [`.claude/skills/aurea-studio/SKILL.md`](.claude/skills/aurea-studio/SKILL.md). |
 | `/find-skills` | Si no sabés qué skill usar. |
 
 Para skills no listadas: `bd help`, `~/.claude/skills/`, o `/find-skills`.
