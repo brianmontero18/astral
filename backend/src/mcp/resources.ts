@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { getUser } from "../db.js";
+import { hasCalculatedBodygraphProfile } from "../bodygraph/profile-context.js";
 import { renderBodygraphPdf } from "../bodygraph/render-pdf.js";
 import { renderFullDocument } from "../bodygraph/render-svg.js";
 import type { UserProfile } from "../types/agent.js";
@@ -37,16 +38,9 @@ export interface McpResourceReadResult {
   }>;
 }
 
-function profileHasCalculatedBodygraph(profile: unknown): profile is UserProfile {
-  const candidate = profile as {
-    humanDesign?: { activatedGates?: Array<unknown> };
-  };
-  return Boolean(candidate?.humanDesign?.activatedGates?.length);
-}
-
 function userHasActiveBodygraph(user: Awaited<ReturnType<typeof getUser>>): boolean {
   if (!user) return false;
-  return Boolean(user.profile_asset_id || profileHasCalculatedBodygraph(user.profile));
+  return Boolean(user.profile_asset_id || hasCalculatedBodygraphProfile(user.profile));
 }
 
 async function getActiveProfile(principal: McpPrincipal): Promise<UserProfile> {
@@ -55,11 +49,11 @@ async function getActiveProfile(principal: McpPrincipal): Promise<UserProfile> {
     throw new Error("user_not_found");
   }
 
-  if (!profileHasCalculatedBodygraph(user.profile)) {
+  if (!hasCalculatedBodygraphProfile(user.profile)) {
     throw new Error("no_active_bodygraph");
   }
 
-  return user.profile as UserProfile;
+  return user.profile;
 }
 
 const MCP_APPS_SDK_MODULE_URL = "https://cdn.jsdelivr.net/npm/@modelcontextprotocol/ext-apps@1.7.2/+esm";

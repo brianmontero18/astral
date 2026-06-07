@@ -126,24 +126,38 @@ const MOCK_IMPACT = {
 };
 
 function testProfile(name: string, type: string = "Generator") {
+  const isProjector = type === "Projector";
+
   return {
     name,
     humanDesign: {
       type,
-      strategy: "Respond",
-      authority: "Sacral",
+      strategy: isProjector ? "Wait for the Invitation" : "Respond",
+      authority: isProjector ? "Self-Projected" : "Sacral",
       profile: "2/4",
       definition: "Single Definition",
       incarnationCross: "Right Angle Cross of Explanation",
-      notSelfTheme: "Frustration",
+      notSelfTheme: isProjector ? "Bitterness" : "Frustration",
       variable: "",
       digestion: "",
       environment: "",
       strongestSense: "",
-      channels: [],
-      activatedGates: [{ number: 1, line: 1, planet: "Sun", isPersonality: true }],
-      definedCenters: ["Sacral"],
-      undefinedCenters: ["Head"],
+      channels: isProjector
+        ? [{ id: "1-8", name: "Canal de Inspiración", circuit: "Individual" }]
+        : [{ id: "5-15", name: "Canal del Ritmo", circuit: "Collective" }],
+      activatedGates: isProjector
+        ? [
+            { number: 1, line: 1, planet: "Sun", isPersonality: true },
+            { number: 8, line: 2, planet: "Earth", isPersonality: false },
+          ]
+        : [
+            { number: 5, line: 1, planet: "Sun", isPersonality: true },
+            { number: 15, line: 2, planet: "Earth", isPersonality: false },
+          ],
+      definedCenters: isProjector ? ["G", "Throat"] : ["G", "Sacral"],
+      undefinedCenters: isProjector
+        ? ["Head", "Ajna", "Spleen", "SolarPlexus", "Heart", "Sacral", "Root"]
+        : ["Head", "Ajna", "Throat", "Spleen", "SolarPlexus", "Heart", "Root"],
     },
   };
 }
@@ -582,6 +596,7 @@ describe("Remote MCP route", () => {
       "get_active_bodygraph_image_v1",
       "get_active_bodygraph_pdf_v1",
       "get_center_for_gate_v1",
+      "get_my_profile_context_pack_v1",
     ]);
     expect(toolNames).not.toContain("ask_astral_guide_v1");
     expect(toolNames).not.toContain("create_my_bodygraph_from_birth_v1");
@@ -602,6 +617,14 @@ describe("Remote MCP route", () => {
         annotations: expect.objectContaining({
           readOnlyHint: true,
           destructiveHint: false,
+        }),
+      }),
+    );
+    expect(body.result.tools).toContainEqual(
+      expect.objectContaining({
+        name: "get_my_profile_context_pack_v1",
+        outputSchema: expect.objectContaining({
+          required: ["status", "model", "source", "summary", "profile"],
         }),
       }),
     );
@@ -1001,6 +1024,7 @@ describe("Remote MCP route", () => {
       "get_active_bodygraph_image_v1",
       "get_active_bodygraph_pdf_v1",
       "get_center_for_gate_v1",
+      "get_my_profile_context_pack_v1",
       "open_bodygraph_form_v1",
       "search_birth_places_v1",
     ]);
@@ -2153,6 +2177,322 @@ describe("Remote MCP route", () => {
         metadata: { reason: "insufficient_scope" },
       }),
     ]);
+  });
+
+  it("returns the active Human Design profile context pack as structured MCP data", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    const profile = {
+      ...testProfile("Context Pack User", "Projector"),
+      birthData: {
+        dateLocalIso: "1990-04-03T10:15:00-03:00",
+        dateUtcIso: "1990-04-03T13:15:00.000Z",
+        placeLabel: "Buenos Aires, Argentina",
+        coordinates: { lat: -34.6037, lon: -58.3816 },
+        timezoneOffsetHours: -3,
+        ageYears: 36,
+      },
+      humanDesign: {
+        ...testProfile("Context Pack User", "Projector").humanDesign,
+        typeQualifier: "Self-Projected",
+        strategy: "Wait for the Invitation",
+        authority: "Self-Projected",
+        profileName: "Hermit / Opportunist",
+        themes: { positive: "Success", notSelf: "Bitterness" },
+        notSelfTheme: "Bitterness",
+        variable: "PRR DRL",
+        digestion: "Cold",
+        environment: "Markets",
+        strongestSense: "Outer Vision",
+        design: { date: "1990-01-04T13:15:00.000Z" },
+        variables: {
+          digestion: { orientation: "right", color: 2, tone: 3, base: 1 },
+          awareness: { orientation: "right", color: 4, tone: 5, base: 2 },
+          environment: { orientation: "left", color: 1, tone: 2, base: 3 },
+          perspective: { orientation: "right", color: 6, tone: 1, base: 4 },
+        },
+        variableLabels: {
+          brain: "Passive Brain",
+          determination: "Cold",
+          determinationCategory: "Temperature",
+          cognition: "Outer Vision",
+          environment: "Markets",
+          environmentDetail: "Internal Markets",
+          environmentStyle: "Observed",
+          personality: "Right Mind",
+          motivation: "Hope",
+          sense: "Outer Vision",
+          trajectory: "Theist",
+          viewPerspective: "Personal",
+          view: "Possibility",
+          transferredMotivation: "Guilt",
+          transferredView: "Probability",
+        },
+        channels: [{ id: "1-8", name: "Canal de Inspiración", circuit: "Individual" }],
+        activatedGates: [
+          {
+            number: 1,
+            line: 1,
+            color: 2,
+            tone: 3,
+            base: 1,
+            planet: "Sun",
+            isPersonality: true,
+            isRetrograde: true,
+            fixingState: "exalted",
+          },
+          {
+            number: 8,
+            line: 2,
+            color: 4,
+            tone: 5,
+            base: 2,
+            planet: "Earth",
+            isPersonality: false,
+            isRetrograde: false,
+            fixingState: "detriment",
+          },
+        ],
+        definedCenters: ["G", "Throat"],
+        undefinedCenters: ["Head", "Ajna", "Spleen", "SolarPlexus", "Heart", "Sacral", "Root"],
+      },
+    };
+    const { userId } = await seedMcpAccess(db, {
+      profile,
+      tokenScopes: ["mcp:read_hd"],
+      consentScopes: ["mcp:read_hd"],
+    });
+
+    const res = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: toolsCallBody("get_my_profile_context_pack_v1", {}),
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body).toMatchObject({
+      jsonrpc: "2.0",
+      id: "req-1",
+      result: {
+        content: [
+          {
+            type: "text",
+            text: expect.any(String),
+          },
+        ],
+        structuredContent: {
+          status: "ready",
+          model: "v1_single_active_chart",
+          source: {
+            profile: "users.profile",
+            humanDesign: "users.profile.humanDesign",
+          },
+          summary: {
+            name: "Context Pack User",
+            type: "Projector",
+            strategy: "Wait for the Invitation",
+            authority: "Self-Projected",
+            profile: "2/4",
+            channelCount: 1,
+            activatedGateCount: 2,
+          },
+          profile: {
+            name: "Context Pack User",
+            birthData: {
+              placeLabel: "Buenos Aires, Argentina",
+              timezoneOffsetHours: -3,
+            },
+            humanDesign: {
+              type: "Projector",
+              typeQualifier: "Self-Projected",
+              profileName: "Hermit / Opportunist",
+              incarnationCross: "Right Angle Cross of Explanation",
+              themes: { positive: "Success", notSelf: "Bitterness" },
+              variable: "PRR DRL",
+              digestion: "Cold",
+              environment: "Markets",
+              strongestSense: "Outer Vision",
+              design: { date: "1990-01-04T13:15:00.000Z" },
+              variables: {
+                digestion: { orientation: "right", color: 2, tone: 3, base: 1 },
+                awareness: { orientation: "right", color: 4, tone: 5, base: 2 },
+                environment: { orientation: "left", color: 1, tone: 2, base: 3 },
+                perspective: { orientation: "right", color: 6, tone: 1, base: 4 },
+              },
+              variableLabels: {
+                brain: "Passive Brain",
+                determination: "Cold",
+                determinationCategory: "Temperature",
+                cognition: "Outer Vision",
+                environment: "Markets",
+                environmentDetail: "Internal Markets",
+                environmentStyle: "Observed",
+                personality: "Right Mind",
+                motivation: "Hope",
+                sense: "Outer Vision",
+                trajectory: "Theist",
+                viewPerspective: "Personal",
+                view: "Possibility",
+                transferredMotivation: "Guilt",
+                transferredView: "Probability",
+              },
+              channels: [{ id: "1-8", name: "Canal de Inspiración", circuit: "Individual" }],
+              activatedGates: [
+                {
+                  number: 1,
+                  line: 1,
+                  color: 2,
+                  tone: 3,
+                  base: 1,
+                  planet: "Sun",
+                  isPersonality: true,
+                  isRetrograde: true,
+                  fixingState: "exalted",
+                },
+                {
+                  number: 8,
+                  line: 2,
+                  color: 4,
+                  tone: 5,
+                  base: 2,
+                  planet: "Earth",
+                  isPersonality: false,
+                  isRetrograde: false,
+                  fixingState: "detriment",
+                },
+              ],
+              activatedGatesBySide: {
+                personality: [
+                  {
+                    number: 1,
+                    line: 1,
+                    color: 2,
+                    tone: 3,
+                    base: 1,
+                    planet: "Sun",
+                    isPersonality: true,
+                    isRetrograde: true,
+                    fixingState: "exalted",
+                  },
+                ],
+                design: [
+                  {
+                    number: 8,
+                    line: 2,
+                    color: 4,
+                    tone: 5,
+                    base: 2,
+                    planet: "Earth",
+                    isPersonality: false,
+                    isRetrograde: false,
+                    fixingState: "detriment",
+                  },
+                ],
+              },
+              definedCenters: ["G", "Throat"],
+              undefinedCenters: ["Head", "Ajna", "Spleen", "SolarPlexus", "Heart", "Sacral", "Root"],
+            },
+          },
+        },
+      },
+    });
+    expect(JSON.parse(body.result.content[0].text)).toEqual(body.result.structuredContent);
+    expect(runAstralAgentV2Mock).not.toHaveBeenCalled();
+    expect(runMemoryWriterMock).not.toHaveBeenCalled();
+    expect(await db.getChatMessages(userId)).toEqual([]);
+  });
+
+  it("rejects get_my_profile_context_pack_v1 without mcp:read_hd", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    const { userId, clientId } = await seedMcpAccess(db);
+
+    const res = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: toolsCallBody("get_my_profile_context_pack_v1", {}),
+    });
+
+    expect(res.statusCode).toBe(403);
+    expect(JSON.parse(res.body)).toMatchObject({
+      jsonrpc: "2.0",
+      id: "req-1",
+      error: {
+        code: -32006,
+        message: "insufficient_scope",
+        data: {
+          requiredScopes: ["mcp:read_hd"],
+        },
+      },
+    });
+    expect(await db.getMcpAuditEventsForUser(userId)).toEqual([
+      expect.objectContaining({
+        user_id: userId,
+        client_id: clientId,
+        event: "tool_call_blocked",
+        tool_name: "get_my_profile_context_pack_v1",
+        status: "denied",
+        metadata: { reason: "insufficient_scope" },
+      }),
+    ]);
+    expect(runAstralAgentV2Mock).not.toHaveBeenCalled();
+    expect(runMemoryWriterMock).not.toHaveBeenCalled();
+  });
+
+  it("returns no_active_bodygraph when the stored profile shape is corrupt", async () => {
+    const harness = await buildMcpTestApp(true);
+    const db = await import("../db.js");
+    const corruptProfile = {
+      ...testProfile("Corrupt Profile User", "Projector"),
+      humanDesign: {
+        ...testProfile("Corrupt Profile User", "Projector").humanDesign,
+        activatedGates: [{ number: 65, line: 1, planet: "Sun", isPersonality: true }],
+      },
+    };
+    const { userId, clientId } = await seedMcpAccess(db, {
+      profile: corruptProfile,
+      tokenScopes: ["mcp:read_hd"],
+      consentScopes: ["mcp:read_hd"],
+    });
+
+    const res = await harness.app.inject({
+      method: "POST",
+      url: "/api/mcp/v1",
+      headers: mcpHeaders(),
+      payload: toolsCallBody("get_my_profile_context_pack_v1", {}),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toMatchObject({
+      jsonrpc: "2.0",
+      id: "req-1",
+      error: {
+        code: -32019,
+        message: "no_active_bodygraph",
+      },
+    });
+    expect(await db.getMcpAuditEventsForUser(userId)).toEqual([
+      expect.objectContaining({
+        user_id: userId,
+        client_id: clientId,
+        event: "tool_call_started",
+        tool_name: "get_my_profile_context_pack_v1",
+        status: "success",
+      }),
+      expect.objectContaining({
+        user_id: userId,
+        client_id: clientId,
+        event: "tool_call_failed",
+        tool_name: "get_my_profile_context_pack_v1",
+        status: "error",
+        metadata: { message: "no_active_bodygraph" },
+      }),
+    ]);
+    expect(runAstralAgentV2Mock).not.toHaveBeenCalled();
+    expect(runMemoryWriterMock).not.toHaveBeenCalled();
   });
 
   it("blocks deterministic HD tools before execution when MCP budget is exhausted", async () => {

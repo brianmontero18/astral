@@ -27,6 +27,10 @@ import {
   getCenterForGateToolDefinition,
 } from "./tools/hd-deterministic-v1.js";
 import {
+  callGetMyProfileContextPackV1,
+  getMyProfileContextPackToolDefinition,
+} from "./tools/profile-context-v1.js";
+import {
   McpToolCallError,
   type McpToolCallResult,
 } from "./tool-contract.js";
@@ -67,6 +71,10 @@ const MCP_TOOLS: McpToolDefinition[] = [
   {
     ...getCenterForGateToolDefinition,
     call: callGetCenterForGateV1,
+  },
+  {
+    ...getMyProfileContextPackToolDefinition,
+    call: callGetMyProfileContextPackV1,
   },
   {
     ...getActiveBodygraphImageToolDefinition,

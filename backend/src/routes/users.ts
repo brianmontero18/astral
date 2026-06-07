@@ -41,6 +41,7 @@ import {
   sendAdminInviteEmail,
 } from "../auth/admin-invite-email.js";
 import { parseActiveChartName } from "../active-chart-name.js";
+import { extractHumanDesignCoreSummary } from "../bodygraph/profile-context.js";
 import { getMessageLimitForPlan } from "../chat-limits.js";
 import { deriveImpliedFields } from "../extraction-service.js";
 import type { UserProfile } from "../types/agent.js";
@@ -885,32 +886,11 @@ async function buildAdminUserDetail(user: AppUserRecord) {
       assetCount,
       reportsAvailable,
     },
-    humanDesign: extractHumanDesignSummary(user.profile),
+    humanDesign: extractHumanDesignCoreSummary(user.profile),
     onboardingStatus: user.onboarding_status,
     onboardingStep: user.onboarding_step,
     accessSource: user.access_source,
     createdAt: user.created_at,
     updatedAt: user.updated_at,
   };
-}
-
-function extractHumanDesignSummary(profile: object) {
-  const root = isRecord(profile) ? profile : null;
-  const humanDesign = isRecord(root?.humanDesign)
-    ? root.humanDesign
-    : root;
-
-  return {
-    type: getOptionalString(humanDesign?.type),
-    authority: getOptionalString(humanDesign?.authority),
-    profile: getOptionalString(humanDesign?.profile),
-  };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function getOptionalString(value: unknown): string | null {
-  return typeof value === "string" ? value : null;
 }

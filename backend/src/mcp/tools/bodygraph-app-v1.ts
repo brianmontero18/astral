@@ -6,6 +6,10 @@ import {
 } from "../../db.js";
 import { parseActiveChartName } from "../../active-chart-name.js";
 import { calculateBodygraph, type BirthData } from "../../bodygraph/calculate.js";
+import {
+  buildHumanDesignSummary,
+  hasCalculatedBodygraphProfile,
+} from "../../bodygraph/profile-context.js";
 import { renderBodygraphPdf } from "../../bodygraph/render-pdf.js";
 import { renderFullDocument } from "../../bodygraph/render-svg.js";
 import type { UserProfile } from "../../types/agent.js";
@@ -193,20 +197,10 @@ function readBirthData(args: Record<string, unknown>): BirthData {
 
 function hasActiveBodygraph(user: Awaited<ReturnType<typeof getUser>>): boolean {
   if (!user) return false;
-  const profile = user.profile as {
-    humanDesign?: { activatedGates?: Array<unknown> };
-  };
   return Boolean(
     user.profile_asset_id ||
-    (profile.humanDesign?.activatedGates?.length ?? 0) > 0,
+    hasCalculatedBodygraphProfile(user.profile),
   );
-}
-
-function profileHasCalculatedBodygraph(profile: unknown): profile is UserProfile {
-  const candidate = profile as {
-    humanDesign?: { activatedGates?: Array<unknown> };
-  };
-  return Boolean(candidate?.humanDesign?.activatedGates?.length);
 }
 
 async function getActiveProfile(userId: string): Promise<UserProfile> {
@@ -214,25 +208,10 @@ async function getActiveProfile(userId: string): Promise<UserProfile> {
   if (!user) {
     throw new McpToolCallError(-32010, "user_not_found");
   }
-  if (!profileHasCalculatedBodygraph(user.profile)) {
+  if (!hasCalculatedBodygraphProfile(user.profile)) {
     throw new McpToolCallError(-32019, "no_active_bodygraph");
   }
-  return user.profile as UserProfile;
-}
-
-function serializeProfileSummary(profile: UserProfile) {
-  return {
-    name: profile.name,
-    type: profile.humanDesign.type,
-    strategy: profile.humanDesign.strategy,
-    authority: profile.humanDesign.authority,
-    profile: profile.humanDesign.profile,
-    definition: profile.humanDesign.definition,
-    incarnationCross: profile.humanDesign.incarnationCross,
-    definedCenters: profile.humanDesign.definedCenters,
-    channels: profile.humanDesign.channels,
-    activatedGateCount: profile.humanDesign.activatedGates.length,
-  };
+  return user.profile;
 }
 
 function confirmationRequiredResult(): McpToolCallResult {
@@ -695,7 +674,7 @@ export async function callCreateBodygraphFromBirthV1(
     releaseReplace?.();
   }
 
-  const summary = serializeProfileSummary(profile);
+  const summary = buildHumanDesignSummary(profile);
   return textResult(
     `Bodygraph guardado para ${summary.name}. Tipo: ${summary.type}. Autoridad: ${summary.authority}. Perfil: ${summary.profile}.`,
     {

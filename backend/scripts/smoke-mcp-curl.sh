@@ -315,7 +315,18 @@ assert_status "200" "tools/list"
 assert_json "tools/list exposes ask tool for mcp:ask clients" "Array.isArray(data.result.tools) && data.result.tools.some((tool) => tool.name === 'ask_astral_guide_v1')"
 assert_json "tools/list exposes bodygraph form for write clients" "data.result.tools.some((tool) => tool.name === 'open_bodygraph_form_v1') && data.result.tools.some((tool) => tool.name === 'create_my_bodygraph_from_birth_v1')"
 assert_json "tools/list exposes bodygraph export tools for read-HD clients" "data.result.tools.some((tool) => tool.name === 'get_active_bodygraph_image_v1') && data.result.tools.some((tool) => tool.name === 'get_active_bodygraph_pdf_v1')"
+assert_json "tools/list exposes structured HD profile context for read-HD clients" "data.result.tools.some((tool) => tool.name === 'get_my_profile_context_pack_v1')"
 pass "tools/list exposes ask tool for mcp:ask clients"
+
+request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"profile-context","method":"tools/call","params":{"name":"get_my_profile_context_pack_v1","arguments":{}}}' \
+  -H "content-type: application/json" \
+  -H "accept: application/json, text/event-stream" \
+  -H "authorization: Bearer ${VALID_TOKEN}"
+assert_status "200" "profile context pack tool"
+assert_json "profile context pack returns structured active HD data" "data.result.structuredContent.status === 'ready' && data.result.structuredContent.model === 'v1_single_active_chart' && data.result.structuredContent.summary.type === 'Generator' && data.result.structuredContent.summary.activatedGateCount === 2 && data.result.structuredContent.profile.humanDesign.activatedGatesBySide.personality.length === 1 && data.result.structuredContent.profile.humanDesign.activatedGatesBySide.design.length === 1 && !('note' in data.result.structuredContent.source)"
+assert_json "profile context pack includes PDF-facing HD metadata" "data.result.structuredContent.profile.humanDesign.incarnationCross === 'Right Angle Cross of Explanation' && data.result.structuredContent.profile.humanDesign.design.date === '1988-11-20T09:00:00.000Z' && data.result.structuredContent.profile.humanDesign.variables.digestion.color === 2 && data.result.structuredContent.profile.humanDesign.variableLabels.determination === 'Cold' && data.result.structuredContent.profile.humanDesign.activatedGates.every((gate) => Number.isInteger(gate.color) && Number.isInteger(gate.tone) && Number.isInteger(gate.base) && typeof gate.fixingState === 'string')"
+assert_json "profile context pack mirrors structured content in text for hosts without structured output" "JSON.stringify(JSON.parse(data.result.content[0].text)) === JSON.stringify(data.result.structuredContent)"
+pass "profile context pack tool returns structured active HD data"
 
 request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"resources","method":"resources/list"}' \
   -H "content-type: application/json" \
@@ -356,6 +367,14 @@ request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"create-confirmed
 assert_status "200" "confirmed bodygraph write"
 assert_json "confirmed bodygraph write saves active chart" "data.result.structuredContent.status === 'saved' && data.result.structuredContent.resources.image === 'astral://bodygraph/active/image' && data.result.structuredContent.resources.pdf === 'astral://bodygraph/active/pdf'"
 pass "confirmed bodygraph write saves active chart"
+
+request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"profile-context-after-write","method":"tools/call","params":{"name":"get_my_profile_context_pack_v1","arguments":{}}}' \
+  -H "content-type: application/json" \
+  -H "accept: application/json, text/event-stream" \
+  -H "authorization: Bearer ${VALID_TOKEN}"
+assert_status "200" "profile context pack after calculated write"
+assert_json "calculated context pack includes variable wheel and design metadata" "data.result.structuredContent.status === 'ready' && typeof data.result.structuredContent.profile.humanDesign.incarnationCross === 'string' && data.result.structuredContent.profile.humanDesign.incarnationCross.length > 0 && typeof data.result.structuredContent.profile.humanDesign.design.date === 'string' && typeof data.result.structuredContent.profile.humanDesign.variableLabels.determination === 'string' && typeof data.result.structuredContent.profile.humanDesign.variableLabels.environmentDetail === 'string' && Number.isInteger(data.result.structuredContent.profile.humanDesign.variables.digestion.color) && Number.isInteger(data.result.structuredContent.profile.humanDesign.variables.perspective.tone) && data.result.structuredContent.profile.humanDesign.activatedGates.length > 0 && data.result.structuredContent.profile.humanDesign.activatedGates.every((gate) => Number.isInteger(gate.color) && Number.isInteger(gate.tone) && Number.isInteger(gate.base) && (gate.fixingState === null || gate.fixingState === 'exalted' || gate.fixingState === 'detriment'))"
+pass "profile context pack preserves calculated HD metadata after write"
 
 request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"active-image","method":"resources/read","params":{"uri":"astral://bodygraph/active/image"}}' \
   -H "content-type: application/json" \
@@ -406,6 +425,7 @@ assert_json "read-only token does not list ask" "Array.isArray(data.result.tools
 assert_json "read-only token does not list write bodygraph tools" "!data.result.tools.some((tool) => tool.name === 'create_my_bodygraph_from_birth_v1') && !data.result.tools.some((tool) => tool.name === 'open_bodygraph_form_v1') && !data.result.tools.some((tool) => tool.name === 'search_birth_places_v1')"
 assert_json "read-only token lists deterministic HD tool" "data.result.tools.some((tool) => tool.name === 'get_center_for_gate_v1')"
 assert_json "read-only token lists bodygraph export tools" "data.result.tools.some((tool) => tool.name === 'get_active_bodygraph_image_v1') && data.result.tools.some((tool) => tool.name === 'get_active_bodygraph_pdf_v1')"
+assert_json "read-only token lists profile context pack tool" "data.result.tools.some((tool) => tool.name === 'get_my_profile_context_pack_v1')"
 pass "read-only token lists deterministic HD tools without ask"
 
 request "POST" "${BASE_URL}/api/mcp/v1" '{"jsonrpc":"2.0","id":"read-only-create-denied","method":"tools/call","params":{"name":"create_my_bodygraph_from_birth_v1","arguments":{"name":"Denied","date":"1989-02-18","time":"09:00","place":{"lat":-34.6037,"lon":-58.3816,"label":"Buenos Aires, Argentina"},"confirmReplace":true}}}' \
